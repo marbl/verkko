@@ -17,8 +17,9 @@ scripts/merge_unresolved_dbg_nodes.py < hifi_connected.gfa > normal-hifi_connect
 
 scripts/add_fake_alignments.py graph-multirle-nonblunt.gfa normal-hifi_connected.gfa paths.gaf nodecovs-hifi.csv fake-hifi-alns.gaf fake-hifi-nodecovs.csv 5
 scripts/remove_small_tips.py normal-hifi_connected.gfa fake-hifi-nodecovs.csv fake-hifi-alns.gaf 2 7500 3 10 > untippedone-normal-hifi_connected.gfa
-scripts/remove_small_tips.py untippedone-normal-hifi_connected.gfa fake-hifi-nodecovs.csv fake-hifi-alns.gaf 2 7500 5 20 > untipped-normal-hifi_connected.gfa
-# scripts/remove_lowcov_stranges.py untippedtwo-normal-hifi_connected.gfa fake-hifi-alns.gaf fake-hifi-nodecovs.csv 7500 10 3 5000 > untipped-normal-hifi_connected.gfa
+scripts/remove_small_tips.py untippedone-normal-hifi_connected.gfa fake-hifi-nodecovs.csv fake-hifi-alns.gaf 2 7500 5 20 > untippedtwo-normal-hifi_connected.gfa
+scripts/remove_lowcov_wrong_bubbles.py untippedtwo-normal-hifi_connected.gfa fake-hifi-nodecovs.csv 3 7500 10 > untipped-normal-hifi_connected.gfa
+scripts/remove_lowcov_stranges.py untippedtwo-normal-hifi_connected.gfa fake-hifi-alns.gaf fake-hifi-nodecovs.csv 7500 10 3 5000 > untipped-normal-hifi_connected.gfa
 scripts/add_fake_alignments.py graph-multirle-nonblunt.gfa untipped-normal-hifi_connected.gfa paths.gaf nodecovs-hifi.csv fake-hifi-alns.gaf fake-hifi-nodecovs.csv 5
 /usr/bin/time -v scripts/resolve_triplets_kmerify.py untipped-normal-hifi_connected.gfa fake-hifi-paths.txt fake-hifi-nodecovs.csv 15000 2 2 < fake-hifi-alns.gaf > hifi-resolved-graph.gfa 2> stderr_hifi_resolved_graph.txt
 
