@@ -88,6 +88,7 @@ def find_bubble_end(edges, s):
 parent = {}
 rank = {}
 
+existing_nodes = set()
 long_nodes = set()
 canon_edges = set()
 edges = {}
@@ -96,6 +97,7 @@ with open(graph_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
 		if parts[0] == 'S':
+			existing_nodes.add(parts[1])
 			nodelens[parts[1]] = len(parts[2])
 			if len(parts[2]) > long_node_threshold:
 				long_nodes.add(parts[1])
@@ -143,12 +145,21 @@ with open(alignment_file) as f:
 		left_clip = int(parts[7])
 		right_clip = int(parts[6]) - int(parts[8])
 		path = parts[5].replace(">", "\t>").replace("<", "\t<").strip().split('\t')
-		assert len(path) >= 1
+		part_paths = []
+		last_break = 0
 		for i in range(0, len(path)):
-			if path[i] not in out_paths: out_paths[path[i]] = set()
-			if revnode(path[i]) not in out_paths: out_paths[revnode(path[i])] = set()
-			if i < len(path)-1: out_paths[path[i]].add(tuple(path[i+1:]))
-			if i > 0: out_paths[revnode(path[i])].add(tuple(revnode(n) for n in path[0:i][::-1]))
+			if path[i][1:] not in existing_nodes:
+				if i > last_break: part_paths.append(path[last_break:i])
+				last_break = i+1
+		if last_break < len(path): part_paths.append(path[last_break:])
+		for part_path in part_paths:
+			assert len(part_path) >= 1
+			for i in range(0, len(part_path)):
+				if part_path[i] not in out_paths: out_paths[part_path[i]] = set()
+				if revnode(part_path[i]) not in out_paths: out_paths[revnode(part_path[i])] = set()
+				if i < len(part_path)-1: out_paths[part_path[i]].add(tuple(part_path[i+1:]))
+				if i > 0: out_paths[revnode(part_path[i])].add(tuple(revnode(n) for n in part_path[0:i][::-1]))
+		assert len(path) >= 1
 		while len(path) > 0 and path[0][1:] not in nodelens:
 			path = path[1:]
 			left_clip = 0
@@ -171,9 +182,12 @@ with open(alignment_file) as f:
 			continue
 		assert left_clip < nodelens[path[0][1:]]
 		assert right_clip < nodelens[path[-1][1:]]
+		assert path[0][1:] in existing_nodes
+		assert path[-1][1:] in existing_nodes
 		node_coverage[path[0][1:]] += float(nodelens[path[0][1:]] - left_clip) / float(nodelens[path[0][1:]])
 		node_coverage[path[-1][1:]] += float(nodelens[path[-1][1:]] - right_clip) / float(nodelens[path[-1][1:]])
 		for node in path[1:-1]:
+			if node[1:] not in existing_nodes: continue
 			node_coverage[node[1:]] += 1
 			if node[1:] in long_nodes:
 				longnode_coverage[">" + node[1:]] += 1

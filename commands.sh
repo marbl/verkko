@@ -3,25 +3,25 @@ MBG -i hifi.fa -o graph-multirle-nonblunt.gfa -k 1001 -w 100 -a 1 -u 2 --error-m
 scripts/calculate_coverage.py graph-multirle-nonblunt.gfa < paths.gaf > nodecovs-hifi.csv
 scripts/insert_aln_gaps.py graph-multirle-nonblunt.gfa 2 < paths.gaf > gapped-graph-multirle-nonblunt.gfa
 cut -f 6 < paths.gaf | scripts/unroll_tip_loops.py gapped-graph-multirle-nonblunt.gfa 3 > unrolled-graph-multirle-nonblunt.gfa
-scripts/add_fake_alignments.py graph-multirle-nonblunt.gfa unrolled-graph-multirle-nonblunt.gfa paths.gaf nodecovs-hifi.csv fake-hifi-alns.gaf fake-hifi-nodecovs.csv 5
 
-scripts/estimate_unique_local.py unrolled-graph-multirle-nonblunt.gfa paths.gaf 200000 10 > unique_nodes_hifi.txt
-cut -f 6 < paths.gaf > paths.txt
+scripts/add_fake_alignments.py graph-multirle-nonblunt.gfa unrolled-graph-multirle-nonblunt.gfa paths.gaf nodecovs-hifi.csv fake-hifi-alns.gaf fake-hifi-nodecovs.csv 5
+scripts/remove_small_tips.py unrolled-graph-multirle-nonblunt.gfa fake-hifi-nodecovs.csv fake-hifi-alns.gaf 2 7500 3 10 > untippedone-graph.gfa
+scripts/remove_small_tips.py untippedone-graph.gfa fake-hifi-nodecovs.csv fake-hifi-alns.gaf 2 7500 5 20 > untippedtwo-graph.gfa
+scripts/remove_lowcov_wrong_bubbles.py untippedtwo-graph.gfa fake-hifi-nodecovs.csv 3 7500 10 > untipped-graph.gfa
+scripts/add_fake_alignments.py graph-multirle-nonblunt.gfa untipped-graph.gfa paths.gaf nodecovs-hifi.csv fake-hifi-alns.gaf fake-hifi-nodecovs.csv 5
+
+scripts/estimate_unique_local.py untipped-graph.gfa paths.gaf 200000 10 > unique_nodes_hifi.txt
+scripts/get_existing_paths.py untipped-graph.gfa < paths.gaf > paths.txt
 scripts/find_bridges.py unique_nodes_hifi.txt < paths.txt > bridges.txt
 grep -v '(' < bridges.txt | grep -vP '^$' | scripts/remove_wrong_connections_2.py | sort > bridging_seq_all.txt
 scripts/pick_majority_bridge.py < bridging_seq_all.txt > bridging_seq_picked_all.txt
 cp bridging_seq_picked_all.txt bridging_seq_picked.txt
-scripts/forbid_unbridged_tangles.py unique_nodes_hifi.txt unrolled-graph-multirle-nonblunt.gfa bridging_seq_all.txt paths.txt nodecovs-hifi.csv 10 > forbidden_ends.txt
-scripts/connect_uniques.py unrolled-graph-multirle-nonblunt.gfa forbidden_ends.txt bridging_seq_picked.txt > hifi_connected.gfa
+scripts/forbid_unbridged_tangles.py unique_nodes_hifi.txt untipped-graph.gfa bridging_seq_all.txt paths.txt nodecovs-hifi.csv 10 > forbidden_ends.txt
+scripts/connect_uniques.py untipped-graph.gfa forbidden_ends.txt bridging_seq_picked.txt > hifi_connected.gfa
 scripts/merge_unresolved_dbg_nodes.py < hifi_connected.gfa > normal-hifi_connected.gfa
 
 scripts/add_fake_alignments.py graph-multirle-nonblunt.gfa normal-hifi_connected.gfa paths.gaf nodecovs-hifi.csv fake-hifi-alns.gaf fake-hifi-nodecovs.csv 5
-scripts/remove_small_tips.py normal-hifi_connected.gfa fake-hifi-nodecovs.csv fake-hifi-alns.gaf 2 7500 3 10 > untippedone-normal-hifi_connected.gfa
-scripts/remove_small_tips.py untippedone-normal-hifi_connected.gfa fake-hifi-nodecovs.csv fake-hifi-alns.gaf 2 7500 5 20 > untippedtwo-normal-hifi_connected.gfa
-scripts/remove_lowcov_wrong_bubbles.py untippedtwo-normal-hifi_connected.gfa fake-hifi-nodecovs.csv 3 7500 10 > untipped-normal-hifi_connected.gfa
-scripts/remove_lowcov_stranges.py untippedtwo-normal-hifi_connected.gfa fake-hifi-alns.gaf fake-hifi-nodecovs.csv 7500 10 3 5000 > untipped-normal-hifi_connected.gfa
-scripts/add_fake_alignments.py graph-multirle-nonblunt.gfa untipped-normal-hifi_connected.gfa paths.gaf nodecovs-hifi.csv fake-hifi-alns.gaf fake-hifi-nodecovs.csv 5
-/usr/bin/time -v scripts/resolve_triplets_kmerify.py untipped-normal-hifi_connected.gfa fake-hifi-paths.txt fake-hifi-nodecovs.csv 15000 2 2 < fake-hifi-alns.gaf > hifi-resolved-graph.gfa 2> stderr_hifi_resolved_graph.txt
+/usr/bin/time -v scripts/resolve_triplets_kmerify.py normal-hifi_connected.gfa fake-hifi-paths.txt fake-hifi-nodecovs.csv 15000 2 2 < fake-hifi-alns.gaf > hifi-resolved-graph.gfa 2> stderr_hifi_resolved_graph.txt
 
 grep -P '^S\t' < hifi-resolved-graph.gfa | awk 'BEGIN{print "node\tlength\tcoverage";}{if (length($3) > 15000) {print $2 "\t" length($3) "\t" 10;} else {print $2 "\t" length($3) "\t" 0;}}' > fake-coverages.csv
 scripts/translate_uniques.py hifi-resolved-graph.gfa < unique_nodes_hifi.txt > unique_nodes_hifi_translate.txt
