@@ -155,10 +155,10 @@ with open(alignment_file) as f:
 		for part_path in part_paths:
 			assert len(part_path) >= 1
 			for i in range(0, len(part_path)):
-				if part_path[i] not in out_paths: out_paths[part_path[i]] = set()
-				if revnode(part_path[i]) not in out_paths: out_paths[revnode(part_path[i])] = set()
-				if i < len(part_path)-1: out_paths[part_path[i]].add(tuple(part_path[i+1:]))
-				if i > 0: out_paths[revnode(part_path[i])].add(tuple(revnode(n) for n in part_path[0:i][::-1]))
+				if part_path[i] not in out_paths: out_paths[part_path[i]] = []
+				if revnode(part_path[i]) not in out_paths: out_paths[revnode(part_path[i])] = []
+				if i < len(part_path)-1: out_paths[part_path[i]].append(tuple(part_path[i+1:]))
+				if i > 0: out_paths[revnode(part_path[i])].append(tuple(revnode(n) for n in part_path[0:i][::-1]))
 		assert len(path) >= 1
 		while len(path) > 0 and path[0][1:] not in nodelens:
 			path = path[1:]
@@ -235,16 +235,39 @@ for n in out_paths:
 	if n[1:] not in normalized_node_coverage: continue
 	if normalized_node_coverage[n[1:]] < 0.5 and node_coverage[n[1:]] / global_average_coverage < 0.5: continue
 	if normalized_node_coverage[n[1:]] > 1.5 and node_coverage[n[1:]] / global_average_coverage > 1.5: continue
-	inconsistent = False
 	fw_paths = list(out_paths[n])
 	fw_paths.sort(key=lambda x: len(x))
-	for path in fw_paths:
-		if path != fw_paths[-1][0:len(path)]: inconsistent = True
 	bw_paths = list(out_paths[revnode(n)])
 	bw_paths.sort(key=lambda x: len(x))
+	if len(fw_paths) == 0: continue
+	if len(bw_paths) == 0: continue
+	most_fw_consistent = 0
+	for path in fw_paths:
+		consistents = 0
+		inconsistents = 0
+		for path2 in fw_paths:
+			if len(path2) > len(path):
+				inconsistents += 1
+				continue
+			if path2 != path[0:len(path2)]:
+				inconsistents += 1
+				continue
+			consistents += 1
+		if consistents > most_fw_consistent: most_fw_consistent = consistents
+	most_bw_consistent = 0
 	for path in bw_paths:
-		if path != bw_paths[-1][0:len(path)]: inconsistent = True
-	if inconsistent: continue
+		consistents = 0
+		inconsistents = 0
+		for path2 in bw_paths:
+			if len(path2) > len(path):
+				inconsistents += 1
+				continue
+			if path2 != path[0:len(path2)]:
+				inconsistents += 1
+				continue
+			consistents += 1
+		if consistents > most_bw_consistent: most_bw_consistent = consistents
+	if float(most_fw_consistent + most_bw_consistent) / float(len(fw_paths) + len(bw_paths)) < 0.9: continue
 	print(n[1:])
 
 del out_paths

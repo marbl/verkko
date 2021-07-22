@@ -72,6 +72,14 @@ with open(graph_file) as f:
 
 # sys.stderr.write(str(len(node_seq)) + " nodes\n")
 
+total_num_insertions = {}
+with open(resolving_paths_file) as f:
+	for line in f:
+		path = line.replace('>', '\t>').replace('<', '\t<').strip().split('\t')
+		for node in path[1:-1]:
+			if node[1:] not in total_num_insertions: total_num_insertions[node[1:]] = 0
+			total_num_insertions[node[1:]] += 1
+
 num_insertions = {}
 
 with open(resolving_paths_file) as f:
@@ -93,6 +101,7 @@ with open(resolving_paths_file) as f:
 			if path[i][1:] not in num_insertions: num_insertions[path[i][1:]] = 0
 			num_insertions[path[i][1:]] += 1
 			this_node = path[i][0] + path[i][1:] + "_" + str(num_insertions[path[i][1:]])
+			if total_num_insertions[path[i][1:]] == 1: this_node = path[i]
 			print("S\t" + this_node[1:] + "\t" + node_seq[path[i][1:]])
 			overlap = "0M"
 			key = canontip(path[i-1], revnode(path[i]))
