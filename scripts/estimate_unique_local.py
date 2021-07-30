@@ -6,6 +6,7 @@ graph_file = sys.argv[1]
 alignment_file = sys.argv[2]
 long_node_threshold = int(sys.argv[3])
 solid_edge_threshold = int(sys.argv[4])
+path_consistency_threshold = float(sys.argv[5])
 # unique nodes to stdout
 
 long_node_neighborhood_size = long_node_threshold
@@ -229,18 +230,24 @@ for node in nodelens:
 		compare_coverage /= float(len(compare_nodes))
 	normalized_node_coverage[node] = node_coverage[node] / compare_coverage
 
-for n in out_paths:
-	if n[0] != ">": continue
-	if revnode(n) not in out_paths: continue
-	if n[1:] not in normalized_node_coverage: continue
-	if normalized_node_coverage[n[1:]] < 0.5 and node_coverage[n[1:]] / global_average_coverage < 0.5: continue
-	if normalized_node_coverage[n[1:]] > 1.5 and node_coverage[n[1:]] / global_average_coverage > 1.5: continue
-	fw_paths = list(out_paths[n])
+roughly_average_coverage_nodes = set()
+for n in nodelens:
+	if n not in normalized_node_coverage: continue
+	if normalized_node_coverage[n] < 0.5 and node_coverage[n] / global_average_coverage < 0.5: continue
+	if normalized_node_coverage[n] > 1.5 and node_coverage[n] / global_average_coverage > 1.5: continue
+	roughly_average_coverage_nodes.add(n)
+
+path_consistent_nodes = set()
+for n in nodelens:
+	fw_paths = []
+	bw_paths = []
+	if ">" + n in out_paths: fw_paths = list(out_paths[">" + n])
+	if "<" + n in out_paths: bw_paths = list(out_paths["<" + n])
 	fw_paths.sort(key=lambda x: len(x))
-	bw_paths = list(out_paths[revnode(n)])
 	bw_paths.sort(key=lambda x: len(x))
-	if len(fw_paths) == 0: continue
-	if len(bw_paths) == 0: continue
+	# if len(fw_paths) == 0: continue
+	# if len(bw_paths) == 0: continue
+	if len(fw_paths) + len(bw_paths) == 0: continue
 	most_fw_consistent = 0
 	for path in fw_paths:
 		consistents = 0
@@ -267,8 +274,13 @@ for n in out_paths:
 				continue
 			consistents += 1
 		if consistents > most_bw_consistent: most_bw_consistent = consistents
-	if float(most_fw_consistent + most_bw_consistent) / float(len(fw_paths) + len(bw_paths)) < 0.9: continue
-	print(n[1:])
+	if float(most_fw_consistent + most_bw_consistent) / float(len(fw_paths) + len(bw_paths)) < path_consistency_threshold: continue
+	path_consistent_nodes.add(n)
+
+path_unique_nodes = set()
+for node in path_consistent_nodes:
+	if node in roughly_average_coverage_nodes:
+		path_unique_nodes.add(node)
 
 del out_paths
 
@@ -331,9 +343,10 @@ for node in nodelens:
 				unique_chains.remove(chain)
 				break
 
+chain_unique_nodes = set()
+length_unique_nodes = set()
 for node in nodelens:
 	if node in long_nodes:
-		print(node)
 		continue
 	chain = find(chain_parent, node)
 	unique_chain = chain in unique_chains
@@ -342,10 +355,18 @@ for node in nodelens:
 	if unique_chain:
 		chain_coverage = float(chain_coverage_sum[chain]) / float(chain_coverage_count[chain])
 		chain_normalized_coverage = normalized_node_coverage[node] / chain_coverage
-		if chain_normalized_coverage > 0.6 and chain_normalized_coverage < 1.4: unique = True
+		if chain_normalized_coverage > 0.6 and chain_normalized_coverage < 1.4: chain_unique_nodes.add(node)
 	nodelen = nodelens[node]
-	if nodelen > 20000 and normalized_coverage > 0.9 and normalized_coverage < 1.1: unique = True
-	if nodelen > 30000 and normalized_coverage > 0.8 and normalized_coverage < 1.2: unique = True
-	if nodelen > 50000 and normalized_coverage > 0.7 and normalized_coverage < 1.3: unique = True
-	if nodelen > 100000 and normalized_coverage > 0.6 and normalized_coverage < 1.4: unique = True
-	if unique: print(node)
+	if nodelen > 20000 and normalized_coverage > 0.9 and normalized_coverage < 1.1: length_unique_nodes.add(node)
+	if nodelen > 30000 and normalized_coverage > 0.8 and normalized_coverage < 1.2: length_unique_nodes.add(node)
+	if nodelen > 50000 and normalized_coverage > 0.7 and normalized_coverage < 1.3: length_unique_nodes.add(node)
+	if nodelen > 100000 and normalized_coverage > 0.6 and normalized_coverage < 1.4: length_unique_nodes.add(node)
+
+uniques = set()
+for node in long_nodes: uniques.add(node)
+for node in path_unique_nodes: uniques.add(node)
+# for node in chain_unique_nodes: uniques.add(node)
+# for node in length_unique_nodes: uniques.add(node)
+
+for node in uniques:
+	print(node)

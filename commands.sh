@@ -10,7 +10,7 @@ scripts/remove_small_tips.py untippedone-graph.gfa fake-hifi-nodecovs.csv fake-h
 scripts/remove_lowcov_wrong_bubbles.py untippedtwo-graph.gfa fake-hifi-nodecovs.csv 3 7500 10 > untipped-graph.gfa
 scripts/add_fake_alignments.py graph-multirle-nonblunt.gfa untipped-graph.gfa paths.gaf nodecovs-hifi.csv fake-hifi-alns.gaf fake-hifi-nodecovs.csv 5
 
-scripts/estimate_unique_local.py untipped-graph.gfa paths.gaf 200000 10 > unique_nodes_hifi.txt
+scripts/estimate_unique_local.py untipped-graph.gfa paths.gaf 200000 10 0.95 > unique_nodes_hifi.txt
 scripts/get_existing_paths.py untipped-graph.gfa < paths.gaf > paths.txt
 scripts/find_bridges.py unique_nodes_hifi.txt < paths.txt > bridges.txt
 grep -v '(' < bridges.txt | grep -vP '^$' | scripts/remove_wrong_connections_2.py | sort > bridging_seq_all.txt
@@ -51,7 +51,7 @@ cut -f 6 < alns-ont-filter-trim.gaf > paths.txt
 awk -F '\t' '{if ($12 >= 20) print;}' < alns-ont.gaf > alns-ont-mapqfilter.gaf
 scripts/insert_aln_gaps.py unitig-unrolled-hifi-resolved.gfa 3 < alns-ont-mapqfilter.gaf > gapped-unitig-unrolled-hifi-resolved.gfa
 awk '{if ($2 >= 150000) {sum += $2*$3; count += $2;}}END{print sum/count;}' < nodecovs-ont.csv
-scripts/estimate_unique_local.py gapped-unitig-unrolled-hifi-resolved.gfa alns-ont-filter-trim.gaf 200000 30 > unique_nodes_ont_coverage.txt
+scripts/estimate_unique_local.py gapped-unitig-unrolled-hifi-resolved.gfa alns-ont-filter-trim.gaf 200000 30 0.8 > unique_nodes_ont_coverage.txt
 # scripts/translate_uniques.py normal-hifi_connected_twice.gfa < unique_nodes_hifi.txt > translated_uniques.txt
 # scripts/translate_nodes_by_seq.py normal-hifi_connected_twice.gfa unitig-unrolled-hifi-resolved.gfa < translated_uniques.txt > unique_nodes_ont_translated.txt
 # cat unique_nodes_ont_coverage.txt unique_nodes_ont_translated.txt | sort | uniq > unique_nodes_ont.txt
