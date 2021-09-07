@@ -1,4 +1,4 @@
-MBG -i hifi.fa -o graph-multirle-nonblunt.gfa -k 1001 -w 100 -a 1 -u 2 --error-masking=msat --output-sequence-paths paths.gaf
+MBG -i hifi.fa -o graph-multirle-nonblunt.gfa -k 1001 -w 100 -a 1 -u 2 --error-masking=collapse-msat --output-sequence-paths paths.gaf
 
 scripts/calculate_coverage.py graph-multirle-nonblunt.gfa < paths.gaf > nodecovs-hifi.csv
 scripts/insert_aln_gaps.py graph-multirle-nonblunt.gfa 2 < paths.gaf > gapped-graph-multirle-nonblunt.gfa
