@@ -568,7 +568,9 @@ def remove_and_split_low_coverage(node_seqs, edges, initial_paths, paths_crossin
 			if len(addable) >= 2: add_path(paths_crossing, addable)
 	for node in removables:
 		remove_graph_node(node, node_seqs, edges)
-		sys.stderr.write("removed low coverage node " + node + " with coverage " + str(node_coverage[node]) + "\n")
+		coverage = 0
+		if node in node_coverage: coverage = node_coverage[node]
+		sys.stderr.write("removed low coverage node " + node + " with coverage " + str(coverage) + "\n")
 
 def read_node_coverages(node_coverage_file):
 	node_coverage = {}
