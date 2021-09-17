@@ -39,22 +39,10 @@ gaps = {}
 alns = []
 last_read_name = ""
 
+alns_per_read = {}
 for l in sys.stdin:
 	parts = l.strip().split('\t')
 	readname = parts[0].split(' ')[0]
-	if readname != last_read_name:
-		if len(alns) >= 2:
-			alns.sort(key=lambda x: x[0])
-			for i in range(1, len(alns)):
-				assert alns[i][0] >= alns[i-1][0]
-				gap_len = alns[i][0] - alns[i-1][1]
-				if alns[i-1][3] in not_tips or alns[i][2] in not_tips: continue
-				if alns[i-1][5] > 50 or alns[i][4] > 50: continue
-				key = canontip(alns[i-1][3], alns[i][2])
-				if key not in gaps: gaps[key] = []
-				gaps[key].append(gap_len)
-		alns = []
-		last_read_name = readname
 	readstart = int(parts[2])
 	readend = int(parts[3])
 	path = parts[5].replace(">", "\t>").replace("<", "\t<").strip().split('\t')
@@ -62,7 +50,21 @@ for l in sys.stdin:
 	alnend = path[-1]
 	leftclip = int(parts[7])
 	rightclip = int(parts[6]) - int(parts[8])
-	alns.append((readstart, readend, alnstart, alnend, leftclip, rightclip))
+	if readname not in alns_per_read: alns_per_read[readname] = []
+	alns_per_read[readname].append((readstart, readend, alnstart, alnend, leftclip, rightclip))
+
+for name in alns_per_read:
+	alns = alns_per_read[name]
+	if len(alns) >= 2:
+		alns.sort(key=lambda x: x[0])
+		for i in range(1, len(alns)):
+			assert alns[i][0] >= alns[i-1][0]
+			gap_len = alns[i][0] - alns[i-1][1]
+			if alns[i-1][3] in not_tips or alns[i][2] in not_tips: continue
+			if alns[i-1][5] > 50 or alns[i][4] > 50: continue
+			key = canontip(alns[i-1][3], alns[i][2])
+			if key not in gaps: gaps[key] = []
+			gaps[key].append(gap_len)
 
 next_gap_id = 1
 

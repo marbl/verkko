@@ -134,6 +134,19 @@ for node in long_nodes:
 	if key not in cluster_edge_nodes: cluster_edge_nodes[key] = set()
 	cluster_edge_nodes[key].add("<" + node)
 
+chain_of_longnode = set()
+for node in long_nodes:
+	bubble_end = find_bubble_end(edges, ">" + node)
+	while bubble_end is not None:
+		next_node = bubble_end
+		chain_of_longnode.add(next_node[1:])
+		bubble_end = find_bubble_end(edges, next_node)
+	bubble_end = find_bubble_end(edges, "<" + node)
+	while bubble_end is not None:
+		next_node = bubble_end
+		chain_of_longnode.add(next_node[1:])
+		bubble_end = find_bubble_end(edges, next_node)
+
 node_coverage = {}
 for node in nodelens:
 	node_coverage[node] = 0.0
@@ -365,6 +378,7 @@ for node in nodelens:
 uniques = set()
 for node in long_nodes: uniques.add(node)
 for node in path_unique_nodes: uniques.add(node)
+for node in chain_of_longnode: uniques.add(node)
 # for node in chain_unique_nodes: uniques.add(node)
 # for node in length_unique_nodes: uniques.add(node)
 
