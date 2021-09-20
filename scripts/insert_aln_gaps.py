@@ -4,6 +4,7 @@ import sys
 
 graph_file = sys.argv[1]
 min_gap_coverage = int(sys.argv[2])
+max_end_clip = int(sys.argv[3])
 # gaf from stdin
 # graph to stdout
 
@@ -59,9 +60,9 @@ for name in alns_per_read:
 		alns.sort(key=lambda x: x[0])
 		for i in range(1, len(alns)):
 			assert alns[i][0] >= alns[i-1][0]
-			gap_len = alns[i][0] - alns[i-1][1]
+			gap_len = (alns[i][0] - alns[i][4]) - (alns[i-1][1] + alns[i-1][5])
 			if alns[i-1][3] in not_tips or alns[i][2] in not_tips: continue
-			if alns[i-1][5] > 50 or alns[i][4] > 50: continue
+			if alns[i-1][5] > max_end_clip or alns[i][4] > max_end_clip: continue
 			key = canontip(alns[i-1][3], alns[i][2])
 			if key not in gaps: gaps[key] = []
 			gaps[key].append(gap_len)
