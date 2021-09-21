@@ -252,6 +252,7 @@ for n in nodelens:
 
 path_consistent_nodes = set()
 for n in nodelens:
+	if n not in roughly_average_coverage_nodes: continue
 	fw_paths = []
 	bw_paths = []
 	if ">" + n in out_paths: fw_paths = list(out_paths[">" + n])
@@ -262,27 +263,24 @@ for n in nodelens:
 	# if len(bw_paths) == 0: continue
 	if len(fw_paths) + len(bw_paths) == 0: continue
 	most_fw_consistent = 0
-	for path in fw_paths:
+	for i in range(len(fw_paths)-1, -1, -1):
 		consistents = 0
 		inconsistents = 0
-		for path2 in fw_paths:
-			if len(path2) > len(path):
-				inconsistents += 1
-				continue
-			if path2 != path[0:len(path2)]:
+		for j in range(0, i):
+			assert len(fw_paths[j]) <= len(fw_paths[i])
+			if fw_paths[j] != fw_paths[i][0:len(fw_paths[j])]:
 				inconsistents += 1
 				continue
 			consistents += 1
 		if consistents > most_fw_consistent: most_fw_consistent = consistents
+	if float(most_fw_consistent + len(bw_paths)) / float(len(fw_paths) + len(bw_paths)) < path_consistency_threshold: continue
 	most_bw_consistent = 0
-	for path in bw_paths:
+	for i in range(len(bw_paths)-1, -1, -1):
 		consistents = 0
 		inconsistents = 0
-		for path2 in bw_paths:
-			if len(path2) > len(path):
-				inconsistents += 1
-				continue
-			if path2 != path[0:len(path2)]:
+		for j in range(0, i):
+			assert len(bw_paths[j]) <= len(bw_paths[i])
+			if bw_paths[j] != bw_paths[i][0:len(bw_paths[j])]:
 				inconsistents += 1
 				continue
 			consistents += 1
@@ -320,9 +318,152 @@ for node in nodelens:
 		assert chain not in chain_coverage_sum
 		chain_coverage_count[chain] = 0.0
 		chain_coverage_sum[chain] = 0.0
-	if nodelens[node] < 20000: continue
+	# if nodelens[node] < 20000: continue
 	chain_coverage_count[chain] += nodelens[node]
 	chain_coverage_sum[chain] += nodelens[node] * normalized_node_coverage[node]
+
+copycount_2_chain_core_nodes = set()
+for node in nodelens:
+	chain = find(chain_parent, node)
+	assert chain in chain_coverage_count
+	assert chain in chain_coverage_sum
+	if chain_coverage_count[chain] == 0: continue
+	if chain_coverage_sum[chain] == 0: continue
+	chain_coverage = float(chain_coverage_sum[chain]) / float(chain_coverage_count[chain])
+	chain_length = float(chain_coverage_sum[chain])
+	if chain_length > 75000 and chain_coverage > 1.5 and chain_coverage < 2.5: copycount_2_chain_core_nodes.add(node)
+
+copycount_2_chain_unique_nodes = set()
+copycount_2_chain_nonunique_nodes = set()
+for node in copycount_2_chain_core_nodes:
+	node_cov = normalized_node_coverage[node]
+	if ">" + node in edges and len(edges[">" + node]) == 2:
+		maybe_valid = True
+		min_cov = 2
+		max_cov = 0
+		for edge in edges[">" + node]:
+			if normalized_node_coverage[edge[1:]] < 0.5 or normalized_node_coverage[edge[1:]] > 1.5 or edge[1:] in copycount_2_chain_core_nodes: maybe_valid = False
+			if len(edges[revnode(edge)]) != 1: maybe_valid = False
+			min_cov = min(min_cov, normalized_node_coverage[edge[1:]])
+			max_cov = max(max_cov, normalized_node_coverage[edge[1:]])
+		if maybe_valid and max_cov < min_cov * 2 and max_cov >= min_cov:
+			for edge in edges[">" + node]:
+				copycount_2_chain_unique_nodes.add(edge[1:])
+		if maybe_valid and max_cov > min_cov * 2:
+			for edge in edges[">" + node]:
+				copycount_2_chain_nonunique_nodes.add(edge[1:])
+	if "<" + node in edges and len(edges["<" + node]) == 2:
+		maybe_valid = True
+		min_cov = 2
+		max_cov = 0
+		for edge in edges["<" + node]:
+			if normalized_node_coverage[edge[1:]] < 0.5 or normalized_node_coverage[edge[1:]] > 1.5 or edge[1:] in copycount_2_chain_core_nodes: maybe_valid = False
+			if len(edges[revnode(edge)]) != 1: maybe_valid = False
+			min_cov = min(min_cov, normalized_node_coverage[edge[1:]])
+			max_cov = max(max_cov, normalized_node_coverage[edge[1:]])
+		if maybe_valid and max_cov < min_cov * 2 and max_cov >= min_cov:
+			for edge in edges["<" + node]:
+				copycount_2_chain_unique_nodes.add(edge[1:])
+		if maybe_valid and max_cov > min_cov * 2:
+			for edge in edges["<" + node]:
+				copycount_2_chain_nonunique_nodes.add(edge[1:])
+	if ">" + node in edges and len(edges[">" + node]) == 3:
+		maybe_valid = True
+		further_ahead_nodes = {}
+		maybe_addable = set()
+		min_cov = 2
+		max_cov = 0
+		valid_direct = 0
+		valid_indirect = 0
+		maybe_disablable = set()
+		for edge in edges[">" + node]:
+			if edge in edges and len(edges[edge]) == 1:
+				for edge2 in edges[edge]:
+					if len(edges[revnode(edge2)]) == 2 and edge2[1:] not in copycount_2_chain_core_nodes:
+						if edge2 not in further_ahead_nodes: further_ahead_nodes[edge2] = 0
+						further_ahead_nodes[edge2] += 1
+		if len(further_ahead_nodes) <= 2:
+			max_further_ahead = 0
+			min_further_ahead = 3
+			for edge2 in further_ahead_nodes:
+				max_further_ahead = max(max_further_ahead, further_ahead_nodes[edge2])
+				min_further_ahead = min(min_further_ahead, further_ahead_nodes[edge2])
+			if (min_further_ahead == 1 and max_further_ahead == 2) or (max_further_ahead == 2 and len(further_ahead_nodes) == 1):
+				for edge in edges[">" + node]:
+					skip_this = False
+					if edge in edges and len(edges[edge]) == 1:
+						for edge2 in edges[edge]:
+							if edge2 in further_ahead_nodes and further_ahead_nodes[edge2] == 2:
+								skip_this = True
+					if skip_this:
+						maybe_disablable.add(edge[1:])
+					else:
+						if normalized_node_coverage[edge[1:]] > 0.5 and normalized_node_coverage[edge[1:]] < 1.5 and edge[1:] not in copycount_2_chain_core_nodes:
+							maybe_addable.add(edge[1:])
+							min_cov = min(min_cov, normalized_node_coverage[edge[1:]])
+							max_cov = max(max_cov, normalized_node_coverage[edge[1:]])
+				for edge in further_ahead_nodes:
+					if further_ahead_nodes[edge] == 2:
+						if normalized_node_coverage[edge[1:]] > 0.5 and normalized_node_coverage[edge[1:]] < 1.5 and edge[1:] not in copycount_2_chain_core_nodes:
+							maybe_addable.add(edge[1:])
+							min_cov = min(min_cov, normalized_node_coverage[edge[1:]])
+							max_cov = max(max_cov, normalized_node_coverage[edge[1:]])
+			else:
+				maybe_valid = False
+		else:
+			maybe_valid = False
+		if maybe_valid and max_cov < min_cov * 2 and max_cov >= min_cov:
+			for n in maybe_addable: copycount_2_chain_unique_nodes.add(n)
+			for n in maybe_disablable: copycount_2_chain_nonunique_nodes.add(n)
+	if "<" + node in edges and len(edges["<" + node]) == 3:
+		maybe_valid = True
+		further_ahead_nodes = {}
+		maybe_addable = set()
+		min_cov = 2
+		max_cov = 0
+		valid_direct = 0
+		valid_indirect = 0
+		maybe_disablable = set()
+		for edge in edges["<" + node]:
+			if edge in edges and len(edges[edge]) == 1:
+				for edge2 in edges[edge]:
+					if len(edges[revnode(edge2)]) == 2 and edge2[1:] not in copycount_2_chain_core_nodes:
+						if edge2 not in further_ahead_nodes: further_ahead_nodes[edge2] = 0
+						further_ahead_nodes[edge2] += 1
+		if len(further_ahead_nodes) <= 2:
+			max_further_ahead = 0
+			min_further_ahead = 3
+			for edge2 in further_ahead_nodes:
+				max_further_ahead = max(max_further_ahead, further_ahead_nodes[edge2])
+				min_further_ahead = min(min_further_ahead, further_ahead_nodes[edge2])
+			if (min_further_ahead == 1 and max_further_ahead == 2) or (max_further_ahead == 2 and len(further_ahead_nodes) == 1):
+				for edge in edges["<" + node]:
+					skip_this = False
+					if edge in edges and len(edges[edge]) == 1:
+						for edge2 in edges[edge]:
+							if edge2 in further_ahead_nodes and further_ahead_nodes[edge2] == 2:
+								skip_this = True
+					if skip_this:
+						maybe_disablable.add(edge[1:])
+					else:
+						if normalized_node_coverage[edge[1:]] > 0.5 and normalized_node_coverage[edge[1:]] < 1.5 and edge[1:] not in copycount_2_chain_core_nodes:
+							maybe_addable.add(edge[1:])
+							min_cov = min(min_cov, normalized_node_coverage[edge[1:]])
+							max_cov = max(max_cov, normalized_node_coverage[edge[1:]])
+				for edge in further_ahead_nodes:
+					if further_ahead_nodes[edge] == 2:
+						if normalized_node_coverage[edge[1:]] > 0.5 and normalized_node_coverage[edge[1:]] < 1.5 and edge[1:] not in copycount_2_chain_core_nodes:
+							maybe_addable.add(edge[1:])
+							min_cov = min(min_cov, normalized_node_coverage[edge[1:]])
+							max_cov = max(max_cov, normalized_node_coverage[edge[1:]])
+			else:
+				maybe_valid = False
+		else:
+			maybe_valid = False
+		if maybe_valid and max_cov < min_cov * 2 and max_cov >= min_cov:
+			for n in maybe_addable: copycount_2_chain_unique_nodes.add(n)
+			for n in maybe_disablable: copycount_2_chain_nonunique_nodes.add(n)
+
 
 unique_chains = set()
 for node in nodelens:
@@ -379,6 +520,9 @@ uniques = set()
 for node in long_nodes: uniques.add(node)
 for node in path_unique_nodes: uniques.add(node)
 for node in chain_of_longnode: uniques.add(node)
+for node in copycount_2_chain_unique_nodes: uniques.add(node)
+for node in copycount_2_chain_nonunique_nodes: 
+	if node in uniques: uniques.remove(node)
 # for node in chain_unique_nodes: uniques.add(node)
 # for node in length_unique_nodes: uniques.add(node)
 
