@@ -94,6 +94,7 @@ long_nodes = set()
 canon_edges = set()
 edges = {}
 nodelens = {}
+max_overlap = {}
 with open(graph_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
@@ -107,9 +108,21 @@ with open(graph_file) as f:
 			tonode = ("<" if parts[4] == "+" else ">") + parts[3]
 			if fromnode not in edges: edges[fromnode] = set()
 			if tonode not in edges: edges[tonode] = set()
+			if fromnode not in max_overlap: max_overlap[fromnode] = int(parts[5][:-1])
+			max_overlap[fromnode] = max(max_overlap[fromnode], int(parts[5][:-1]))
+			if tonode not in max_overlap: max_overlap[tonode] = int(parts[5][:-1])
+			max_overlap[tonode] = max(max_overlap[tonode], int(parts[5][:-1]))
 			edges[fromnode].add(revnode(tonode))
 			edges[tonode].add(revnode(fromnode))
 			canon_edges.add(canontip(fromnode, tonode))
+
+node_nonoverlap_lens = {}
+for node in nodelens:
+	overlaps = 0
+	if ">" + node in max_overlap: overlaps += max_overlap[">" + node]
+	if "<" + node in max_overlap: overlaps += max_overlap["<" + node]
+	if overlaps >= nodelens[node]: overlaps = nodelens[node]-1
+	node_nonoverlap_lens[node] = nodelens[node] - overlaps
 
 for node in nodelens:
 	parent[">" + node] = ">" + node
@@ -510,7 +523,7 @@ for node in nodelens:
 		chain_coverage = float(chain_coverage_sum[chain]) / float(chain_coverage_count[chain])
 		chain_normalized_coverage = normalized_node_coverage[node] / chain_coverage
 		if chain_normalized_coverage > 0.6 and chain_normalized_coverage < 1.4: chain_unique_nodes.add(node)
-	nodelen = nodelens[node]
+	nodelen = node_nonoverlap_lens[node]
 	if nodelen > 20000 and normalized_coverage > 0.9 and normalized_coverage < 1.1: length_unique_nodes.add(node)
 	if nodelen > 30000 and normalized_coverage > 0.8 and normalized_coverage < 1.2: length_unique_nodes.add(node)
 	if nodelen > 50000 and normalized_coverage > 0.7 and normalized_coverage < 1.3: length_unique_nodes.add(node)
