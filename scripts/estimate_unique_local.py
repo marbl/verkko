@@ -246,8 +246,8 @@ for node in nodelens:
 roughly_average_coverage_nodes = set()
 for n in nodelens:
 	if n not in normalized_node_coverage: continue
-	if normalized_node_coverage[n] < 0.5 and node_coverage[n] / global_average_coverage < 0.5: continue
-	if normalized_node_coverage[n] > 1.5 and node_coverage[n] / global_average_coverage > 1.5: continue
+	if normalized_node_coverage[n] < 0.6 and node_coverage[n] / global_average_coverage < 0.6: continue
+	if normalized_node_coverage[n] > 1.4 and node_coverage[n] / global_average_coverage > 1.4: continue
 	roughly_average_coverage_nodes.add(n)
 
 path_consistent_nodes = set()
