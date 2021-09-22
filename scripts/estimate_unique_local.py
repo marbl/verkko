@@ -521,10 +521,12 @@ for node in long_nodes: uniques.add(node)
 for node in path_unique_nodes: uniques.add(node)
 for node in chain_of_longnode: uniques.add(node)
 for node in copycount_2_chain_unique_nodes: uniques.add(node)
+for node in chain_unique_nodes: uniques.add(node)
+for node in length_unique_nodes: uniques.add(node)
 for node in copycount_2_chain_nonunique_nodes: 
 	if node in uniques: uniques.remove(node)
-# for node in chain_unique_nodes: uniques.add(node)
-# for node in length_unique_nodes: uniques.add(node)
+for node in copycount_2_chain_core_nodes: 
+	if node in uniques: uniques.remove(node)
 
 for node in uniques:
 	print(node)
