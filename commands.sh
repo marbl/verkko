@@ -41,9 +41,14 @@ scripts/add_fake_alignments.py unitig-unrolled-hifi-resolved.gfa normal-connecte
 scripts/unroll_tip_loops.py ont-resolved-graph.gfa 3 < fake-ont-paths.txt > unrolled-ont-resolved.gfa
 scripts/unitigify.py < unrolled-ont-resolved.gfa > unitig-unrolled-ont-resolved.gfa
 
+# consensus
+grep -P '^S' < unitig-unrolled-ont-resolved.gfa | awk '{print ">" $2; print $3;}' > contigs_rle.fa
+winnowmap -x map-pb -t 32 contigs_rle.fa hifi.fa > alns.paf
+scripts/get_layout_from_aln.py contigs_rle alns.paf read_names.txt hifi.fa > layout
 
 
-UntipRelative 30000 30000 0.1 0.1 < ont-resolved-graph.gfa > connected-tip.gfa
-scripts/unitigify.py < connected-tip.gfa > unitig-normal-connected-tip.gfa
-scripts/pop_bubbles_keep_longest.py 10 < unitig-normal-connected-tip.gfa > popped-unitig-normal-connected-tip.gfa
-scripts/unitigify.py < popped-unitig-normal-connected-tip.gfa > unitig-popped-unitig-normal-connected-tip.gfa
+# only for evaluating CHM13 haploid assemblies
+# UntipRelative 30000 30000 0.1 0.1 < ont-resolved-graph.gfa > connected-tip.gfa
+# scripts/unitigify.py < connected-tip.gfa > unitig-normal-connected-tip.gfa
+# scripts/pop_bubbles_keep_longest.py 10 < unitig-normal-connected-tip.gfa > popped-unitig-normal-connected-tip.gfa
+# scripts/unitigify.py < popped-unitig-normal-connected-tip.gfa > unitig-popped-unitig-normal-connected-tip.gfa
