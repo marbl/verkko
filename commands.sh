@@ -49,6 +49,9 @@ scripts/rle.py < ont_gap_subset.fa > ont_gap_subset_rle.fa
 winnowmap -x map-ont -t 32 contigs_rle.fa ont_gap_subset_rle.fa >> alns.paf
 scripts/get_layout_from_aln.py contigs_rle.fa alns.paf read_names.txt hifi.fa ont_gap_subset.fa > layout.txt
 
+# just for debug info
+scripts/check_layout_gaps.py < layout.txt > gaps.txt
+
 # only for evaluating CHM13 haploid assemblies
 # UntipRelative 30000 30000 0.1 0.1 < ont-resolved-graph.gfa > connected-tip.gfa
 # scripts/unitigify.py < connected-tip.gfa > unitig-normal-connected-tip.gfa
