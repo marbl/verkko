@@ -21,7 +21,9 @@ def add_lines(read_name, current_lines, lines_per_contig, read_order):
 	max_mapq = 0
 	for l in current_lines:
 		parts = l.split('\t')
-		if float(int(parts[3]) - int(parts[2])) / float(int(parts[1])) < 0.9: continue
+		if float(int(parts[3]) - int(parts[2])) / float(int(parts[1])) < 0.98: continue
+		if float(int(parts[8]) - int(parts[7])) / float(int(parts[1])) > 1.02: continue
+
 		if int(parts[11]) < max_mapq: continue
 		if int(parts[11]) > max_mapq:
 			max_mapq_lines = []
@@ -110,6 +112,8 @@ with open(paf_file) as f:
 add_lines(current_name, current_lines, lines_per_contig, read_order)
 current_lines = []
 current_name = parts[0]
+contig_ids = {}
+next_id = 0
 
 for contig in lines_per_contig:
 	if len(lines_per_contig[contig]) == 0: continue
@@ -121,7 +125,9 @@ for contig in lines_per_contig:
 		start_pos = min(start_pos, line[3])
 		end_pos = max(end_pos, line[2])
 		end_pos = max(end_pos, line[3])
-	print("tig\t" + contig)
+	contig_ids[contig] = next_id
+	next_id += 1
+	print("tig\t-1")
 	print("len\t" + str(end_pos - start_pos))
 	print("cns")
 	print("qlt")
@@ -135,3 +141,6 @@ for contig in lines_per_contig:
 	for line in lines_per_contig[contig]:
 		print(line[1] + "\t" + str(line[2] - start_pos) + "\t" + str(line[3] - start_pos))
 	print("tigend")
+
+with open("tig_names.txt", "w") as f:
+   for name in contig_ids: f.write(str(contig_ids[name]) + "\t" + str(name) + "\n") 
