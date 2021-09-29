@@ -5,6 +5,7 @@ import sys
 graph_file = sys.argv[1]
 min_gap_coverage = int(sys.argv[2])
 max_end_clip = int(sys.argv[3])
+used_reads_file = sys.argv[4]
 # gaf from stdin
 # graph to stdout
 
@@ -37,6 +38,7 @@ with open(graph_file) as f:
 		print(l.strip())
 
 gaps = {}
+reads_per_gap = {}
 alns = []
 last_read_name = ""
 
@@ -66,8 +68,11 @@ for name in alns_per_read:
 			key = canontip(alns[i-1][3], alns[i][2])
 			if key not in gaps: gaps[key] = []
 			gaps[key].append(gap_len)
+			if key not in reads_per_gap: reads_per_gap[key] = set()
+			reads_per_gap[key].add(name)
 
 next_gap_id = 1
+used_reads = set()
 
 for gap in gaps:
 	if len(gaps[gap]) < min_gap_coverage: continue
@@ -109,5 +114,10 @@ for gap in gaps:
 	print("S\t" + gap_name + "\t" + seq)
 	print("L\t" + gap[0][1:] + "\t" + ("+" if gap[0][0] == ">" else "-") + "\t" + gap_name + "\t+\t" + overlap)
 	print("L\t" + gap_name + "\t+\t" + gap[1][1:] + "\t" + ("-" if gap[1][0] == ">" else "+") + "\t" + overlap)
+	for name in reads_per_gap[gap]: used_reads.add(name)
+
+with open(used_reads_file, "w") as f:
+	for name in used_reads:
+		f.write(name + "\n")
 
 sys.stderr.write("inserted " + str(next_gap_id-1) + " gaps\n")
