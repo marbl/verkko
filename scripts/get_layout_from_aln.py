@@ -16,13 +16,17 @@ else:
 
 def add_lines(read_name, current_lines, lines_per_contig, read_order):
 	if len(current_lines) == 0: return
-	if read_name not in read_order: return
+	if read_name not in read_order:
+           sys.stderr.write("ERROR: Uknown read %s, are your input fasta files correct?\n"%(read_name))
+           sys.exit(1)
 	max_mapq_lines = []
 	max_mapq = 0
 	for l in current_lines:
 		parts = l.split('\t')
-		if float(int(parts[3]) - int(parts[2])) / float(int(parts[1])) < 0.98: continue
-		if float(int(parts[8]) - int(parts[7])) / float(int(parts[1])) > 1.02: continue
+		if float(int(parts[3]) - int(parts[2])) / float(int(parts[1])) < 0.95: sys.stderr.write("Skipping alignment '%s' because it doesn't cover enough of the read\n"%(l)); continue
+# adding the below adds more layout gaps and also end sup with slightly worse results for tandemmapper and quast
+#		if float(int(parts[8]) - int(parts[7])) / float(int(parts[1])) > 1.15: sys.stderr.write("Skipping alignment '%s' because ratio of ref length to read length is too large\n"%(l)); continue
+#		if float(int(parts[8]) - int(parts[7])) / float(int(parts[1])) < 0.85: sys.stderr.write("Skipping alignment '%s' because ratio of ref length to read length is too small\n"%(l)); continue
 
 		if int(parts[11]) < max_mapq: continue
 		if int(parts[11]) > max_mapq:
@@ -43,10 +47,13 @@ def add_lines(read_name, current_lines, lines_per_contig, read_order):
 	if parts[4] == "-":
 		end_pos += left_clip
 		start_pos -= right_clip
+	#	if (float(end_pos - start_pos) / float(parts[1]) > 1.05): end_pos = start_pos + int(float(parts[1])*1.05) # when a read is too big on the reference, shrink it down to avoid imply very large overlaps for it
 		(start_pos, end_pos) = (end_pos, start_pos)
 	else:
 		start_pos -= left_clip
 		end_pos += right_clip
+	#	if (float(end_pos - start_pos) / float(parts[1]) > 1.05): end_pos = start_pos + int(float(parts[1])*1.05) # dup of above
+
 	lines_per_contig[parts[5]].append((min(int(start_pos), int(end_pos)), "read\t" + str(read_order[read_name]) + "\tanchor\t0\thang\t0\t0\tposition", start_pos, end_pos))
 
 read_order = {}
@@ -56,6 +63,8 @@ def process_stream(s):
 	global read_order, next_id
 	read_name = ""
 	read_len = 0
+        sys.stderr.write("Reading sequences from file '%s' and offset is now %d\n"%(s.name, next_id))
+
 	for l in s:
 		if l[0] == '>':
 			if read_len >= 1000 and read_name != "":
@@ -65,9 +74,6 @@ def process_stream(s):
 			read_len = 0
 		else:
 			read_len += len(l.strip())
-	if read_len >= 1000 and read_name != "":
-		read_order[read_name] = next_id
-		next_id += 1
 
 if len(read_files) == 0:
 	process_stream(sys.stdin)
