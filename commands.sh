@@ -25,12 +25,14 @@ scripts/estimate_unique_local.py gapped-unitig-unrolled-hifi-resolved.gfa alns-o
 # scripts/translate_uniques.py normal-hifi_connected_twice.gfa < unique_nodes_hifi.txt > translated_uniques.txt
 # scripts/translate_nodes_by_seq.py normal-hifi_connected_twice.gfa unitig-unrolled-hifi-resolved.gfa < translated_uniques.txt > unique_nodes_ont_translated.txt
 # cat unique_nodes_ont_coverage.txt unique_nodes_ont_translated.txt | sort | uniq > unique_nodes_ont.txt
-cp unique_nodes_ont_coverage.txt unique_nodes_ont.txt
+scripts/fix_diploid_unique_nodes.py unique_nodes_ont_coverage.txt nodecovs-ont.csv gapped-unitig-unrolled-hifi-resolved.gfa > unique_nodes_diploidfix.txt
+cp unique_nodes_diploidfix.txt unique_nodes_ont.txt
 
 scripts/find_bridges.py unique_nodes_ont.txt < paths.txt > bridges.txt
 grep -v '(' < bridges.txt | grep -vP '^$' | scripts/remove_wrong_connections_2.py | sort > bridging_seq_all.txt
 scripts/pick_majority_bridge.py < bridging_seq_all.txt > bridging_seq_picked_all.txt
-cp bridging_seq_picked_all.txt bridging_seq_picked.txt
+scripts/fix_diploid_paths.py unique_nodes_ont.txt gapped-unitig-unrolled-hifi-resolved.gfa bridging_seq_picked_all.txt bridges.txt 3 > bridging_seq_diploidfix_all.txt
+cp bridging_seq_diploidfix_all.txt bridging_seq_picked.txt
 scripts/forbid_unbridged_tangles.py unique_nodes_ont.txt gapped-unitig-unrolled-hifi-resolved.gfa bridging_seq_all.txt paths.txt nodecovs-ont.csv 30 > forbidden_ends.txt
 scripts/connect_uniques.py gapped-unitig-unrolled-hifi-resolved.gfa forbidden_ends.txt bridging_seq_picked.txt > connected.gfa
 

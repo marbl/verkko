@@ -52,6 +52,9 @@ def getone(s):
 # fig. 5
 def find_bubble_end(edges, s):
 	if s not in edges: return None
+	if len(edges[s]) == 1:
+		if len(edges[revnode(getone(edges[s]))]) == 1:
+			return getone(edges[s])
 	if len(edges[s]) < 2: return None
 	S = [s]
 	visited = set()
