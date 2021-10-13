@@ -16,7 +16,7 @@ def getone(s):
 def revnode(n):
 	assert len(n) >= 2
 	assert n[0] == '>' or n[0] == '<'
-	return ('>' if n[0] == '<' else '<') + n[1:] 
+	return ('>' if n[0] == '<' else '<') + n[1:]
 
 unique_nodes = set()
 with open(unique_nodes_file) as f:
