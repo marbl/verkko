@@ -72,6 +72,7 @@ all_paths = set()
 with open(picked_paths_file) as f:
 	for l in f:
 		path = l.replace('>', '\t>').replace('<', '\t<').strip().split('\t')
+		if len(path) == 0: continue
 		all_paths.add(l.strip())
 		if path[0] not in paths_per_unique: paths_per_unique[path[0]] = set()
 		paths_per_unique[path[0]].add((l.strip(), revnode(path[-1])))

@@ -56,7 +56,7 @@ scripts/get_layout_from_aln.py contigs_rle.fa alns.paf read_names.txt hifi.fa on
 scripts/check_layout_gaps.py < layout.txt > gaps.txt
 
 # only for evaluating CHM13 haploid assemblies
-# UntipRelative 30000 30000 0.1 0.1 < ont-resolved-graph.gfa > connected-tip.gfa
+# UntipRelative 30000 30000 0.1 0.1 < unitig-unrolled-ont-resolved.gfa > connected-tip.gfa
 # scripts/unitigify.py < connected-tip.gfa > unitig-normal-connected-tip.gfa
 # scripts/pop_bubbles_keep_longest.py 10 < unitig-normal-connected-tip.gfa > popped-unitig-normal-connected-tip.gfa
 # scripts/unitigify.py < popped-unitig-normal-connected-tip.gfa > unitig-popped-unitig-normal-connected-tip.gfa
