@@ -34,7 +34,7 @@ scripts/pick_majority_bridge.py < bridging_seq_all.txt > bridging_seq_picked_all
 scripts/remove_crosslink_paths.py unique_nodes_ont.txt bridging_seq_picked_all.txt bridges.txt > bridges_fixcrosslink.txt 2> forbidden_crosslinks.txt
 scripts/fix_diploid_paths.py unique_nodes_ont.txt gapped-unitig-unrolled-hifi-resolved.gfa bridges_fixcrosslink.txt bridges.txt 3 > bridging_seq_diploidfix_all.txt
 cp bridging_seq_diploidfix_all.txt bridging_seq_picked.txt
-scripts/forbid_unbridged_tangles.py unique_nodes_ont.txt gapped-unitig-unrolled-hifi-resolved.gfa bridging_seq_all.txt paths.txt nodecovs-ont.csv 30 > forbidden_ends.txt
+scripts/forbid_unbridged_tangles.py unique_nodes_ont.txt gapped-unitig-unrolled-hifi-resolved.gfa bridging_seq_all.txt bridging_seq_picked.txt paths.txt nodecovs-ont.csv 30 > forbidden_ends.txt
 scripts/connect_uniques.py gapped-unitig-unrolled-hifi-resolved.gfa forbidden_ends.txt bridging_seq_picked.txt > connected.gfa
 
 scripts/merge_unresolved_dbg_nodes.py < connected.gfa > normal-connected.gfa
