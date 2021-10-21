@@ -1,6 +1,11 @@
 #!/usr/bin/python
 
-import fileinput
+import sys
+
+forbidden_paths_out_file = sys.argv[1]
+# paths from stdin
+# allowed to stdout
+
 
 def pathstr(p):
 	return "".join(p)
@@ -12,7 +17,7 @@ connectors = {}
 
 connections = []
 
-for line in fileinput.input():
+for line in sys.stdin:
 	l = line.strip() + ">"
 	last_break = 0
 	path = []
@@ -41,6 +46,10 @@ for fwpos in connectors:
 		if max_coverage >= 2 * len(connectors[fwpos][bwpos]):
 			for j in connectors[fwpos][bwpos]:
 				forbidden.add(j)
+
+with open(forbidden_paths_out_file, "w") as f:
+	for path in forbidden:
+		f.write(path + "\n")
 
 for i in range(0, len(connections)):
 	if i in forbidden: continue

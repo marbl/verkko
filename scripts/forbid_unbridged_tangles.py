@@ -4,7 +4,7 @@ import sys
 
 uniquefile = sys.argv[1]
 graphfile = sys.argv[2]
-all_connectionfile = sys.argv[3]
+forbidden_connectionfile = sys.argv[3]
 picked_connections_file = sys.argv[4]
 pathsfile = sys.argv[5]
 coveragefile = sys.argv[6]
@@ -92,7 +92,7 @@ has_connection = set()
 sys.stderr.write(str(len(node_needs_connection)) + " nodes need covering\n")
 sys.stderr.write(str(len(edge_needs_connection)) + " edges need covering\n")
 
-with open(all_connectionfile) as f:
+with open(forbidden_connectionfile) as f:
 	for line in f:
 		l = line.strip()
 		last_break = 0
