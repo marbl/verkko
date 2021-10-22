@@ -2,6 +2,8 @@
 
 import sys
 
+prefix = sys.argv[1]
+mapping_file = sys.argv[2]
 # gfa from stdin
 # gfa to stdout
 
@@ -121,9 +123,13 @@ for node in node_seqs:
 			edge = (unitig_end["<" + node], unitig_start[target], edge_overlaps[("<" + node, target)])
 			unitig_edges.add(edge)
 
+with open(mapping_file, "w") as f:
+	for i in range(0, len(unitigs)):
+		f.write(prefix + str(i) + "\t" + "".join(unitigs[i]) + "\n")
+
 for i in range(0, len(unitigs)):
 	unitig_seq = get_seq(unitigs[i], node_seqs, edge_overlaps)
-	print("S\t" + str(i) + "\t" + unitig_seq)
+	print("S\t" + prefix + str(i) + "\t" + unitig_seq)
 
 for edge in unitig_edges:
-	print("L\t" + edge[0][1:] + "\t" + ("+" if edge[0][0] == ">" else "-") + "\t" + edge[1][1:] + "\t" + ("+" if edge[1][0] == ">" else "-") + "\t" + str(edge[2]) + "M")
+	print("L\t" + prefix + edge[0][1:] + "\t" + ("+" if edge[0][0] == ">" else "-") + "\t" + prefix + edge[1][1:] + "\t" + ("+" if edge[1][0] == ">" else "-") + "\t" + str(edge[2]) + "M")

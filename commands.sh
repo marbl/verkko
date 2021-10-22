@@ -4,7 +4,7 @@ scripts/insert_aln_gaps.py hifi-resolved.gfa 2 50 gaps-hifi-1.gaf gapone < paths
 scripts/insert_aln_gaps.py gapped-once-hifi-resolved.gfa 2 300 gaps-hifi-2.gaf gaptwo < paths.gaf > gapped-twice-hifi-resolved.gfa
 scripts/insert_aln_gaps.py gapped-twice-hifi-resolved.gfa 1 5 gaps-hifi-3.gaf gapthree < paths.gaf > gapped-hifi-resolved.gfa
 cut -f 6 < paths.gaf | scripts/unroll_tip_loops.py gapped-hifi-resolved.gfa 5 > unrolled-hifi-resolved.gfa
-scripts/unitigify.py < unrolled-hifi-resolved.gfa > unitig-unrolled-hifi-resolved.gfa
+scripts/unitigify.py "tig1-" unitig-mapping-1.txt < unrolled-hifi-resolved.gfa > unitig-unrolled-hifi-resolved.gfa
 
 # only for evaluating hifi-only CHM13 haploid assemblies
 # UntipRelative 15000 15000 0.1 0.1 < unitig-unrolled-hifi-resolved.gfa > hifi-resolved-graph-tip.gfa
@@ -42,9 +42,10 @@ scripts/connect_uniques.py gapped-unitig-unrolled-hifi-resolved.gfa forbidden_en
 scripts/merge_unresolved_dbg_nodes.py < connected.gfa > normal-connected.gfa
 scripts/add_fake_alignments.py unitig-unrolled-hifi-resolved.gfa normal-connected.gfa alns-ont-filter-trim.gaf nodecovs-ont.csv fake-ont-alns.gaf fake-ont-nodecovs.csv 10
 /usr/bin/time -v scripts/resolve_triplets_kmerify.py normal-connected.gfa fake-ont-paths.txt fake-ont-nodecovs.csv 100000 3 5 3 2 < fake-ont-alns.gaf > ont-resolved-graph.gfa 2> stderr_ont_resolved_graph.txt
+scripts/get_resolved_nodemapping.py < ont-resolved-graph.gfa > resolve-mapping.txt
 
 scripts/unroll_tip_loops.py ont-resolved-graph.gfa 3 < fake-ont-paths.txt > unrolled-ont-resolved.gfa
-scripts/unitigify.py < unrolled-ont-resolved.gfa > unitig-unrolled-ont-resolved.gfa
+scripts/unitigify.py "tig2-" unitig-mapping-2.txt < unrolled-ont-resolved.gfa > unitig-unrolled-ont-resolved.gfa
 
 # consensus
 grep -P '^S' < unitig-unrolled-ont-resolved.gfa | awk '{print ">" $2; print $3;}' > contigs_rle.fa
@@ -60,6 +61,6 @@ scripts/check_layout_gaps.py < layout.txt > gaps.txt
 
 # only for evaluating CHM13 haploid assemblies
 # UntipRelative 30000 30000 0.1 0.1 < unitig-unrolled-ont-resolved.gfa > connected-tip.gfa
-# scripts/unitigify.py < connected-tip.gfa > unitig-normal-connected-tip.gfa
+# scripts/unitigify.py "tig3-" unitig-mapping-3.txt < connected-tip.gfa > unitig-normal-connected-tip.gfa
 # scripts/pop_bubbles_keep_longest.py 10 < unitig-normal-connected-tip.gfa > popped-unitig-normal-connected-tip.gfa
-# scripts/unitigify.py < popped-unitig-normal-connected-tip.gfa > unitig-popped-unitig-normal-connected-tip.gfa
+# scripts/unitigify.py "tig4-" unitig-mapping-4.txt < popped-unitig-normal-connected-tip.gfa > unitig-popped-unitig-normal-connected-tip.gfa
