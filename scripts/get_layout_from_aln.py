@@ -3,6 +3,8 @@
 import sys
 import random
 
+MAX_END_CLIP=50
+
 ref_file = sys.argv[1]
 paf_file = sys.argv[2]
 read_names_file = sys.argv[3]
@@ -17,10 +19,12 @@ def add_lines(read_name, current_lines, lines_per_contig, read_order):
 	max_mapq = 0
 	for l in current_lines:
 		parts = l.split('\t')
-		if float(int(parts[3]) - int(parts[2])) / float(int(parts[1])) < 0.95: sys.stderr.write("Skipping alignment '%s' because it doesn't cover enough of the read\n"%(l)); continue
-# adding the below adds more layout gaps and also end sup with slightly worse results for tandemmapper and quast
-#		if float(int(parts[8]) - int(parts[7])) / float(int(parts[1])) > 1.15: sys.stderr.write("Skipping alignment '%s' because ratio of ref length to read length is too large\n"%(l)); continue
-#		if float(int(parts[8]) - int(parts[7])) / float(int(parts[1])) < 0.85: sys.stderr.write("Skipping alignment '%s' because ratio of ref length to read length is too small\n"%(l)); continue
+                # we skip alignments if the full read doesn't align
+                # however, in the case of edge effects, we can have reads that extend past the consensus we aligned to and that's OK so allow if the alignment break is within a few bp of contig start/end
+		if float(int(parts[3]) - int(parts[2])) / float(int(parts[1])) < 0.95:
+                   # read is not close to the end so skip it
+                   if (int(parts[7]) > MAX_END_CLIP and int(parts[8]) + MAX_END_CLIP < int(parts[6])):
+                      sys.stderr.write("Skipping alignment '%s' because it doesn't cover enough of the read\n"%(l)); continue
 
 		if int(parts[11]) < max_mapq: continue
 		if int(parts[11]) > max_mapq:
@@ -41,12 +45,10 @@ def add_lines(read_name, current_lines, lines_per_contig, read_order):
 	if parts[4] == "-":
 		end_pos += left_clip
 		start_pos -= right_clip
-	#	if (float(end_pos - start_pos) / float(parts[1]) > 1.05): end_pos = start_pos + int(float(parts[1])*1.05) # when a read is too big on the reference, shrink it down to avoid imply very large overlaps for it
 		(start_pos, end_pos) = (end_pos, start_pos)
 	else:
 		start_pos -= left_clip
 		end_pos += right_clip
-	#	if (float(end_pos - start_pos) / float(parts[1]) > 1.05): end_pos = start_pos + int(float(parts[1])*1.05) # dup of above
 
 	lines_per_contig[parts[5]].append((min(int(start_pos), int(end_pos)), "read\t" + str(read_order[read_name]) + "\tanchor\t0\thang\t0\t0\tposition", start_pos, end_pos))
 
