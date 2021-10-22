@@ -4,10 +4,11 @@ import sys
 
 uniquefile = sys.argv[1]
 graphfile = sys.argv[2]
-connectionfile = sys.argv[3]
-pathsfile = sys.argv[4]
-coveragefile = sys.argv[5]
-min_solid_coverage = int(sys.argv[6])
+forbidden_connectionfile = sys.argv[3]
+picked_connections_file = sys.argv[4]
+pathsfile = sys.argv[5]
+coveragefile = sys.argv[6]
+min_solid_coverage = int(sys.argv[7])
 
 def find(s, parent):
 	while parent[s] != parent[parent[s]]:
@@ -91,7 +92,23 @@ has_connection = set()
 sys.stderr.write(str(len(node_needs_connection)) + " nodes need covering\n")
 sys.stderr.write(str(len(edge_needs_connection)) + " edges need covering\n")
 
-with open(connectionfile) as f:
+with open(forbidden_connectionfile) as f:
+	for line in f:
+		l = line.strip()
+		last_break = 0
+		path = l.replace('>', '\t>').replace('<', '\t<').strip().split('\t')
+		assert len(path) >= 2
+		for node in path:
+			if node[1:] in node_needs_connection: node_needs_connection.remove(node[1:])
+		for i in range(1, len(path)):
+			key = canon(path[i-1], path[i])
+			if key in edge_needs_connection: edge_needs_connection.remove(key)
+		fwkey = path[0]
+		bwkey = reverse(path[-1])
+		has_connection.add(fwkey)
+		has_connection.add(bwkey)
+
+with open(picked_connections_file) as f:
 	for line in f:
 		l = line.strip()
 		last_break = 0

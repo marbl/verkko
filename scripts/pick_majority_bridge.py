@@ -1,6 +1,10 @@
 #!/usr/bin/python
 
-import fileinput
+import sys
+
+forbidden_paths_out_file = sys.argv[1]
+# paths from stdin
+# allowed paths to stdout
 
 def pathstr(p):
 	return "".join(p)
@@ -14,7 +18,7 @@ def canon(p):
 
 connectors = {}
 
-for line in fileinput.input():
+for line in sys.stdin:
 	l = line.strip() + ">"
 	last_break = 0
 	path = []
@@ -29,6 +33,8 @@ for line in fileinput.input():
 	if path not in connectors[key]: connectors[key][path] = 0
 	connectors[key][path] += 1
 
+forbidden = set()
+
 for key in connectors:
 	connectorlist = []
 	for path in connectors[key]:
@@ -38,3 +44,10 @@ for key in connectors:
 	for connection in connectorlist:
 		if connection[1]*2 >= connectorlist[0][1]:
 			print(pathstr(list(connection[0])))
+		else:
+			forbidden.add(pathstr(list(connection[0])))
+
+with open(forbidden_paths_out_file, "w") as f:
+	for path in forbidden:
+		f.write(path + "\n")
+
