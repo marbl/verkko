@@ -49,7 +49,7 @@ for fwpos in connectors:
 
 with open(forbidden_paths_out_file, "w") as f:
 	for path in forbidden:
-		f.write(path + "\n")
+		f.write(pathstr(connections[path]) + "\n")
 
 for i in range(0, len(connections)):
 	if i in forbidden: continue

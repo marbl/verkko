@@ -18,7 +18,7 @@ def canon(p):
 
 connectors = {}
 
-for line in fileinput.input():
+for line in sys.stdin:
 	l = line.strip() + ">"
 	last_break = 0
 	path = []
