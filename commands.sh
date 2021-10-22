@@ -1,8 +1,8 @@
 MBG -i hifi.fa -o hifi-resolved.gfa -k 1001 -w 100 -a 1 -u 2 --error-masking=collapse-msat --output-sequence-paths paths.gaf -r 15000
 
-scripts/insert_aln_gaps.py hifi-resolved.gfa 2 50 /dev/null < paths.gaf > gapped-once-hifi-resolved.gfa
-scripts/insert_aln_gaps.py gapped-once-hifi-resolved.gfa 2 300 /dev/null < paths.gaf > gapped-twice-hifi-resolved.gfa
-scripts/insert_aln_gaps.py gapped-twice-hifi-resolved.gfa 1 5 /dev/null < paths.gaf > gapped-hifi-resolved.gfa
+scripts/insert_aln_gaps.py hifi-resolved.gfa 2 50 gaps-hifi-1.gaf gapone < paths.gaf > gapped-once-hifi-resolved.gfa
+scripts/insert_aln_gaps.py gapped-once-hifi-resolved.gfa 2 300 gaps-hifi-2.gaf gaptwo < paths.gaf > gapped-twice-hifi-resolved.gfa
+scripts/insert_aln_gaps.py gapped-twice-hifi-resolved.gfa 1 5 gaps-hifi-3.gaf gapthree < paths.gaf > gapped-hifi-resolved.gfa
 cut -f 6 < paths.gaf | scripts/unroll_tip_loops.py gapped-hifi-resolved.gfa 5 > unrolled-hifi-resolved.gfa
 scripts/unitigify.py < unrolled-hifi-resolved.gfa > unitig-unrolled-hifi-resolved.gfa
 
@@ -19,7 +19,7 @@ scripts/calculate_coverage.py unitig-unrolled-hifi-resolved.gfa < alns-ont-filte
 
 cut -f 6 < alns-ont-filter-trim.gaf > paths.txt
 awk -F '\t' '{if ($12 >= 20) print;}' < alns-ont.gaf > alns-ont-mapqfilter.gaf
-scripts/insert_aln_gaps.py unitig-unrolled-hifi-resolved.gfa 3 50 used_ont.txt < alns-ont-mapqfilter.gaf > gapped-unitig-unrolled-hifi-resolved.gfa
+scripts/insert_aln_gaps.py unitig-unrolled-hifi-resolved.gfa 3 50 gaps-ont.gaf gapont < alns-ont-mapqfilter.gaf > gapped-unitig-unrolled-hifi-resolved.gfa
 awk '{if ($2 >= 100000) {sum += $2*$3; count += $2;}}END{print sum/count;}' < nodecovs-ont.csv
 scripts/estimate_unique_local.py gapped-unitig-unrolled-hifi-resolved.gfa alns-ont-filter-trim.gaf 100000 30 0.8 > unique_nodes_ont_coverage.txt
 # scripts/translate_uniques.py normal-hifi_connected_twice.gfa < unique_nodes_hifi.txt > translated_uniques.txt
@@ -49,6 +49,7 @@ scripts/unitigify.py < unrolled-ont-resolved.gfa > unitig-unrolled-ont-resolved.
 # consensus
 grep -P '^S' < unitig-unrolled-ont-resolved.gfa | awk '{print ">" $2; print $3;}' > contigs_rle.fa
 winnowmap -x map-pb -t 32 contigs_rle.fa hifi.fa > alns.paf
+cat gaps-ont.gaf | cut -f 1 | sort | uniq > used_ont.txt
 scripts/pick_reads_stdin.py used_ont.txt < ont.fa > ont_gap_subset.fa
 scripts/rle.py < ont_gap_subset.fa > ont_gap_subset_rle.fa
 winnowmap -x map-ont -t 32 contigs_rle.fa ont_gap_subset_rle.fa >> alns.paf
