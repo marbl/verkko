@@ -40,7 +40,8 @@ scripts/forbid_unbridged_tangles.py unique_nodes_ont.txt gapped-unitig-unrolled-
 scripts/connect_uniques.py gapped-unitig-unrolled-hifi-resolved.gfa forbidden_ends.txt bridging_seq_picked.txt > connected.gfa
 
 scripts/merge_unresolved_dbg_nodes.py < connected.gfa > normal-connected.gfa
-scripts/add_fake_alignments.py unitig-unrolled-hifi-resolved.gfa normal-connected.gfa alns-ont-filter-trim.gaf nodecovs-ont.csv fake-ont-alns.gaf fake-ont-nodecovs.csv 10
+scripts/add_fake_alignments.py unitig-unrolled-hifi-resolved.gfa normal-connected.gfa alns-ont-filter-trim.gaf nodecovs-ont.csv fake-ont-alns.gaf fake-ont-nodecovs-once.csv 10
+scripts/add_fake_bridging_paths.py forbidden_ends.txt bridging_seq_picked.txt fake-ont-nodecovs-once.csv fake-ont-nodecovs.csv 10 >> fake-ont-alns.gaf
 /usr/bin/time -v scripts/resolve_triplets_kmerify.py normal-connected.gfa fake-ont-paths.txt fake-ont-nodecovs.csv 100000 3 5 3 2 < fake-ont-alns.gaf > ont-resolved-graph.gfa 2> stderr_ont_resolved_graph.txt
 scripts/get_resolved_nodemapping.py < ont-resolved-graph.gfa > resolve-mapping.txt
 
