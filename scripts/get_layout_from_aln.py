@@ -8,6 +8,12 @@ paf_file = sys.argv[2]
 read_names_file = sys.argv[3]
 read_files = sys.argv[4:]
 
+if len(read_files) > 0:
+	print('Will read the reads from following files', ','.join(sys.argv[4:]), file=sys.stderr)
+else:
+	print('Will read the reads from stdin', file=sys.stderr)
+
+
 def add_lines(read_name, current_lines, lines_per_contig, read_order):
 	if len(current_lines) == 0: return
 	if read_name not in read_order: return
@@ -43,22 +49,31 @@ def add_lines(read_name, current_lines, lines_per_contig, read_order):
 
 read_order = {}
 next_id = 1
-for read_file in read_files:
+
+def process_stream(s):
+	global read_order, next_id
 	read_name = ""
 	read_len = 0
-	with open(read_file) as f:
-		for l in f:
-			if l[0] == '>':
-				if read_len >= 1000 and read_name != "":
-					read_order[read_name] = next_id
-					next_id += 1
-				read_name = l[1:].split(' ')[0].strip()
-				read_len = 0
-			else:
-				read_len += len(l.strip())
+	for l in s:
+		if l[0] == '>':
+			if read_len >= 1000 and read_name != "":
+				read_order[read_name] = next_id
+				next_id += 1
+			read_name = l[1:].split(' ')[0].strip()
+			read_len = 0
+		else:
+			read_len += len(l.strip())
 	if read_len >= 1000 and read_name != "":
 		read_order[read_name] = next_id
 		next_id += 1
+
+if len(read_files) == 0:
+	process_stream(sys.stdin)
+else:
+	for read_file in read_files:
+		with open(read_file) as f:
+			process_stream(f)
+
 
 with open(read_names_file, "w") as f:
 	for name in read_order: f.write(str(name) + "\t" + str(read_order[name]) + "\n")
