@@ -1,0 +1,118 @@
+import tempfile
+import os
+import re
+import glob
+import time
+import math
+
+SCRIPT_PATH=config['SCRIPT_PATH']
+ROOT_PATH=config['ROOT_PATH']
+
+HIFI_READS=glob.glob(config['HIFI_READS'])
+print("HiFi reads", HIFI_READS)
+ONT_READS=glob.glob(config['ONT_READS'])
+print("ONT reads", ONT_READS)
+
+localrules: all
+
+rule all:
+    input:
+        'unitig-popped-unitig-normal-connected-tip.gfa'
+
+rule build_graph:
+    input:
+        HIFI_READS
+    output:
+        gfa='hifi-resolved.gfa',
+        paths='paths.gaf'
+    threads: 8
+    log:
+        'graph_building.log'
+    params:
+        input_str=' '.join(expand('-i {r}', r=HIFI_READS)),
+        baseK=1001,
+        w=100,
+        maxK=15000
+    shell:
+        '''
+        MBG {params.input_str} -t {threads} -o {output.gfa} -k {params.baseK} -w {params.w} -a 1 -u 2 --error-masking=collapse-msat --output-sequence-paths {output.paths} -r {params.maxK} &> {log}
+        '''
+
+rule process_graph:
+    input:
+        gfa='hifi-resolved.gfa',
+        paths='paths.gaf'
+    output:
+        processed_gfa='unitig-unrolled-hifi-resolved.gfa'
+    shell:
+        '''
+        {SCRIPT_PATH}/insert_aln_gaps.py {input.gfa} 2 50 gaps-hifi-1.gaf gapone < {input.paths} > gapped-once-hifi-resolved.gfa
+        {SCRIPT_PATH}/insert_aln_gaps.py gapped-once-hifi-resolved.gfa 2 300 gaps-hifi-2.gaf gaptwo < paths.gaf > gapped-twice-hifi-resolved.gfa
+        {SCRIPT_PATH}/insert_aln_gaps.py gapped-twice-hifi-resolved.gfa 1 5 gaps-hifi-3.gaf gapthree < paths.gaf > gapped-hifi-resolved.gfa
+        cut -f 6 < paths.gaf | {SCRIPT_PATH}/unroll_tip_loops.py gapped-hifi-resolved.gfa 5 > unrolled-hifi-resolved.gfa
+        {SCRIPT_PATH}/unitigify.py "tig1-" unitig-mapping-1.txt < unrolled-hifi-resolved.gfa > {output.processed_gfa}
+        '''
+
+rule align_ont:
+    input: reads=lambda wildcards: ONT_READS[int(wildcards.i)],
+           graph='unitig-unrolled-hifi-resolved.gfa'
+    output: 'ont_align/read_file{i}.gaf'
+    threads: 32
+    log: 'ont_align/read_file{i}.log'
+    shell:
+        '''
+        GraphAligner -t {threads} -g {input.graph} -f {input.reads} -a {output} --seeds-mxm-length 30 --seeds-mem-count 1000 -b 15 --multimap-score-fraction 0.99 --precise-clipping 0.85 --min-alignment-score 5000 --hpc-collapse-reads --discard-cigar --clip-ambiguous-ends 100 --overlap-incompatible-cutoff 0.15 --max-trace-count 5 2> {log}
+        '''
+
+rule aggregate:
+    input: expand('ont_align/read_file{i}.gaf', i=range(0, len(ONT_READS)))
+    output: 'alns-ont.gaf'
+    shell: 'cat {input} > alns-ont.gaf'
+
+rule process_ont_paths:
+#unitig-unrolled-hifi-resolved.gfa alns-ont.gaf unitig-unrolled-ont-resolved.gfa 5 20 10 5
+    input: graph='unitig-unrolled-hifi-resolved.gfa',
+           ont_paths='alns-ont.gaf'
+    output: graph='unitig-unrolled-ont-resolved.gfa',
+            #TODO pass as parameter?
+            ont_gap_align='gaps-ont.gaf'
+    log: 'process_ont_paths.log'
+    params:
+        min_allowed_cov=5,
+        resolve_steps='20 10 5'
+    shell:
+        '''
+        {ROOT_PATH}/process_ont_paths.sh {input.graph} {input.ont_paths} {output.graph} {params.min_allowed_cov} {params.resolve_steps} &> {log}
+        '''
+
+rule postprocess:
+    input: 'unitig-unrolled-ont-resolved.gfa'
+    output: 'unitig-popped-unitig-normal-connected-tip.gfa'
+    log: 'postprocess.log'
+    shell:
+        '''
+        {ROOT_PATH}/postprocess.sh {input} {output} &> {log}
+        '''
+
+#FIXME used_ont.txt generation was missing in original script
+# seqtk for loop trick should allow working with (un)gzipped FASTA/FASTQ
+#FIXME should be compressed reads!
+#rule create_layout:
+#    input: hifi=HPC_HIFI_READS,
+#           ont=HPC_ONT_READS,
+#           graph='unitig-popped-unitig-normal-connected-tip.gfa',
+#           ont_gap_align='gaps-ont.gaf'
+#    output: 'layout.txt'
+#    threads: 32
+#    shell:
+#    '''
+#        grep -P '^S' < {input.graph} | awk '{{print ">" $2; print $3;}}' > contigs_rle.fa
+#        /usr/bin/time -v winnowmap -x map-pb -t {threads} contigs_rle.fa {input.hifi} > alns.paf 2> stderr_winnowmap_hifi.txt
+#        cat {input.out_gap_align} | cut -f 1 | sort | uniq > used_ont.txt
+#        for o in {input.ont} ; do seqtk seq -A $o ; done | {SCRIPT_PATH}/pick_reads_stdin.py used_ont.txt > ont_gap_subset.fa
+#        #zcat {input.ont} | awk '{if (NR % 4 == 1 || NR % 4 == 2) print;}' | tr '@' '>' | {SCRIPT_PATH}/pick_reads_stdin.py used_ont.txt > ont_gap_subset.fa
+#        {SCRIPT_PATH}/rle.py < ont_gap_subset.fa > ont_gap_subset_rle.fa
+#        /usr/bin/time -v winnowmap -x map-ont -t {threads} contigs_rle.fa ont_gap_subset_rle.fa >> alns.paf 3> stderr_winnowmap_ont.txt
+#        for h in {input.hifi} ont_gap_subset.fa ; do seqtk seq -A $h ; done | /usr/bin/time -v {SCRIPT_PATH}/get_layout_from_aln.py contigs_rle.fa alns.paf read_names.txt > layout.txt 2> stderr_layout.txt
+#        {SCRIPT_PATH}/check_layout_gaps.py < layout.txt > gaps.txt
+#    '''
