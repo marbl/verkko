@@ -56,9 +56,10 @@ def check_side(start):
 	if path_counts[abundant_paths[1]] == path_counts[abundant_paths[2]]: return
 	used_here = set()
 	used_here.add(startnode(abundant_paths[0]))
-	used_here.add(startnode(abundant_paths[0]))
+	used_here.add(startnode(abundant_paths[1]))
+	used_here.add(endnode(abundant_paths[0]))
 	used_here.add(endnode(abundant_paths[1]))
-	used_here.add(endnode(abundant_paths[1]))
+	if len(used_here) < 4: return
 	for i in range(2, len(abundant_paths)): forbidden_paths.add(abundant_paths[i])
 
 
