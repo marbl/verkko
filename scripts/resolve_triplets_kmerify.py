@@ -6,9 +6,10 @@ import heapq
 input_gfa = sys.argv[1]
 out_path_file = sys.argv[2]
 node_coverage_file = sys.argv[3]
-max_resolve_length = int(sys.argv[4])
-min_allowed_coverage = float(sys.argv[5])
-resolve_steps = [int(n) for n in sys.argv[6:]]
+resolve_namemapping_file = sys.argv[4]
+max_resolve_length = int(sys.argv[5])
+min_allowed_coverage = float(sys.argv[6])
+resolve_steps = [int(n) for n in sys.argv[7:]]
 # gaf from stdin
 # gfa to stdout
 
@@ -923,3 +924,10 @@ for n in node_seqs:
 	print("S\t" + unitig_name[n] + "\t" + get_seq(base_seqs, edge_overlaps, node_seqs[n][0], node_seqs[n][1], node_seqs[n][2]))
 
 sys.stderr.write("graph written" + "\n")
+sys.stderr.write("write name mapping" + "\n")
+
+with open(resolve_namemapping_file, "w") as f:
+	for n in node_seqs:
+		f.write(unitig_name[n] + "\t" + "".join(node_seqs[n][0]) + "\n")
+
+sys.stderr.write("name mapping written" + "\n")
