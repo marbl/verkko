@@ -38,6 +38,7 @@ cp bridging_seq_diploidfix_all.txt bridging_seq_picked.txt
 cat forbidden_crosslinks.txt forbidden_minority_bridges.txt > bridging_seq_forbidden.txt
 scripts/forbid_unbridged_tangles.py unique_nodes_ont.txt gapped-unitig-unrolled-hifi-resolved.gfa bridging_seq_forbidden.txt bridging_seq_picked.txt paths.txt nodecovs-ont.csv 30 > forbidden_ends.txt
 scripts/connect_uniques.py gapped-unitig-unrolled-hifi-resolved.gfa forbidden_ends.txt bridging_seq_picked.txt > connected.gfa
+scripts/get_bridge_mapping.py connected.gfa gapped-unitig-unrolled-hifi-resolved.gfa > bridge_mapping.txt
 
 scripts/merge_unresolved_dbg_nodes.py < connected.gfa > normal-connected.gfa
 scripts/add_fake_alignments.py unitig-unrolled-hifi-resolved.gfa normal-connected.gfa alns-ont-filter-trim.gaf nodecovs-ont.csv fake-ont-alns.gaf fake-ont-nodecovs-once.csv 10
@@ -55,6 +56,13 @@ scripts/pick_reads_stdin.py used_ont.txt < ont.fa > ont_gap_subset.fa
 scripts/rle.py < ont_gap_subset.fa > ont_gap_subset_rle.fa
 winnowmap -x map-ont -t 32 contigs_rle.fa ont_gap_subset_rle.fa >> alns.paf
 scripts/get_layout_from_aln.py contigs_rle.fa alns.paf read_names.txt hifi.fa ont_gap_subset.fa > layout.txt
+
+# layout without alignment
+cat *mapping* > combined-nodemap.txt
+cat *.gfa | grep -P '^L' > combined-edges.gfa
+cat gaps-*.gaf paths.gaf > combined-alignments.gaf
+grep -P '^S' *.gfa | awk '{print $2 "\t" length($3);}' > nodelens.txt
+scripts/get_layout_from_mbg.py combined-nodemap.txt combined-edges.gfa combined-alignments.gaf unitig-unrolled-ont-resolved.gfa read_names.txt nodelens.txt > layout.txt 2> unitig_to_mbg_list.txt
 
 # just for debug info
 scripts/check_layout_gaps.py < layout.txt > gaps.txt
