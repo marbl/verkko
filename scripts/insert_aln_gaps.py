@@ -85,7 +85,7 @@ for gap in gaps:
 	if len(gaps[gap]) < min_gap_coverage: continue
 	gap_len_list = list(gaps[gap])
 	gap_len_list.sort()
-	gap_len = gap_len_list[len(gap_len_list)/2]
+	gap_len = gap_len_list[len(gap_len_list) // 2]
 	gap_name = prefix + "-" + str(next_gap_id) + "-len-" + str(gap_len) + "-cov-" + str(len(gaps[gap]))
 	overlap = 0
 	seq = "N"
