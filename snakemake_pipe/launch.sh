@@ -16,7 +16,7 @@ export ROOT_PATH=$(readlink -e .)
 export SCRIPT_PATH=$ROOT_PATH/../scripts
 #Relies on having seqtk, winnowmap, MGB, GraphAigner (and UntipRelative) in PATH
 module load seqtk
-export PATH=/home/nurks2/git/Winnowmap/bin:/home/nurks2/git/MBG/bin:home/nurks2/git/GraphAligner/bin:$PATH
+export PATH=/home/nurks2/git/Winnowmap/bin:/home/nurks2/git/MBG/bin:/home/nurks2/git/GraphAligner/bin:$PATH
 
 # -o /home/snurk/logs/ -e /home/snurk/logs/
 echo "Will use config file: \"$config\""
