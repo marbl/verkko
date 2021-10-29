@@ -29,7 +29,7 @@ rule build_graph:
         'graph_building.log'
     params:
         input_str=' '.join(expand('-i {r}', r=HIFI_READS)),
-        baseK=1001,
+        baseK=config['MIN_KMER'],
         w=100,
         maxK=15000
     shell:

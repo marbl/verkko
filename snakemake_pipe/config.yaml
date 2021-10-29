@@ -2,6 +2,8 @@
 ROOT_PATH: '${ROOT_PATH}'
 SCRIPT_PATH: '${SCRIPT_PATH}'
 
+MIN_KMER: 1001
+
 HIFI_READS: '/gpfs/gsfs10/users/Phillippy/seq/primate_T2T/PR00251_PPA/raw_data/PacBio_HiFi/*.fasta.gz'
 
 ONT_READS: '/gpfs/gsfs10/users/Phillippy/seq/primate_T2T/PR00251_PPA/raw_data/ont/split/split*.fasta.gz'
