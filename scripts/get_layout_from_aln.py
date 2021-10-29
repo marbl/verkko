@@ -3,6 +3,8 @@
 import sys
 import random
 
+MAX_END_CLIP=50
+
 ref_file = sys.argv[1]
 paf_file = sys.argv[2]
 read_names_file = sys.argv[3]
@@ -10,12 +12,20 @@ read_files = sys.argv[4:]
 
 def add_lines(read_name, current_lines, lines_per_contig, read_order):
 	if len(current_lines) == 0: return
-	if read_name not in read_order: return
+	if read_name not in read_order:
+           sys.stderr.write("ERROR: Uknown read %s, are your input fasta files correct?\n"%(read_name))
+           sys.exit(1)
 	max_mapq_lines = []
 	max_mapq = 0
 	for l in current_lines:
 		parts = l.split('\t')
-		if float(int(parts[3]) - int(parts[2])) / float(int(parts[1])) < 0.9: continue
+                # we skip alignments if the full read doesn't align
+                # however, in the case of edge effects, we can have reads that extend past the consensus we aligned to and that's OK so allow if the alignment break is within a few bp of contig start/end
+		if float(int(parts[3]) - int(parts[2])) / float(int(parts[1])) < 0.95:
+                   # read is not close to the end so skip it
+                   if (int(parts[7]) > MAX_END_CLIP and int(parts[8]) + MAX_END_CLIP < int(parts[6])):
+                      sys.stderr.write("Skipping alignment '%s' because it doesn't cover enough of the read\n"%(l)); continue
+
 		if int(parts[11]) < max_mapq: continue
 		if int(parts[11]) > max_mapq:
 			max_mapq_lines = []
@@ -39,6 +49,7 @@ def add_lines(read_name, current_lines, lines_per_contig, read_order):
 	else:
 		start_pos -= left_clip
 		end_pos += right_clip
+
 	lines_per_contig[parts[5]].append((min(int(start_pos), int(end_pos)), "read\t" + str(read_order[read_name]) + "\tanchor\t0\thang\t0\t0\tposition", start_pos, end_pos))
 
 read_order = {}
@@ -46,6 +57,7 @@ next_id = 1
 for read_file in read_files:
 	read_name = ""
 	read_len = 0
+	sys.stderr.write("Reading sequences from file '%s' and offset is now %d\n"%(read_file, next_id))
 	with open(read_file) as f:
 		for l in f:
 			if l[0] == '>':
@@ -95,6 +107,8 @@ with open(paf_file) as f:
 add_lines(current_name, current_lines, lines_per_contig, read_order)
 current_lines = []
 current_name = parts[0]
+contig_ids = {}
+next_id = 0
 
 for contig in lines_per_contig:
 	if len(lines_per_contig[contig]) == 0: continue
@@ -106,7 +120,9 @@ for contig in lines_per_contig:
 		start_pos = min(start_pos, line[3])
 		end_pos = max(end_pos, line[2])
 		end_pos = max(end_pos, line[3])
-	print("tig\t" + contig)
+	contig_ids[contig] = next_id
+	next_id += 1
+	print("tig\t-1")
 	print("len\t" + str(end_pos - start_pos))
 	print("cns")
 	print("qlt")
@@ -120,3 +136,6 @@ for contig in lines_per_contig:
 	for line in lines_per_contig[contig]:
 		print(line[1] + "\t" + str(line[2] - start_pos) + "\t" + str(line[3] - start_pos))
 	print("tigend")
+
+with open("tig_names.txt", "w") as f:
+   for name in contig_ids: f.write(str(contig_ids[name]) + "\t" + str(name) + "\n") 
