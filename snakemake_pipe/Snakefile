@@ -7,10 +7,9 @@ import math
 
 SCRIPT_PATH=config['SCRIPT_PATH']
 ROOT_PATH=config['ROOT_PATH']
-
-HIFI_READS=glob.glob(config['HIFI_READS'])
+HIFI_READS=glob.glob(os.path.expandvars(config['HIFI_READS']))
 print("HiFi reads", HIFI_READS)
-ONT_READS=glob.glob(config['ONT_READS'])
+ONT_READS=glob.glob(os.path.expandvars(config['ONT_READS']))
 print("ONT reads", ONT_READS)
 
 localrules: all

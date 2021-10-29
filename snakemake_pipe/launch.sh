@@ -10,10 +10,13 @@ config=$(readlink -e $1)
 mkdir -p $2
 dir=$(readlink -e $2)
 
+export LAUNCH_PATH=$(readlink -e $PWD)
+
 cd $(dirname $0)
 
 export ROOT_PATH=$(readlink -e .)
 export SCRIPT_PATH=$ROOT_PATH/../scripts
+
 #Relies on having seqtk, winnowmap, MGB, GraphAigner (and UntipRelative) in PATH
 module load seqtk
 export PATH=/home/nurks2/git/Winnowmap/bin:/home/nurks2/git/MBG/bin:/home/nurks2/git/GraphAligner/bin:$PATH
