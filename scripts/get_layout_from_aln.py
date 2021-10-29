@@ -65,7 +65,7 @@ def process_stream(s):
 	global read_order, next_id
 	read_name = ""
 	read_len = 0
-        sys.stderr.write("Reading sequences from file '%s' and offset is now %d\n"%(s.name, next_id))
+	sys.stderr.write("Reading sequences from file '%s' and offset is now %d\n"%(s.name, next_id))
 
 	for l in s:
 		if l[0] == '>':
@@ -76,6 +76,9 @@ def process_stream(s):
 			read_len = 0
 		else:
 			read_len += len(l.strip())
+	if read_len >= 1000 and read_name != "":
+		read_order[read_name] = next_id
+		next_id += 1
 
 if len(read_files) == 0:
 	process_stream(sys.stdin)
