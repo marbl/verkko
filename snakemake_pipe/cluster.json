@@ -17,9 +17,9 @@
     "align_ont": {
         "time": "24:00:00",
         "n": 32,
-        "mem": 128
+        "mem": 160
     },
-    "process_graph": {
+    "process_ont_paths": {
         "time": "24:00:00",
         "n": 2,
         "mem": 64
