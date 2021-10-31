@@ -257,7 +257,11 @@ for node in nodelens:
 		for end in compare_nodes:
 			compare_coverage += float(longnode_coverage[end])
 		compare_coverage /= float(len(compare_nodes))
-	normalized_node_coverage[node] = node_coverage[node] / compare_coverage
+	if compare_coverage > 0.01:
+		normalized_node_coverage[node] = node_coverage[node] / compare_coverage
+	else:
+		print('WARN: division by zero prevented for node ', node, file=sys.stderr)
+		normalized_node_coverage[node] = 100.
 
 roughly_average_coverage_nodes = set()
 for n in nodelens:
