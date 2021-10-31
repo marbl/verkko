@@ -82,7 +82,10 @@ for node in counts_per_tiploop:
 	if len(edges[">" + node]) == 2:
 		for edge in edges[">" + node]:
 			if edge[1:] == node: continue
-			assert "<" + node in edges[revnode(edge)]
+			#assert "<" + node in edges[revnode(edge)]
+			if "<" + node not in edges[revnode(edge)]:
+				print("WARN: prevented assertion check for <", node)
+				continue
 			edges[revnode(edge)].remove("<" + node)
 			edges[revnode(edge)].add("<unroll_" + node + "_" + str(count))
 			overlaps[(revnode(edge), "<unroll_" + node + "_" + str(count))] = overlaps[(revnode(edge), "<" + node)]
