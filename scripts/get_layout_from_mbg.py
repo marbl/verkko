@@ -116,6 +116,7 @@ raw_node_lens = {}
 with open(nodelens_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
+		assert parts[0] not in raw_node_lens or raw_node_lens[parts[0]] == int(parts[1])
 		raw_node_lens[parts[0]] = int(parts[1])
 
 contig_lens = {}

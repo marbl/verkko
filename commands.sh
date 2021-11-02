@@ -61,7 +61,8 @@ scripts/get_layout_from_aln.py contigs_rle.fa alns.paf read_names.txt hifi.fa on
 cat *mapping* > combined-nodemap.txt
 cat *.gfa | grep -P '^L' > combined-edges.gfa
 cat gaps-*.gaf paths.gaf > combined-alignments.gaf
-grep -P '^S' *.gfa | awk '{print $2 "\t" length($3);}' > nodelens.txt
+# remove * so that noseq-..gfa don't mess up the node lengths
+grep -P '^S' *.gfa | grep -v '\*' | awk '{print $2 "\t" length($3);}' > nodelens.txt
 scripts/get_layout_from_mbg.py combined-nodemap.txt combined-edges.gfa combined-alignments.gaf unitig-unrolled-ont-resolved.gfa read_names.txt nodelens.txt > layout.txt 2> unitig_to_mbg_list.txt
 
 # just for debug info
