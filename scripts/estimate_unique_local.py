@@ -257,6 +257,9 @@ for node in nodelens:
 		for end in compare_nodes:
 			compare_coverage += float(longnode_coverage[end])
 		compare_coverage /= float(len(compare_nodes))
+	if compare_coverage < .1 * global_average_coverage or compare_coverage > 10 * global_average_coverage:
+		sys.stderr.write("WARNING: nonsense local coverage of " + str(compare_coverage) + " for node " + node + ", reverting to global average " + str(global_average_coverage) + "\n")
+		compare_coverage = global_average_coverage
 	if compare_coverage > 0.01:
 		normalized_node_coverage[node] = node_coverage[node] / compare_coverage
 	else:
