@@ -2,18 +2,18 @@
 
 import sys
 
-connected_graph_file = sys.argv[1]
-not_connected_graph_file = sys.argv[2]
+base_graph = sys.argv[1]
+unrolled_graph = sys.argv[2]
 # mapping to stdout
 
 existing_nodes = set()
-with open(not_connected_graph_file) as f:
+with open(base_graph) as f:
 	for l in f:
 		parts = l.strip().split("\t")
 		if parts[0] == "S":
 			existing_nodes.add(parts[1])
 
-with open(connected_graph_file) as f:
+with open(unrolled_graph) as f:
 	for l in f:
 		parts = l.strip().split("\t")
 		if parts[0] == "S":
