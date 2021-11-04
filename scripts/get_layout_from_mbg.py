@@ -155,11 +155,17 @@ for contigname in contig_nodeseqs:
 			if nodename not in node_poses: node_poses[nodename] = []
 			node_poses[nodename].append((contigname, i, False))
 
+read_name_to_id = {}
+next_read_id = 0
+
 contig_contains_reads = {}
 with open(read_alignment_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
 		readname = parts[0]
+		if readname not in read_name_to_id:
+			read_name_to_id[readname] = next_read_id
+			next_read_id += 1
 		readlen = int(parts[1])
 		readstart = int(parts[2])
 		readend = int(parts[3])
@@ -193,9 +199,22 @@ with open(read_alignment_file) as f:
 for contig in contig_contains_reads:
 	assert len(contig_contains_reads) > 0
 	contig_contains_reads[contig].sort(key=lambda x: min(x[1], x[2]))
-	start_pos = contig_contains_reads[contig][0][1]
-	end_pos = contig_contains_reads[contig][0][1]
+	actual_lines = []
+	last_kept_read_pos = {}
 	for line in contig_contains_reads[contig]:
+		read_name = line[0]
+		start_pos = min(line[1], line[2])
+		end_pos = max(line[1], line[2])
+		if read_name not in last_kept_read_pos:
+			last_kept_read_pos[read_name] = (start_pos, end_pos)
+		else:
+			if start_pos < last_kept_read_pos[read_name][0] + 2000 and end_pos < last_kept_read_pos[read_name][1] + 2000:
+				continue
+		last_kept_read_pos[read_name] = (start_pos, end_pos)
+		actual_lines.append(line)
+	start_pos = actual_lines[0][1]
+	end_pos = actual_lines[0][1]
+	for line in actual_lines:
 		start_pos = min(start_pos, line[1])
 		start_pos = min(start_pos, line[2])
 		end_pos = max(end_pos, line[1])
@@ -211,14 +230,10 @@ for contig in contig_contains_reads:
 	print("suggestCircular\tF")
 	print("circularLength\t0")
 	print("numChildren\t" + str(len(contig_contains_reads[contig])))
-	for line in contig_contains_reads[contig]:
-		print("read\t" + line[0] + "\tanchor\t0\thang\t0\t0\tposition" + "\t" + str(line[1] - start_pos) + "\t" + str(line[2] - start_pos))
+	for line in actual_lines:
+		print("read\t" + str(read_name_to_id[line[0]]) + "\tanchor\t0\thang\t0\t0\tposition" + "\t" + str(line[1] - start_pos) + "\t" + str(line[2] - start_pos))
 	print("tigend")
 
-
-
-
-
-
-
-
+with open(output_readnames, "w") as f:
+	for name in read_name_to_id:
+		f.write(name + "\t" + str(read_name_to_id[name]) + "\n")
