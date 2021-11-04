@@ -10,6 +10,8 @@ paf_file = sys.argv[2]
 read_names_file = sys.argv[3]
 read_files = sys.argv[4:]
 
+read_used = {} 
+
 if len(read_files) > 0:
 	print('Will read the reads from following files', ','.join(sys.argv[4:]), file=sys.stderr)
 else:
@@ -17,10 +19,15 @@ else:
 
 
 def add_lines(read_name, current_lines, lines_per_contig, read_order):
+	global read_used
+
 	if len(current_lines) == 0: return
 	if read_name not in read_order:
            sys.stderr.write("ERROR: Uknown read %s, are your input fasta files correct?\n"%(read_name))
            sys.exit(1)
+	if read_name in read_used:
+	   sys.stderr.write("Warning: Read %s was already used in another tig, skipping it here\n"%(read_name))
+	   return
 	max_mapq_lines = []
 	max_mapq = 0
 	for l in current_lines:
@@ -57,6 +64,7 @@ def add_lines(read_name, current_lines, lines_per_contig, read_order):
 		end_pos += right_clip
 
 	lines_per_contig[parts[5]].append((min(int(start_pos), int(end_pos)), "read\t" + str(read_order[read_name]) + "\tanchor\t0\thang\t0\t0\tposition", start_pos, end_pos))
+	read_used[read_name]=True
 
 read_order = {}
 next_id = 1
@@ -84,8 +92,17 @@ if len(read_files) == 0:
 	process_stream(sys.stdin)
 else:
 	for read_file in read_files:
-		with open(read_file) as f:
-			process_stream(f)
+		if read_file.endswith('.gz'):
+			import gzip
+			with gzip.open(read_file, 'rt') as f:
+				process_stream(f)
+		elif read_file.endswith('.bz'):
+			import bz2
+			with bz2.open(read_file, 'rt') as f:
+				process_stream(f)
+		else:
+			with open(read_file) as f:
+				process_stream(f)
 
 
 with open(read_names_file, "w") as f:
