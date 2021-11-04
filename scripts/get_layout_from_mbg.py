@@ -5,7 +5,7 @@ import sys
 mapping_file = sys.argv[1]
 edge_overlap_file = sys.argv[2]
 read_alignment_file = sys.argv[3]
-input_graph = sys.argv[4]
+paths_file = sys.argv[4]
 output_readnames = sys.argv[5]
 nodelens_file = sys.argv[6]
 # layout to stdout
@@ -20,9 +20,11 @@ def canon(left, right):
 		return (revnode(right), revnode(left))
 	return (left, right)
 
-def get_leafs(node, mapping, edge_overlaps):
-	result = [node]
+def get_leafs(path, mapping, edge_overlaps):
+	result = path
 	overlaps = []
+	for i in range(1, len(path)):
+		overlaps.append(edge_overlaps[canon(path[i-1], path[i])])
 	while True:
 		any_replaced = False
 		new_result = []
@@ -30,16 +32,16 @@ def get_leafs(node, mapping, edge_overlaps):
 		for i in range(0, len(result)):
 			if result[i][1:] not in mapping:
 				new_result.append(result[i])
-				if i < len(overlaps): new_overlaps.append(overlaps[i])
+				if i > 0: new_overlaps.append(overlaps[i-1])
 			else:
 				any_replaced = True
 				part = mapping[result[i][1:]]
 				if result[i][0] == "<":
 					part = [revnode(n) for n in part[::-1]]
 				new_result += part
+				if i > 0: new_overlaps.append(overlaps[i-1])
 				for j in range(1, len(part)):
 					new_overlaps.append(edge_overlaps[canon(part[j-1], part[j])])
-				if i < len(overlaps): new_overlaps.append(overlaps[i])
 		assert len(new_result) == len(new_overlaps)+1
 		assert len(new_result) >= len(result)
 		if not any_replaced: break
@@ -123,25 +125,24 @@ contig_lens = {}
 contig_nodeseqs = {}
 contig_nodeoverlaps = {}
 contig_node_offsets = {}
-with open(input_graph) as f:
+with open(paths_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
-		if parts[0] == "S":
-			nodename = parts[1]
-			(nodepath, nodeoverlaps) = get_leafs(">" + nodename, node_mapping, edge_overlaps)
-			for n in nodepath: assert n[1:] not in node_mapping
-			sys.stderr.write(nodename + "\t" + "".join(nodepath) + "\n")
-			contig_nodeseqs[nodename] = nodepath
-			contig_nodeoverlaps[nodename] = nodeoverlaps
-			contig_node_offsets[nodename] = []
-			contig_node_offsets[nodename].append(0)
-			for i in range(1, len(nodepath)):
-				prev = nodepath[i-1]
-				curr = nodepath[i]
-				overlap = nodeoverlaps[i-1]
-				nodelen = raw_node_lens[prev[1:]]
-				contig_node_offsets[nodename].append(contig_node_offsets[nodename][-1] + nodelen - overlap)
-			contig_lens[nodename] = contig_node_offsets[nodename][-1] + raw_node_lens[nodepath[-1][1:]]
+		pathname = parts[0]
+		path = parts[1].replace('<', '\t<').replace('>', '\t>').strip().split('\t')
+		(path, overlaps) = get_leafs(path, node_mapping, edge_overlaps)
+		sys.stderr.write(pathname + "\t" + "".join(path) + "\n")
+		contig_nodeseqs[pathname] = path
+		contig_nodeoverlaps[pathname] = overlaps
+		contig_node_offsets[pathname] = []
+		contig_node_offsets[pathname].append(0)
+		for i in range(1, len(path)):
+			prev = path[i-1]
+			curr = path[i]
+			overlap = overlaps[i-1]
+			nodelen = raw_node_lens[prev[1:]]
+			contig_node_offsets[pathname].append(contig_node_offsets[pathname][-1] + nodelen - overlap)
+		contig_lens[pathname] = contig_node_offsets[pathname][-1] + raw_node_lens[path[-1][1:]]
 
 node_poses = {}
 for contigname in contig_nodeseqs:
