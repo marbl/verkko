@@ -93,25 +93,19 @@ rule postprocess:
         {ROOT_PATH}/postprocess.sh {input} {output} &> {log}
         '''
 
-#FIXME used_ont.txt generation was missing in original script
-# seqtk for loop trick should allow working with (un)gzipped FASTA/FASTQ
-#FIXME should be compressed reads!
-#rule create_layout:
-#    input: hifi=HPC_HIFI_READS,
-#           ont=HPC_ONT_READS,
-#           graph='unitig-popped-unitig-normal-connected-tip.gfa',
-#           ont_gap_align='gaps-ont.gaf'
-#    output: 'layout.txt'
-#    threads: 32
-#    shell:
-#    '''
-#        grep -P '^S' < {input.graph} | awk '{{print ">" $2; print $3;}}' > contigs_rle.fa
-#        /usr/bin/time -v winnowmap -x map-pb -t {threads} contigs_rle.fa {input.hifi} > alns.paf 2> stderr_winnowmap_hifi.txt
-#        cat {input.out_gap_align} | cut -f 1 | sort | uniq > used_ont.txt
-#        for o in {input.ont} ; do seqtk seq -A $o ; done | {SCRIPT_PATH}/pick_reads_stdin.py used_ont.txt > ont_gap_subset.fa
-#        #zcat {input.ont} | awk '{if (NR % 4 == 1 || NR % 4 == 2) print;}' | tr '@' '>' | {SCRIPT_PATH}/pick_reads_stdin.py used_ont.txt > ont_gap_subset.fa
-#        {SCRIPT_PATH}/rle.py < ont_gap_subset.fa > ont_gap_subset_rle.fa
-#        /usr/bin/time -v winnowmap -x map-ont -t {threads} contigs_rle.fa ont_gap_subset_rle.fa >> alns.paf 3> stderr_winnowmap_ont.txt
-#        for h in {input.hifi} ont_gap_subset.fa ; do seqtk seq -A $h ; done | /usr/bin/time -v {SCRIPT_PATH}/get_layout_from_aln.py contigs_rle.fa alns.paf read_names.txt > layout.txt 2> stderr_layout.txt
-#        {SCRIPT_PATH}/check_layout_gaps.py < layout.txt > gaps.txt
-#    '''
+rule create_layout:
+    input: graph='unitig-popped-unitig-normal-connected-tip.gfa'
+    output:
+        'layout.txt',
+        'gaps.txt'
+    threads: 1
+    shell:
+        '''
+        cat *mapping* > combined-nodemap.txt
+        cat *.gfa | grep -P '^L' > combined-edges.gfa
+        cat gaps-*.gaf paths.gaf > combined-alignments.gaf
+        grep -P '^S' *.gfa | grep -v '\\*' | awk '{print $2 "\\t" length($3);}' > nodelens.txt
+        grep -P '^S' {input.graph} | awk '{print $2 "\\t" ">" $2;}' > consensus_paths.txt
+        {SCRIPT_PATH}/get_layout_from_mbg.py combined-nodemap.txt combined-edges.gfa combined-alignments.gaf consensus_paths.txt nodelens.txt > layout.txt 2> unitig_to_mbg_list.txt
+        {SCRIPT_PATH}/check_layout_gaps.py < layout.txt > gaps.txt
+        '''
