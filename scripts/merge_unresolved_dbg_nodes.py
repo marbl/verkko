@@ -145,8 +145,16 @@ while True:
 
 sys.stderr.write("done unresolving, write graph" + "\n")
 
+name_mapping = {}
+for base in belongs_to_base:
+	for node in belongs_to_base[base]:
+		if len(belongs_to_base[base]) == 1:
+			name_mapping[node] = base
+		else:
+			name_mapping[node] = node
+
 for n in nodeseqs:
-	print("S\t" + n + "\t" + nodeseqs[n])
+	print("S\t" + name_mapping[n] + "\t" + nodeseqs[n])
 for edge in edges:
 	for target in edges[edge]:
 		from_base = "_".join(edge.split('_')[:-1])
@@ -163,7 +171,7 @@ for edge in edges:
 			print(key)
 		if key in edge_overlaps: overlap = edge_overlaps[key]
 		assert key in edge_overlaps
-		print("L\t" + edge[1:] + "\t" + ("+" if edge[0] == ">" else "-") + "\t" + target[1:] + "\t" + ("+" if target[0] == ">" else "-") + "\t" + overlap)
+		print("L\t" + name_mapping[edge[1:]] + "\t" + ("+" if edge[0] == ">" else "-") + "\t" + name_mapping[target[1:]] + "\t" + ("+" if target[0] == ">" else "-") + "\t" + overlap)
 
 sys.stderr.write("graph written" + "\n")
 

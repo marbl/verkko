@@ -4,6 +4,7 @@ scripts/insert_aln_gaps.py hifi-resolved.gfa 2 50 gaps-hifi-1.gaf gapone < paths
 scripts/insert_aln_gaps.py gapped-once-hifi-resolved.gfa 2 300 gaps-hifi-2.gaf gaptwo < paths.gaf > gapped-twice-hifi-resolved.gfa
 scripts/insert_aln_gaps.py gapped-twice-hifi-resolved.gfa 1 5 gaps-hifi-3.gaf gapthree < paths.gaf > gapped-hifi-resolved.gfa
 cut -f 6 < paths.gaf | scripts/unroll_tip_loops.py gapped-hifi-resolved.gfa 5 > unrolled-hifi-resolved.gfa
+scripts/get_unroll_mapping.py gapped-hifi-resolved.gfa unrolled-hifi-resolved.gfa > unroll_mapping_1.txt
 scripts/unitigify.py "utig1-" unitig-mapping-1.txt < unrolled-hifi-resolved.gfa > unitig-unrolled-hifi-resolved.gfa
 
 # only for evaluating hifi-only CHM13 haploid assemblies
@@ -40,12 +41,13 @@ scripts/forbid_unbridged_tangles.py unique_nodes_ont.txt gapped-unitig-unrolled-
 scripts/connect_uniques.py gapped-unitig-unrolled-hifi-resolved.gfa forbidden_ends.txt bridging_seq_picked.txt > connected.gfa
 
 scripts/merge_unresolved_dbg_nodes.py < connected.gfa > normal-connected.gfa
+scripts/get_bridge_mapping.py normal-connected.gfa gapped-unitig-unrolled-hifi-resolved.gfa > bridge_mapping.txt
 scripts/add_fake_alignments.py unitig-unrolled-hifi-resolved.gfa normal-connected.gfa alns-ont-filter-trim.gaf nodecovs-ont.csv fake-ont-alns.gaf fake-ont-nodecovs-once.csv 10
 scripts/add_fake_bridging_paths.py forbidden_ends.txt bridging_seq_picked.txt fake-ont-nodecovs-once.csv fake-ont-nodecovs.csv 10 >> fake-ont-alns.gaf
-/usr/bin/time -v scripts/resolve_triplets_kmerify.py normal-connected.gfa fake-ont-paths.txt fake-ont-nodecovs.csv 100000 3 5 3 2 < fake-ont-alns.gaf > ont-resolved-graph.gfa 2> stderr_ont_resolved_graph.txt
-scripts/get_resolved_nodemapping.py < ont-resolved-graph.gfa > resolve-mapping.txt
+/usr/bin/time -v scripts/resolve_triplets_kmerify.py normal-connected.gfa fake-ont-paths.txt fake-ont-nodecovs.csv resolve-mapping.txt 100000 3 5 3 2 < fake-ont-alns.gaf > ont-resolved-graph.gfa 2> stderr_ont_resolved_graph.txt
 
 scripts/unroll_tip_loops.py ont-resolved-graph.gfa 3 < fake-ont-paths.txt > unrolled-ont-resolved.gfa
+scripts/get_unroll_mapping.py ont-resolved-graph.gfa unrolled-ont-resolved.gfa > unroll_mapping_2.txt
 scripts/unitigify.py "utig2-" unitig-mapping-2.txt < unrolled-ont-resolved.gfa > unitig-unrolled-ont-resolved.gfa
 
 # consensus
@@ -56,6 +58,15 @@ scripts/pick_reads_stdin.py used_ont.txt < ont.fa > ont_gap_subset.fa
 scripts/rle.py < ont_gap_subset.fa > ont_gap_subset_rle.fa
 winnowmap -x map-ont -t 32 contigs_rle.fa ont_gap_subset_rle.fa >> alns.paf
 scripts/get_layout_from_aln.py contigs_rle.fa alns.paf read_names.txt hifi.fa ont_gap_subset.fa > layout.txt
+
+# layout without alignment
+cat *mapping* > combined-nodemap.txt
+cat *.gfa | grep -P '^L' > combined-edges.gfa
+cat gaps-*.gaf paths.gaf > combined-alignments.gaf
+# remove * so that noseq-..gfa don't mess up the node lengths
+grep -P '^S' *.gfa | grep -v '\*' | awk '{print $2 "\t" length($3);}' > nodelens.txt
+grep -P '^S' unitig-unrolled-ont-resolved.gfa | awk '{print $2 "\t" ">" $2;}' > consensus_paths.txt
+scripts/get_layout_from_mbg.py combined-nodemap.txt combined-edges.gfa combined-alignments.gaf consensus_paths.txt nodelens.txt > layout.txt 2> unitig_to_mbg_list.txt
 
 # just for debug info
 scripts/check_layout_gaps.py < layout.txt > gaps.txt
