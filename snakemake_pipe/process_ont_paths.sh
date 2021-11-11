@@ -49,4 +49,4 @@ $SCRIPTS/add_fake_alignments.py $in_gfa normal-connected.gfa alns-ont-filter-tri
 $SCRIPTS/get_resolved_nodemapping.py < ont-resolved-graph.gfa > resolve-mapping.txt
 
 $SCRIPTS/unroll_tip_loops.py ont-resolved-graph.gfa 3 < fake-ont-paths.txt > unrolled-ont-resolved.gfa
-$SCRIPTS/unitigify.py "tig2-" unitig-mapping-2.txt < unrolled-ont-resolved.gfa > $out_gfa
+$SCRIPTS/unitigify.py "utig2-" unitig-mapping-2.txt < unrolled-ont-resolved.gfa > $out_gfa
