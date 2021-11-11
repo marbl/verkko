@@ -229,7 +229,7 @@ for contig in contig_contains_reads:
 	print("suggestBubble\tF")
 	print("suggestCircular\tF")
 	print("circularLength\t0")
-	print("numChildren\t" + str(len(contig_contains_reads[contig])))
+	print("numChildren\t" + str(len(actual_lines)))
 	for line in actual_lines:
 		print("read\t" + str(read_name_to_id[line[0]]) + "\tanchor\t0\thang\t0\t0\tposition" + "\t" + str(line[1] - start_pos) + "\t" + str(line[2] - start_pos))
 	print("tigend")
