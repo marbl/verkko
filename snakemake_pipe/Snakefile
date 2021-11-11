@@ -16,7 +16,8 @@ localrules: all
 
 rule all:
     input:
-        'unitig-popped-unitig-normal-connected-tip.gfa'
+        'unitig-popped-unitig-normal-connected-tip.gfa',
+        'layout.txt'
 
 rule build_graph:
     input:
