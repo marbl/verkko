@@ -49,6 +49,7 @@ rule process_graph:
         {SCRIPT_PATH}/insert_aln_gaps.py gapped-once-hifi-resolved.gfa 2 300 gaps-hifi-2.gaf gaptwo < paths.gaf > gapped-twice-hifi-resolved.gfa
         {SCRIPT_PATH}/insert_aln_gaps.py gapped-twice-hifi-resolved.gfa 1 5 gaps-hifi-3.gaf gapthree < paths.gaf > gapped-hifi-resolved.gfa
         cut -f 6 < paths.gaf | {SCRIPT_PATH}/unroll_tip_loops.py gapped-hifi-resolved.gfa 5 > unrolled-hifi-resolved.gfa
+        {SCRIPT_PATH}/get_unroll_mapping.py gapped-hifi-resolved.gfa unrolled-hifi-resolved.gfa > unroll_mapping_1.txt
         {SCRIPT_PATH}/unitigify.py "utig1-" unitig-mapping-1.txt < unrolled-hifi-resolved.gfa > {output.processed_gfa}
         '''
 
