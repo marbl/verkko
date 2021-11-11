@@ -28,19 +28,21 @@ current_alns = []
 for l in fileinput.input():
 	parts = l.strip().split('\t')
 	if len(parts) == 0: continue
-	if parts[0] == "tig":
+	elif parts[0] == "tig":
 		if current_len > 0: check_alns(current_tig, current_len, current_alns)
 		current_tig = parts[1]
 		current_len = 0
 		current_alns = []
-	if parts[0] == "len":
+	elif parts[0] == "len":
 		assert current_len == 0
 		assert current_tig is not None
 		assert len(current_alns) == 0
 		current_len = int(parts[1])
-	if parts[0] == "read":
-		start = int(parts[8])
-		end = int(parts[9])
+	elif parts[0] == "rds": continue
+	elif parts[0] == "end": continue
+	else:
+		start = int(parts[1])
+		end = int(parts[2])
 		if end < start: (start, end) = (end, start)
 		current_alns.append((start, end))
 
