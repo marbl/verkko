@@ -6,8 +6,7 @@ mapping_file = sys.argv[1]
 edge_overlap_file = sys.argv[2]
 read_alignment_file = sys.argv[3]
 paths_file = sys.argv[4]
-output_readnames = sys.argv[5]
-nodelens_file = sys.argv[6]
+nodelens_file = sys.argv[5]
 # layout to stdout
 
 def revnode(n):
@@ -162,7 +161,7 @@ contig_contains_reads = {}
 with open(read_alignment_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
-		readname = parts[0]
+		readname = parts[0].split(' ')[0]
 		if readname not in read_name_to_id:
 			read_name_to_id[readname] = next_read_id
 			next_read_id += 1
@@ -221,19 +220,7 @@ for contig in contig_contains_reads:
 		end_pos = max(end_pos, line[2])
 	print("tig\t" + contig)
 	print("len\t" + str(end_pos - start_pos))
-	print("cns")
-	print("qlt")
-	print("trimBgn\t0")
-	print("trimEnd\t" + str(end_pos - start_pos))
-	print("suggestRepeat\tF")
-	print("suggestBubble\tF")
-	print("suggestCircular\tF")
-	print("circularLength\t0")
-	print("numChildren\t" + str(len(actual_lines)))
+	print("rds\t" + str(len(actual_lines)))
 	for line in actual_lines:
-		print("read\t" + str(read_name_to_id[line[0]]) + "\tanchor\t0\thang\t0\t0\tposition" + "\t" + str(line[1] - start_pos) + "\t" + str(line[2] - start_pos))
-	print("tigend")
-
-with open(output_readnames, "w") as f:
-	for name in read_name_to_id:
-		f.write(name + "\t" + str(read_name_to_id[name]) + "\n")
+		print(line[0] + "\t" + str(line[1] - start_pos) + "\t" + str(line[2] - start_pos))
+	print("end")

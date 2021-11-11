@@ -66,7 +66,7 @@ cat gaps-*.gaf paths.gaf > combined-alignments.gaf
 # remove * so that noseq-..gfa don't mess up the node lengths
 grep -P '^S' *.gfa | grep -v '\*' | awk '{print $2 "\t" length($3);}' > nodelens.txt
 grep -P '^S' unitig-unrolled-ont-resolved.gfa | awk '{print $2 "\t" ">" $2;}' > consensus_paths.txt
-scripts/get_layout_from_mbg.py combined-nodemap.txt combined-edges.gfa combined-alignments.gaf consensus_paths.txt read_names.txt nodelens.txt > layout.txt 2> unitig_to_mbg_list.txt
+scripts/get_layout_from_mbg.py combined-nodemap.txt combined-edges.gfa combined-alignments.gaf consensus_paths.txt nodelens.txt > layout.txt 2> unitig_to_mbg_list.txt
 
 # just for debug info
 scripts/check_layout_gaps.py < layout.txt > gaps.txt
