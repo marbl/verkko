@@ -870,13 +870,10 @@ for l in sys.stdin:
 	add_path(paths_crossing, path)
 	initial_paths.append(path)
 
-if min_allowed_coverage > 0:
-	node_coverage = read_node_coverages(node_coverage_file)
-	remove_and_split_low_coverage(node_seqs, edges, initial_paths, paths_crossing, min_allowed_coverage, node_coverage)
-	del initial_paths
-	unitigify_all(node_seqs, node_lens, edges, paths_crossing)
-else:
-	del initial_paths
+node_coverage = read_node_coverages(node_coverage_file)
+remove_and_split_low_coverage(node_seqs, edges, initial_paths, paths_crossing, min_allowed_coverage, node_coverage)
+del initial_paths
+unitigify_all(node_seqs, node_lens, edges, paths_crossing)
 
 for coverage in resolve_steps:
 	sys.stderr.write("resolve with edge support " + str(coverage) + "\n")
