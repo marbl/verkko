@@ -46,8 +46,7 @@ $SCRIPTS/merge_unresolved_dbg_nodes.py < connected.gfa > normal-connected.gfa
 $SCRIPTS/get_bridge_mapping.py normal-connected.gfa gapped-unitig-unrolled-hifi-resolved.gfa > bridge_mapping.txt
 $SCRIPTS/add_fake_alignments.py $in_gfa normal-connected.gfa alns-ont-filter-trim.gaf nodecovs-ont.csv fake-ont-alns.gaf fake-ont-nodecovs.csv 10
 #FIXME parameterize
-/usr/bin/time -v $SCRIPTS/resolve_triplets_kmerify.py normal-connected.gfa fake-ont-paths.txt fake-ont-nodecovs.csv 100000 $min_allowed_coverage ${@:5} < fake-ont-alns.gaf > ont-resolved-graph.gfa 2> stderr_ont_resolved_graph.txt
-$SCRIPTS/get_resolved_nodemapping.py < ont-resolved-graph.gfa > resolve-mapping.txt
+/usr/bin/time -v $SCRIPTS/resolve_triplets_kmerify.py normal-connected.gfa fake-ont-paths.txt fake-ont-nodecovs.csv resolve-mapping.txt 100000 $min_allowed_coverage ${@:5} < fake-ont-alns.gaf > ont-resolved-graph.gfa 2> stderr_ont_resolved_graph.txt
 
 $SCRIPTS/unroll_tip_loops.py ont-resolved-graph.gfa 3 < fake-ont-paths.txt > unrolled-ont-resolved.gfa
 $SCRIPTS/get_unroll_mapping.py ont-resolved-graph.gfa unrolled-ont-resolved.gfa > unroll_mapping_2.txt
