@@ -111,3 +111,36 @@ rule create_layout:
         {SCRIPT_PATH}/get_layout_from_mbg.py combined-nodemap.txt combined-edges.gfa combined-alignments.gaf consensus_paths.txt nodelens.txt > layout.txt 2> unitig_to_mbg_list.txt
         {SCRIPT_PATH}/check_layout_gaps.py < layout.txt > gaps.txt
         '''
+
+checkpoint partition_consensus:
+   input: layout='layout.txt',
+          hifi=HIFI_READS,
+          ont=ONT_READS,
+          ont_gap_align='gaps-ont.gaf'
+   output: directory("ctgStore")
+   shell:
+      ''' 
+      rm ont_subset.faq
+      cat {input.ont_gap_align} |cut -f 1 |sort |uniq > used_ont.txt
+      for o in {input.ont}; do seqtk subseq $o used_ont.txt >> ont_subset.faq; done 
+      layoutToPackage -layout {input.layout} -output ctgStore/part -partition 0.8 1.5 0.1 -reads ont_subset.faq {input.hifi}
+      '''
+
+def get_cns_inputs(wildcards):
+   out = checkpoints.partition_consensus.get().output[0]
+   return [s.replace('.cnspack', '') for s in glob.glob(out + "/*.cnspack")]
+
+rule cns:
+    input: '{partition}.cnspack' 
+    output: '{partition}.fa'
+    threads: 32
+    log: '{partition}.log'
+    shell:
+        '''
+        utgcns -V -V -V -threads {threads} -import {input} -A {output} -maxcoverage 50 -e 0.20 -l 2500 -pbdagcon -edlib &> {log}
+        '''
+
+rule aggregate_cns:
+   input: lambda wildcards: expand('{partition}.fa', partition=get_cns_inputs(wildcards)) 
+   output: 'concat.fa'
+   shell: 'cat {input} | ${ROOT_PATH}/rename_reads.py - tig_names.txt {output}'
