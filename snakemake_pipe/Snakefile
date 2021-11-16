@@ -35,7 +35,7 @@ rule build_graph:
         maxK=15000
     shell:
         '''
-        MBG {params.input_str} -t {threads} -o {output.gfa} -k {params.baseK} -w {params.w} -a 1 -u 2 --error-masking=collapse-msat --output-sequence-paths {output.paths} -r {params.maxK} &> {log}
+        /usr/bin/time -v MBG {params.input_str} -t {threads} -o {output.gfa} -k {params.baseK} -w {params.w} -a 1 -u 2 --error-masking=collapse-msat --output-sequence-paths {output.paths} -r {params.maxK} &> {log}
         '''
 
 rule process_graph:
@@ -62,7 +62,7 @@ rule align_ont:
     log: 'ont_align/read_file{i}.log'
     shell:
         '''
-        GraphAligner -t {threads} -g {input.graph} -f {input.reads} -a {output} --seeds-mxm-length 30 --seeds-mem-count 1000 -b 15 --multimap-score-fraction 0.99 --precise-clipping 0.85 --min-alignment-score 5000 --hpc-collapse-reads --discard-cigar --clip-ambiguous-ends 100 --overlap-incompatible-cutoff 0.15 --max-trace-count 5 &> {log}
+        /usr/bin/time -v GraphAligner -t {threads} -g {input.graph} -f {input.reads} -a {output} --seeds-mxm-length 30 --seeds-mem-count 1000 -b 15 --multimap-score-fraction 0.99 --precise-clipping 0.85 --min-alignment-score 5000 --hpc-collapse-reads --discard-cigar --clip-ambiguous-ends 100 --overlap-incompatible-cutoff 0.15 --max-trace-count 5 &> {log}
         '''
 
 rule aggregate:
