@@ -112,18 +112,27 @@ rule create_layout:
         {SCRIPT_PATH}/check_layout_gaps.py < layout.txt > gaps.txt
         '''
 
+rule get_ont_subset:
+   input: ont=ONT_READS,
+          ont_gap_align='gaps-ont.gaf'
+   output:
+          ont_subset='ont_subset.faq'
+   shell:
+      '''
+      rm -f {output.ont_subset}
+      cat {input.ont_gap_align} |cut -f 1 |sort |uniq > used_ont.txt
+      for o in {input.ont}; do seqtk subseq $o used_ont.txt >> {output.ont_subset}; done
+      '''
+
 checkpoint partition_consensus:
    input: layout='layout.txt',
           hifi=HIFI_READS,
-          ont=ONT_READS,
-          ont_gap_align='gaps-ont.gaf'
-   output: directory("ctgStore")
+          ont_subset='ont_subset.faq'
+   output: 
+          cns=directory("ctgStore"),
    shell:
       ''' 
-      rm ont_subset.faq
-      cat {input.ont_gap_align} |cut -f 1 |sort |uniq > used_ont.txt
-      for o in {input.ont}; do seqtk subseq $o used_ont.txt >> ont_subset.faq; done 
-      layoutToPackage -layout {input.layout} -output ctgStore/part -partition 0.8 1.5 0.1 -reads ont_subset.faq {input.hifi}
+      layoutToPackage -layout {input.layout} -output {output.cns} -partition 0.8 1.5 0.1 -reads {input.ont_subset} {input.hifi}
       '''
 
 def get_cns_inputs(wildcards):

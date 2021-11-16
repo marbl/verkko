@@ -38,5 +38,15 @@
        "time" : "24:00:00",
        "n": 32,
        "mem": 200
+    },
+    "get_ont_subset": {
+       "time" : "24:00:00",
+       "n" : 1,
+       "mem" : 10
+    },
+    "partition_consensus": {
+       "time" : "24:00:00",
+       "n" : 1,
+       "mem" : 50
     }
 }
