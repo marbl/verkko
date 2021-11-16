@@ -70,7 +70,7 @@ def get_path_len(path, start, end, raw_node_lens, edge_overlaps):
 		result += raw_node_lens[path[i][1:]] - edge_overlaps[canon(path[i-1], path[i])]
 	return result
 
-def get_longest_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_overlaps):
+def get_longest_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_overlaps, leftclip, rightclip):
 	longest = None
 	also_longest = []
 	for i in range(0, len(path)):
@@ -82,7 +82,10 @@ def get_longest_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_o
 			assert (fw) or revnode(contig_nodeseqs[contig][index]) == path[i]
 			match_node_len = get_match_len(path, i, contig_nodeseqs[contig], index, fw)
 			assert match_node_len >= 1
+			assert i + match_node_len <= len(path)
 			match_bp_len = get_path_len(path, i, i + match_node_len, raw_node_lens, edge_overlaps)
+			if i == 0: match_bp_len -= leftclip
+			if i + match_node_len == len(path): match_bp_len -= rightclip
 			if longest is None or match_bp_len > longest[0]:
 				longest = (match_bp_len, contig, index, fw, i, match_node_len)
 				also_longest = []
@@ -169,9 +172,9 @@ with open(read_alignment_file) as f:
 		readstart = int(parts[2])
 		readend = int(parts[3])
 		leftclip = int(parts[7])
-		rightclip = int(parts[8])
+		rightclip = int(parts[8]) - int(parts[6])
 		path = parts[5].replace('>', "\t>").replace('<', "\t<").strip().split('\t')
-		longest_matches = get_longest_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_overlaps)
+		longest_matches = get_longest_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_overlaps, leftclip, rightclip)
 		for match in longest_matches:
 			(match_bp_size, contig, contigstart, fw, pathstart, matchlen) = match
 			if fw:
