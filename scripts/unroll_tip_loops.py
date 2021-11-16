@@ -66,7 +66,10 @@ for node in counts_per_tiploop:
 	if len(edges["<" + node]) == 2:
 		for edge in edges["<" + node]:
 			if edge[1:] == node: continue
-			assert ">" + node in edges[revnode(edge)]
+			#assert ">" + node in edges[revnode(edge)]
+			if ">" + node not in edges[revnode(edge)]:
+				sys.stderr.write("WARN: prevented assertion check for >" + node + "\n")
+				continue
 			edges[revnode(edge)].remove(">" + node)
 			edges[revnode(edge)].add(">unroll_" + node + "_1")
 			overlaps[(revnode(edge), ">unroll_" + node + "_1")] = overlaps[(revnode(edge), ">" + node)]
@@ -84,7 +87,7 @@ for node in counts_per_tiploop:
 			if edge[1:] == node: continue
 			#assert "<" + node in edges[revnode(edge)]
 			if "<" + node not in edges[revnode(edge)]:
-				print("WARN: prevented assertion check for <", node, file=sys.stderr)
+				sys.stderr.write("WARN: prevented assertion check for <" + node + "\n")
 				continue
 			edges[revnode(edge)].remove("<" + node)
 			edges[revnode(edge)].add("<unroll_" + node + "_" + str(count))

@@ -263,7 +263,7 @@ for node in nodelens:
 	if compare_coverage > 0.01:
 		normalized_node_coverage[node] = node_coverage[node] / compare_coverage
 	else:
-		print('WARN: division by zero prevented for node ', node, file=sys.stderr)
+		sys.stderr.write('WARN: division by zero prevented for node ' + node + "\n")
 		normalized_node_coverage[node] = 100.
 
 roughly_average_coverage_nodes = set()
