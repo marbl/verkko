@@ -98,8 +98,8 @@ rule postprocess:
 rule create_layout:
     input: graph='unitig-popped-unitig-normal-connected-tip.gfa'
     output:
-        'layout.txt',
-        'gaps.txt'
+        layout='layout.txt',
+        gaps='gaps.txt'
     threads: 1
     shell:
         '''
@@ -108,8 +108,8 @@ rule create_layout:
         cat gaps-*.gaf paths.gaf > combined-alignments.gaf
         grep -P '^S' *.gfa | grep -v '\\*' | awk '{{print $2 "\\t" length($3);}}' > nodelens.txt
         grep -P '^S' {input.graph} | awk '{{print $2 "\\t" ">" $2;}}' > consensus_paths.txt
-        {SCRIPT_PATH}/get_layout_from_mbg.py combined-nodemap.txt combined-edges.gfa combined-alignments.gaf consensus_paths.txt nodelens.txt > layout.txt 2> unitig_to_mbg_list.txt
-        {SCRIPT_PATH}/check_layout_gaps.py < layout.txt > gaps.txt
+        {SCRIPT_PATH}/get_layout_from_mbg.py combined-nodemap.txt combined-edges.gfa combined-alignments.gaf consensus_paths.txt nodelens.txt > {output.layout} 2> unitig_to_mbg_list.txt
+        {SCRIPT_PATH}/check_layout_gaps.py < {output.layout} > {output.gaps}
         '''
 
 rule get_ont_subset:
