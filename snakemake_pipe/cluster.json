@@ -47,6 +47,6 @@
     "partition_consensus": {
        "time" : "24:00:00",
        "n" : 1,
-       "mem" : 50
+       "mem" : 100
     }
 }

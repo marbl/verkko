@@ -129,10 +129,12 @@ checkpoint partition_consensus:
           hifi=HIFI_READS,
           ont_subset='ont_subset.faq'
    output: 
-          cns=directory("ctgStore"),
+          cns=directory("ctgStore")
+   log: 'partition.err'
    shell:
       ''' 
-      layoutToPackage -layout {input.layout} -output {output.cns} -partition 0.8 1.5 0.1 -reads {input.ont_subset} {input.hifi}
+      mkdir -p {output.cns}
+      layoutToPackage -layout {input.layout} -output {output.cns}/part -partition 0.8 1.5 0.1 -reads {input.ont_subset} {input.hifi} > {log} 2>&1
       '''
 
 def get_cns_inputs(wildcards):
@@ -152,4 +154,4 @@ rule cns:
 rule aggregate_cns:
    input: lambda wildcards: expand('{partition}.fa', partition=get_cns_inputs(wildcards)) 
    output: 'concat.fa'
-   shell: 'cat {input} | ${ROOT_PATH}/rename_reads.py - tig_names.txt {output}'
+   shell: 'cat {input} | ${SCRIPT_PATH}/rename_reads.py - ctgStore/part.tig_names.txt {output}'
