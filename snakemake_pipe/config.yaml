@@ -7,3 +7,6 @@ MIN_KMER: 1001
 HIFI_READS: '/gpfs/gsfs10/users/Phillippy/seq/primate_T2T/PR00251_PPA/raw_data/PacBio_HiFi/*.fasta.gz'
 
 ONT_READS: '/gpfs/gsfs10/users/Phillippy/seq/primate_T2T/PR00251_PPA/raw_data/ont/split/all.100k.split*.fasta.gz'
+
+ONT_COV_THR: 3
+ONT_RESOLVE_STEPS: '20 10 5'

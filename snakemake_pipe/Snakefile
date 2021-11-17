@@ -47,9 +47,9 @@ rule process_graph:
     shell:
         '''
         {SCRIPT_PATH}/insert_aln_gaps.py {input.gfa} 2 50 gaps-hifi-1.gaf gapone < {input.paths} > gapped-once-hifi-resolved.gfa
-        {SCRIPT_PATH}/insert_aln_gaps.py gapped-once-hifi-resolved.gfa 2 300 gaps-hifi-2.gaf gaptwo < paths.gaf > gapped-twice-hifi-resolved.gfa
-        {SCRIPT_PATH}/insert_aln_gaps.py gapped-twice-hifi-resolved.gfa 1 5 gaps-hifi-3.gaf gapthree < paths.gaf > gapped-hifi-resolved.gfa
-        cut -f 6 < paths.gaf | {SCRIPT_PATH}/unroll_tip_loops.py gapped-hifi-resolved.gfa 5 > unrolled-hifi-resolved.gfa
+        {SCRIPT_PATH}/insert_aln_gaps.py gapped-once-hifi-resolved.gfa 2 300 gaps-hifi-2.gaf gaptwo < {input.paths} > gapped-twice-hifi-resolved.gfa
+        {SCRIPT_PATH}/insert_aln_gaps.py gapped-twice-hifi-resolved.gfa 1 5 gaps-hifi-3.gaf gapthree < {input.paths} > gapped-hifi-resolved.gfa
+        cut -f 6 < {input.paths} | {SCRIPT_PATH}/unroll_tip_loops.py gapped-hifi-resolved.gfa 5 > unrolled-hifi-resolved.gfa
         {SCRIPT_PATH}/get_unroll_mapping.py gapped-hifi-resolved.gfa unrolled-hifi-resolved.gfa > unroll_mapping_1.txt
         {SCRIPT_PATH}/unitigify.py "utig1-" unitig-mapping-1.txt < unrolled-hifi-resolved.gfa > {output.processed_gfa}
         '''
@@ -79,8 +79,9 @@ rule process_ont_paths:
             ont_gap_align='gaps-ont.gaf'
     log: 'process_ont_paths.log'
     params:
-        min_allowed_cov=5,
-        resolve_steps='20 10 5'
+        #TODO remove default values, must be in config or passed via command line!
+        min_allowed_cov=config.get('ONT_COV_THR', 5),
+        resolve_steps=config.get('ONT_RESOLVE_STEPS', '20 10 5')
     shell:
         '''
         {ROOT_PATH}/process_ont_paths.sh {input.graph} {input.ont_paths} {output.graph} {params.min_allowed_cov} {params.resolve_steps} &> {log}
@@ -96,7 +97,8 @@ rule postprocess:
         '''
 
 rule create_layout:
-    input: graph='unitig-popped-unitig-normal-connected-tip.gfa'
+    input: graph='unitig-popped-unitig-normal-connected-tip.gfa',
+           paths='paths.gaf'
     output:
         layout='layout.txt',
         gaps='gaps.txt'
@@ -105,7 +107,7 @@ rule create_layout:
         '''
         cat *mapping* > combined-nodemap.txt
         cat *.gfa | grep -P '^L' > combined-edges.gfa
-        cat gaps-*.gaf paths.gaf > combined-alignments.gaf
+        cat gaps-*.gaf {input.paths} > combined-alignments.gaf
         grep -P '^S' *.gfa | grep -v '\\*' | awk '{{print $2 "\\t" length($3);}}' > nodelens.txt
         grep -P '^S' {input.graph} | awk '{{print $2 "\\t" ">" $2;}}' > consensus_paths.txt
         {SCRIPT_PATH}/get_layout_from_mbg.py combined-nodemap.txt combined-edges.gfa combined-alignments.gaf consensus_paths.txt nodelens.txt > {output.layout} 2> unitig_to_mbg_list.txt
