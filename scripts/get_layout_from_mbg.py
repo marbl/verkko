@@ -70,7 +70,7 @@ def get_path_len(path, start, end, raw_node_lens, edge_overlaps):
 		result += raw_node_lens[path[i][1:]] - edge_overlaps[canon(path[i-1], path[i])]
 	return result
 
-def get_longest_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_overlaps, leftclip, rightclip):
+def get_longest_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_overlaps, pathleftclip, pathrightclip, readleftclip, readrightclip, readlen):
 	longest = None
 	also_longest = []
 	for i in range(0, len(path)):
@@ -84,17 +84,16 @@ def get_longest_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_o
 			assert match_node_len >= 1
 			assert i + match_node_len <= len(path)
 			match_bp_len = get_path_len(path, i, i + match_node_len, raw_node_lens, edge_overlaps)
-			if i == 0: match_bp_len -= leftclip
-			if i + match_node_len == len(path): match_bp_len -= rightclip
+			if i == 0: match_bp_len -= pathleftclip
+			if i + match_node_len == len(path): match_bp_len -= pathrightclip
 			if longest is None or match_bp_len > longest[0]:
-				longest = (match_bp_len, contig, index, fw, i, match_node_len)
+				longest = (match_bp_len, contig, index, fw, i, match_node_len, pathleftclip, pathrightclip, readleftclip, readrightclip, path, readlen)
 				also_longest = []
 			elif longest is not None and match_bp_len == longest[0]:
-				also_longest.append((match_bp_len, contig, index, fw, i, match_node_len))
+				also_longest.append((match_bp_len, contig, index, fw, i, match_node_len, pathleftclip, pathrightclip, readleftclip, readrightclip, path, readlen))
 	if longest is None: return []
 	also_longest.append(longest)
 	return also_longest
-	return (longest[1], longest[2], longest[3], longest[4], longest[5])
 
 node_mapping = {}
 with open(mapping_file) as f:
@@ -160,7 +159,7 @@ for contigname in contig_nodeseqs:
 read_name_to_id = {}
 next_read_id = 0
 
-contig_contains_reads = {}
+longest_matches_per_read = {}
 with open(read_alignment_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
@@ -169,34 +168,44 @@ with open(read_alignment_file) as f:
 			read_name_to_id[readname] = next_read_id
 			next_read_id += 1
 		readlen = int(parts[1])
-		readstart = int(parts[2])
-		readend = int(parts[3])
-		leftclip = int(parts[7])
-		rightclip = int(parts[8]) - int(parts[6])
+		readleftclip = int(parts[2])
+		readrightclip = int(parts[1]) - int(parts[3])
+		pathleftclip = int(parts[7])
+		pathrightclip = int(parts[6]) - int(parts[8])
 		path = parts[5].replace('>', "\t>").replace('<', "\t<").strip().split('\t')
-		longest_matches = get_longest_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_overlaps, leftclip, rightclip)
-		for match in longest_matches:
-			(match_bp_size, contig, contigstart, fw, pathstart, matchlen) = match
-			if fw:
-				contigpos = contig_node_offsets[contig][contigstart]
-				for i in range(0, pathstart):
-					contigpos -= raw_node_lens[path[i][1:]] - edge_overlaps[canon(path[i], path[i+1])]
-				contigpos += leftclip
-				contigpos -= readstart
-				if contig not in contig_contains_reads: contig_contains_reads[contig] = []
-				contig_contains_reads[contig].append((readname, contigpos, contigpos + readlen))
-			else:
-				pathstart += matchlen - 1
-				contigstart -= matchlen - 1
-				assert pathstart < len(path)
-				assert contigstart >= 0
-				contigpos = contig_node_offsets[contig][contigstart]
-				for i in range(pathstart+1, len(path)):
-					contigpos -= raw_node_lens[path[i][1:]] - edge_overlaps[canon(path[i-1], path[i])]
-				contigpos += rightclip
-				contigpos -= readend
-				if contig not in contig_contains_reads: contig_contains_reads[contig] = []
-				contig_contains_reads[contig].append((readname, contigpos + readlen, contigpos))
+		longest_matches = get_longest_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_overlaps, pathleftclip, pathrightclip, readleftclip, readrightclip, readlen)
+		if len(longest_matches) == 0: continue
+		if readname not in longest_matches_per_read:
+			longest_matches_per_read[readname] = longest_matches
+		elif longest_matches[0][0] > longest_matches_per_read[readname][0][0]:
+			longest_matches_per_read[readname] = longest_matches
+		elif longest_matches[0][0] == longest_matches_per_read[readname][0][0]:
+			longest_matches_per_read[readname] += longest_matches
+
+contig_contains_reads = {}
+for readname in longest_matches_per_read:
+	for match in longest_matches_per_read[readname]:
+		(match_bp_size, contig, contigstart, fw, pathstart, matchlen, pathleftclip, pathrightclip, readleftclip, readrightclip, path, readlen) = match
+		if fw:
+			contigpos = contig_node_offsets[contig][contigstart]
+			for i in range(0, pathstart):
+				contigpos -= raw_node_lens[path[i][1:]] - edge_overlaps[canon(path[i], path[i+1])]
+			contigpos += pathleftclip
+			contigpos -= readleftclip
+			if contig not in contig_contains_reads: contig_contains_reads[contig] = []
+			contig_contains_reads[contig].append((readname, contigpos, contigpos + readlen))
+		else:
+			pathstart += matchlen - 1
+			contigstart -= matchlen - 1
+			assert pathstart < len(path)
+			assert contigstart >= 0
+			contigpos = contig_node_offsets[contig][contigstart]
+			for i in range(pathstart+1, len(path)):
+				contigpos -= raw_node_lens[path[i][1:]] - edge_overlaps[canon(path[i-1], path[i])]
+			contigpos += pathrightclip
+			contigpos -= readrightclip
+			if contig not in contig_contains_reads: contig_contains_reads[contig] = []
+			contig_contains_reads[contig].append((readname, contigpos + readlen, contigpos))
 
 for contig in contig_contains_reads:
 	assert len(contig_contains_reads) > 0
@@ -207,12 +216,16 @@ for contig in contig_contains_reads:
 		read_name = line[0]
 		start_pos = min(line[1], line[2])
 		end_pos = max(line[1], line[2])
-		if read_name not in last_kept_read_pos:
-			last_kept_read_pos[read_name] = (start_pos, end_pos)
+		forward = True if (line[1] < line[2]) else False
+		if (read_name, forward) not in last_kept_read_pos:
+			last_kept_read_pos[(read_name, forward)] = (start_pos, end_pos)
 		else:
-			if start_pos < last_kept_read_pos[read_name][0] + 2000 and end_pos < last_kept_read_pos[read_name][1] + 2000:
+			if start_pos < last_kept_read_pos[(read_name, forward)][0] + 50 and end_pos < last_kept_read_pos[(read_name, forward)][1] + 50:
 				continue
-		last_kept_read_pos[read_name] = (start_pos, end_pos)
+			if start_pos < last_kept_read_pos[(read_name, forward)][0] + 2000 and end_pos < last_kept_read_pos[(read_name, forward)][1] + 2000:
+				# sys.stderr.write("strange duplicate read position: " + str((read_name, forward)) + "\n")
+				continue
+		last_kept_read_pos[(read_name, forward)] = (start_pos, end_pos)
 		actual_lines.append(line)
 	start_pos = actual_lines[0][1]
 	end_pos = actual_lines[0][1]
