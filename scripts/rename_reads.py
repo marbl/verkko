@@ -44,11 +44,10 @@ if len(sys.argv) < 4:
 
 mapping = read_map(sys.argv[2])
 if sys.argv[1] == "-":
-   fin=sys.stdin
+   i_handle=sys.stdin
 else:
-   fin=sys.argv[1]
- 
-with gz_open(fin, 'r') as i_handle:
-    input_seq_iterator = SeqIO.parse(i_handle, "fasta")
-    with gz_open(sys.argv[3], 'w') as o_handle:
-        SeqIO.write((change_name(record) for record in input_seq_iterator if name(record) in mapping), o_handle, "fasta")
+   i_handle = gz_open(sys.argv[1], 'r')
+
+input_seq_iterator = SeqIO.parse(i_handle, "fasta")
+with gz_open(sys.argv[3], 'w') as o_handle:
+    SeqIO.write((change_name(record) for record in input_seq_iterator if name(record) in mapping), o_handle, "fasta")

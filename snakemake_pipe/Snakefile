@@ -145,15 +145,18 @@ def get_cns_inputs(wildcards):
 
 rule cns:
     input: '{partition}.cnspack'
-    output: '{partition}.fa'
+    output: 
+           cns='{partition}.fa',
+           infa=temp('{partition}.cnspack.fasta'),
+           inlay=temp('{partition}.cnspack.layout')
     threads: 32
     log: '{partition}.log'
     shell:
         '''
-        utgcns -V -V -V -threads {threads} -import {input} -A {output} -maxcoverage 50 -e 0.20 -l 2500 -pbdagcon -edlib &> {log}
+        utgcns -V -V -V -threads {threads} -import {input} -A {output.cns} -maxcoverage 50 -e 0.20 -l 2500 -pbdagcon -edlib &> {log}
         '''
 
 rule aggregate_cns:
    input: lambda wildcards: expand('{partition}.fa', partition=get_cns_inputs(wildcards))
    output: 'concat.fa'
-   shell: 'cat {input} | ${SCRIPT_PATH}/rename_reads.py - ctgStore/part.tig_names.txt {output}'
+   shell: 'cat {input} | {SCRIPT_PATH}/rename_reads.py - ctgStore/part.tig_names.txt {output}'
