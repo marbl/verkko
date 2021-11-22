@@ -55,6 +55,7 @@ for l in sys.stdin:
 	alnend = path[-1]
 	leftclip = int(parts[7])
 	rightclip = int(parts[6]) - int(parts[8])
+	assert rightclip >= 0
 	if readname not in alns_per_read: alns_per_read[readname] = []
 	alns_per_read[readname].append((readstart, readend, alnstart, alnend, leftclip, rightclip, readlen))
 
@@ -75,7 +76,7 @@ for name in alns_per_read:
 			readlen = alns[i][6]
 			readstart = alns[i-1][1] + alns[i-1][5]
 			readend = alns[i][0] - alns[i][4]
-			reads_per_gap[key].add((name, readlen, readstart, readend, fw))
+			reads_per_gap[key].add((name, readlen, min(readstart, readend), max(readstart, readend), fw))
 
 next_gap_id = 1
 used_reads = set()
