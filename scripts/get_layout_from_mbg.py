@@ -21,11 +21,20 @@ def canon(left, right):
 		return (revnode(right), revnode(left))
 	return (left, right)
 
-def get_leafs(path, mapping, edge_overlaps):
+def get_leafs(path, mapping, edge_overlaps, raw_node_lens):
+	path_len = 0
+	for i in range(0, len(path)):
+		path_len += raw_node_lens[path[i][1:]]
+		if i > 0: path_len -= edge_overlaps[canon(path[i-1], path[i])]
 	result = path
 	overlaps = []
 	for i in range(1, len(path)):
 		overlaps.append(edge_overlaps[canon(path[i-1], path[i])])
+	current_len = 0
+	for i in range(0, len(result)):
+		current_len += raw_node_lens[result[i][1:]]
+		if i > 0: current_len -= overlaps[i-1]
+	assert current_len == path_len
 	while True:
 		any_replaced = False
 		new_result = []
@@ -48,6 +57,11 @@ def get_leafs(path, mapping, edge_overlaps):
 		if not any_replaced: break
 		result = new_result
 		overlaps = new_overlaps
+		current_len = 0
+		for i in range(0, len(result)):
+			current_len += raw_node_lens[result[i][1:]]
+			if i > 0: current_len -= overlaps[i-1]
+		assert current_len == path_len
 	return (result, overlaps)
 
 def get_match_len(path, pathstart, contigpath, contigstart, fw):
@@ -127,7 +141,7 @@ with open(paths_file) as f:
 		parts = l.strip().split('\t')
 		pathname = parts[0]
 		path = parts[1].replace('<', '\t<').replace('>', '\t>').strip().split('\t')
-		(path, overlaps) = get_leafs(path, node_mapping, edge_overlaps)
+		(path, overlaps) = get_leafs(path, node_mapping, edge_overlaps, raw_node_lens)
 		sys.stderr.write(pathname + "\t" + "".join(path) + "\n")
 		contig_nodeseqs[pathname] = path
 		contig_nodeoverlaps[pathname] = overlaps
