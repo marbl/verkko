@@ -125,7 +125,7 @@ for node in node_seqs:
 
 with open(mapping_file, "w") as f:
 	for i in range(0, len(unitigs)):
-		f.write(prefix + str(i) + "\t" + "".join(unitigs[i]) + "\n")
+		f.write(prefix + str(i) + "\t" + "".join(unitigs[i]) + ":0:0" + "\n")
 
 for i in range(0, len(unitigs)):
 	unitig_seq = get_seq(unitigs[i], node_seqs, edge_overlaps)

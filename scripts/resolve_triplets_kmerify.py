@@ -925,6 +925,6 @@ sys.stderr.write("write name mapping" + "\n")
 
 with open(resolve_namemapping_file, "w") as f:
 	for n in node_seqs:
-		f.write(unitig_name[n] + "\t" + "".join(node_seqs[n][0]) + "\n")
+		f.write(unitig_name[n] + "\t" + "".join(node_seqs[n][0]) + ":" + str(node_seqs[n][1]) + ":" + str(node_seqs[n][2]) + "\n")
 
 sys.stderr.write("name mapping written" + "\n")

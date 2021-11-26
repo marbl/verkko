@@ -22,4 +22,4 @@ with open(unrolled_graph) as f:
 				assert name[:7] == "unroll_"
 				base_name = "_".join(name[7:].split("_")[:-1])
 				assert base_name in existing_nodes
-				print(name + "\t" + ">" + base_name)
+				print(name + "\t" + ">" + base_name + ":0:0")

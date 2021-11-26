@@ -110,7 +110,7 @@ with open(mapping_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
 		assert parts[0] not in node_mapping
-		path = parts[1].replace('<', "\t<").replace('>', "\t>").strip().split('\t')
+		path = parts[1].split(':')[0].replace('<', "\t<").replace('>', "\t>").strip().split('\t')
 		node_mapping[parts[0]] = path
 
 edge_overlaps = {}

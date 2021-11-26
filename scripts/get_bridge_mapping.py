@@ -21,4 +21,4 @@ with open(connected_graph_file) as f:
 			if name not in existing_nodes:
 				base_name = "_".join(name.split("_")[:-1])
 				assert base_name in existing_nodes
-				print(name + "\t" + ">" + base_name)
+				print(name + "\t" + ">" + base_name + ":0:0")
