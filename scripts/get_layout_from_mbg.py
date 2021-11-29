@@ -121,21 +121,40 @@ def get_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_overlaps,
 			assert (fw) or revnode(contig_nodeseqs[contig][index][0]) == path[i]
 			node_min_start = contig_nodeseqs[contig][index][1]
 			node_max_end = contig_nodeseqs[contig][index][2]
-			if node_min_start >= read_node_end_pos[i] or node_max_end <= read_node_start_pos[i]: continue
-			extra_left_clip = 0
-			extra_right_clip = 0
-			if node_min_start > read_node_start_pos[i]:
-				extra_left_clip = node_min_start - read_node_start_pos[i]
-				node_start_offset = 0
+			if fw:
+				if node_min_start >= read_node_end_pos[i] or node_max_end <= read_node_start_pos[i]: continue
+				extra_left_clip = 0
+				extra_right_clip = 0
+				if node_min_start > read_node_start_pos[i]:
+					extra_left_clip = node_min_start - read_node_start_pos[i]
+					node_start_offset = 0
+				else:
+					node_start_offset = read_node_start_pos[i] - node_min_start
+				if node_max_end < read_node_end_pos[i]:
+					extra_right_clip = read_node_end_pos[i] - node_max_end
+					node_end_offset = node_max_end
+				else:
+					node_end_offset = read_node_end_pos[i]
+				read_start_offset = read_path_start_pos[i] + extra_left_clip
+				read_end_offset = read_path_end_pos[i] - extra_right_clip
 			else:
-				node_start_offset = read_node_start_pos[i] - node_min_start
-			if node_max_end < read_node_end_pos[i]:
-				extra_right_clip = read_node_end_pos[i] - node_max_end
-				node_end_offset = node_max_end
-			else:
-				node_end_offset = read_node_end_pos[i]
-			read_start_offset = read_path_start_pos[i] + extra_left_clip
-			read_end_offset = read_path_end_pos[i] - extra_right_clip
+				read_wanted_start_pos = raw_node_lens[path[i][1:]] - read_node_end_pos[i]
+				read_wanted_end_pos = raw_node_lens[path[i][1:]] - read_node_start_pos[i]
+				if node_min_start >= read_wanted_end_pos or node_max_end <= read_wanted_start_pos: continue
+				extra_left_clip = 0
+				extra_right_clip = 0
+				if node_min_start > read_wanted_start_pos:
+					extra_right_clip = node_min_start - read_wanted_start_pos
+					node_end_offset = node_max_end
+				else:
+					node_end_offset = node_max_end - (read_wanted_start_pos - node_min_start)
+				if node_max_end < read_wanted_end_pos:
+					extra_left_clip = read_wanted_end_pos - node_max_end
+					node_start_offset = 0
+				else:
+					node_start_offset = node_max_end - read_wanted_end_pos
+				read_start_offset = read_path_start_pos[i] + extra_left_clip
+				read_end_offset = read_path_end_pos[i] - extra_right_clip
 			assert read_start_offset >= 0
 			assert read_end_offset > read_start_offset
 			assert read_end_offset <= readlen
@@ -272,7 +291,7 @@ for readname in matches_per_read:
 			contig_contains_reads[contig][readname].append((contigpos, contigpos + readlen, len_readstart, len_readend, readlen, readstart, readend))
 		else:
 			contigpos = contig_node_offsets[contig][contigstart]
-			contigpos += raw_node_lens[contig_nodeseqs[contig][contigstart][0][1:]]
+			contigpos += contig_nodeseqs[contig][contigstart][2] - contig_nodeseqs[contig][contigstart][1]
 			contigpos -= node_start_offset
 			contigpos += readstart
 			contigpos -= readlen
