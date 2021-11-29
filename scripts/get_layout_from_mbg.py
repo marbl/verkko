@@ -76,7 +76,7 @@ def get_leafs(path, mapping, edge_overlaps, raw_node_lens):
 		assert current_len == path_len
 	return (result, overlaps)
 
-def get_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_overlaps, pathleftclip, pathrightclip, readleftclip, readrightclip, readlen, readstart, readend):
+def get_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_overlaps, pathleftclip, pathrightclip, readleftclip, readrightclip, readlen, readstart, readend, gap):
 	longest = None
 	result = []
 	read_path_start_pos = []
@@ -163,7 +163,7 @@ def get_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_overlaps,
 			assert node_end_offset > node_start_offset
 			assert node_end_offset <= raw_node_lens[path[i][1:]]
 			match_bp_len = read_path_end_pos[i] - read_path_start_pos[i] - (extra_left_clip + extra_right_clip)
-			result.append((match_bp_len, contig, index, fw, i, node_start_offset, node_end_offset, read_start_offset, read_end_offset, readlen))
+			result.append((match_bp_len, contig, index, fw, i, node_start_offset, node_end_offset, read_start_offset, read_end_offset, readlen, gap))
 	return result
 
 raw_node_lens = {}
@@ -265,7 +265,8 @@ with open(read_alignment_file) as f:
 		pathleftclip = int(parts[7])
 		pathrightclip = int(parts[6]) - int(parts[8])
 		path = parts[5].replace('>', "\t>").replace('<', "\t<").strip().split('\t')
-		matches = get_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_overlaps, pathleftclip, pathrightclip, readleftclip, readrightclip, readlen, readstart, readend)
+		gap = (len(path) == 1 and path[0][1:4] == "gap")
+		matches = get_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_overlaps, pathleftclip, pathrightclip, readleftclip, readrightclip, readlen, readstart, readend, gap)
 		if len(matches) == 0: continue
 		if readname not in matches_per_read: matches_per_read[readname] = []
 		matches_per_read[readname] += matches
@@ -273,7 +274,7 @@ with open(read_alignment_file) as f:
 contig_contains_reads = {}
 for readname in matches_per_read:
 	for match in matches_per_read[readname]:
-		(match_bp_size, contig, contigstart, fw, pathstart, node_start_offset, node_end_offset, readstart, readend, readlen) = match
+		(match_bp_size, contig, contigstart, fw, pathstart, node_start_offset, node_end_offset, readstart, readend, readlen, gap) = match
 		assert readstart < readend
 		if fw:
 			contigpos = contig_node_offsets[contig][contigstart]
@@ -283,9 +284,9 @@ for readname in matches_per_read:
 			if readname not in contig_contains_reads[contig]: contig_contains_reads[contig][readname] = []
 			len_readstart = readstart
 			len_readend = readend
-			if contigpos <= 50: len_readstart = 0
-			if contigpos + readlen >= contig_lens[contig] - 50: len_readend = readlen
-			if len(path) == 1 and path[0][1:4] == "gap":
+			if contigstart == 0 and node_start_offset <= 50: len_readstart = 0
+			if contigstart == len(contig_node_offsets[contig]) - 1 and node_end_offset >= contig_nodeseqs[contig][contigstart][2]-50: len_readend = readlen
+			if gap:
 				len_readstart = 0
 				len_readend = readlen
 			contig_contains_reads[contig][readname].append((contigpos, contigpos + readlen, len_readstart, len_readend, readlen, readstart, readend))
@@ -299,9 +300,9 @@ for readname in matches_per_read:
 			if readname not in contig_contains_reads[contig]: contig_contains_reads[contig][readname] = []
 			len_readstart = readstart
 			len_readend = readend
-			if contigpos <= 50: len_readend = 0
-			if contigpos + readlen >= contig_lens[contig] - 50: len_readend = readlen
-			if len(path) == 1 and path[0][1:4] == "gap":
+			if contigstart == 0 and node_end_offset >= contig_nodeseqs[contig][contigstart][2]-50: len_readend = readlen
+			if contigstart == len(contig_node_offsets[contig]) - 1 and node_start_offset <= 50: len_readstart = 0
+			if gap:
 				len_readstart = 0
 				len_readend = readlen
 			contig_contains_reads[contig][readname].append((contigpos + readlen, contigpos, len_readstart, len_readend, readlen, readstart, readend))
