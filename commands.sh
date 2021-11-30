@@ -8,7 +8,7 @@ scripts/get_unroll_mapping.py gapped-hifi-resolved.gfa unrolled-hifi-resolved.gf
 scripts/unitigify.py "utig1-" unitig-mapping-1.txt < unrolled-hifi-resolved.gfa > unitig-unrolled-hifi-resolved.gfa
 
 # only for evaluating hifi-only CHM13 haploid assemblies
-# UntipRelative 15000 15000 0.1 0.1 < unitig-unrolled-hifi-resolved.gfa > hifi-resolved-graph-tip.gfa
+# scripts/untip_relative.py 15000 15000 0.1 0.1 < unitig-unrolled-hifi-resolved.gfa > hifi-resolved-graph-tip.gfa
 # scripts/pop_bubbles_keep_longest.py 10 < hifi-resolved-graph-tip.gfa > popped-hifi-resolved-graph-tip.gfa
 # scripts/unitigify.py < popped-hifi-resolved-graph-tip.gfa > unitig-popped-hifi-resolved-graph-tip.gfa
 
@@ -72,7 +72,7 @@ scripts/get_layout_from_mbg.py combined-nodemap.txt combined-edges.gfa combined-
 scripts/check_layout_gaps.py < layout.txt > gaps.txt
 
 # only for evaluating CHM13 haploid assemblies
-# UntipRelative 30000 30000 0.1 0.1 < unitig-unrolled-ont-resolved.gfa > connected-tip.gfa
+# scripts/untip_relative.py 30000 30000 0.1 0.1 < unitig-unrolled-ont-resolved.gfa > connected-tip.gfa
 # scripts/unitigify.py "utig3-" unitig-mapping-3.txt < connected-tip.gfa > unitig-normal-connected-tip.gfa
 # scripts/pop_bubbles_keep_longest.py 10 < unitig-normal-connected-tip.gfa > popped-unitig-normal-connected-tip.gfa
 # scripts/unitigify.py "utig4-" unitig-mapping-4.txt < popped-unitig-normal-connected-tip.gfa > unitig-popped-unitig-normal-connected-tip.gfa
