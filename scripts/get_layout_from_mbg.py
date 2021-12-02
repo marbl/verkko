@@ -68,7 +68,10 @@ def get_leafs(path, mapping, edge_overlaps, raw_node_lens):
 		overlaps = new_overlaps
 		current_len = 0
 		for i in range(0, len(result)):
-			assert result[i][2] > result[i][1]
+			# strangely, this assertion is not always true.
+			# The ONT based k-mer increase can create a node where the overlap is greater than the initial MBG node size
+			# and in that case the initial MBG node will have a "negative" length within the contig
+			# assert result[i][2] > result[i][1]
 			assert result[i][2] <= raw_node_lens[result[i][0][1:]]
 			assert result[i][1] >= 0
 			current_len += result[i][2] - result[i][1]
