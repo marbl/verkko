@@ -100,12 +100,14 @@ rule create_layout:
     input: graph='unitig-popped-unitig-normal-connected-tip.gfa',
            paths='paths.gaf'
     output:
+        #combined_edges=temp('combined-edges.gfa'),
         layout='layout.txt',
         gaps='gaps.txt'
     threads: 1
     shell:
         '''
         cat *mapping* > combined-nodemap.txt
+        rm -f combined-edges.gfa
         cat *.gfa | grep -P '^L' > combined-edges.gfa
         cat gaps-*.gaf {input.paths} > combined-alignments.gaf
         grep -P '^S' *.gfa | grep -v '\\*' | awk '{{print $2 "\\t" length($3);}}' > nodelens.txt
