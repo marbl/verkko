@@ -138,7 +138,7 @@ checkpoint partition_consensus:
    shell:
       '''
       mkdir -p {output.cns}
-      layoutToPackage -layout {input.layout} -output {output.cns}/part -partition.####.cnspack --idmap {output.cns}/part 0.8 1.5 0.1 -reads {input.ont_subset} {input.hifi} &> {log}
+      layoutToPackage -layout {input.layout} -output {output.cns}/part.####.cnspack -idmap {output.cns}/part -partition 0.8 1.5 0.1 -reads {input.ont_subset} {input.hifi} &> {log}
       '''
 
 def get_cns_inputs(wildcards):
