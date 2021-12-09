@@ -145,8 +145,8 @@ for l in sys.stdin:
 
 long_coverage_cov_sum = 0.0
 long_coverage_len_sum = 0.0
-for node in coverage:
-	assert node in nodelens
+for node in nodelens:
+	if node not in coverage: continue
 	if nodelens[node] < 100000: continue
 	long_coverage_len_sum += nodelens[node]
 	long_coverage_cov_sum += nodelens[node] * coverage[node]
@@ -154,7 +154,8 @@ for node in coverage:
 avg_coverage = long_coverage_cov_sum / long_coverage_len_sum
 sys.stderr.write("average coverage " + str(avg_coverage) + "\n")
 
-for node in coverage:
+for node in nodelens:
+	if node not in coverage: continue
 	if node in removed_nodes: continue
 	if coverage[node] < avg_coverage * 0.5: continue
 	if coverage[node] > avg_coverage * 1.5: continue
