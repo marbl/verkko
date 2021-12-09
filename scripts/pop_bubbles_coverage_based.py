@@ -23,11 +23,14 @@ def find(parent, key):
 		parent[key] = parent[parent[key]]
 	return parent[key]
 
-def merge(parent, left, right):
+def merge(parent, chain_coverage_sum, chain_length_sum, left, right):
 	left = find(parent, left)
 	right = find(parent, right)
 	assert parent[left] == left
 	assert parent[right] == right
+	assert parent[left] != parent[right]
+	chain_coverage_sum[left] += chain_coverage_sum[right]
+	chain_length_sum[left] += chain_length_sum[right]
 	parent[right] = left
 
 def remove_graph_node(node, edges):
@@ -167,28 +170,44 @@ for node in nodelens:
 avg_coverage = long_coverage_cov_sum / long_coverage_len_sum
 sys.stderr.write("average coverage " + str(avg_coverage) + "\n")
 
+chain_coverage_sum = {}
+chain_length_sum = {}
 parent = {}
 for node in nodelens:
 	parent[node] = node
+	if node in coverage:
+		chain_length_sum[node] = nodelens[node]
+		chain_coverage_sum[node] = coverage[node] * nodelens[node]
+
+possible_merges = []
 
 for edge in edges:
 	bubble = find_bubble(edge, edges, len(nodelens))
 	if not bubble: continue
 	if bubble[0][1:] not in coverage or bubble[1][1:] not in coverage: continue
-	if coverage[bubble[0][1:]] > coverage[bubble[1][1:]] * 1.5: continue
-	if coverage[bubble[1][1:]] > coverage[bubble[0][1:]] * 1.5: continue
-	merge(parent, bubble[0][1:], bubble[1][1:])
+	possible_merges.append((bubble[0][1:], bubble[1][1:], max(coverage[bubble[0][1:]] / coverage[bubble[1][1:]], coverage[bubble[1][1:]] / coverage[bubble[0][1:]])))
 
-chain_coverage_sum = {}
-chain_length_sum = {}
-
-for node in nodelens:
-	if node not in coverage: continue
-	key = find(parent, node)
-	if key not in chain_length_sum: chain_length_sum[key] = 0
-	if key not in chain_coverage_sum: chain_coverage_sum[key] = 0
-	chain_coverage_sum[key] += coverage[node] * nodelens[node]
-	chain_length_sum[key] += nodelens[node]
+possible_merges.sort(key=lambda x: x[2])
+while True:
+	new_possible_merges = []
+	merged_any = False
+	for triplet in possible_merges:
+		(node1, node2, difference) = triplet
+		key1 = find(parent, node1)
+		key2 = find(parent, node2)
+		if key1 == key2: continue
+		chain1_cov = chain_coverage_sum[find(parent, node1)] / chain_length_sum[find(parent, node1)]
+		chain2_cov = chain_coverage_sum[find(parent, node2)] / chain_length_sum[find(parent, node2)]
+		if chain1_cov > chain2_cov * 1.5:
+			new_possible_merges.append(triplet)
+			continue
+		if chain2_cov > chain1_cov * 1.5:
+			new_possible_merges.append(triplet)
+			continue
+		merge(parent, chain_coverage_sum, chain_length_sum, node1, node2)
+		merged_any = True
+	if not merged_any: break
+	possible_merges = new_possible_merges
 
 unique_chains = set()
 for node in nodelens:
