@@ -6,7 +6,7 @@ node_coverage_file = sys.argv[1]
 # gfa from stdin
 # gfa to stdout
 
-max_bubble_size = 10
+max_bubble_pop_size = 10
 
 def getone(s):
 	for n in s:
@@ -17,6 +17,18 @@ def revnode(n):
 	assert len(n) >= 2
 	assert n[0] == "<" or n[0] == ">"
 	return (">" if n[0] == "<" else "<") + n[1:]
+
+def find(parent, key):
+	while parent[key] != parent[parent[key]]:
+		parent[key] = parent[parent[key]]
+	return parent[key]
+
+def merge(parent, left, right):
+	left = find(parent, left)
+	right = find(parent, right)
+	assert parent[left] == left
+	assert parent[right] == right
+	parent[right] = left
 
 def remove_graph_node(node, edges):
 	if ">" + node in edges:
@@ -34,7 +46,7 @@ def remove_graph_node(node, edges):
 
 # Detecting Superbubbles in Assembly Graphs, Onodera et al 2013
 # fig. 5
-def find_bubble(s, edges):
+def find_bubble(s, edges, max_bubble_size):
 	if s not in edges: return None
 	if len(edges[s]) < 2: return None
 	S = [s]
@@ -76,21 +88,20 @@ def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage):
 	bubble_edges = set()
 	predecessor = {}
 	stack = []
-	stack.append((start, start))
+	stack.append((start, start, coverage.get(start[1:], 0)))
 	while len(stack) > 0:
-		(top, before) = stack.pop()
-		if top not in predecessor: predecessor[top] = before
-		if before in coverage and predecessor[top] not in coverage: predecessor[top] = before
-		if before in coverage and predecessor[top] in coverage and coverage[before] > coverage[predecessor[top]]: predecessor[top] = before
+		(top, before, pathwidth) = stack.pop()
+		if top not in predecessor: predecessor[top] = (before, pathwidth)
+		if predecessor[top][1] < pathwidth: predecessor[top] = (before, pathwidth)
 		bubble_nodes.add(top[1:])
 		bubble_edges.add((before, top))
 		if top == end: continue
 		for edge in edges[top]:
-			stack.append((edge, top))
+			stack.append((edge, top, min(pathwidth, coverage.get(edge[1:], 0))))
 	assert end in predecessor
 	path = [end]
 	while path[-1] != start:
-		path.append(predecessor[path[-1]])
+		path.append(predecessor[path[-1]][0])
 	path = path[::-1]
 	kept_nodes = set()
 	kept_edges = set()
@@ -100,6 +111,8 @@ def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage):
 		kept_edges.add((path[i-1], path[i]))
 	assert len(kept_nodes) == len(path)
 	assert len(kept_edges) == len(path)-1
+	assert len(kept_nodes) <= len(bubble_nodes)
+	assert len(kept_edges) < len(bubble_edges) or len(bubble_edges) == 1
 	for node in bubble_nodes:
 		if node in kept_nodes: continue
 		remove_graph_node(node, edges)
@@ -154,23 +167,50 @@ for node in nodelens:
 avg_coverage = long_coverage_cov_sum / long_coverage_len_sum
 sys.stderr.write("average coverage " + str(avg_coverage) + "\n")
 
+parent = {}
+for node in nodelens:
+	parent[node] = node
+
+for edge in edges:
+	bubble = find_bubble(edge, edges, len(nodelens))
+	if not bubble: continue
+	merge(parent, bubble[0][1:], bubble[1][1:])
+
+chain_coverage_sum = {}
+chain_length_sum = {}
+
 for node in nodelens:
 	if node not in coverage: continue
+	key = find(parent, node)
+	if key not in chain_length_sum: chain_length_sum[key] = 0
+	if key not in chain_coverage_sum: chain_coverage_sum[key] = 0
+	chain_coverage_sum[key] += coverage[node] * nodelens[node]
+	chain_length_sum[key] += nodelens[node]
+
+unique_chains = set()
+for node in nodelens:
+	key = find(parent, node)
+	if key not in chain_coverage_sum: continue
+	chain_coverage = chain_coverage_sum[key] / chain_length_sum[key]
+	if chain_coverage >= avg_coverage * 0.5 and chain_coverage <= avg_coverage * 1.5:
+		unique_chains.add(key)
+
+for node in nodelens:
+	key = find(parent, node)
+	if key not in unique_chains: continue
 	if node in removed_nodes: continue
-	if coverage[node] < avg_coverage * 0.5: continue
-	if coverage[node] > avg_coverage * 1.5: continue
-	bubble = find_bubble(">" + node, edges)
+	bubble = find_bubble(">" + node, edges, max_bubble_pop_size)
 	if bubble:
 		assert bubble[0] == ">" + node
 		assert bubble[1][1:] != node
-		if bubble[1][1:] in coverage and coverage[bubble[1][1:]] >= avg_coverage * 0.5 and coverage[bubble[1][1:]] <= avg_coverage * 1.5:
-			pop_bubble(bubble[0], bubble[1], removed_nodes, removed_edges, edges, coverage)
-	bubble = find_bubble("<" + node, edges)
+		assert find(parent, bubble[1][1:]) == key
+		pop_bubble(bubble[0], bubble[1], removed_nodes, removed_edges, edges, coverage)
+	bubble = find_bubble("<" + node, edges, max_bubble_pop_size)
 	if bubble:
 		assert bubble[0] == "<" + node
 		assert bubble[1][1:] != node
-		if bubble[1][1:] in coverage and coverage[bubble[1][1:]] >= avg_coverage * 0.5 and coverage[bubble[1][1:]] <= avg_coverage * 1.5:
-			pop_bubble(bubble[0], bubble[1], removed_nodes, removed_edges, edges, coverage)
+		assert find(parent, bubble[1][1:]) == key
+		pop_bubble(bubble[0], bubble[1], removed_nodes, removed_edges, edges, coverage)
 
 for node in removed_nodes:
 	sys.stderr.write(node + "\n")
