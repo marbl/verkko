@@ -174,6 +174,9 @@ for node in nodelens:
 for edge in edges:
 	bubble = find_bubble(edge, edges, len(nodelens))
 	if not bubble: continue
+	if bubble[0][1:] not in coverage or bubble[1][1:] not in coverage: continue
+	if coverage[bubble[0][1:]] > coverage[bubble[1][1:]] * 1.5: continue
+	if coverage[bubble[1][1:]] > coverage[bubble[0][1:]] * 1.5: continue
 	merge(parent, bubble[0][1:], bubble[1][1:])
 
 chain_coverage_sum = {}
@@ -203,13 +206,13 @@ for node in nodelens:
 	if bubble:
 		assert bubble[0] == ">" + node
 		assert bubble[1][1:] != node
-		assert find(parent, bubble[1][1:]) == key
+		if find(parent, bubble[1][1:]) != key: continue
 		pop_bubble(bubble[0], bubble[1], removed_nodes, removed_edges, edges, coverage)
 	bubble = find_bubble("<" + node, edges, max_bubble_pop_size)
 	if bubble:
 		assert bubble[0] == "<" + node
 		assert bubble[1][1:] != node
-		assert find(parent, bubble[1][1:]) == key
+		if find(parent, bubble[1][1:]) != key: continue
 		pop_bubble(bubble[0], bubble[1], removed_nodes, removed_edges, edges, coverage)
 
 for node in removed_nodes:
