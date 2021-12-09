@@ -12,9 +12,10 @@ def getone(s):
 	for n in s:
 		return n
 
+# https://bioinformatics.stackexchange.com/questions/3583/what-is-the-fastest-way-to-get-the-reverse-complement-of-a-dna-sequence-in-pytho
+trans = str.maketrans("ACTG", "TGAC")
 def revcomp(s):
-	comp = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C', 'N': 'N'}
-	return "".join(comp[c] for c in s[::-1])
+	return s.translate(trans)[::-1]
 
 def revnode(n):
 	return (">" if n[0] == "<" else "<") + n[1:]
@@ -47,15 +48,14 @@ def start_circular_unitig(startpos, unitigs, belongs_to_unitig, edges):
 		belongs_to_unitig.add(new_pos[1:])
 	unitigs.append(new_unitig)
 
-def get_seq(unitig, node_seqs, edge_overlaps):
-	result = node_seqs[unitig[0][1:]]
-	if unitig[0][0] == "<": result = revcomp(result)
+def write_seq(stream, unitig, node_seqs, edge_overlaps):
+	seq = node_seqs[unitig[0][1:]]
+	if unitig[0][0] == "<": seq = revcomp(seq)
+	stream.write(seq)
 	for i in range(1, len(unitig)):
 		add = node_seqs[unitig[i][1:]]
 		if unitig[i][0] == "<": add = revcomp(add)
-		add = add[edge_overlaps[(unitig[i-1], unitig[i])]:]
-		result += add
-	return result
+		stream.write(add[edge_overlaps[(unitig[i-1], unitig[i])]:])
 
 
 node_seqs = {}
@@ -128,8 +128,9 @@ with open(mapping_file, "w") as f:
 		f.write(prefix + str(i) + "\t" + "".join(unitigs[i]) + ":0:0" + "\n")
 
 for i in range(0, len(unitigs)):
-	unitig_seq = get_seq(unitigs[i], node_seqs, edge_overlaps)
-	print("S\t" + prefix + str(i) + "\t" + unitig_seq)
+	sys.stdout.write("S\t" + prefix + str(i) + "\t")
+	write_seq(sys.stdout, unitigs[i], node_seqs, edge_overlaps)
+	sys.stdout.write("\n")
 
 for edge in unitig_edges:
 	print("L\t" + prefix + edge[0][1:] + "\t" + ("+" if edge[0][0] == ">" else "-") + "\t" + prefix + edge[1][1:] + "\t" + ("+" if edge[1][0] == ">" else "-") + "\t" + str(edge[2]) + "M")
