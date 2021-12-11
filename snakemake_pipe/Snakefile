@@ -45,7 +45,7 @@ rule hifi_coverage_csv:
     "hifi_nodecov.csv"
   shell:
     '''
-    grep -P '^S' < {input} | cut -f 2,3,4 | tr -d 'll:f:' | awk 'BEGIN{print "node\tlength\tcoverage";}{print $1 "\t" length($2) "\t" $3;}' > {output}
+    grep -P '^S' < {input} | cut -f 2,3,4 | tr -d 'll:f:' | awk 'BEGIN{{print "node\tlength\tcoverage";}}{{print $1 "\t" length($2) "\t" $3;}}' > {output}
     '''
 
 rule process_graph:
