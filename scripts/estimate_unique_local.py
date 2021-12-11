@@ -170,6 +170,9 @@ with open(node_coverage_file) as f:
 		assert parts[0] not in node_coverage
 		node_coverage[parts[0]] = float(parts[1])
 
+for node in nodelens:
+	if node not in node_coverage: node_coverage[node] = 0.0
+
 out_paths = {}
 
 with open(alignment_file) as f:
