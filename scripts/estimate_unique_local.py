@@ -3,10 +3,11 @@
 import sys
 
 graph_file = sys.argv[1]
-alignment_file = sys.argv[2]
-long_node_threshold = int(sys.argv[3])
-solid_edge_threshold = int(sys.argv[4])
-path_consistency_threshold = float(sys.argv[5])
+node_coverage_file = sys.argv[2]
+alignment_file = sys.argv[3]
+long_node_threshold = int(sys.argv[4])
+solid_edge_threshold = int(sys.argv[5])
+path_consistency_threshold = float(sys.argv[6])
 # unique nodes to stdout
 
 long_node_neighborhood_size = long_node_threshold
@@ -138,11 +139,8 @@ for edge in canon_edges:
 	merge(parent, rank, edge[0], edge[1])
 
 cluster_edge_nodes = {}
-longnode_coverage = {}
 
 for node in long_nodes:
-	longnode_coverage[">" + node] = 0.0
-	longnode_coverage["<" + node] = 0.0
 	key = find(parent, ">" + node)
 	if key not in cluster_edge_nodes: cluster_edge_nodes[key] = set()
 	cluster_edge_nodes[key].add(">" + node)
@@ -164,8 +162,13 @@ for node in long_nodes:
 		bubble_end = find_bubble_end(edges, next_node)
 
 node_coverage = {}
-for node in nodelens:
-	node_coverage[node] = 0.0
+with open(node_coverage_file) as f:
+	for l in f:
+		parts = l.strip().split('\t')
+		if parts[0] == "node" and parts[1] == "coverage": continue
+		assert parts[0] in nodelens
+		assert parts[0] not in node_coverage
+		node_coverage[parts[0]] = float(parts[1])
 
 out_paths = {}
 
@@ -189,51 +192,6 @@ with open(alignment_file) as f:
 				if revnode(part_path[i]) not in out_paths: out_paths[revnode(part_path[i])] = []
 				if i < len(part_path)-1: out_paths[part_path[i]].append(tuple(part_path[i+1:]))
 				if i > 0: out_paths[revnode(part_path[i])].append(tuple(revnode(n) for n in part_path[0:i][::-1]))
-		assert len(path) >= 1
-		while len(path) > 0 and path[0][1:] not in nodelens:
-			path = path[1:]
-			left_clip = 0
-		while len(path) > 0 and path[-1][1:] not in nodelens:
-			path = path[:-1]
-			right_clip = 0
-		if len(path) == 0: continue
-		if len(path) == 1:
-			# should be true, except for a graphaligner bug in self-loop nodes causing strange alignment paths
-			# so comment for now
-			# assert left_clip + right_clip < nodelens[path[0][1:]]
-			if left_clip + right_clip >= nodelens[path[0][1:]]: continue
-			node_coverage[path[0][1:]] += float(nodelens[path[0][1:]] - left_clip - right_clip) / float(nodelens[path[0][1:]])
-			if path[0][1:] in long_nodes:
-				node_start = left_clip
-				node_end = nodelens[path[0][1:]] - right_clip
-				assert node_end > node_start
-				if node_start < long_node_neighborhood_size: longnode_coverage[revnode(path[0])] += float(min(long_node_neighborhood_size, node_end) - node_start) / float(long_node_neighborhood_size)
-				if node_end > nodelens[path[0][1:]] - long_node_neighborhood_size: longnode_coverage[path[0]] += float(node_end - max(nodelens[path[0][1:]] - long_node_neighborhood_size, node_start)) / float(long_node_neighborhood_size)
-			continue
-		assert left_clip < nodelens[path[0][1:]]
-		assert right_clip < nodelens[path[-1][1:]]
-		assert path[0][1:] in existing_nodes
-		assert path[-1][1:] in existing_nodes
-		node_coverage[path[0][1:]] += float(nodelens[path[0][1:]] - left_clip) / float(nodelens[path[0][1:]])
-		node_coverage[path[-1][1:]] += float(nodelens[path[-1][1:]] - right_clip) / float(nodelens[path[-1][1:]])
-		for node in path[1:-1]:
-			if node[1:] not in existing_nodes: continue
-			node_coverage[node[1:]] += 1
-			if node[1:] in long_nodes:
-				longnode_coverage[">" + node[1:]] += 1
-				longnode_coverage["<" + node[1:]] += 1
-		if path[0][1:] in long_nodes:
-			node_start = left_clip
-			node_end = nodelens[path[0][1:]]
-			assert node_end > node_start
-			if node_start < long_node_neighborhood_size: longnode_coverage[revnode(path[0])] += float(min(long_node_neighborhood_size, node_end) - node_start) / float(long_node_neighborhood_size)
-			if node_end > nodelens[path[0][1:]] - long_node_neighborhood_size: longnode_coverage[path[0]] += float(node_end - max(nodelens[path[0][1:]] - long_node_neighborhood_size, node_start)) / float(long_node_neighborhood_size)
-		if path[-1][1:] in long_nodes:
-			node_start = 0
-			node_end = nodelens[path[-1][1:]] - right_clip
-			assert node_end > node_start
-			if node_start < long_node_neighborhood_size: longnode_coverage[revnode(path[-1])] += float(min(long_node_neighborhood_size, node_end) - node_start) / float(long_node_neighborhood_size)
-			if node_end > nodelens[path[-1][1:]] - long_node_neighborhood_size: longnode_coverage[path[-1]] += float(node_end - max(nodelens[path[-1][1:]] - long_node_neighborhood_size, node_start)) / float(long_node_neighborhood_size)
 
 coverage_sum = 0.0
 coverage_count = 0.0
@@ -255,7 +213,7 @@ for node in nodelens:
 	else:
 		compare_coverage = 0.0
 		for end in compare_nodes:
-			compare_coverage += float(longnode_coverage[end])
+			compare_coverage += float(node_coverage[end[1:]])
 		compare_coverage /= float(len(compare_nodes))
 	if compare_coverage < .1 * global_average_coverage or compare_coverage > 10 * global_average_coverage:
 		sys.stderr.write("WARNING: nonsense local coverage of " + str(compare_coverage) + " for node " + node + ", reverting to global average " + str(global_average_coverage) + "\n")

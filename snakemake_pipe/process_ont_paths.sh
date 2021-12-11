@@ -24,7 +24,14 @@ cut -f 6 < alns-ont-filter-trim.gaf > paths.txt
 awk -F '\t' '{if ($12 >= 20) print;}' < $ont_paths > alns-ont-mapqfilter.gaf
 $SCRIPTS/insert_aln_gaps.py $in_gfa 3 50 gaps-ont.gaf gapont < alns-ont-mapqfilter.gaf > gapped-unitig-unrolled-hifi-resolved.gfa
 awk '{if ($2 >= 100000) {sum += $2*$3; count += $2;}}END{print sum/count;}' < nodecovs-ont.csv
-$SCRIPTS/estimate_unique_local.py gapped-unitig-unrolled-hifi-resolved.gfa alns-ont-filter-trim.gaf 100000 30 0.8 > unique_nodes_ont_coverage.txt
+
+cat *mapping* > combined-nodemap-uniques.txt
+rm -f combined-edges-uniques.gfa
+cat *.gfa | grep -P '^L' > combined-edges-uniques.gfa
+grep -P '^S' *.gfa | grep -v '\*' | awk '{print $2 "\t" length($3);}' > nodelens-uniques.txt
+$SCRIPTS/get_original_coverage.py gapped-unitig-unrolled-hifi-resolved.gfa combined-nodemap-uniques.txt combined-edges-uniques.gfa nodelens-uniques.txt hifi_nodecov.csv > hifi-nodecov-gapped-unitig-unrolled-hifi-resolved.csv
+
+$SCRIPTS/estimate_unique_local.py gapped-unitig-unrolled-hifi-resolved.gfa hifi-nodecov-gapped-unitig-unrolled-hifi-resolved.csv alns-ont-filter-trim.gaf 100000 30 0.8 > unique_nodes_ont_coverage.txt
 # $SCRIPTS/translate_uniques.py normal-hifi_connected_twice.gfa < unique_nodes_hifi.txt > translated_uniques.txt
 # $SCRIPTS/translate_nodes_by_seq.py normal-hifi_connected_twice.gfa $in_gfa < translated_uniques.txt > unique_nodes_ont_translated.txt
 # cat unique_nodes_ont_coverage.txt unique_nodes_ont_translated.txt | sort | uniq > unique_nodes_ont.txt

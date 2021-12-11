@@ -38,6 +38,16 @@ rule build_graph:
         /usr/bin/time -v MBG {params.input_str} -t {threads} -o {output.gfa} -k {params.baseK} -w {params.w} -a 1 -u 2 --error-masking=collapse-msat --output-sequence-paths {output.paths} -r {params.maxK} &> {log}
         '''
 
+rule hifi_coverage_csv:
+  input:
+    "hifi-resolved.gfa"
+  output:
+    "hifi_nodecov.csv"
+  shell:
+    '''
+    grep -P '^S' < {input} | cut -f 2,3,4 | tr -d 'll:f:' | awk 'BEGIN{print "node\tlength\tcoverage";}{print $1 "\t" length($2) "\t" $3;}' > {output}
+    '''
+
 rule process_graph:
     input:
         gfa='hifi-resolved.gfa',
@@ -73,7 +83,8 @@ rule aggregate:
 rule process_ont_paths:
 #unitig-unrolled-hifi-resolved.gfa alns-ont.gaf unitig-unrolled-ont-resolved.gfa 5 20 10 5
     input: graph='unitig-unrolled-hifi-resolved.gfa',
-           ont_paths='alns-ont.gaf'
+           ont_paths='alns-ont.gaf',
+           hifi_coverage="hifi_nodecov.csv"
     output: graph='unitig-unrolled-ont-resolved.gfa',
             #TODO pass as parameter?
             ont_gap_align='gaps-ont.gaf'
@@ -88,12 +99,14 @@ rule process_ont_paths:
         '''
 
 rule postprocess:
-    input: 'unitig-unrolled-ont-resolved.gfa'
+    input:
+        graph='unitig-unrolled-ont-resolved.gfa',
+        hifi_coverage="hifi_nodecov.csv"
     output: 'unitig-popped-unitig-normal-connected-tip.gfa'
     log: 'postprocess.log'
     shell:
         '''
-        {ROOT_PATH}/postprocess.sh {input} {output} &> {log}
+        {ROOT_PATH}/postprocess.sh {input.graph} {output} &> {log}
         '''
 
 rule create_layout:
