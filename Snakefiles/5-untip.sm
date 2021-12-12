@@ -1,0 +1,112 @@
+#############################################################################
+ #
+ #  This file is part of Verkko, a software program that assembles
+ #  whole-genome sequencing reads into telomere-to-telomere
+ #  haplotype-resolved chromosomes.
+ #
+ #  Except as indicated otherwise, this is a 'United States Government
+ #  Work', and is released in the public domain.
+ #
+ #  File 'README.licenses' in the root directory of this distribution
+ #  contains full conditions and disclaimers.
+ #
+ ##
+
+#
+#  Rule untip ....
+#
+#  Configuration Parameters:
+#    ...
+#
+
+rule untip:
+    input:
+        graph  = rules.processONT.output.graph
+    output:
+        graph  = rules.verkko.input.graph
+    log:
+        err    = '5-untip/untip.err'
+    params:
+        maps   = getAllMappings(5),
+        graphs = getAllGraphs(5),
+        aligns = getAllAlignments(5),
+
+        jobid  = 1
+    threads:
+        int(config['utp_n_cpus'])
+    resources:
+        n_cpus = config['utp_n_cpus'],
+        mem_gb = config['utp_mem_gb'],
+        time_h = config['utp_time_h']
+    shell:
+        '''
+cd 5-untip
+
+cat > ./untip.sh <<EOF
+#!/bin/sh
+set -e
+
+#{params.maps}
+
+echo UntipRelative
+{PYTHON} {VERKKO}/scripts/untip_relative.py 30000 30000 0.1 0.1 \\\\
+< ../{input.graph} \\\\
+> connected-tip.gfa
+
+
+echo Unitigify 3
+{PYTHON} {VERKKO}/scripts/unitigify.py utig3- unitig-mapping-3.txt \\\\
+< connected-tip.gfa \\\\
+> unitig-normal-connected-tip.gfa
+
+
+echo Combine mappings
+cat {params.maps} unitig-mapping-3.txt \\\\
+> combined-nodemap-1.txt
+
+echo Combine edges
+cat {params.graphs} connected-tip.gfa unitig-normal-connected-tip.gfa \\\\
+| grep '^L' \\\\
+> combined-edges-1.gfa
+
+echo Find lengths
+cat {params.graphs} connected-tip.gfa unitig-normal-connected-tip.gfa \\\\
+| grep '^S' \\\\
+| grep -v '\*' \\\\
+| awk '{{ print \$2 "\\t" length(\$3); }}' \\\\
+> nodelens-1.txt
+
+echo Find coverage
+grep '^S' < ../{rules.buildGraph.output.graph} \\\\
+| cut -f 2,3,4 | tr -d 'll:f:' \\\\
+| awk 'BEGIN {{ print "node\\tlength\\tcoverage"; }} {{ print \$1 "\\t" length(\$2) "\\t" \$3; }}' \\\\
+> hifi_nodecov.csv
+
+
+echo Fix coverage
+{PYTHON} {VERKKO}/scripts/get_original_coverage.py \\\\
+  ../5-untip/unitig-normal-connected-tip.gfa \\\\
+  combined-nodemap-1.txt \\\\
+  combined-edges-1.gfa \\\\
+  nodelens-1.txt \\\\
+  hifi_nodecov.csv \\\\
+> nodecov_hifi_fix.csv
+
+echo Pop bubbles based on coverage
+{PYTHON} {VERKKO}/scripts/pop_bubbles_coverage_based.py \\\\
+  nodecov_hifi_fix.csv \\\\
+< ../5-untip/unitig-normal-connected-tip.gfa \\\\
+> popped-unitig-normal-connected-tip.gfa \\\\
+2> popinfo.txt
+
+echo Unitigify 4
+{PYTHON} {VERKKO}/scripts/unitigify.py utig4- unitig-mapping-4.txt \\\\
+< popped-unitig-normal-connected-tip.gfa \\\\
+> ../{output.graph}
+EOF
+
+chmod +x ./untip.sh
+
+./untip.sh > ../{log.err} 2>&1
+        '''
+

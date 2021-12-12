@@ -1,0 +1,98 @@
+#############################################################################
+ #
+ #  This file is part of Verkko, a software program that assembles
+ #  whole-genome sequencing reads into telomere-to-telomere
+ #  haplotype-resolved chromosomes.
+ #
+ #  Except as indicated otherwise, this is a 'United States Government
+ #  Work', and is released in the public domain.
+ #
+ #  File 'README.licenses' in the root directory of this distribution
+ #  contains full conditions and disclaimers.
+ #
+ ##
+
+#
+#  Rule extractONT extracts the ONT reads used for gap filling from
+#  the input sequences.  These are passed to consensus.
+#
+#  See comments in 3-combineONT for details on the functions.
+#
+#  Configuration Parameters:
+#    ...
+#
+
+
+def extractONTI(wildcards):
+    dn = checkpoints.splitONT.get(**wildcards).output[0]
+    return expand("3-align/split/ont{nnnn}.fasta.gz", nnnn = glob_wildcards(os.path.join(dn, "ont{xxxx}.fasta.gz")).xxxx)
+
+
+def extractONTP(wildcards):
+    dn = checkpoints.splitONT.get(**wildcards).output[0]
+    return expand("ont{nnnn}.fasta.gz", nnnn = glob_wildcards(os.path.join(dn, "ont{xxxx}.fasta.gz")).xxxx)
+
+
+rule extractONT:
+    input:
+        ont_files     = extractONTI,
+        ont_gap_align = rules.processONT.output.ont_gap_align
+    output:
+        ont_subset_id = '7-consensus/ont_subset.id',
+        ont_subset_ex = '7-consensus/ont_subset.extract',
+        ont_subset    = '7-consensus/ont_subset.fasta.gz'
+    log:
+        err           = '7-consensus/extractONT.err'
+    params:
+        ont_files     = extractONTP,
+        jobid         = 1
+    threads:
+        int(config['sub_n_cpus'])
+    resources:
+        n_cpus = config['sub_n_cpus'],
+        mem_gb = config['sub_mem_gb'],
+        time_h = config['sub_time_h']
+    shell:
+        '''
+cd 7-consensus
+
+cat > ./extractONT.sh << EOF
+#!/bin/sh
+set -e
+
+#  Extract IDs of the reads used for gap filling.  Sorting and unique-ifying
+#  isn't required for the algorithm but might be helpful for searching the
+#  file.
+#
+cut -f 1 ../{input.ont_gap_align} \\\\
+| \\\\
+sort -u > ../{output.ont_subset_id}
+
+#  Build command lines for extracting those reads from
+#  all the partitioned input files.
+#
+rm -f ../7-consensus/ont_subset.commands
+
+for fn in {params.ont_files} ; do
+  echo >> ../{output.ont_subset_ex} extract \\$fn ../{output.ont_subset_id} ../3-align/split/\\$fn
+done
+
+#  Extract reads in parallel for each input.
+#
+xargs -L 1 -P {threads} \\\\
+  {PYTHON} {VERKKO}/scripts/process_reads.py \\\\
+< ../{output.ont_subset_ex}
+
+#  Combine all the pieces.
+#
+cat {params.ont_files} > ../{output.ont_subset}
+
+#  Cleanup.
+#
+rm -f {params.ont_files}
+EOF
+
+chmod +x ./extractONT.sh
+
+./extractONT.sh > ../{log.err} 2>&1
+        '''

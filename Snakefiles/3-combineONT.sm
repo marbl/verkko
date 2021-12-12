@@ -1,0 +1,87 @@
+#############################################################################
+ #
+ #  This file is part of Verkko, a software program that assembles
+ #  whole-genome sequencing reads into telomere-to-telomere
+ #  haplotype-resolved chromosomes.
+ #
+ #  Except as indicated otherwise, this is a 'United States Government
+ #  Work', and is released in the public domain.
+ #
+ #  File 'README.licenses' in the root directory of this distribution
+ #  contains full conditions and disclaimers.
+ #
+ ##
+
+#
+#  Rule combineONT combines the alignment results into a single file
+#  then removes the individual alignment result files.
+#
+#  The partitioned reads are used later.
+#
+#  No computation is performed, only I/O.
+#
+#  The helper function combineONTI() generates a list of
+#  output files from the (checkpoint) rule splitONT.
+#
+#    dn is the 'output' field of the splitONT rule with any
+#    wildcards replaced.  There aren't any wildcards here, so
+#    this is a bit silly.
+#
+#    Then, join dn to the output filenames we expect (which include a
+#    wildcard replacement), and pass that to 'glob_wildcards', which, I
+#    think, returns a list of the values that wildcard 'nnnn' will have,
+#    which are then used in expand to make the actual output filenames.
+#
+#  The second helper function is just like the first, except it returns
+#  inputs relative to the 3-align/ directory, where the script runs.
+#
+#  Configuration Parameters:
+#    None.
+#
+
+
+def combineONTI(wildcards):
+    dn = checkpoints.splitONT.get(**wildcards).output[0]
+    return expand("3-align/aligned{nnnn}.gaf", nnnn = glob_wildcards(os.path.join(dn, "ont{xxxx}.fasta.gz")).xxxx)
+
+
+def combineONTP(wildcards):
+    dn = checkpoints.splitONT.get(**wildcards).output[0]
+    return expand("aligned{nnnn}.gaf", nnnn = glob_wildcards(os.path.join(dn, "ont{xxxx}.fasta.gz")).xxxx)
+
+
+rule combineONT:
+    input:
+        alignments = combineONTI
+    output:
+        alignments = '3-align/all.gaf'
+    log:
+        err        = '3-align/combineONT.err'
+    params:
+        alignments = combineONTP,
+        jobid      = 1
+    threads:
+        1
+    resources:
+        n_cpus = 1,
+        mem_gb = 1,
+        time_h = 2
+    shell:
+        '''
+cd 3-align
+
+cat > ./combineONT.sh <<EOF
+#!/bin/sh
+set -e
+
+cat {params.alignments} \\\\
+> ../{output.alignments} \\\\
+&& \\\\
+rm -f {params.alignments}
+EOF
+
+chmod +x ./combineONT.sh
+
+./combineONT.sh > ../{log.err} 2>&1
+        '''
+

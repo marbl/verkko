@@ -1,0 +1,69 @@
+#############################################################################
+ #
+ #  This file is part of Verkko, a software program that assembles
+ #  whole-genome sequencing reads into telomere-to-telomere
+ #  haplotype-resolved chromosomes.
+ #
+ #  Except as indicated otherwise, this is a 'United States Government
+ #  Work', and is released in the public domain.
+ #
+ #  File 'README.licenses' in the root directory of this distribution
+ #  contains full conditions and disclaimers.
+ #
+ ##
+
+#
+#  Rule combineConsensus combines the outputs of consensus into a single
+#  file, and rename the sequences back to their original names.
+#
+#  See comments in 3-combineONT for details on the functions.
+#
+#  Configuration Parameters:
+#    ...
+#
+
+
+def combineConsensusI(wildcards):
+    dn = checkpoints.buildPackages.get().output[0]
+    return expand("7-consensus/packages/part{nnnn}.fasta", nnnn = glob_wildcards(os.path.join(dn, "part{xxxx}.cnspack")).xxxx)
+
+
+def combineConsensusP(wildcards):
+    dn = checkpoints.buildPackages.get().output[0]
+    return expand("packages/part{nnnn}.fasta", nnnn = glob_wildcards(os.path.join(dn, "part{xxxx}.cnspack")).xxxx)
+
+
+rule combineConsensus:
+    input:
+        consensus = combineConsensusI,
+        tigmap    = rules.buildPackages.output.tigmap
+    output:
+        fasta     = rules.verkko.input.consensus
+    log:
+        err       = '7-consensus/combineConsensus.err'
+    params:
+        paths     = combineConsensusP,
+        jobid     = 1
+    threads:
+        1
+    resources:
+        n_cpus = 1,
+        mem_gb = 4,
+        time_h = 4
+    shell:
+        '''
+cd 7-consensus
+
+cat > ./combineConsensus.sh <<EOF
+#!/bin/sh
+set -e
+
+{PYTHON} {VERKKO}/scripts/process_reads.py rename ../{output.fasta} \\\\
+  ../{input.tigmap} \\\\
+  {params.paths}
+EOF
+
+chmod +x ./combineConsensus.sh
+
+./combineConsensus.sh > ../{log.err} 2>&1
+        '''

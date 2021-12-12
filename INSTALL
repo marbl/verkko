@@ -1,0 +1,24 @@
+
+
+Verkko uses environment variable VERKKO to locate its
+scripts and binaries.  It should be set so that files
+  $VERKKO/Snakemake
+  $VERKKO/verkko.sh
+  $VERKKO/scripts/get_layout_from_mbg.py
+exist.
+
+
+Verkko requires several binaries to be installed in $VERKKO/bin/.
+  GraphAligner     - From ...
+  MBG              - From ...
+  layoutToPackage  - From Canu
+  utgcns           - From Canu
+
+
+Sample Verkko command:
+  $VERKKO/bin/verkko.sh \
+    -d /assembly/my-genome/assembly-1 \
+    --hifi /assembly/my-genome/hifi-reads/*.fasta.gz \
+    --nano /assembly/my-genome/nanopore-reads/*.fasta \
+           /assembly/my-genome/more-nano/*.fq.xz
+
