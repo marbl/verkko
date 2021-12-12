@@ -1,0 +1,70 @@
+#############################################################################
+ #
+ #  This file is part of Verkko, a software program that assembles
+ #  whole-genome sequencing reads into telomere-to-telomere
+ #  haplotype-resolved chromosomes.
+ #
+ #  Except as indicated otherwise, this is a 'United States Government
+ #  Work', and is released in the public domain.
+ #
+ #  File 'README.licenses' in the root directory of this distribution
+ #  contains full conditions and disclaimers.
+ #
+ ##
+
+#
+#  These functions return lists of intermediate files that should exist at
+#  various points in the workflow.
+#
+
+def getAllMappings(type):
+    ret = ''
+    if (type > 2):
+        ret += ('../2-processGraph/unitig-mapping-1.txt ' +
+                '../2-processGraph/unroll_mapping_1.txt ')
+    if (type > 4):
+        ret += ('../4-processONT/bridge_mapping.txt ' +
+                '../4-processONT/resolve-mapping.txt ' +
+                '../4-processONT/unroll_mapping_2.txt ' +
+                '../4-processONT/unitig-mapping-2.txt ')
+    if (type > 5):
+         ret += ('../5-untip/unitig-mapping-3.txt ' +
+                 '../5-untip/unitig-mapping-4.txt ')
+    return ret
+
+
+def getAllGraphs(type):
+    ret = ''
+    if (type > 1):
+        ret += ('../1-buildGraph/hifi-resolved.gfa ')
+    if (type > 2):
+        ret += ('../2-processGraph/gapped-once-hifi-resolved.gfa ' +
+                '../2-processGraph/gapped-twice-hifi-resolved.gfa ' +
+                '../2-processGraph/gapped-hifi-resolved.gfa ' +
+                '../2-processGraph/unrolled-hifi-resolved.gfa ' +
+                '../2-processGraph/unitig-popped-unitig-normal-connected-tip.gfa ')
+    if (type > 4):
+        ret += ('../4-processONT/gapped-unitig-unrolled-hifi-resolved.gfa ' +
+                '../4-processONT/connected.gfa ' +
+                '../4-processONT/normal-connected.gfa ' +
+                '../4-processONT/ont-resolved-graph.gfa ' +
+                '../4-processONT/unrolled-ont-resolved.gfa ' +
+                '../4-processONT/unitig-unrolled-ont-resolved.gfa ')
+    if (type > 5):
+        ret += ('../5-untip/connected-tip.gfa ' +
+                '../5-untip/unitig-normal-connected-tip.gfa ' +
+                '../5-untip/popped-unitig-normal-connected-tip.gfa ' +
+                '../' + rules.verkko.input.graph + ' ')
+    return ret
+
+
+def getAllAlignments(type):
+    ret = ''
+    if (type > 2):
+        ret += ('../2-processGraph/gaps-hifi-1.gaf ' +
+                '../2-processGraph/gaps-hifi-2.gaf ' +
+                '../2-processGraph/gaps-hifi-3.gaf ')
+    if (type > 4):
+        ret += ('../4-processONT/gaps-ont.gaf ')
+    return ret
+

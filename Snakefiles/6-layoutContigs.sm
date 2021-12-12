@@ -1,0 +1,97 @@
+#############################################################################
+ #
+ #  This file is part of Verkko, a software program that assembles
+ #  whole-genome sequencing reads into telomere-to-telomere
+ #  haplotype-resolved chromosomes.
+ #
+ #  Except as indicated otherwise, this is a 'United States Government
+ #  Work', and is released in the public domain.
+ #
+ #  File 'README.licenses' in the root directory of this distribution
+ #  contains full conditions and disclaimers.
+ #
+ ##
+
+#
+#  Rule layoutContigs ....
+#
+#  Collects:
+#    all graph nodes
+#    all edges from all graphs
+#    all ONT alignments used for gap filling
+#
+#  and outputs a layout of reads for each contig.
+#  
+#  Configuration Parameters:
+#    ...
+#
+
+rule layoutContigs:
+    input:
+        graph  = rules.verkko.input.graph,
+        paths  = rules.buildGraph.output.paths,
+    output:
+        layout = rules.verkko.input.layout,
+        gaps   = '6-layoutContigs/gaps.txt'
+    log:
+        err    = '6-layoutContigs/createLayout.err'
+
+    params:
+        maps   = getAllMappings(6),
+        graphs = getAllGraphs(6),
+        aligns = getAllAlignments(6),
+
+        jobid  = 1
+
+    threads:
+        int(config['lay_n_cpus'])
+    resources:
+        n_cpus = config['lay_n_cpus'],
+        mem_gb = config['lay_mem_gb'],
+        time_h = config['lay_time_h']
+    shell:
+        '''
+cd 6-layoutContigs
+
+cat > ./createLayout.sh <<EOF
+#!/bin/sh
+set -e
+
+cat {params.maps} \\\\
+> combined-nodemap.txt.test
+
+cat {params.maps} \\\\
+> combined-nodemap.txt
+
+cat {params.graphs} \\\\
+| grep '^L' \\\\
+> combined-edges.gfa
+
+cat {params.aligns} ../{input.paths} \\\\
+> combined-alignments.gaf
+
+grep '^S' ../{input.graph} | awk '{{ print \$2 "\\\\t" ">" \$2;     }}' \\\\
+> consensus_paths.txt
+
+cat {params.graphs} \\\\
+| grep '^S' \\\\
+| grep -v '\\*' \\\\
+| awk '{{ print \$2 "\\t" length(\$3); }}' \\\\
+> nodelens.txt
+
+{PYTHON} {VERKKO}/scripts/get_layout_from_mbg.py \\\\
+  combined-nodemap.txt \\\\
+  combined-edges.gfa \\\\
+  combined-alignments.gaf \\\\
+  consensus_paths.txt \\\\
+  nodelens.txt \\\\
+> ../{output.layout}
+
+{PYTHON} {VERKKO}/scripts/check_layout_gaps.py < ../{output.layout} > ../{output.gaps}
+EOF
+
+chmod +x ./createLayout.sh
+
+./createLayout.sh > ../{log.err} 2>&1
+        '''
+

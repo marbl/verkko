@@ -1,0 +1,236 @@
+#############################################################################
+ #
+ #  This file is part of Verkko, a software program that assembles
+ #  whole-genome sequencing reads into telomere-to-telomere
+ #  haplotype-resolved chromosomes.
+ #
+ #  Except as indicated otherwise, this is a 'United States Government
+ #  Work', and is released in the public domain.
+ #
+ #  File 'README.licenses' in the root directory of this distribution
+ #  contains full conditions and disclaimers.
+ #
+ ##
+
+#
+#  Rule processONT ....
+#
+#  Configuration Parameters:
+#    ....
+#
+
+rule processONT:
+    input:
+       graph            = rules.processGraph.output.gfa,
+       ont_paths        = rules.combineONT.output.alignments
+    output:
+       graph            = '4-processONT/unitig-unrolled-ont-resolved.gfa',
+       ont_gap_align    = '4-processONT/gaps-ont.gaf'
+    log:
+        err             = '4-processONT/processONT.err'
+    params:
+        min_allowed_cov = config['pop_min_allowed_cov'],
+        resolve_steps   = config['pop_resolve_steps'],
+        jobid           = 1
+    threads:
+        int(config['pop_n_cpus'])
+    resources:
+        n_cpus = config['pop_n_cpus'],
+        mem_gb = config['pop_mem_gb'],
+        time_h = config['pop_time_h']
+    shell:
+        '''
+cd 4-processONT
+
+cat > ./processONT.sh <<EOF
+#!/bin/sh
+set -e
+
+echo Step 1a
+awk -F '\\t' '{{ if (\$4-\$3 >= \$2*0.8 && \$12 >= 20) print; }}' \\\\
+  < ../{input.ont_paths} \\\\
+  > alns-ont-filter.gaf
+
+echo ""
+echo Step 1b
+{PYTHON} {VERKKO}/scripts/trim_dbg_alignment.py ../{input.graph} 1500 \\\\
+  < alns-ont-filter.gaf \\\\
+  > alns-ont-filter-trim.gaf
+
+echo ""
+echo Step 1c
+{PYTHON} {VERKKO}/scripts/calculate_coverage.py ../{input.graph} \\\\
+  < alns-ont-filter-trim.gaf \\\\
+  > nodecovs-ont.csv
+
+echo ""
+echo Step 2a
+cut -f 6 < alns-ont-filter-trim.gaf > paths.txt
+
+awk -F '\\t' '{{ if (\$12 >= 20) print; }}' \\\\
+  < ../{input.ont_paths} \\\\
+  > alns-ont-mapqfilter.gaf
+
+echo ""
+echo Step 2b
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py ../{input.graph} 3 50 ../{output.ont_gap_align} gapont \\\\
+  < alns-ont-mapqfilter.gaf \\\\
+  > gapped-unitig-unrolled-hifi-resolved.gfa
+
+echo ""
+echo Step 3a
+awk '{{ if (\$2 >= 100000) {{ sum += \$2 * \$3; count += \$2; }} }} END {{ print sum / count; }}' \\\\
+  < nodecovs-ont.csv
+
+echo ""
+echo Step 3b
+{PYTHON} {VERKKO}/scripts/estimate_unique_local.py gapped-unitig-unrolled-hifi-resolved.gfa alns-ont-filter-trim.gaf 100000 30 0.8 \\\\
+  > unique_nodes_ont_coverage.txt
+
+#  COMMENTED OUT IN ORIGINAL
+# {PYTHON} {VERKKO}/scripts/translate_uniques.py normal-hifi_connected_twice.gfa < unique_nodes_hifi.txt > translated_uniques.txt
+# {PYTHON} {VERKKO}/scripts/translate_nodes_by_seq.py normal-hifi_connected_twice.gfa ../{input.graph} < translated_uniques.txt > unique_nodes_ont_translated.txt
+# cat unique_nodes_ont_coverage.txt unique_nodes_ont_translated.txt | sort | uniq > unique_nodes_ont.txt
+
+echo ""
+echo Step 4
+{PYTHON} {VERKKO}/scripts/fix_diploid_unique_nodes.py unique_nodes_ont_coverage.txt nodecovs-ont.csv gapped-unitig-unrolled-hifi-resolved.gfa \\\\
+  > unique_nodes_diploidfix.txt
+
+echo ""
+echo Step 5
+cp unique_nodes_diploidfix.txt unique_nodes_ont.txt
+
+echo ""
+echo Step 6
+{PYTHON} {VERKKO}/scripts/find_bridges.py unique_nodes_ont.txt \\\\
+  < paths.txt \\\\
+  > bridges.txt
+
+echo ""
+echo Step 7a
+grep -v '(' < bridges.txt \\\\
+| \\\\
+grep -v '^\$' \\\\
+| \\\\
+{PYTHON} {VERKKO}/scripts/remove_wrong_connections_2.py forbidden_wrong_connections.txt \\\\
+| \\\\
+sort > bridging_seq_all.txt
+
+echo ""
+echo Step 7b
+{PYTHON} {VERKKO}/scripts/pick_majority_bridge.py forbidden_minority_bridges.txt \\\\
+  < bridging_seq_all.txt \\\\
+  > bridging_seq_picked_all.txt
+
+echo ""
+echo Step 8
+{PYTHON} {VERKKO}/scripts/remove_crosslink_paths.py \\\\
+  unique_nodes_ont.txt \\\\
+  bridging_seq_picked_all.txt \\\\
+  bridges.txt \\\\
+  > bridges_fixcrosslink.txt \\\\
+ 2> forbidden_crosslinks.txt
+
+echo ""
+echo Step 9
+{PYTHON} {VERKKO}/scripts/fix_diploid_paths.py \\\\
+  unique_nodes_ont.txt \\\\
+  gapped-unitig-unrolled-hifi-resolved.gfa \\\\
+  bridges_fixcrosslink.txt \\\\
+  bridges.txt \\\\
+  3 \\\\
+  > bridging_seq_diploidfix_all.txt
+
+cp bridging_seq_diploidfix_all.txt bridging_seq_picked.txt
+
+echo ""
+echo Step 10
+# forbidden_wrong_connections.txt deliberately not included here so that if that causes a gap, the tangle is forbidden
+cat forbidden_crosslinks.txt forbidden_minority_bridges.txt \\\\
+  > bridging_seq_forbidden.txt
+
+echo ""
+echo Step 11
+{PYTHON} {VERKKO}/scripts/forbid_unbridged_tangles.py \\\\
+  unique_nodes_ont.txt \\\\
+  gapped-unitig-unrolled-hifi-resolved.gfa \\\\
+  bridging_seq_forbidden.txt \\\\
+  bridging_seq_picked.txt \\\\
+  paths.txt \\\\
+  nodecovs-ont.csv \\\\
+  30 \\\\
+> forbidden_ends.txt
+
+echo ""
+echo Step 12
+{PYTHON} {VERKKO}/scripts/connect_uniques.py gapped-unitig-unrolled-hifi-resolved.gfa forbidden_ends.txt bridging_seq_picked.txt \\\\
+  > connected.gfa \\\\
+ 2> connected.gfa.err     #  It writes lots of chatter!
+
+echo ""
+echo Step 13
+{PYTHON} {VERKKO}/scripts/merge_unresolved_dbg_nodes.py \\\\
+  < connected.gfa \\\\
+  > normal-connected.gfa
+
+echo ""
+echo Step 14
+{PYTHON} {VERKKO}/scripts/get_bridge_mapping.py \\\\
+  normal-connected.gfa \\\\
+  gapped-unitig-unrolled-hifi-resolved.gfa \\\\
+  > bridge_mapping.txt
+
+echo ""
+echo Step 15
+{PYTHON} {VERKKO}/scripts/add_fake_alignments.py \\\\
+  ../{input.graph} \\\\
+  normal-connected.gfa \\\\
+  alns-ont-filter-trim.gaf \\\\
+  nodecovs-ont.csv \\\\
+  fake-ont-alns.gaf \\\\
+  fake-ont-nodecovs.csv \\\\
+  10
+
+#FIXME parameterize
+#
+echo ""
+echo Step 16
+{PYTHON} {VERKKO}/scripts/resolve_triplets_kmerify.py \\\\
+  normal-connected.gfa \\\\
+  fake-ont-paths.txt \\\\
+  fake-ont-nodecovs.csv \\\\
+  resolve-mapping.txt \\\\
+  100000 \\\\
+  {params.min_allowed_cov} \\\\
+  {params.resolve_steps} \\\\
+  < fake-ont-alns.gaf \\\\
+  > ont-resolved-graph.gfa \\\\
+ 2> ont_resolved_graph.gfa.err
+
+echo ""
+echo Step 17
+{PYTHON} {VERKKO}/scripts/unroll_tip_loops.py \\\\
+  ont-resolved-graph.gfa 3 \\\\
+  < fake-ont-paths.txt \\\\
+  > unrolled-ont-resolved.gfa \\\\
+ 2> unrolled-ont-resolved.gfa.err
+
+echo ""
+echo Step 18
+{PYTHON} {VERKKO}/scripts/get_unroll_mapping.py \\\\
+  ont-resolved-graph.gfa \\\\
+  unrolled-ont-resolved.gfa \\\\
+> unroll_mapping_2.txt
+
+echo ""
+echo Step 19
+{PYTHON} {VERKKO}/scripts/unitigify.py utig2- unitig-mapping-2.txt \\\\
+  < unrolled-ont-resolved.gfa \\\\
+  > ../{output.graph}
+EOF
+
+chmod +x ./processONT.sh
+
+./processONT.sh > ../{log.err} 2>&1
+        '''

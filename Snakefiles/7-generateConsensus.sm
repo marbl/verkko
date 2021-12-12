@@ -1,0 +1,62 @@
+#############################################################################
+ #
+ #  This file is part of Verkko, a software program that assembles
+ #  whole-genome sequencing reads into telomere-to-telomere
+ #  haplotype-resolved chromosomes.
+ #
+ #  Except as indicated otherwise, this is a 'United States Government
+ #  Work', and is released in the public domain.
+ #
+ #  File 'README.licenses' in the root directory of this distribution
+ #  contains full conditions and disclaimers.
+ #
+ ##
+
+#
+#  Rule generateConsensus computes consensus sequence for each contig.
+#
+#  Configuration Parameters:
+#    ...
+#
+
+rule generateConsensus:
+    input:
+        package   = '7-consensus/packages/part{nnnn}.cnspack'
+    output:
+        consensus = '7-consensus/packages/part{nnnn}.fasta'
+    log:
+        err       = '7-consensus/packages/part{nnnn}.err'
+    params:
+        jobid     = '{nnnn}'
+    threads:
+        int(config['cns_n_cpus']),
+    resources:
+        n_cpus = config['cns_n_cpus'],
+        mem_gb = config['cns_mem_gb'],
+        time_h = config['cns_time_h']
+    shell:
+        '''
+cd 7-consensus
+
+mkdir -p packages
+
+cat > ./packages/part{wildcards.nnnn}.sh <<EOF
+#!/bin/sh
+set -e
+
+{VERKKO}/bin/utgcns \\\\
+    -V -V -V \\\\
+    -threads {threads} \\\\
+    -import ../{input.package} \\\\
+    -A ../{output.consensus} \\\\
+    -maxcoverage 50 \\\\
+    -e 0.20 \\\\
+    -l 2500 \\\\
+    -pbdagcon \\\\
+    -edlib
+EOF
+
+chmod +x ./packages/part{wildcards.nnnn}.sh
+
+./packages/part{wildcards.nnnn}.sh > ../{log.err} 2>&1
+        '''

@@ -1,0 +1,84 @@
+#############################################################################
+ #
+ #  This file is part of Verkko, a software program that assembles
+ #  whole-genome sequencing reads into telomere-to-telomere
+ #  haplotype-resolved chromosomes.
+ #
+ #  Except as indicated otherwise, this is a 'United States Government
+ #  Work', and is released in the public domain.
+ #
+ #  File 'README.licenses' in the root directory of this distribution
+ #  contains full conditions and disclaimers.
+ #
+ ##
+
+#
+#  Rule processGraph massages the MBG output into initial unitigs.
+#
+#  Configuration Parameters:
+#    None
+#
+
+rule processGraph:
+    input:
+        gfa   = rules.buildGraph.output.graph,
+        paths = rules.buildGraph.output.paths
+    output:
+        gfa = '2-processGraph/unitig-popped-unitig-normal-connected-tip.gfa',
+        map = '2-processGraph/unitig-mapping-1.txt'
+    log:
+        err = '2-processGraph/process.err'
+    params:
+        jobid  = 1
+    threads:
+        int(config['utg_n_cpus'])
+    resources:
+        n_cpus = config['utg_n_cpus'],
+        mem_gb = config['utg_mem_gb'],
+        time_h = config['utg_time_h']
+    shell:
+        '''
+cd 2-processGraph
+
+cat > ./processGraph.sh <<EOF
+#!/bin/sh
+set -e
+
+echo Gap insertion pass 1.
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py ../{input.gfa} 2 50 gaps-hifi-1.gaf gapone \\\\
+  < ../{input.paths} \\\\
+  > gapped-once-hifi-resolved.gfa
+
+echo ""
+echo Gap insertion pass 2.
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-once-hifi-resolved.gfa 2 300 gaps-hifi-2.gaf gaptwo \\\\
+  < ../{input.paths} \\\\
+  > gapped-twice-hifi-resolved.gfa
+
+echo ""
+echo Gap insertion pass 3.
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-twice-hifi-resolved.gfa 1 5 gaps-hifi-3.gaf gapthree \\\\
+  < ../{input.paths} \\\\
+  > gapped-hifi-resolved.gfa
+
+echo ""
+echo Tip unrolling.
+cut -f 6 < ../{input.paths} \\\\
+| \\\\
+{PYTHON} {VERKKO}/scripts/unroll_tip_loops.py gapped-hifi-resolved.gfa 5 \\\\
+  > unrolled-hifi-resolved.gfa
+
+{PYTHON} {VERKKO}/scripts/get_unroll_mapping.py gapped-hifi-resolved.gfa unrolled-hifi-resolved.gfa \\\\
+  > unroll_mapping_1.txt
+
+echo ""
+echo Unitig creation.
+{PYTHON} {VERKKO}/scripts/unitigify.py utig1- ../{output.map} \\\\
+  < unrolled-hifi-resolved.gfa \\\\
+  > ../{output.gfa}
+EOF
+
+chmod +x ./processGraph.sh
+
+./processGraph.sh > ../{log.err} 2>&1
+        '''

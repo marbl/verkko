@@ -1,0 +1,62 @@
+#############################################################################
+ #
+ #  This file is part of Verkko, a software program that assembles
+ #  whole-genome sequencing reads into telomere-to-telomere
+ #  haplotype-resolved chromosomes.
+ #
+ #  Except as indicated otherwise, this is a 'United States Government
+ #  Work', and is released in the public domain.
+ #
+ #  File 'README.licenses' in the root directory of this distribution
+ #  contains full conditions and disclaimers.
+ #
+ ##
+
+#
+#  Rule buildPackages creates input packages for Canu's consensus module.
+#
+#  Configuration Parameters:
+#    ...
+#
+
+checkpoint buildPackages:
+    input:
+        hifi       = HIFI_READS,
+        layout     = rules.layoutContigs.output.layout,
+        ont_subset = rules.extractONT.output.ont_subset
+    output:
+        cns        = directory("7-consensus/packages"),
+        tigmap     = "7-consensus/packages.tigName_to_ID.map"
+    log:
+        err        = '7-consensus/buildPackages.err'
+    params:
+        jobid      = 1
+    threads:
+        int(config['par_n_cpus'])
+    resources:
+        n_cpus = config['par_n_cpus'],
+        mem_gb = config['par_mem_gb'],
+        time_h = config['par_time_h']
+    shell:
+        '''
+cd 7-consensus
+
+cat > ./buildPackages.sh <<EOF
+#!/bin/sh
+set -e
+
+mkdir -p packages
+
+{VERKKO}/bin/layoutToPackage \\\\
+    -layout ../{input.layout} \\\\
+    -output packages/part###.cnspack \\\\
+    -idmap  packages \\\\
+    -partition 0.8 1.5 0.1 \\\\
+    -reads ../{input.ont_subset} {input.hifi}
+EOF
+
+chmod +x ./buildPackages.sh
+
+./buildPackages.sh > ../{log.err} 2>&1
+        '''
+

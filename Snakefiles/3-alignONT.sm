@@ -1,0 +1,89 @@
+#############################################################################
+ #
+ #  This file is part of Verkko, a software program that assembles
+ #  whole-genome sequencing reads into telomere-to-telomere
+ #  haplotype-resolved chromosomes.
+ #
+ #  Except as indicated otherwise, this is a 'United States Government
+ #  Work', and is released in the public domain.
+ #
+ #  File 'README.licenses' in the root directory of this distribution
+ #  contains full conditions and disclaimers.
+ #
+ ##
+
+#
+#  Rule alignONT aligns the partitioned ONT reads to the unitig graph.
+#
+#  Configuration Parameters:
+#    ali_mxm_length
+#    ali_mem_count
+#    ali_bandwidth
+#    ali_multi_score_f
+#    ali_clipping
+#    ali_min_score
+#    ali_end_clipping
+#    ali_incompat_cutoff
+#    ali_max_trace
+#
+
+rule alignONT:
+    input:
+        reads             = "3-align/split/ont{nnnn}.fasta.gz",
+        gfa               = rules.processGraph.output.gfa
+    output:
+        alignments        = '3-align/aligned{nnnn}.gaf'
+    log:
+        err               = '3-align/aligned{nnnn}.err'
+    params:
+        GRAPHALIGNER      = config.get('GRAPHALIGNER', "{VERKKO}/bin/GraphAligner"),
+
+        alignmentstmp     = '3-align/aligned{nnnn}.WORKING.gaf',
+        mxm_length        = config['ali_mxm_length'],
+        mem_count         = config['ali_mem_count'],
+        bandwidth         = config['ali_bandwidth'],
+        multi_score_f     = config['ali_multi_score_f'],
+        clipping          = config['ali_clipping'],
+        min_score         = config['ali_min_score'],
+        end_clipping      = config['ali_end_clipping'],
+        incompat_cutoff   = config['ali_incompat_cutoff'],
+        max_trace         = config['ali_max_trace'],
+        jobid             = '{nnnn}'
+    threads:
+        int(config['ali_n_cpus']),
+    resources:
+        n_cpus = config['ali_n_cpus'],
+        mem_gb = config['ali_mem_gb'],
+        time_h = config['ali_time_h']
+    shell:
+        '''
+cd 3-align
+
+cat > ./aligned{wildcards.nnnn}.sh <<EOF
+#!/bin/sh
+set -e
+
+{params.GRAPHALIGNER} \\\\
+  -t {threads} \\\\
+  -g ../{input.gfa} \\\\
+  -f ../{input.reads} \\\\
+  -a ../{params.alignmentstmp} \\\\
+  --seeds-mxm-length {params.mxm_length} \\\\
+  --seeds-mem-count {params.mem_count} \\\\
+  --bandwidth {params.bandwidth} \\\\
+  --multimap-score-fraction {params.multi_score_f} \\\\
+  --precise-clipping {params.clipping} \\\\
+  --min-alignment-score {params.min_score} \\\\
+  --hpc-collapse-reads \\\\
+  --discard-cigar \\\\
+  --clip-ambiguous-ends {params.end_clipping} \\\\
+  --overlap-incompatible-cutoff {params.incompat_cutoff} \\\\
+  --max-trace-count {params.max_trace} \\\\
+&& \\\\
+mv -f ../{params.alignmentstmp} ../{output.alignments}
+EOF
+
+chmod +x ./aligned{wildcards.nnnn}.sh
+
+./aligned{wildcards.nnnn}.sh > ../{log.err} 2>&1
+        '''

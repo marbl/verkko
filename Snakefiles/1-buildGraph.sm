@@ -1,0 +1,80 @@
+#############################################################################
+ #
+ #  This file is part of Verkko, a software program that assembles
+ #  whole-genome sequencing reads into telomere-to-telomere
+ #  haplotype-resolved chromosomes.
+ #
+ #  Except as indicated otherwise, this is a 'United States Government
+ #  Work', and is released in the public domain.
+ #
+ #  File 'README.licenses' in the root directory of this distribution
+ #  contains full conditions and disclaimers.
+ #
+ ##
+
+#
+#  Rule buildGraph uses MBG to build an initial assembly graph from the input
+#  HiFi reads.
+#  
+#    MBG: Minimizer-based sparse de Bruijn Graph construction
+#    Mikko Rautiainen, Tobias Marschall
+#    Bioinformatics, Volume 37, Issue 16, 15 August 2021, Pages 2476–2478
+#    https://doi.org/10.1093/bioinformatics/btab004
+#
+#  Configuration Parameters
+#    mbg_baseK
+#    mbg_maxK
+#    mbg_window
+#
+
+rule buildGraph:
+    input:
+        HIFI_READS
+    output:
+        graph = '1-buildGraph/hifi-resolved.gfa',
+        paths = '1-buildGraph/paths.gaf'
+    log:
+        err   = '1-buildGraph/buildGraph.err'
+    params:
+        MBG               = config.get('MBG', "{VERKKO}/bin/MBG"),
+
+        inputs            = ' '.join(expand('-i {r}', r=HIFI_READS)),
+
+        baseK             = config['mbg_baseK'],
+        maxK              = config['mbg_maxK'],
+        window            = config['mbg_window'],
+        kmer_abundance    = 1,                   #  MBG default = 1
+        unitig_abundance  = 2,                   #  MBG default = 2
+        jobid             = 1
+    threads:
+        int(config['mbg_n_cpus'])
+    resources:
+        n_cpus = config['mbg_n_cpus'],
+        mem_gb = config['mbg_mem_gb'],
+        time_h = config['mbg_time_h']
+    shell:
+        '''
+cd 1-buildGraph
+
+cat > ./buildGraph.sh <<EOF
+#!/bin/sh
+set -e
+
+{params.MBG} \\\\
+  {params.inputs} \\\\
+  -t {resources.n_cpus} \\\\
+  -k {params.baseK} \\\\
+  -r {params.maxK} \\\\
+  -w {params.window} \\\\
+  --kmer-abundance {params.kmer_abundance} \\\\
+  --unitig-abundance {params.unitig_abundance} \\\\
+  --error-masking=collapse-msat \\\\
+  --output-sequence-paths ../{output.paths} \\\\
+  --out ../{output.graph}
+EOF
+
+chmod +x ./buildGraph.sh
+
+./buildGraph.sh > ../{log.err} 2>&1
+        '''
+
