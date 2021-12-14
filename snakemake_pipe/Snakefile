@@ -17,6 +17,8 @@ localrules: all
 rule all:
     input:
         'unitig-popped-unitig-normal-connected-tip.gfa',
+        'hificov-unitig-popped-unitig-normal-connected-tip.csv',
+        'ontcov-unitig-popped-unitig-normal-connected-tip.csv',
         'concat.fa'
 
 rule build_graph:
@@ -107,6 +109,24 @@ rule postprocess:
     shell:
         '''
         {ROOT_PATH}/postprocess.sh {input.graph} {output} &> {log}
+        '''
+
+rule create_final_coverages:
+    input:
+        graph="unitig-popped-unitig-normal-connected-tip.gfa",
+        hifi_coverage="hifi_nodecov.csv",
+        ont_coverage="nodecovs-ont.csv"
+    output:
+        hifi_coverage="hificov-unitig-popped-unitig-normal-connected-tip.csv",
+        ont_coverage="ontcov-unitig-popped-unitig-normal-connected-tip.csv"
+    shell:
+        '''
+        cat *mapping* > combined-nodemap-final.txt
+        rm -f combined-edges-final.gfa
+        cat *.gfa | grep -P '^L' > combined-edges-final.gfa
+        grep -P '^S' *.gfa | grep -v '\\*' | awk '{{print $2 "\\t" length($3);}}' > nodelens-final.txt
+        {SCRIPT_PATH}/get_original_coverage.py {input.graph} combined-nodemap-final.txt combined-edges-final.gfa nodelens-final.txt {input.hifi_coverage} > {output.hifi_coverage}
+        {SCRIPT_PATH}/get_original_coverage.py {input.graph} combined-nodemap-final.txt combined-edges-final.gfa nodelens-final.txt {input.ont_coverage} > {output.ont_coverage}
         '''
 
 rule create_layout:
