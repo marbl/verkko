@@ -47,7 +47,7 @@ rule hifi_coverage_csv:
     "hifi_nodecov.csv"
   shell:
     '''
-    grep -P '^S' < {input} | cut -f 2,3,4 | tr -d 'll:f:' | awk 'BEGIN{{print "node\tlength\tcoverage";}}{{print $1 "\t" length($2) "\t" $3;}}' > {output}
+    awk 'BEGIN{{print "node\\tcoverage";}}$1=="S"{{if ($6 != "") {{$4 = $6;}} print $2 "\\t" substr($4, 6);}}' < {input} > {output}
     '''
 
 rule process_graph:
@@ -89,7 +89,8 @@ rule process_ont_paths:
            hifi_coverage="hifi_nodecov.csv"
     output: graph='unitig-unrolled-ont-resolved.gfa',
             #TODO pass as parameter?
-            ont_gap_align='gaps-ont.gaf'
+            ont_gap_align='gaps-ont.gaf',
+            ont_covs="nodecovs-ont.csv"
     log: 'process_ont_paths.log'
     params:
         #TODO remove default values, must be in config or passed via command line!
