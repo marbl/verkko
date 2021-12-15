@@ -47,7 +47,7 @@ rule hifi_coverage_csv:
     "hifi_nodecov.csv"
   shell:
     '''
-    awk 'BEGIN{{print "node\\tcoverage";}}$1=="S"{{if ($6 != "") {{$4 = $6;}} print $2 "\\t" substr($4, 6);}}' < {input} > {output}
+    awk 'BEGIN{{print "node\\tlength\\tcoverage";}}$1=="S"{{if ($6 != "") {{$4 = $6;}} print $2 "\\t" length($3) "\\t" substr($4, 6);}}' < {input} > {output}
     '''
 
 rule process_graph:
