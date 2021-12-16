@@ -124,8 +124,8 @@ rule create_final_coverages:
         '''
         cat *mapping* > combined-nodemap-final.txt
         rm -f combined-edges-final.gfa
-        cat *.gfa | grep -P '^L' > combined-edges-final.gfa
-        grep -P '^S' *.gfa | grep -v '\\*' | awk '{{print $2 "\\t" length($3);}}' > nodelens-final.txt
+        cat hifi-resolved.gfa gapped-once-hifi-resolved.gfa gapped-twice-hifi-resolved.gfa gapped-hifi-resolved.gfa unrolled-hifi-resolved.gfa unitig-unrolled-hifi-resolved.gfa gapped-unitig-unrolled-hifi-resolved.gfa connected.gfa normal-connected.gfa ont-resolved-graph.gfa unrolled-ont-resolved.gfa unitig-unrolled-ont-resolved.gfa connected-tip.gfa unitig-normal-connected-tip.gfa popped-unitig-normal-connected-tip.gfa unitig-popped-unitig-normal-connected-tip.gfa | grep -P '^L' > combined-edges-final.gfa
+        grep -P '^S' hifi-resolved.gfa gapped-once-hifi-resolved.gfa gapped-twice-hifi-resolved.gfa gapped-hifi-resolved.gfa unrolled-hifi-resolved.gfa unitig-unrolled-hifi-resolved.gfa gapped-unitig-unrolled-hifi-resolved.gfa connected.gfa normal-connected.gfa ont-resolved-graph.gfa unrolled-ont-resolved.gfa unitig-unrolled-ont-resolved.gfa connected-tip.gfa unitig-normal-connected-tip.gfa popped-unitig-normal-connected-tip.gfa unitig-popped-unitig-normal-connected-tip.gfa | grep -v '\\*' | awk '{{print $2 "\\t" length($3);}}' > nodelens-final.txt
         {SCRIPT_PATH}/get_original_coverage.py {input.graph} combined-nodemap-final.txt combined-edges-final.gfa nodelens-final.txt {input.hifi_coverage} > {output.hifi_coverage}
         {SCRIPT_PATH}/get_original_coverage.py {input.graph} combined-nodemap-final.txt combined-edges-final.gfa nodelens-final.txt {input.ont_coverage} > {output.ont_coverage}
         '''
