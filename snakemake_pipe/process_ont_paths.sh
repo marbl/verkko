@@ -27,8 +27,8 @@ awk '{if ($2 >= 100000) {sum += $2*$3; count += $2;}}END{print sum/count;}' < no
 
 cat *mapping* > combined-nodemap-uniques.txt
 rm -f combined-edges-uniques.gfa
-cat *.gfa | grep -P '^L' > combined-edges-uniques.gfa
-grep -P '^S' *.gfa | grep -v '\*' | awk '{print $2 "\t" length($3);}' > nodelens-uniques.txt
+cat hifi-resolved.gfa gapped-once-hifi-resolved.gfa gapped-twice-hifi-resolved.gfa gapped-hifi-resolved.gfa unrolled-hifi-resolved.gfa unitig-unrolled-hifi-resolved.gfa gapped-unitig-unrolled-hifi-resolved.gfa | grep -P '^L' > combined-edges-uniques.gfa
+grep -P '^S' hifi-resolved.gfa gapped-once-hifi-resolved.gfa gapped-twice-hifi-resolved.gfa gapped-hifi-resolved.gfa unrolled-hifi-resolved.gfa unitig-unrolled-hifi-resolved.gfa gapped-unitig-unrolled-hifi-resolved.gfa | grep -v '\*' | awk '{print $2 "\t" length($3);}' > nodelens-uniques.txt
 $SCRIPTS/get_original_coverage.py gapped-unitig-unrolled-hifi-resolved.gfa combined-nodemap-uniques.txt combined-edges-uniques.gfa nodelens-uniques.txt hifi_nodecov.csv > hifi-nodecov-gapped-unitig-unrolled-hifi-resolved.csv
 
 $SCRIPTS/estimate_unique_local.py gapped-unitig-unrolled-hifi-resolved.gfa hifi-nodecov-gapped-unitig-unrolled-hifi-resolved.csv alns-ont-filter-trim.gaf 100000 30 0.8 > unique_nodes_ont_coverage.txt
