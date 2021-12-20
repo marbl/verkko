@@ -198,10 +198,10 @@ while True:
 		if key1 == key2: continue
 		chain1_cov = chain_coverage_sum[find(parent, node1)] / chain_length_sum[find(parent, node1)]
 		chain2_cov = chain_coverage_sum[find(parent, node2)] / chain_length_sum[find(parent, node2)]
-		if chain1_cov > chain2_cov * 1.5:
+		if chain1_cov > chain2_cov * 1.5 and (chain1_cov > avg_coverage * 1.5 or chain2_cov > avg_coverage * 1.5):
 			new_possible_merges.append(triplet)
 			continue
-		if chain2_cov > chain1_cov * 1.5:
+		if chain2_cov > chain1_cov * 1.5 and (chain1_cov > avg_coverage * 1.5 or chain2_cov > avg_coverage * 1.5):
 			new_possible_merges.append(triplet)
 			continue
 		merge(parent, chain_coverage_sum, chain_length_sum, node1, node2)
