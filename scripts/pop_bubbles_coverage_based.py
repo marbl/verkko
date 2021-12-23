@@ -131,6 +131,28 @@ def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage):
 			if revnode(edge[0]) in edges[revnode(edge[1])]:
 				edges[revnode(edge[1])].remove(revnode(edge[0]))
 
+def try_pop_tip(start, edges, coverage, removed_nodes, removed_edges, max_removable):
+	if start not in edges: return
+	if len(edges[start]) != 2: return
+	max_coverage_node = None
+	for node in edges[start]:
+		assert revnode(node) in edges
+		if len(edges[revnode(node)]) != 1: return
+		if node in edges and len(edges[node]) > 0: return
+		assert node[1:] in coverage
+		if coverage[node[1:]] >= max_removable: return
+		if max_coverage_node is None or coverage[node[1:]] > coverage[max_coverage_node]:
+			max_coverage_node = node[1:]
+	remove_this = None
+	for node in edges[start]:
+		if node[1:] != max_coverage_node:
+			assert remove_this is None
+			remove_this = node
+	assert remove_this is not None
+	removed_nodes.add(remove_this[1:])
+	removed_edges.add((start, remove_this))
+	sys.stderr.write("pop tip " + str(start) + " remove " + str(remove_this) + "\n")
+
 coverage = {}
 with open(node_coverage_file) as f:
 	for l in f:
@@ -233,6 +255,17 @@ for node in nodelens:
 		assert bubble[1][1:] != node
 		if find(parent, bubble[1][1:]) != key: continue
 		pop_bubble(bubble[0], bubble[1], removed_nodes, removed_edges, edges, coverage)
+
+for node in nodelens:
+	key = find(parent, node)
+	if key not in unique_chains: continue
+	if node in removed_nodes: continue
+	bubble = find_bubble(">" + node, edges, max_bubble_pop_size)
+	if not bubble:
+		try_pop_tip(">" + node, edges, coverage, removed_nodes, removed_edges, avg_coverage*.75)
+	bubble = find_bubble("<" + node, edges, max_bubble_pop_size)
+	if not bubble:
+		try_pop_tip("<" + node, edges, coverage, removed_nodes, removed_edges, avg_coverage*.75)
 
 for node in removed_nodes:
 	sys.stderr.write(node + "\n")
