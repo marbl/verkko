@@ -12,7 +12,7 @@ SCRIPTS=$(dirname $(readlink -e $0))/../scripts
 in_gfa=$1
 out_gfa=$2
 
-$SCRIPTS/untip_relative.py 30000 30000 0.1 0.1 < $in_gfa > connected-tip.gfa
+$SCRIPTS/untip_relative.py 35000 35000 0.1 0.1 < $in_gfa > connected-tip.gfa
 $SCRIPTS/unitigify.py "utig3-" unitig-mapping-3.txt < connected-tip.gfa > unitig-normal-connected-tip.gfa
 cat *mapping* > combined-nodemap-1.txt
 rm -f combined-edges-1.gfa
