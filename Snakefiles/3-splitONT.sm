@@ -23,21 +23,21 @@
 
 checkpoint splitONT:
     input:
-        ont    = ONT_READS
+        ont      = ONT_READS
     output:
-        directory("3-align/split")
+        finished = '3-align/split/splitONT.finished'
     log:
-        err    = '3-align/splitONT.err'
+        err      = '3-align/splitONT.err'
     params:
-        bases  = config['spl_bases'],
-        reads  = config['spl_reads'],
-        length = config['spl_min_length'],
-        jobid  = 1
+        bases    = config['spl_bases'],
+        reads    = config['spl_reads'],
+        length   = config['spl_min_length'],
+        jobid    = 1
     threads:
         int(config['spl_n_cpus'])
     resources:
         n_cpus = config['spl_n_cpus'],
-        mem_gb = config['spl_mem_gb'],
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'spl'),
         time_h = config['spl_time_h']
     shell:
         '''
@@ -52,6 +52,8 @@ mkdir -p split
 {PYTHON} {VERKKO}/scripts/process_reads.py \\\\
   partition split/ont {params.bases} {params.reads} {params.length} \\\\
   {input.ont}
+
+touch ../{output.finished}
 EOF
 
 chmod +x ./splitONT.sh

@@ -13,6 +13,37 @@
  ##
 
 #
+#  These two functions return a memory estimate for a given component.
+#   - The first is a generic function used by all rules.
+#   - The second is specific to alignONT, it will analyze the inputs
+#     to decide a proper memory estimate.
+#  Both will increase the request by 25% on successive retries.
+#
+
+
+def getMemoryRequest(attempt, tag):
+   scl = 0.75 + attempt / 4.0
+   mem = float(config[f"{tag}_mem_gb"])
+
+   return int(scl * mem) + 1
+
+
+def getAlignMemoryRequest(attempt, prefix):
+   scl = 0.75 + attempt / 4.0
+   mem = float(config['ali_mem_gb'])
+
+   sum = 0
+   for suffix in ".aux _index.aux _index.isa _index.lcp _index.sa".split():
+      filename = f"{prefix}{suffix}"
+      if os.path.exists(filename):
+         sum += os.path.getsize(filename)
+   if sum > 0:
+      mem = 2 * sum / 1024 / 1024 / 1024
+
+   return int(scl * mem) + 1
+
+
+#
 #  These functions return lists of intermediate files that should exist at
 #  various points in the workflow.
 #
@@ -42,7 +73,7 @@ def getAllGraphs(type):
                 '../2-processGraph/gapped-twice-hifi-resolved.gfa ' +
                 '../2-processGraph/gapped-hifi-resolved.gfa ' +
                 '../2-processGraph/unrolled-hifi-resolved.gfa ' +
-                '../2-processGraph/unitig-popped-unitig-normal-connected-tip.gfa ')
+                '../2-processGraph/unitig-unrolled-hifi-resolved.gfa ')
     if (type > 4):
         ret += ('../4-processONT/gapped-unitig-unrolled-hifi-resolved.gfa ' +
                 '../4-processONT/connected.gfa ' +

@@ -1,0 +1,90 @@
+#############################################################################
+ #
+ #  This file is part of Verkko, a software program that assembles
+ #  whole-genome sequencing reads into telomere-to-telomere
+ #  haplotype-resolved chromosomes.
+ #
+ #  Except as indicated otherwise, this is a 'United States Government
+ #  Work', and is released in the public domain.
+ #
+ #  File 'README.licenses' in the root directory of this distribution
+ #  contains full conditions and disclaimers.
+ #
+ ##
+
+#
+#  Rule countKmers determines frequent kmers in the seqStore.
+#
+
+rule countKmers:
+    input:
+        seqstore  = {rules.buildStore.output.seqstore}
+    output:
+        ignore    = '0-correction/hifi.ignoremers'
+    log:
+        err       = '0-correction/countKmers.err'
+    params:
+        mersize   = config['mer_size'],
+        merthresh = config['mer_threshold'],
+        jobid     = 1
+    threads:
+        int(config['mer_n_cpus'])
+    resources:
+        n_cpus = config['mer_n_cpus'],
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'mer'),
+        time_h = config['mer_time_h']
+    shell:
+        '''
+cd 0-correction
+
+cat > ./countKmers.sh <<EOF
+#!/bin/sh
+set -e
+
+{VERKKO}/bin/meryl k={params.mersize} threads={threads} \\\\
+  count \\\\
+    segment=1/100 ../{input.seqstore} \\\\
+    output ../{output.ignore}.01.meryl
+
+{VERKKO}/bin/meryl k={params.mersize} threads={threads} \\\\
+  count \\\\
+    segment=33/100 ../{input.seqstore} \\\\
+    output ../{output.ignore}.33.meryl
+
+{VERKKO}/bin/meryl k={params.mersize} threads={threads} \\\\
+  count \\\\
+    segment=66/100 ../{input.seqstore} \\\\
+    output ../{output.ignore}.66.meryl
+
+{VERKKO}/bin/meryl k={params.mersize} threads={threads} \\\\
+  count \\\\
+    segment=99/100 ../{input.seqstore} \\\\
+    output ../{output.ignore}.99.meryl
+
+#  Note!  Meryl has a bug with 'print' outputs.  Printing to stdout
+#  does not work with a chain of operations, so we print to temporary
+#  files (but this also lets us run in parallel) and combine the results
+#  at the end.
+#
+{VERKKO}/bin/meryl k={params.mersize} threads={threads} \\\\
+  print ../{output.ignore}.##.tmp \\\\
+  greater-than {params.merthresh} \\\\
+  union-sum ../{output.ignore}.01.meryl \\\\
+            ../{output.ignore}.33.meryl \\\\
+            ../{output.ignore}.66.meryl \\\\
+            ../{output.ignore}.99.meryl
+
+cat ../{output.ignore}.??.tmp > ../{output.ignore}
+rm  ../{output.ignore}.??.tmp
+
+rm -rf ../{output.ignore}.01.meryl
+rm -rf ../{output.ignore}.33.meryl
+rm -rf ../{output.ignore}.66.meryl
+rm -rf ../{output.ignore}.99.meryl
+EOF
+
+chmod +x ./countKmers.sh
+
+./countKmers.sh > ../{log.err} 2>&1
+        '''
+

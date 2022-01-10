@@ -1,43 +1,76 @@
 #!/bin/sh
-#
+
+#############################################################################
+ #
+ #  This file is part of Verkko, a software program that assembles
+ #  whole-genome sequencing reads into telomere-to-telomere
+ #  haplotype-resolved chromosomes.
+ #
+ #  Except as indicated otherwise, this is a 'United States Government
+ #  Work', and is released in the public domain.
+ #
+ #  File 'README.licenses' in the root directory of this distribution
+ #  contains full conditions and disclaimers.
+ #
+ ##
+
 #  Verkko, Finnish.  Net, network, mesh, web, grid, grill, fishnet, network, graph.
 #
-#  Requires:
-#    seqtk
-#    winnowmap
-#    MGB
-#    GraphAligner and UntipRelative
-#    seqrequester
-#
-#  profiles - searches for folder in /etc/xdg/snakemake and ~/.config/snakemake,
-#  or absolute or relative path.  Folder must contain config.yaml.
-#    --cluster qsub ==> cluster: qsub
-#  or set via env var SNAKEMAKE_PROfiLE
-#
 
-wd=`pwd`
+version="Verkko 1.0"
+help=""
 
 hifi=""
 nano=""
 outd=""
 
 errors=""
-verkko=$VERKKO
+verkko=""
 
-if [ "x$verkko" = "x" ] ; then   #  Set verkko to a bogus value
-  verkko='$VERKKO'               #  for error reporting.
-fi
-
-mbg=
-graphaligner=
+mbg=""
+graphaligner=""
 python=
 
-snakeopts="--unlock"
-snakeopts="--cleanup-metadata 3-align/split"
-snakeopts="--cleanup-metadata 6-layout/layout.txt --cleanup-metadata 6-layout/gaps.txt"
+grid="local"
+local_cpus=all
+local_mem=64
+
 snakeopts=""
 
+
+#  If environment variable VERKKO is set, assume that is the path to our
+#  installed directory, otherwise, figure it out from the shell script name
+#  and set VERKKO.
+#
+#  This is to allow submitting verkko.sh directly to the grid; the grid will
+#  (typically) copy the shell script to a spool directory and run it there -
+#  so any auto-detected path based on the script name will be incorrect.
+
+if [ -e "${VERKKO}/verkko.sh" ] ; then
+  verkko=$VERKKO
+else
+  echo $0 | grep -q ^/            #  If a relative path, prepend
+  if [ $? -ne 0 ] ; then          #  PWD to make it an absolute path.
+    verkko=`dirname $PWD/$0`
+  else
+    verkko=`dirname $0`
+  fi
+  export VERKKO=$verkko
+fi
+
+
+#
 #  Algorithm parameters.
+#
+
+#  buildStore, countKmers and computeOverlaps
+correction_enabled=True
+
+mer_size=28
+mer_threshold=20
+
+cor_min_read=4000
+cor_min_overlap=2000
 
 #  buildGraph, parameters for MBG
 mbg_baseK=1001
@@ -64,12 +97,31 @@ ali_max_trace=5
 pop_min_allowed_cov=5
 pop_resolve_steps="20 10 5"
 
+#
 #  Run parameters.
+#
+
+#  buildStore, countKmers and computeOverlaps
+sto_n_cpus=1
+sto_mem_gb=4
+sto_time_h=4
+
+mer_n_cpus=4
+mer_mem_gb=16
+mer_time_h=4
+
+ovb_n_cpus=8
+ovb_mem_gb=32
+ovb_time_h=24
+
+red_n_cpus=4
+red_mem_gb=32
+red_time_h=4
 
 #  build-graph
 mbg_n_cpus=4
 mbg_mem_gb=128
-mbg_time_h=24
+mbg_time_h=72
 
 #  process_graph
 utg_n_cpus=1
@@ -79,7 +131,7 @@ utg_time_h=24
 #  split_ont
 spl_n_cpus=1
 spl_mem_gb=8
-spl_time_h=24
+spl_time_h=96
 
 #  align_ont
 ali_n_cpus=24
@@ -117,12 +169,8 @@ cns_mem_gb=200
 cns_time_h=24
 
 #
-
-if [ $# -eq 0 ] ; then
-  echo "usage: $0 -d <work-directory> [options] -hifi reads.fastq.gz ... -nano reads.fastq.gz ..."
-  exit
-fi
-
+#  If an empty command, give usage.
+#
 
 while [ $# -gt 0 ] ; do
     opt=$1
@@ -131,32 +179,27 @@ while [ $# -gt 0 ] ; do
     shift
 
     #
+    #  Handle --help and --version special.
+    #
+
+    if   [ "$opt" = "--version" ] ;      then echo "$version"; exit;
+    elif [ "$opt" = "--help" ] ;         then help="help";
+
+    #
     #  Run options
     #
 
-    if   [ "$opt" = "-d" ] ; then
-        outd=$arg
-        shift
-
-    elif [ "$opt" = "--python" ] ; then
-        python=$arg
-        shift
-
-    elif [ "$opt" = "--mbg" ] ; then
-        mbg=$arg
-        shift
-
-    elif [ "$opt" = "--graphaligner" ] ; then
-        graphaligner=$arg
-        shift
-
-    elif [ "$opt" = "--profile" ] ; then
-        profile=$arg
-        shift
-
-    elif [ "$opt" = "--snakeopts" ] ; then
-        snakeopts=$arg
-        shift
+    elif [ "$opt" = "-d" ] ;             then outd=$arg;          shift
+    elif [ "$opt" = "--python" ] ;       then python=$arg;        shift
+    elif [ "$opt" = "--mbg" ] ;          then mbg=$arg;           shift
+    elif [ "$opt" = "--graphaligner" ] ; then graphaligner=$arg;  shift
+    elif [ "$opt" = "--local" ] ;        then grid="local";
+    elif [ "$opt" = "--sge" ] ;          then grid="slurm-sge";
+    elif [ "$opt" = "--slurm" ] ;        then grid="slurm-sge";
+    elif [ "$opt" = "--lsf" ] ;          then grid="lsf";
+    elif [ "$opt" = "--local-memory" ] ; then local_mem=$arg;     shift
+    elif [ "$opt" = "--local-cpus" ] ;   then local_cpus=$arg;    shift
+    elif [ "$opt" = "--snakeopts" ] ;    then snakeopts=$arg;     shift
 
     #
     #  Inputs.
@@ -194,80 +237,73 @@ while [ $# -gt 0 ] ; do
         done
 
     #
+    #
+    #
+
+    #
+    #  Canu correction options
+    #
+
+    elif [ "$opt" = "--no-correction" ] ;              then correction_enabled=False
+
+    elif [ "$opt" = "--correct-k-mer-size" ] ;         then mer_size=$arg;        shift
+    elif [ "$opt" = "--correct-mer-threshold" ] ;      then mer_threshold=$arg;   shift
+    elif [ "$opt" = "--correct-min-read-length" ] ;    then cor_min_read=$arg;    shift
+    elif [ "$opt" = "--correct-min-overlap-length" ] ; then cor_min_overlap=$arg; shift
+
+    #
     #  MBG options
     #
 
-    elif [ "$opt" = "--base-k" ] ; then
-        mbg_baseK=$arg
-        shift
-
-    elif [ "$opt" = "--max-k" ] ; then
-        mbg_maxK=$arg
-        shift
-
-    elif [ "$opt" = "--window" ] ; then
-        mbg_window=$arg
-        shift
-
-    elif [ "$opt" = "--threads" ] ; then
-        mbg_threads=$arg
-        shift
+    elif [ "$opt" = "--base-k" ] ;   then mbg_baseK=$arg;   shift
+    elif [ "$opt" = "--max-k" ] ;    then mbg_maxK=$arg;    shift
+    elif [ "$opt" = "--window" ] ;   then mbg_window=$arg;  shift
+    elif [ "$opt" = "--threads" ] ;  then mbg_threads=$arg; shift
 
     #
     #  splitONT options
     #
 
-    elif [ "$opt" = "--split-bases" ] ; then
-        spl_bases=$arg
-        shift
-
-    elif [ "$opt" = "--split-reads" ] ; then
-        spl_reads=$arg
-        shift
-
-    elif [ "$opt" = "--min-ont-length" ] ; then
-        spl_min_length=$arg
-        shift
+    elif [ "$opt" = "--split-bases" ] ;    then spl_bases=$arg;      shift
+    elif [ "$opt" = "--split-reads" ] ;    then spl_reads=$arg;      shift
+    elif [ "$opt" = "--min-ont-length" ] ; then spl_min_length=$arg; shift
 
     #
     #  alignONT options
     #
 
-    elif [ "$opt" = "--seed-min-length" ] ; then
-        ali_mxm_length=$arg
-        shift
+    elif [ "$opt" = "--seed-min-length" ] ;     then ali_mxm_length=$arg;      shift
+    elif [ "$opt" = "--seed-max-length" ] ;     then ali_mem_count=$arg;       shift
+    elif [ "$opt" = "--align-bandwidth" ] ;     then ali_bandwidth=$arg;       shift
+    elif [ "$opt" = "--score-fraction" ] ;      then ali_multi_score_f=$arg;   shift
+    elif [ "$opt" = "--min-identity" ] ;        then ali_clipping=$arg;        shift
+    elif [ "$opt" = "--min-score" ] ;           then ali_min_score=$arg;       shift
+    elif [ "$opt" = "--end-clipping" ] ;        then ali_end_clipping=$arg;    shift
+    elif [ "$opt" = "--incompatible-cutoff" ] ; then ali_incompat_cutoff=$arg; shift
+    elif [ "$opt" = "--max-traces" ] ;          then ali_max_trace=$arg;       shift
 
-    elif [ "$opt" = "--seed-max-length" ] ; then
-        ali_mem_count=$arg
-        shift
+    #
+    #  run-time options
+    #
 
-    elif [ "$opt" = "--align-bandwidth" ] ; then
-        ali_bandwidth=$arg
-        shift
+    elif [ "$opt" = "--sto-run" ] ;  then sto_n_cpus=$1; sto_mem_gb=$2; sto_time_h=$3; shift; shift; shift;
+    elif [ "$opt" = "--mer-run" ] ;  then mer_n_cpus=$1; mer_mem_gb=$2; mer_time_h=$3; shift; shift; shift;
+    elif [ "$opt" = "--ovb-run" ] ;  then ovb_n_cpus=$1; ovb_mem_gb=$2; ovb_time_h=$3; shift; shift; shift;
+    elif [ "$opt" = "--red-run" ] ;  then red_n_cpus=$1; red_mem_gb=$2; red_time_h=$3; shift; shift; shift;
+    elif [ "$opt" = "--mbg-run" ] ;  then mbg_n_cpus=$1; mbg_mem_gb=$2; mbg_time_h=$3; shift; shift; shift;
+    elif [ "$opt" = "--utg-run" ] ;  then utg_n_cpus=$1; utg_mem_gb=$2; utg_time_h=$3; shift; shift; shift;
+    elif [ "$opt" = "--spl-run" ] ;  then spl_n_cpus=$1; spl_mem_gb=$2; spl_time_h=$3; shift; shift; shift;
+    elif [ "$opt" = "--ali-run" ] ;  then ali_n_cpus=$1; ali_mem_gb=$2; ali_time_h=$3; shift; shift; shift;
+    elif [ "$opt" = "--pop-run" ] ;  then pop_n_cpus=$1; pop_mem_gb=$2; pop_time_h=$3; shift; shift; shift;
+    elif [ "$opt" = "--utp-run" ] ;  then utp_n_cpus=$1; utp_mem_gb=$2; utp_time_h=$3; shift; shift; shift;
+    elif [ "$opt" = "--lay-run" ] ;  then lay_n_cpus=$1; lay_mem_gb=$2; lay_time_h=$3; shift; shift; shift;
+    elif [ "$opt" = "--sub-run" ] ;  then sub_n_cpus=$1; sub_mem_gb=$2; sub_time_h=$3; shift; shift; shift;
+    elif [ "$opt" = "--par-run" ] ;  then par_n_cpus=$1; par_mem_gb=$2; par_time_h=$3; shift; shift; shift;
+    elif [ "$opt" = "--cns-run" ] ;  then cns_n_cpus=$1; cns_mem_gb=$2; cns_time_h=$3; shift; shift; shift;
 
-    elif [ "$opt" = "--score-fraction" ] ; then
-        ali_multi_score_f=$arg
-        shift
-
-    elif [ "$opt" = "--min-identity" ] ; then
-        ali_clipping=$arg
-        shift
-
-    elif [ "$opt" = "--min-score" ] ; then
-        ali_min_score=$arg
-        shift
-
-    elif [ "$opt" = "--end-clipping" ] ; then
-        ali_end_clipping=$arg
-        shift
-
-    elif [ "$opt" = "--incompatible-cutoff" ] ; then
-        ali_incompat_cutoff=$arg
-        shift
-
-    elif [ "$opt" = "--max-traces" ] ; then
-        ali_max_trace=$arg
-        shift
+    #
+    #  unknown options
+    #
 
     else
         errors="${errors}Unknown option '$opt'.\n"
@@ -275,7 +311,7 @@ while [ $# -gt 0 ] ; do
 done
 
 #
-#  Set stuff not set by options.
+#  Set stuff not set by a user-supplied option.
 #
 
 if [ "x$mbg" = "x" ] ; then
@@ -293,18 +329,39 @@ fi
 if [ "x$outd" = "x" ] ; then
     errors="${errors}No output directory (-d) set.\n"
 fi
-
 if [ "x$verkko" = "x" ] ; then
     errors="${errors}Environment variable VERKKO not set.\n"
 fi
 
-if [ ! -e "$verkko/verkko.sh" ] ; then
-    errors="${errors}Can't find 'verkko.sh' in directory VERKKO = '$verkko/'.\n"
+if [ "x$hifi" = "x" ] ; then
+    errors="${errors}No PacBio HiFi reads (-hifi) supplied.\n"
 fi
 
-if [ ! -e "$verkko/scripts/get_layout_from_mbg.py" ] ; then
-    errors="${errors}Can't find Verkko scripts/ directory at '$verkko/scripts/'.\n"
+if [ "x$nano" = "x" ] ; then
+    errors="${errors}No Oxford Nanopore reads (-nano) supplied.\n"
 fi
+
+#           bin/seqrequester
+
+for exe in verkko.sh \
+           bin/GraphAligner \
+           bin/MBG \
+           bin/findErrors \
+           bin/fixErrors \
+           bin/fixErrors \
+           bin/layoutToPackage \
+           bin/meryl \
+           bin/ovStoreBuild \
+           bin/ovStoreConfig \
+           bin/overlapInCore \
+           bin/overlapInCorePartition \
+           bin/sqStoreCreate \
+           bin/utgcns \
+           scripts/get_layout_from_mbg.py ; do
+  if [ ! -e "$verkko/$exe" ] ; then
+      errors="${errors}Can't find '$exe' in directory VERKKO = '$verkko/'.\n"
+  fi
+done
 
 if [ ! -e "$mbg" ] ; then
     errors="${errors}Can't find MBG executable at '$mbg'.\n"
@@ -314,20 +371,90 @@ if [ ! -e "$graphaligner" ] ; then
     errors="${errors}Can't find GraphAligner executable at '$graphaligner'.\n"
 fi
 
-
-if [ "x$errors" != "x" ] ; then
-    echo "ERRORS."
+if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
+    echo "usage: $0 -d <output-directory> -hifi <hifi-reads ...> -nano <nanopore-reads ...>"
+    echo "  MANDATORY PARAMETERS:"
+    echo "    -d <output-directory>    Directory to use for verkko intermediate and final results."
+    echo "                             Will be created if needed."
+    echo "    --hifi <files ...>       List of files containing PacBio HiFi reads."
+    echo "    --nano <files ...>       List of files containing Oxford Nanopore reads."
+    echo ""
+    echo "                             Input reads can be any combination of FASTA/FASTQ,"
+    echo "                             uncompressed or gzip/bzip2/xz compressed.  Any"
+    echo "                             number of files can be supplied; *.gz works."
+    echo ""
+    echo "  ALGORITHM PARAMETERS:"
+    echo "    --no-correction"
+    echo ""
+    echo ""
+    echo "    --base-k"
+    echo "    --max-k"
+    echo "    --window"
+    echo "    --threads"
+    echo "    "
+    echo "    --split-bases"
+    echo "    --split-reads"
+    echo "    --min-ont-length"
+    echo "    "
+    echo "    --correct-k-mer-size"
+    echo "    --correct-mer-threshold"
+    echo "    --correct-min-read-length"
+    echo "    --correct-min-overlap-length"
+    echo "    "
+    echo "    --seed-min-length"
+    echo "    --seed-max-length"
+    echo "    --align-bandwidth"
+    echo "    --score-fraction"
+    echo "    --min-identity"
+    echo "    --min-score"
+    echo "    --end-clipping"
+    echo "    --incompatible-cutoff"
+    echo "    --max-trace"
+    echo ""
+    echo "  COMPUTATIONAL PARAMETERS:"
+    echo "    --python <interpreter>   Path or name of a python interpreter.  Default: 'python'."
+    echo "    --mbg <path>             Path to MBG.             Default for both is the"
+    echo "    --graphaligner <path>    Path to GraphAligner.    one packaged with verkko."
+    echo ""
+    echo "    --local                  Run on the local machine (default)."
+    echo "    --sge                    Enable Sun Grid Engine support."
+    echo "    --slurm                  Enable Slurm support."
+    echo "    --lsf                    Enable IBM Spectrum LSF support."
+    echo ""
+    echo "    --snakeopts <string>     Append snakemake options in \"string\" to the"
+    echo "                             snakemake command.  Options MUST be quoted."
+    echo ""
+    echo "    --sto-run                Set resource limits for various stages."
+    echo "    --mer-run                Format: number-of-cpus memory-in-gb time-in-hours"
+    echo "    --ovb-run                  --cns-run 8 32 2"
+    echo "    --red-run"
+    echo "    --mbg-run"
+    echo "    --utg-run"
+    echo "    --spl-run"
+    echo "    --ali-run"
+    echo "    --pop-run"
+    echo "    --utp-run"
+    echo "    --lay-run"
+    echo "    --sub-run"
+    echo "    --par-run"
+    echo "    --cns-run"
+    echo ""
     printf "${errors}"
     exit 0
 fi
 
 
+
+
+#
+#  All good!
+#    Make a work directory for us.
+#    Write a yaml config file for snakemake.
+#    Create a script to run snakemake.
+#
+
 mkdir -p ${outd}
 cd       ${outd}
-
-#echo "Will use config file:           '$conf'"
-echo "Output folder:                  '$outd'"
-echo "Additional snakemake arguments: '$snakeopts'"
 
 echo  > verkko.yml "#  Generated automatically by verkko.sh."
 echo >> verkko.yml "#  Changes will be overwritten."
@@ -339,21 +466,24 @@ echo >> verkko.yml "GRAPHALIGNER:        '${graphaligner}'"
 echo >> verkko.yml ""
 echo >> verkko.yml "PYTHON:              '${python}'"
 echo >> verkko.yml ""
-#echo >> verkko.yml "HIFI_READS:          '[ ${hifi} ]'"
-#echo >> verkko.yml "ONT_READS:           '[ ${nano} ]'"
-
 echo >> verkko.yml "HIFI_READS:"
 for h in ${hifi} ; do
-echo >> verkko.yml " - '$h'"
+  echo >> verkko.yml " - '$h'"
 done
-
 echo >> verkko.yml "ONT_READS:"
 for o in ${nano} ; do
-echo >> verkko.yml " - '$o'"
+  echo >> verkko.yml " - '$o'"
 done
-
 echo >> verkko.yml ""
 echo >> verkko.yml "#  Algorithm parameters."
+echo >> verkko.yml ""
+echo >> verkko.yml "#  buildStore, countKmers and computeOverlaps"
+echo >> verkko.yml "correction_enabled:  '${correction_enabled}'"
+echo >> verkko.yml "mer_size:            '${mer_size}'"
+echo >> verkko.yml "mer_threshold:       '${mer_threshold}'"
+echo >> verkko.yml ""
+echo >> verkko.yml "cor_min_read:        '${cor_min_read}'"
+echo >> verkko.yml "cor_min_overlap:     '${cor_min_overlap}'"
 echo >> verkko.yml ""
 echo >> verkko.yml "#  build-graph, MBG"
 echo >> verkko.yml "mbg_baseK:           '${mbg_baseK}'"
@@ -381,6 +511,23 @@ echo >> verkko.yml "pop_min_allowed_cov: '${pop_min_allowed_cov}'"
 echo >> verkko.yml "pop_resolve_steps:   '${pop_resolve_steps}'"
 echo >> verkko.yml ""
 echo >> verkko.yml "#  Run parameters."
+echo >> verkko.yml ""
+echo >> verkko.yml "#  buildStore, countKmers and computeOverlaps"
+echo >> verkko.yml "sto_n_cpus:          '${sto_n_cpus}'"
+echo >> verkko.yml "sto_mem_gb:          '${sto_mem_gb}'"
+echo >> verkko.yml "sto_time_h:          '${sto_time_h}'"
+echo >> verkko.yml ""
+echo >> verkko.yml "mer_n_cpus:          '${mer_n_cpus}'"
+echo >> verkko.yml "mer_mem_gb:          '${mer_mem_gb}'"
+echo >> verkko.yml "mer_time_h:          '${mer_time_h}'"
+echo >> verkko.yml ""
+echo >> verkko.yml "ovb_n_cpus:          '${ovb_n_cpus}'"
+echo >> verkko.yml "ovb_mem_gb:          '${ovb_mem_gb}'"
+echo >> verkko.yml "ovb_time_h:          '${ovb_time_h}'"
+echo >> verkko.yml ""
+echo >> verkko.yml "red_n_cpus:          '${red_n_cpus}'"
+echo >> verkko.yml "red_mem_gb:          '${red_mem_gb}'"
+echo >> verkko.yml "red_time_h:          '${red_time_h}'"
 echo >> verkko.yml ""
 echo >> verkko.yml "#  build-graph"
 echo >> verkko.yml "mbg_n_cpus:          '${mbg_n_cpus}'"
@@ -434,37 +581,34 @@ echo >> verkko.yml "cns_time_h:          '${cns_time_h}'"
 echo >> verkko.yml ""
 echo >> verkko.yml "#  This is the end."
 
-export PATH=${verkko}/bin:${verkko}/scripts:$PATH
-
-#  --cluster-config cluster.json \
-#  --cluster "sbatch --ntasks 1 --mem {cluster.mem}G --cpus-per-task {cluster.n} --time {cluster.time}" \
-
-#  jobs  - N cloud/cluster jobs in parallel (for local, an alais for -cores)
-#  cores - N total number of cores used over all jobs
-
-#echo >> snakemake.sh "  --jobs 60 \\"
-#echo >> snakemake.sh "  --verbose \\"
-#echo >> snakemake.sh "  --cleanup-metadata 6-layout/layout.txt \\"
-
-#  For interacrtive
-#echo >> snakemake.sh "  --cores 4 \\"
-#echo >> snakemake.sh "  --profile ${verkko}/profiles \\"
-
 echo  > snakemake.sh "#!/bin/sh"
 echo >> snakemake.sh ""
 echo >> snakemake.sh "snakemake --nocolor \\"
 echo >> snakemake.sh "  --directory . \\"
 echo >> snakemake.sh "  --snakefile ${verkko}/Snakefile \\"
-echo >> snakemake.sh "  --latency-wait 60 \\"
-echo >> snakemake.sh "  --jobs 1000 \\"
-echo >> snakemake.sh "  --cores 16 \\"
 echo >> snakemake.sh "  --configfile verkko.yml \\"
-#echo >> snakemake.sh "  --printshellcmds \\"
 echo >> snakemake.sh "  --reason \\"
+echo >> snakemake.sh "  --keep-going \\"
+echo >> snakemake.sh "  --rerun-incomplete \\"
+if [ $grid = "local" ] ; then
+  echo >> snakemake.sh "  --latency-wait 2 \\"
+  echo >> snakemake.sh "  --cores ${local_cpus} \\"
+  echo >> snakemake.sh "  --resources mem_gb=${local_mem} \\"
+else
+  echo >> snakemake.sh "  --latency-wait 30 \\"
+  echo >> snakemake.sh "  --jobs 1000 \\"
+  echo >> snakemake.sh "  --profile ${verkko}/profiles \\"
+  echo >> snakemake.sh "  --restart-times 0 \\"
+  echo >> snakemake.sh "  --max-jobs-per-second 10 \\"
+  echo >> snakemake.sh "  --max-status-checks-per-second 0.02 \\"
+  echo >> snakemake.sh "  --local-cores 1 \\"
+fi
 echo >> snakemake.sh "  ${snakeopts}"
 echo >> snakemake.sh ""
 
 chmod +x snakemake.sh
+
+#export PATH=${verkko}/bin:${verkko}/scripts:$PATH
 
 ./snakemake.sh
 

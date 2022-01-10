@@ -24,6 +24,7 @@
 #
 
 #  Save a copy of the script we run, for debugging.
+#  (instead, we save it when the script is submitted)
 #mkdir -p {workflow.workdir_init}/scripts/
 #cp -p $0 {workflow.workdir_init}/scripts/
 

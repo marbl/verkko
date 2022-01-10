@@ -15,15 +15,22 @@
 #
 #  Rule untip ....
 #
+#  This is postprocess in the original.
+#    postprocess.sh \
+#      unitig-unrolled-ont-resolved.gfa \              <- processONT.output.graph
+#      unitig-popped-unitig-normal-connected-tip.gfa   <- verkko.input.graph
+#
 #  Configuration Parameters:
 #    ...
 #
 
 rule untip:
     input:
-        graph  = rules.processONT.output.graph
+        graph  = rules.processONT.output.graph,    # confirmed
+        hificov= rules.buildGraph.output.hificov   # confirmed
     output:
-        graph  = rules.verkko.input.graph
+        graph  = rules.verkko.input.graph,         # confirmed
+        hificov= "5-untip/nodecov_hifi_fix.csv"
     log:
         err    = '5-untip/untip.err'
     params:
@@ -31,12 +38,12 @@ rule untip:
         graphs = getAllGraphs(5),
         aligns = getAllAlignments(5),
 
-        jobid  = 1
+        jobid             = 1
     threads:
         int(config['utp_n_cpus'])
     resources:
         n_cpus = config['utp_n_cpus'],
-        mem_gb = config['utp_mem_gb'],
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'utp'),
         time_h = config['utp_time_h']
     shell:
         '''
@@ -45,8 +52,6 @@ cd 5-untip
 cat > ./untip.sh <<EOF
 #!/bin/sh
 set -e
-
-#{params.maps}
 
 echo UntipRelative
 {PYTHON} {VERKKO}/scripts/untip_relative.py 30000 30000 0.1 0.1 \\\\
@@ -69,19 +74,20 @@ cat {params.graphs} connected-tip.gfa unitig-normal-connected-tip.gfa \\\\
 | grep '^L' \\\\
 > combined-edges-1.gfa
 
+
+# this used to have grep -v \*
+#
 echo Find lengths
 cat {params.graphs} connected-tip.gfa unitig-normal-connected-tip.gfa \\\\
-| grep '^S' \\\\
-| grep -v '\*' \\\\
-| awk '{{ print \$2 "\\t" length(\$3); }}' \\\\
+| awk 'BEGIN \\\\
+       {{ \\\\
+          FS="[ \\t]+"; OFS="\\t"; \\\\
+       }} \\\\
+       \$1 == "S" \\\\
+       {{ \\\\
+           print \$2, length(\$3); \\\\
+       }}' \\\\
 > nodelens-1.txt
-
-echo Find coverage
-grep '^S' < ../{rules.buildGraph.output.graph} \\\\
-| cut -f 2,3,4 | tr -d 'll:f:' \\\\
-| awk 'BEGIN {{ print "node\\tlength\\tcoverage"; }} {{ print \$1 "\\t" length(\$2) "\\t" \$3; }}' \\\\
-> hifi_nodecov.csv
-
 
 echo Fix coverage
 {PYTHON} {VERKKO}/scripts/get_original_coverage.py \\\\
@@ -89,12 +95,12 @@ echo Fix coverage
   combined-nodemap-1.txt \\\\
   combined-edges-1.gfa \\\\
   nodelens-1.txt \\\\
-  hifi_nodecov.csv \\\\
-> nodecov_hifi_fix.csv
+  ../{input.hificov} \\\\
+> ../{output.hificov}
 
 echo Pop bubbles based on coverage
 {PYTHON} {VERKKO}/scripts/pop_bubbles_coverage_based.py \\\\
-  nodecov_hifi_fix.csv \\\\
+  ../{output.hificov} \\\\
 < ../5-untip/unitig-normal-connected-tip.gfa \\\\
 > popped-unitig-normal-connected-tip.gfa \\\\
 2> popinfo.txt
@@ -110,3 +116,118 @@ chmod +x ./untip.sh
 ./untip.sh > ../{log.err} 2>&1
         '''
 
+rule prepCoverage:
+    input:
+        graph         = rules.verkko.input.graph
+    output:
+        edges         = "5-untip/combined-edges-final.gfa",
+        lens          = "5-untip/nodelens-final.txt",
+        nodes         = "5-untip/combined-nodemap-final.txt"
+    log:
+        err           = "5-untip/prepCoverage.err"
+    params:
+        maps          = getAllMappings(6),
+        graphs        = getAllGraphs(6),
+
+        jobid         = 1
+    threads:
+        1
+    resources:
+        n_cpus = 1,
+        mem_gb = 4,
+        time_h = 2
+    shell:
+        '''
+cd 5-untip
+
+cat > ./prepCoverage.sh <<EOF
+#!/bin/sh
+set -e
+
+#  Unfortunately, .maps is using *mapping* in the original and we cannot
+#  verify it has the correct files here.  getAllMappings(6) returns all
+#  mappings we know about.
+#
+cat {params.maps} \\\\
+> ../{output.nodes}
+
+
+#  .graphs is explicitly using these files in the original
+#    hifi-resolved.gfa 
+#    gapped-once-hifi-resolved.gfa
+#    gapped-twice-hifi-resolved.gfa
+#    gapped-hifi-resolved.gfa
+#    unrolled-hifi-resolved.gfa
+#    unitig-unrolled-hifi-resolved.gfa
+#    gapped-unitig-unrolled-hifi-resolved.gfa
+#    connected.gfa
+#    normal-connected.gfa
+#    ont-resolved-graph.gfa
+#    unrolled-ont-resolved.gfa
+#    unitig-unrolled-ont-resolved.gfa
+#    connected-tip.gfa
+#    unitig-normal-connected-tip.gfa
+#    popped-unitig-normal-connected-tip.gfa
+#    unitig-popped-unitig-normal-connected-tip.gfa
+#
+#  Confirmed to be what getAllGraphs(6) returns.
+#
+cat {params.graphs} \\\\
+| grep '^L' \\\\
+> ../{output.edges}
+
+#  For all Sequence lines that have actual sequence and not '*' placeholder:
+cat {params.graphs} \\\\
+| awk 'BEGIN \\\\
+       {{ \\\\
+          FS="[ \\t]+"; OFS="\\t"; \\\\
+       }} \\\\
+       (\$1 == "S") && (\$3 != "*") \\\\
+       {{ \\\\
+          print \$2, length(\$3); \\\\
+       }}' \\\\
+> ../{output.lens}
+EOF
+
+chmod +x ./prepCoverage.sh
+
+./prepCoverage.sh > ../{log.err} 2>&1
+        '''
+
+rule getFinalCoverages:
+    input:
+        hifi_coverage = rules.buildGraph.output.hificov,   # hifi_nodecov.csv confirmed -- rules.untip.output.hificov is 'fixed' version
+        ont_coverage  = rules.processONT.output.ontcov,    # nodecovs-ont.csv
+        graph         = "{dir}/{id}.gfa",                  # unitig-popped-unitig-normal-connected-tip.gfa confirmed
+        edges         = rules.prepCoverage.output.edges,
+        nodes         = rules.prepCoverage.output.nodes,
+        lens          = rules.prepCoverage.output.lens
+    output:
+        hifi_coverage = "{dir}/{id}.hifi-coverage.csv",
+        ont_coverage  = "{dir}/{id}.ont-coverage.csv"
+    log:
+        err           = "{dir}/{id}.getCoverage.err"
+    params:
+        jobid         = 1
+    threads:
+        1
+    resources:
+        n_cpus = 1,
+        mem_gb = 4,
+        time_h = 2
+    shell:
+        '''
+cd 5-untip
+
+cat > ./getCoverage.{wildcards.id}.sh <<EOF
+#!/bin/sh
+#set -e
+
+{PYTHON} {VERKKO}/scripts/get_original_coverage.py ../{input.graph} ../{input.nodes} ../{input.edges} ../{input.lens} ../{input.hifi_coverage} > ../{output.hifi_coverage}
+{PYTHON} {VERKKO}/scripts/get_original_coverage.py ../{input.graph} ../{input.nodes} ../{input.edges} ../{input.lens} ../{input.ont_coverage}  > ../{output.ont_coverage}
+EOF
+
+chmod +x ./getCoverage.{wildcards.id}.sh
+
+./getCoverage.{wildcards.id}.sh > ../{log.err} 2>&1
+        '''

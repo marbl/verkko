@@ -13,6 +13,55 @@
  ##
 
 #
+##  Rule indexGraph indexes the unitig graph.
+##
+#
+rule indexGraph:
+    input:
+        gfa               = rules.processGraph.output.gfa
+    output:
+        index             = "3-align/graph",
+        align             = temp("3-align/empty.gaf")
+    log:
+        err               = "3-align/index.err"
+    params:
+        GRAPHALIGNER      = config.get('GRAPHALIGNER', "{VERKKO}/bin/GraphAligner"),
+        bandwidth         = config['ali_bandwidth'],
+        mxm_length        = config['ali_mxm_length'],
+        mem_count         = config['ali_mem_count'],
+
+        jobid             = 1 
+    threads:
+        int(config['ali_n_cpus'])
+    resources:
+        n_cpus = config['ali_n_cpus'],
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'ali'),
+        time_h = config['ali_time_h']
+    shell:
+        '''
+cd 3-align
+
+cat > ./index.sh <<EOF
+#!/bin/sh
+set -e
+
+{params.GRAPHALIGNER} \\\\
+  -f empty -a ../{output.align} \\\\
+  -t {threads} \\\\
+  -g ../{input.gfa} \\\\
+  --seeds-mxm-cache-prefix ../{output.index} \\\\
+  --bandwidth {params.bandwidth} \\\\
+  --seeds-mxm-length {params.mxm_length} \\\\
+  --seeds-mem-count {params.mem_count} && touch ../{output.index}
+EOF
+
+chmod +x ./index.sh
+
+./index.sh > ../{log.err} 2>&1
+        '''
+ 
+
+#
 #  Rule alignONT aligns the partitioned ONT reads to the unitig graph.
 #
 #  Configuration Parameters:
@@ -30,13 +79,15 @@
 rule alignONT:
     input:
         reads             = "3-align/split/ont{nnnn}.fasta.gz",
-        gfa               = rules.processGraph.output.gfa
+        index             = rules.indexGraph.output.index,
+        gfa               = rules.processGraph.output.gfa,
+        finished          = rules.splitONT.output.finished
     output:
         alignments        = '3-align/aligned{nnnn}.gaf'
     log:
         err               = '3-align/aligned{nnnn}.err'
     params:
-        GRAPHALIGNER      = config.get('GRAPHALIGNER', "{VERKKO}/bin/GraphAligner"),
+        GRAPHALIGNER      = config['GRAPHALIGNER'],
 
         alignmentstmp     = '3-align/aligned{nnnn}.WORKING.gaf',
         mxm_length        = config['ali_mxm_length'],
@@ -50,10 +101,10 @@ rule alignONT:
         max_trace         = config['ali_max_trace'],
         jobid             = '{nnnn}'
     threads:
-        int(config['ali_n_cpus']),
+        int(config['ali_n_cpus'])
     resources:
         n_cpus = config['ali_n_cpus'],
-        mem_gb = config['ali_mem_gb'],
+        mem_gb = lambda wildcards, input, attempt: getAlignMemoryRequest(attempt, input.index),
         time_h = config['ali_time_h']
     shell:
         '''
@@ -65,6 +116,7 @@ set -e
 
 {params.GRAPHALIGNER} \\\\
   -t {threads} \\\\
+  --seeds-mxm-cache-prefix ../{input.index} \\\\
   -g ../{input.gfa} \\\\
   -f ../{input.reads} \\\\
   -a ../{params.alignmentstmp} \\\\

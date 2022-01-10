@@ -18,10 +18,13 @@
 #  Configuration Parameters:
 #    ...
 #
+#  input.tigmap isn't used directly.  It serves as a sentinel that
+#  the buildPackages step finished completely.
 
 rule generateConsensus:
     input:
-        package   = '7-consensus/packages/part{nnnn}.cnspack'
+        package   = '7-consensus/packages/part{nnnn}.cnspack',
+        tigmap    = rules.buildPackages.output.tigmap
     output:
         consensus = '7-consensus/packages/part{nnnn}.fasta'
     log:
@@ -32,7 +35,7 @@ rule generateConsensus:
         int(config['cns_n_cpus']),
     resources:
         n_cpus = config['cns_n_cpus'],
-        mem_gb = config['cns_mem_gb'],
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'cns'),
         time_h = config['cns_time_h']
     shell:
         '''

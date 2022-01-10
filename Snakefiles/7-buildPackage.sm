@@ -22,11 +22,11 @@
 checkpoint buildPackages:
     input:
         hifi       = HIFI_READS,
-        layout     = rules.layoutContigs.output.layout,
-        ont_subset = rules.extractONT.output.ont_subset
+        layout     = {rules.layoutContigs.output.layout},
+        ont_subset = {rules.extractONT.output.ont_subset}
     output:
-        cns        = directory("7-consensus/packages"),
-        tigmap     = "7-consensus/packages.tigName_to_ID.map"
+        tigmap     = "7-consensus/packages.tigName_to_ID.map",
+        finished   = "7-consensus/packages.finished"
     log:
         err        = '7-consensus/buildPackages.err'
     params:
@@ -35,7 +35,7 @@ checkpoint buildPackages:
         int(config['par_n_cpus'])
     resources:
         n_cpus = config['par_n_cpus'],
-        mem_gb = config['par_mem_gb'],
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'par'),
         time_h = config['par_time_h']
     shell:
         '''
@@ -52,7 +52,9 @@ mkdir -p packages
     -output packages/part###.cnspack \\\\
     -idmap  packages \\\\
     -partition 0.8 1.5 0.1 \\\\
-    -reads ../{input.ont_subset} {input.hifi}
+    -reads ../{input.ont_subset} {input.hifi} \\\\
+&& \\\\
+touch ../{output.finished}
 EOF
 
 chmod +x ./buildPackages.sh

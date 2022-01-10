@@ -24,21 +24,18 @@
 
 
 def combineConsensusI(wildcards):
-    dn = checkpoints.buildPackages.get().output[0]
-    return expand("7-consensus/packages/part{nnnn}.fasta", nnnn = glob_wildcards(os.path.join(dn, "part{xxxx}.cnspack")).xxxx)
-
+    return expand("7-consensus/packages/part{nnnn}.fasta", nnnn = glob_wildcards("7-consensus/packages/part{xxxx}.cnspack").xxxx)
 
 def combineConsensusP(wildcards):
-    dn = checkpoints.buildPackages.get().output[0]
-    return expand("packages/part{nnnn}.fasta", nnnn = glob_wildcards(os.path.join(dn, "part{xxxx}.cnspack")).xxxx)
-
+    return expand("packages/part{nnnn}.fasta", nnnn = glob_wildcards("7-consensus/packages/part{xxxx}.cnspack").xxxx)
 
 rule combineConsensus:
     input:
         consensus = combineConsensusI,
-        tigmap    = rules.buildPackages.output.tigmap
+        tigmap    = {rules.buildPackages.output.tigmap},
+        finished  = {rules.buildPackages.output.finished},
     output:
-        fasta     = rules.verkko.input.consensus
+        fasta     = {rules.verkko.input.consensus}
     log:
         err       = '7-consensus/combineConsensus.err'
     params:

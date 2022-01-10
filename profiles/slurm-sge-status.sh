@@ -13,6 +13,9 @@ slurm=`which sinfo 2> /dev/null`
 #  Test for SGE: if SGE_CELL exists in the environment, assume SGE works.
 sge=$SGE_CELL
 
+#  Test for LSF: if LSF_ENVDIR exists in the environment, assume LSF works.
+lsf=$LSF_ENVDIR
+
 
 #  Check Slurm status.
 #
@@ -66,6 +69,37 @@ elif [ "x$sge" != "x" ] ; then
       else          { print "success" } \
      }'`
   fi
+
+
+#  Check LSF status.
+#
+#  https://github.com/Snakemake-Profiles/lsf/blob/master/%7B%7Bcookiecutter.profile_name%7D%7D/lsf_status.py
+#    running -- PEND RUN PSUSP USUSP SSUSP WAIT
+#    success -- DONE POST_DONE
+#    failed  -- UNKWN ZOMBI EXIT POST_ERR
+#
+elif [ "x$lsf" != "x" ; then
+  jobstatus=`bjobs -o stat -noheader "$jobid" | head -n 1 \
+  | \
+  awk \
+  'BEGIN { stat="running" } \
+   { \
+    if      ($1 == "DONE")        { stat="success" } \
+    else if ($1 == "POST_DONE")   { stat="success" } \
+    else if ($1 == "PEND")        { stat="running" } \
+    else if ($1 == "RUN")         { stat="running" } \
+    else if ($1 == "PSUSP")       { stat="running" } \
+    else if ($1 == "USUSP")       { stat="running" } \
+    else if ($1 == "SSUSP")       { stat="running" } \
+    else if ($1 == "WAIT")        { stat="running" } \
+    else if ($1 == "UNKWN")       { stat="failed"  } \
+    else if ($1 == "ZOMBI")       { stat="failed"  } \
+    else if ($1 == "EXIT")        { stat="failed"  } \
+    else if ($1 == "POST_ERR")    { stat="failed"  } \
+    else                          { stat="failed"  }
+   }
+   END { print stat }'`
+
 
 #  Otherwise, do what?  Fail!
 else

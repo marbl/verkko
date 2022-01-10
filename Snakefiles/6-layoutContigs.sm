@@ -47,7 +47,7 @@ rule layoutContigs:
         int(config['lay_n_cpus'])
     resources:
         n_cpus = config['lay_n_cpus'],
-        mem_gb = config['lay_mem_gb'],
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'lay'),
         time_h = config['lay_time_h']
     shell:
         '''
@@ -58,11 +58,28 @@ cat > ./createLayout.sh <<EOF
 set -e
 
 cat {params.maps} \\\\
-> combined-nodemap.txt.test
-
-cat {params.maps} \\\\
 > combined-nodemap.txt
 
+#  The original is explicitly using these files:
+#    hifi-resolved.gfa
+#    gapped-once-hifi-resolved.gfa
+#    gapped-twice-hifi-resolved.gfa
+#    gapped-hifi-resolved.gfa
+#    unrolled-hifi-resolved.gfa
+#    unitig-unrolled-hifi-resolved.gfa
+#    gapped-unitig-unrolled-hifi-resolved.gfa
+#    connected.gfa
+#    normal-connected.gfa
+#    ont-resolved-graph.gfa
+#    unrolled-ont-resolved.gfa
+#    unitig-unrolled-ont-resolved.gfa
+#    connected-tip.gfa
+#    unitig-normal-connected-tip.gfa
+#    popped-unitig-normal-connected-tip.gfa
+#    unitig-popped-unitig-normal-connected-tip.gfa
+#
+#  Confirmed that is what getAllGraphs(6) returns
+ 
 cat {params.graphs} \\\\
 | grep '^L' \\\\
 > combined-edges.gfa
@@ -70,13 +87,26 @@ cat {params.graphs} \\\\
 cat {params.aligns} ../{input.paths} \\\\
 > combined-alignments.gaf
 
-grep '^S' ../{input.graph} | awk '{{ print \$2 "\\\\t" ">" \$2;     }}' \\\\
+cat ../{input.graph} \\\\
+| awk 'BEGIN \\\\
+       {{
+          FS="[ \\t]+"; OFS="\\t"; \\\\
+       }} \\\\
+       (\$1 == "S") && (\$3 != "*") \\\\
+       {{ \\\\
+          print \$2, ">"\$2; \\\\
+       }}' \\\\
 > consensus_paths.txt
 
 cat {params.graphs} \\\\
-| grep '^S' \\\\
-| grep -v '\\*' \\\\
-| awk '{{ print \$2 "\\t" length(\$3); }}' \\\\
+| awk 'BEGIN \\\\
+       {{
+          FS="[ \\t]+"; OFS="\\t"; \\\\
+       }} \\\\
+       (\$1 == "S") && (\$3 != "*") \\\\
+       {{ \\\\
+          print \$2, length(\$3); \\\\
+       }}' \\\\
 > nodelens.txt
 
 {PYTHON} {VERKKO}/scripts/get_layout_from_mbg.py \\\\

@@ -15,6 +15,14 @@
 #
 #  Rule processONT ....
 #
+#  This is process_ont_paths in the original.
+#    process_ont_paths.sh \
+#      unitig-unrolled-hifi-resolved.gfa \
+#      alns-ont.gaf \
+#      unitig-unrolled-ont-resolved.gfa   <- output
+#      min_alloed_cov = 5
+#      resolve_steps = 20 10 5
+#
 #  Configuration Parameters:
 #    ....
 #
@@ -22,13 +30,17 @@
 rule processONT:
     input:
        graph            = rules.processGraph.output.gfa,
-       ont_paths        = rules.combineONT.output.alignments
+       hificov          = rules.buildGraph.output.hificov,
+       ont_paths        = rules.combineONT.output.alignments    #  alns-ont.gaf
     output:
-       graph            = '4-processONT/unitig-unrolled-ont-resolved.gfa',
-       ont_gap_align    = '4-processONT/gaps-ont.gaf'
+       graph            = '4-processONT/unitig-unrolled-ont-resolved.gfa',   #  confirmed
+       ont_gap_align    = '4-processONT/gaps-ont.gaf',                       #  confirmed
+       ontcov           = '4-processONT/nodecovs-ont.csv'                    #  confirmed
     log:
         err             = '4-processONT/processONT.err'
     params:
+        maps            = getAllMappings(4),
+        graphs          = getAllGraphs(4),
         min_allowed_cov = config['pop_min_allowed_cov'],
         resolve_steps   = config['pop_resolve_steps'],
         jobid           = 1
@@ -36,7 +48,7 @@ rule processONT:
         int(config['pop_n_cpus'])
     resources:
         n_cpus = config['pop_n_cpus'],
-        mem_gb = config['pop_mem_gb'],
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'pop'),
         time_h = config['pop_time_h']
     shell:
         '''
@@ -47,7 +59,13 @@ cat > ./processONT.sh <<EOF
 set -e
 
 echo Step 1a
-awk -F '\\t' '{{ if (\$4-\$3 >= \$2*0.8 && \$12 >= 20) print; }}' \\\\
+awk 'BEGIN \\\\
+     {{ \\\\
+        FS="\\t"; \\\\
+     }} \\\\
+     {{ \\\\
+        if (\$4-\$3 >= \$2 * 0.8 && \$12 >= 20) print; \\\\
+     }}' \\\\
   < ../{input.ont_paths} \\\\
   > alns-ont-filter.gaf
 
@@ -61,13 +79,19 @@ echo ""
 echo Step 1c
 {PYTHON} {VERKKO}/scripts/calculate_coverage.py ../{input.graph} \\\\
   < alns-ont-filter-trim.gaf \\\\
-  > nodecovs-ont.csv
+  > ../{output.ontcov}
 
 echo ""
 echo Step 2a
 cut -f 6 < alns-ont-filter-trim.gaf > paths.txt
 
-awk -F '\\t' '{{ if (\$12 >= 20) print; }}' \\\\
+awk 'BEGIN \\\\
+     {{ \\\\
+        FS="\\t"; \\\\
+     }} \\\\
+     {{ \\\\
+        if (\$12 >= 20) print; \\\\
+     }}' \\\\
   < ../{input.ont_paths} \\\\
   > alns-ont-mapqfilter.gaf
 
@@ -79,13 +103,63 @@ echo Step 2b
 
 echo ""
 echo Step 3a
-awk '{{ if (\$2 >= 100000) {{ sum += \$2 * \$3; count += \$2; }} }} END {{ print sum / count; }}' \\\\
+awk '{{ \\\\
+        if (\$2 >= 100000) {{ \\\\
+          sum += \$2 * \$3; \\\\
+          count += \$2; \\\\
+        }} \\\\
+     }} \\
+     END \\\\
+     {{ \\\\
+        print sum / count; \\\\
+     }}' \\\\
   < nodecovs-ont.csv
 
 echo ""
 echo Step 3b
-{PYTHON} {VERKKO}/scripts/estimate_unique_local.py gapped-unitig-unrolled-hifi-resolved.gfa alns-ont-filter-trim.gaf 100000 30 0.8 \\\\
-  > unique_nodes_ont_coverage.txt
+
+#  cat *mapping* > ...
+cat {params.maps} \\\\
+  > combined-nodemap-uniques.txt
+
+# hifi-resolved.gfa
+# gapped-once-hifi-resolved.gfa
+# gapped-twice-hifi-resolved.gfa
+# gapped-hifi-resolved.gfa
+# unrolled-hifi-resolved.gfa
+# unitig-unrolled-hifi-resolved.gfa
+# gapped-unitig-unrolled-hifi-resolved.gfa
+
+grep -h '^L' {params.graphs} gapped-unitig-unrolled-hifi-resolved.gfa \\\\
+  > combined-edges-uniques.gfa
+
+# this used to have grep -v \*
+#
+cat {params.graphs} gapped-unitig-unrolled-hifi-resolved.gfa \\\\
+| \\\\
+awk 'BEGIN \\\\
+     {{ \\\\
+        FS="[ \\t]+"; OFS="\\t"; \\\\
+     }} \\\\
+     \$1 == "S" \\\\
+     {{ \\\\
+        print \$2, length(\$3); \\\\
+     }}' \\\\
+  > nodelens-uniques.txt
+
+{PYTHON} {VERKKO}/scripts/get_original_coverage.py \\\\
+  gapped-unitig-unrolled-hifi-resolved.gfa \\\\
+  combined-nodemap-uniques.txt \\\\
+  combined-edges-uniques.gfa \\\\
+  nodelens-uniques.txt \\\\
+  ../{input.hificov} \\\\
+> hifi-nodecov-gapped-unitig-unrolled-hifi-resolved.csv
+
+{PYTHON} {VERKKO}/scripts/estimate_unique_local.py \\\\
+  gapped-unitig-unrolled-hifi-resolved.gfa \\\\
+  hifi-nodecov-gapped-unitig-unrolled-hifi-resolved.csv \\\\
+  alns-ont-filter-trim.gaf 100000 30 0.8 \\\\
+> unique_nodes_ont_coverage.txt
 
 #  COMMENTED OUT IN ORIGINAL
 # {PYTHON} {VERKKO}/scripts/translate_uniques.py normal-hifi_connected_twice.gfa < unique_nodes_hifi.txt > translated_uniques.txt
@@ -182,15 +256,25 @@ echo Step 14
   > bridge_mapping.txt
 
 echo ""
-echo Step 15
+echo Step 15a
 {PYTHON} {VERKKO}/scripts/add_fake_alignments.py \\\\
   ../{input.graph} \\\\
   normal-connected.gfa \\\\
   alns-ont-filter-trim.gaf \\\\
   nodecovs-ont.csv \\\\
   fake-ont-alns.gaf \\\\
-  fake-ont-nodecovs.csv \\\\
+  fake-ont-nodecovs-once.csv \\\\
   10
+
+echo ""
+echo Step 15b
+{PYTHON} {VERKKO}/scripts/add_fake_bridging_paths.py \\\\
+  forbidden_ends.txt \\\\
+  bridging_seq_picked.txt \\\\
+  fake-ont-nodecovs-once.csv \\\\
+  fake-ont-nodecovs.csv \\\\
+  10 \\\\
+>> fake-ont-alns.gaf
 
 #FIXME parameterize
 #

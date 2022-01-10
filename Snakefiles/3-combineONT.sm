@@ -20,17 +20,25 @@
 #
 #  No computation is performed, only I/O.
 #
-#  The helper function combineONTI() generates a list of
-#  output files from the (checkpoint) rule splitONT.
+#  We differ a bit from the documented usage of a checkpoint rule (the second example at
+#  https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html#data-dependent-conditional-execution)
+#  in that we don't declare a directory as the output of the checkpoint.
+#  There are two problems with this:
+#   1)  the output product (the directory) is created before the rule runs
+#       and if the rule fails, that directory still exists, but incomplete.
 #
-#    dn is the 'output' field of the splitONT rule with any
-#    wildcards replaced.  There aren't any wildcards here, so
-#    this is a bit silly.
+#   2)  it seems you cannot write later outputs in that same directory,
+#       e.g., outputs in parallel with their input.  Doing so returns the
+#       rather cryptic error:
+#         Building DAG of jobs...
+#         ChildIOException:
+#         File/directory is a child to another output:
+#         ('/path/to/directory', checkpoint-stage)
+#         ('/path/to/directory/another-output', compute-stage)
 #
-#    Then, join dn to the output filenames we expect (which include a
-#    wildcard replacement), and pass that to 'glob_wildcards', which, I
-#    think, returns a list of the values that wildcard 'nnnn' will have,
-#    which are then used in expand to make the actual output filenames.
+#  So, our checkpoints make a 'finished' file to indicate completeness, and the
+#  helper functions below have hardcoded paths to inputs/outputs (compare against
+#  the second example in the link above).
 #
 #  The second helper function is just like the first, except it returns
 #  inputs relative to the 3-align/ directory, where the script runs.
@@ -41,20 +49,19 @@
 
 
 def combineONTI(wildcards):
-    dn = checkpoints.splitONT.get(**wildcards).output[0]
-    return expand("3-align/aligned{nnnn}.gaf", nnnn = glob_wildcards(os.path.join(dn, "ont{xxxx}.fasta.gz")).xxxx)
+    return expand("3-align/aligned{nnnn}.gaf", nnnn = glob_wildcards("3-align/split/ont{xxxx}.fasta.gz").xxxx)
 
 
 def combineONTP(wildcards):
-    dn = checkpoints.splitONT.get(**wildcards).output[0]
-    return expand("aligned{nnnn}.gaf", nnnn = glob_wildcards(os.path.join(dn, "ont{xxxx}.fasta.gz")).xxxx)
+    return expand("aligned{nnnn}.gaf", nnnn = glob_wildcards("3-align/split/ont{xxxx}.fasta.gz").xxxx)
 
 
 rule combineONT:
     input:
+        finished   = {rules.splitONT.output.finished},
         alignments = combineONTI
     output:
-        alignments = '3-align/all.gaf'
+        alignments = '3-align/alns-ont.gaf'
     log:
         err        = '3-align/combineONT.err'
     params:
@@ -64,7 +71,7 @@ rule combineONT:
         1
     resources:
         n_cpus = 1,
-        mem_gb = 1,
+        mem_gb = 4,
         time_h = 2
     shell:
         '''

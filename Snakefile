@@ -51,12 +51,17 @@ ONT_READS  = config.get('ONT_READS')
 #
 #  The primary output is 'consensus'.
 #
+#  The two coverage files are from rule create_final_coverages in the original.
+#  Computed here in 5-untip.sm getFinalCoverages
+#
 rule verkko:
     input:
-        graph     = '5-untip/unitig-popped-unitig-normal-connected-tip.gfa',
-        layout    = '6-layoutContigs/unitig-popped.layout',
-        consensus = '7-consensus/unitig-popped.fasta'
+        graph      = '5-untip/unitig-popped-unitig-normal-connected-tip.gfa',
+        hificov    = expand("{id}.hifi-coverage.csv", id="2-processGraph/unitig-unrolled-hifi-resolved 4-processONT/unitig-unrolled-ont-resolved 5-untip/unitig-popped-unitig-normal-connected-tip".split()),
+        ontcov     = expand("{id}.ont-coverage.csv",  id="2-processGraph/unitig-unrolled-hifi-resolved 4-processONT/unitig-unrolled-ont-resolved 5-untip/unitig-popped-unitig-normal-connected-tip".split()),
 
+        layout     = '6-layoutContigs/unitig-popped.layout',   # layout.txt
+        consensus  = '7-consensus/unitig-popped.fasta',        # concat.fa
 
 ##########
 #
@@ -66,18 +71,21 @@ rule verkko:
 #  as local, to run them on the head node directly, instead of submitting
 #  a job to the grid:
 #
-#    splitONT         - partitions ONT reads for alignment to the
-#                       initial graph.
+#    splitONT          - partitions ONT reads for alignment to the
+#                        initial graph.
 #
-#    combineONT       - collects results of ONT-to-graph alignments.
+#    combineONT        - collects results of ONT-to-graph alignments.
 #
-#    buildPackages    - collects reads for contig consensus.  uses
-#                       lots of memory but does no compute, except for
-#                       sequence compression/decompression.
+#    buildPackages     - collects reads for contig consensus.  uses
+#                        lots of memory but does no compute, except for
+#                        sequence compression/decompression.
 #
-#    combineConsensus - collects results of contig consensus computations.
+#    combineConsensus  - collects results of contig consensus computations.
 #
-localrules: verkko
+#    configureOverlaps - runs a Canu binary to load read lengths and decide
+#                        on batche sizes to compute overlaps.
+#
+localrules: verkko, configureOverlaps, configureFindErrors
 
 
 ##########
@@ -85,6 +93,11 @@ localrules: verkko
 #  Rules.
 #
 include: 'Snakefiles/functions.sm'
+
+include: 'Snakefiles/c1-buildStore.sm'
+include: 'Snakefiles/c2-countKmers.sm'
+include: 'Snakefiles/c3-computeOverlaps.sm'
+include: 'Snakefiles/c4-findErrors.sm'
 
 include: 'Snakefiles/1-buildGraph.sm'
 

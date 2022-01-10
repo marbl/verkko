@@ -15,6 +15,8 @@
 #
 #  Rule processGraph massages the MBG output into initial unitigs.
 #
+#  This is rule process_graph in Snakefile in the original.
+#
 #  Configuration Parameters:
 #    None
 #
@@ -24,7 +26,7 @@ rule processGraph:
         gfa   = rules.buildGraph.output.graph,
         paths = rules.buildGraph.output.paths
     output:
-        gfa = '2-processGraph/unitig-popped-unitig-normal-connected-tip.gfa',
+        gfa = '2-processGraph/unitig-unrolled-hifi-resolved.gfa',
         map = '2-processGraph/unitig-mapping-1.txt'
     log:
         err = '2-processGraph/process.err'
@@ -34,7 +36,7 @@ rule processGraph:
         int(config['utg_n_cpus'])
     resources:
         n_cpus = config['utg_n_cpus'],
-        mem_gb = config['utg_mem_gb'],
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'utg'),
         time_h = config['utg_time_h']
     shell:
         '''

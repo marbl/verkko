@@ -29,44 +29,19 @@
 #  The 'cluster-status' script is responsible for returning the status of the
 #  job ID supplied on the command line: 'running', 'success' or 'failed'.
 #  The Verkko status script supports Slurm and SGE.
-
-jobscript:      "/data/walenzbp/verkko/profiles/jobscript.sh"
-cluster:        "/data/walenzbp/verkko/profiles/slurm-sge-submit.sh {threads} {resources.mem_gb} {resources.time_h} {rulename} {params.jobid}"
-cluster-status: "/data/walenzbp/verkko/profiles/slurm-sge-status.sh"
-
-#  cluster /might/ expand name, rulename, input, output, params, wildcards,
-#  log, threads, dependencies.
-
-#  cluster-status is given a job id as the first and only arg.
-#  Expected to print 'running', 'success', 'failed' to stdout.
-
-#  Number of times to retry failing jobs.
-restart-times: 5
-restart-times: 0
-
-max-jobs-per-second: 10
-
-#  Check status every 50 seconds.
-max-status-checks-per-second: 0.02
-
-
-#  Define a nice custom jobname for us.
+#
+#  The jobname is supplied to the grid as the name of a job.
 #    {name}  - the name of the rule being run.
 #    {jobid} - the snakemake job id for this job.  Must be present.
 #
+
+jobscript:      "./jobscript.sh"
+cluster:        "./slurm-sge-submit.sh {threads} {resources.mem_gb} {resources.time_h} {rulename} {params.jobid}"
+cluster-status: "./slurm-sge-status.sh"
+
 jobname: verkko.{name}.{jobid}.sh
 
-
-cores: 99        #  How many jobs to run at once
-local-cores: 1   #  How many cores to use locally
-
-rerun-incomplete: true
-keep-going:       false
-
-printshellcmds: true
-#no-shared-fs: true
-
-default-resources:
- - n_cpus=2
- - mem_gb=100
- - time_h=3
+#default-resources:
+# - n_cpus=2
+# - mem_gb=100
+# - time_h=3

@@ -43,6 +43,9 @@ slurm=`which sinfo 2> /dev/null`
 #  Test for SGE: if SGE_CELL exists in the environment, assume SGE works.
 sge=$SGE_CELL
 
+#  Test for LSF: if LSF_ENVDIR exists in the environment, assume LSF works.
+lsf=$LSF_ENVDIR
+
 
 #  Submit to Slurm.
 #
@@ -55,8 +58,40 @@ if [ "x$slurm" != "x" ] ; then
 #  Submit to SGE.  '-terse' reports just the job ID instead of the usual
 #  human-parsable text.
 #
+#  Note that SGE expects memory as "memory per thread" instead of
+#  "memory per task" that we're supplied.
+#
 elif [ "x$sge" != "x" ] ; then
-  jobid=$(qsub -terse -cwd -V -pe thread ${n_cpus} -l memory=${mem_gb}g -j y -o batch-scripts/\$JOB_ID.${rule_n}.${jobidx}.out "$@")
+  mem_per_thread=$(dc -e "3 k ${mem_gb} ${n_cpus} / p")
+  jobid=$(qsub -terse -cwd -V -pe thread ${n_cpus} -l memory=${mem_per_thread}g -j y -o batch-scripts/\$JOB_ID.${rule_n}.${jobidx}.out "$@")
+
+
+#  Submit to LSF.
+#  Other options:
+#    -A account
+#    -q queue
+#    -p partition
+#    -n ?
+#    -J job name
+#    -W time limit
+#    -R resources needed -- "\"select[mem>20000] rusage[mem=20000] span[hosts=1]\"",
+#    -e err-out
+#    -o out-out
+#
+elif [ "x$lsf" != "x" ] ; then
+  mem_units=$(grep ^LSF_UNIT_FOR_LIMITS $LSF_ENVDIR/lsf.conf | cut -d= -f 2)
+
+  if   [ $mem_units = "GB" ] ; then
+    mem=${mem_gb}
+  elif [ $mem_units = "MB" ] ; then
+    mem=$(dc -e "3 k ${mem_gb} 1024 / p")
+  else
+    mem=$(dc -e "3 k ${mem_gb} 1048576 / p")
+  fi
+
+  jobid=$(bsub -eo batch-scripts/\$JOB_ID.${rule_n}.${jobidx}.err \
+               -oo batch-scripts/\$JOB_ID.${rule_n}.${jobidx}.out \
+               -R span[hosts=1] -n ${n_cpus} -M ${mem} "$@")
 
 
 #  Otherwise, fail.

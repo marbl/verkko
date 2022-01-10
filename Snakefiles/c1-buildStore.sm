@@ -1,0 +1,57 @@
+#############################################################################
+ #
+ #  This file is part of Verkko, a software program that assembles
+ #  whole-genome sequencing reads into telomere-to-telomere
+ #  haplotype-resolved chromosomes.
+ #
+ #  Except as indicated otherwise, this is a 'United States Government
+ #  Work', and is released in the public domain.
+ #
+ #  File 'README.licenses' in the root directory of this distribution
+ #  contains full conditions and disclaimers.
+ #
+ ##
+
+#
+#  Rule buildStore creates a Canu seqStore to be used for correcting reads.
+#
+
+rule buildStore:
+    input:
+        HIFI_READS
+    output:
+        seqstore  = directory('0-correction/hifi.seqStore'),
+    log:
+        err       = '0-correction/buildStore.err'
+    params:
+        minread   = config['cor_min_read'],
+        minolap   = config['cor_min_overlap'],
+        jobid     = 1
+    threads:
+        int(config['sto_n_cpus'])
+    resources:
+        n_cpus = config['sto_n_cpus'],
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'sto'),
+        time_h = config['sto_time_h']
+    shell:
+        '''
+cd 0-correction
+
+cat > ./buildStore.sh <<EOF
+#!/bin/sh
+set -e
+
+#  Construct a Canu seqStore for the HiFi reads.
+#
+echo "Building seqStore."
+{VERKKO}/bin/sqStoreCreate \\\\
+  -o ../{output.seqstore} \\\\
+  -minlength {params.minread} \\\\
+  -homopolycompress \\\\
+  -pacbio-hifi hifi {input}
+EOF
+
+chmod +x ./buildStore.sh
+
+./buildStore.sh > ../{log.err} 2>&1
+        '''

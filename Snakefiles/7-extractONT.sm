@@ -24,19 +24,15 @@
 
 
 def extractONTI(wildcards):
-    dn = checkpoints.splitONT.get(**wildcards).output[0]
-    return expand("3-align/split/ont{nnnn}.fasta.gz", nnnn = glob_wildcards(os.path.join(dn, "ont{xxxx}.fasta.gz")).xxxx)
-
+    return expand("3-align/split/ont{nnnn}.fasta.gz", nnnn = glob_wildcards("3-align/split/ont{xxxx}.fasta.gz").xxxx)
 
 def extractONTP(wildcards):
-    dn = checkpoints.splitONT.get(**wildcards).output[0]
-    return expand("ont{nnnn}.fasta.gz", nnnn = glob_wildcards(os.path.join(dn, "ont{xxxx}.fasta.gz")).xxxx)
-
+    return expand("ont{nnnn}.fasta.gz", nnnn = glob_wildcards("3-align/split/ont{xxxx}.fasta.gz").xxxx)
 
 rule extractONT:
     input:
         ont_files     = extractONTI,
-        ont_gap_align = rules.processONT.output.ont_gap_align
+        ont_gap_align = {rules.processONT.output.ont_gap_align}
     output:
         ont_subset_id = '7-consensus/ont_subset.id',
         ont_subset_ex = '7-consensus/ont_subset.extract',
@@ -50,7 +46,7 @@ rule extractONT:
         int(config['sub_n_cpus'])
     resources:
         n_cpus = config['sub_n_cpus'],
-        mem_gb = config['sub_mem_gb'],
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'sub'),
         time_h = config['sub_time_h']
     shell:
         '''

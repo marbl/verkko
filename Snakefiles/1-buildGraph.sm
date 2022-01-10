@@ -26,19 +26,25 @@
 #    mbg_maxK
 #    mbg_window
 #
+#  input.reads is either the output of the correction stage or the list of
+#  raw HiFi reads, depending on if --no-correction is supplied to verkko.sh.
+#
+
+def toFloat(val):
+    return float(val)
 
 rule buildGraph:
     input:
-        HIFI_READS
+        reads     = {rules.combineErrors.output.corfasta} if config['correction_enabled'] == "True" else HIFI_READS,
     output:
-        graph = '1-buildGraph/hifi-resolved.gfa',
-        paths = '1-buildGraph/paths.gaf'
+        graph     = '1-buildGraph/hifi-resolved.gfa',
+        hificov   = '1-buildGraph/hifi_nodecov.csv',
+        paths     = '1-buildGraph/paths.gaf'
     log:
-        err   = '1-buildGraph/buildGraph.err'
+        err       = '1-buildGraph/buildGraph.err'
     params:
-        MBG               = config.get('MBG', "{VERKKO}/bin/MBG"),
-
-        inputs            = ' '.join(expand('-i {r}', r=HIFI_READS)),
+        MBG       = config['MBG'],
+        corenable = config['correction_enabled'],
 
         baseK             = config['mbg_baseK'],
         maxK              = config['mbg_maxK'],
@@ -50,7 +56,7 @@ rule buildGraph:
         int(config['mbg_n_cpus'])
     resources:
         n_cpus = config['mbg_n_cpus'],
-        mem_gb = config['mbg_mem_gb'],
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'mbg'),
         time_h = config['mbg_time_h']
     shell:
         '''
@@ -60,8 +66,33 @@ cat > ./buildGraph.sh <<EOF
 #!/bin/sh
 set -e
 
+#  Figure out what reads we're going to use.  If correction is enabled, the
+#  reads are in a single file that is a relative path away from us; but if it
+#  is not enabled, the reads are in possibly multiple files that are at an
+#  absolute path.
+#
+iopt=""
+
+echo "Building graph with reads:"
+
+if [ "{params.corenable}" = "True" ] ; then
+  echo "  ../{input.reads}"
+  iopt="-i ../{input.reads}"
+else
+  for rf in {HIFI_READS} ; do
+    echo "  \$rf"
+    iopt="\$iopt -i \$rf"
+  done
+fi
+
+echo ""
+echo ""
+
+#  Build the graph.
+#    (rule build_graph in the original)
+#
 {params.MBG} \\\\
-  {params.inputs} \\\\
+  \$iopt \\\\
   -t {resources.n_cpus} \\\\
   -k {params.baseK} \\\\
   -r {params.maxK} \\\\
@@ -71,6 +102,26 @@ set -e
   --error-masking=collapse-msat \\\\
   --output-sequence-paths ../{output.paths} \\\\
   --out ../{output.graph}
+
+#  Find coverage.
+#    (rule hifi_coverage_csv in the original Snakefile)
+#    (hifi-resolved.gfa -> hifi_nodecov.csv)
+#    (\$6 != "" is from 9e31a602925a477a7e52c277eda143e7bd20e52b)
+#
+awk 'BEGIN \\\\
+     {{ \\\\
+        FS="[ \\t]+"; OFS="\\t"; \\\\
+        print "node", "length", "coverage"; \\\\
+     }} \\\\
+     \$1 == "S" \\\\
+     {{ \\\\
+        if (\$6 != "") {{
+          \$4 = \$6;
+        }}
+        print \$2, length(\$3), substr(\$4, 6); \\\\
+     }}' \\\\
+< ../{output.graph} \\\\
+> ../{output.hificov}
 EOF
 
 chmod +x ./buildGraph.sh

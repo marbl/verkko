@@ -1,0 +1,182 @@
+#############################################################################
+ #
+ #  This file is part of Verkko, a software program that assembles
+ #  whole-genome sequencing reads into telomere-to-telomere
+ #  haplotype-resolved chromosomes.
+ #
+ #  Except as indicated otherwise, this is a 'United States Government
+ #  Work', and is released in the public domain.
+ #
+ #  File 'README.licenses' in the root directory of this distribution
+ #  contains full conditions and disclaimers.
+ #
+ ##
+
+#
+#  Rule findErrors .....
+#
+
+checkpoint configureFindErrors:
+    input:
+        seqstore          = {rules.buildStore.output.seqstore},
+        ovlstore          = {rules.combineOverlaps.output.ovlstore}
+    output:
+        finished          = '0-correction/configureFindErrors.finished'
+    log:
+        err               = '0-correction/configureFindErrors.err'
+    params:
+        jobid             = 1
+    threads:
+        1
+    resources:
+        n_cpus = 1,
+        mem_gb = 1,
+        time_h = 1
+    shell:
+        '''
+cd 0-correction
+
+cat > ./configureFindErrors.sh <<EOF
+#!/bin/sh
+set -e
+
+mkdir -p find-errors-jobs
+
+bat=1
+bgn=1
+len=19999
+tot=\$({VERKKO}/bin/sqStoreDumpMetaData -S ../{input.seqstore} -stats | grep total-reads | awk '{{ print \$1 }}')
+
+while [ \$bgn -lt \$tot ] ; do
+  end=\`expr \$bgn + \$len\`
+  if [ \$end -gt \$tot ] ; then
+    end=\$tot
+  fi
+
+  echo > \`printf find-errors-jobs/%04d.range \$bat\` \$bgn \$end
+
+  bat=\`expr \$bat + 1\`
+  bgn=\`expr \$end + 1\`   #  OEA expects inclusive ranges.
+done
+
+touch ../{output.finished}
+EOF
+
+chmod +x ./configureFindErrors.sh
+
+./configureFindErrors.sh > ../{log.err} 2>&1
+        '''
+
+
+
+rule computeErrors:
+    input:
+        seqstore          = {rules.buildStore.output.seqstore},
+        ovlstore          = {rules.combineOverlaps.output.ovlstore},
+        range             = '0-correction/find-errors-jobs/{nnnn}.range',
+        finished          = {rules.configureFindErrors.output.finished}
+    output:
+        red               = '0-correction/find-errors-jobs/{nnnn}.red'
+    log:
+        err               = '0-correction/find-errors-jobs/{nnnn}.err'
+    params:
+        jobid             = 1
+    threads:
+        int(config['red_n_cpus']),
+    resources:
+        n_cpus = config['red_n_cpus'],
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'red'),
+        time_h = config['red_time_h']
+    shell:
+        '''
+cd       0-correction/find-errors-jobs
+
+range=`cat ../../{input.range}`
+ncpus=`expr {threads} - 1`          #  One CPU is used for I/O.
+
+cat > ./{wildcards.nnnn}.sh <<EOF
+#!/bin/sh
+set -e
+
+{VERKKO}/bin/findErrors \\\\
+  -t $ncpus \\\\
+  -S ../../{input.seqstore} \\\\
+  -O ../../{input.ovlstore} \\\\
+  -R $range \\\\
+  -l 2500 \\\\
+  -e 0.0003 \\\\
+  -m 0.003 \\\\
+  -s \\\\
+  -p 5 \\\\
+  -o ../../{output.red}.WORKING \\\\
+&& \\\\
+mv -f ../../{output.red}.WORKING ../../{output.red}
+EOF
+
+chmod +x ./{wildcards.nnnn}.sh
+
+./{wildcards.nnnn}.sh > ../../{log.err} 2>&1
+        '''
+
+
+def combineErrorsI(wildcards):
+    paths = expand("0-correction/find-errors-jobs/{nnnn}.red", nnnn = glob_wildcards("0-correction/find-errors-jobs/{xxxx}.range").xxxx)
+    return paths
+
+
+def combineErrorsP(wildcards):
+    paths = expand("find-errors-jobs/{nnnn}.red", nnnn = glob_wildcards("0-correction/find-errors-jobs/{xxxx}.range").xxxx) 
+
+    #outf  = open("0-correction/red-files", mode="wb")
+    #for path in paths:
+    #    outf.write(f"{path}\n".encode())
+    #outf.close()
+
+    return paths
+
+
+rule combineErrors:
+    input:
+        seqstore  = {rules.buildStore.output.seqstore},
+        ovlstore  = {rules.combineOverlaps.output.ovlstore},
+        reds      = combineErrorsI,
+        finished  = {rules.configureFindErrors.output.finished}
+    output:
+        red       = '0-correction/red.red',
+        corfasta  = '0-correction/hifi-corrected.fasta'
+    log:
+        err       = "0-correction/combineErrors.err"
+    params:
+        paths     = combineErrorsP,
+        jobid     = 1
+    threads:
+        1
+    resources:
+        n_cpus = 1,
+        mem_gb = 8,
+        time_h = 4
+    shell:
+        '''
+cd 0-correction
+
+cat > ./combineErrors.sh <<EOF
+#!/bin/sh
+
+echo ""
+echo Combine corrections.
+echo ""
+
+#  red files MUST be in sorted order, which combineErrorsP doesn't return.
+cat find-errors-jobs/*red > red.red
+
+#  Use those corrections to correct the reads.
+{VERKKO}/bin/fixErrors \\\\
+  -S   ../{input.seqstore} \\\\
+  -red ../{output.red} \\\\
+  -O   ../{output.corfasta}
+EOF
+
+chmod +x ./combineErrors.sh
+
+./combineErrors.sh > ../{log.err} 2>&1
+        '''
