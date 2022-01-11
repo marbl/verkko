@@ -292,10 +292,14 @@ for node in nodelens:
 for node in nodelens:
 	bubble_end = find_bubble_end(edges, ">" + node)
 	if bubble_end:
-		merge(chain_parent, chain_rank, node, bubble_end[1:])
+		coverage_difference = node_coverage[node] - node_coverage[bubble_end[1:]]
+		if coverage_difference > -(global_average_coverage/2) and coverage_difference < global_average_coverage/2:
+			merge(chain_parent, chain_rank, node, bubble_end[1:])
 	bubble_end = find_bubble_end(edges, "<" + node)
 	if bubble_end:
-		merge(chain_parent, chain_rank, node, bubble_end[1:])
+		coverage_difference = node_coverage[node] - node_coverage[bubble_end[1:]]
+		if coverage_difference > -(global_average_coverage/2) and coverage_difference < global_average_coverage/2:
+			merge(chain_parent, chain_rank, node, bubble_end[1:])
 
 chain_coverage_sum = {}
 chain_coverage_count = {}
