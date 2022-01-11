@@ -268,7 +268,11 @@ with open(read_alignment_file) as f:
 		pathleftclip = int(parts[7])
 		pathrightclip = int(parts[6]) - int(parts[8])
 		path = parts[5].replace('>', "\t>").replace('<', "\t<").strip().split('\t')
-		gap = (len(path) == 1 and path[0][1:4] == "gap")
+		gap = False
+		for node in path:
+			if node[1:4] == "gap":
+				gap = True
+				break
 		matches = get_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_overlaps, pathleftclip, pathrightclip, readleftclip, readrightclip, readlen, readstart, readend, gap)
 		if len(matches) == 0: continue
 		if readname not in matches_per_read: matches_per_read[readname] = []

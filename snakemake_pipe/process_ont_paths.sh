@@ -16,14 +16,12 @@ out_gfa=$3
 min_allowed_coverage=$4
 echo "In triplet resolution will use min_allowed_coverage of $min_allowed_coverage and resolve_steps ${@:5}"
 
-awk -F '\t' '{if ($4-$3 >= $2*0.8 && $12 >= 20) print;}' < $ont_paths > alns-ont-filter.gaf
-$SCRIPTS/trim_dbg_alignment.py $in_gfa 1500 < alns-ont-filter.gaf > alns-ont-filter-trim.gaf
-$SCRIPTS/calculate_coverage.py $in_gfa < alns-ont-filter-trim.gaf > nodecovs-ont.csv
-
-cut -f 6 < alns-ont-filter-trim.gaf > paths.txt
 awk -F '\t' '{if ($12 >= 20) print;}' < $ont_paths > alns-ont-mapqfilter.gaf
-$SCRIPTS/insert_aln_gaps.py $in_gfa 3 50 gaps-ont.gaf gapont < alns-ont-mapqfilter.gaf > gapped-unitig-unrolled-hifi-resolved.gfa
+$SCRIPTS/insert_aln_gaps.py $in_gfa alns-ont-mapqfilter.gaf 3 50 alns-ont-nogap.gaf gaps-ont.gaf gapont > gapped-unitig-unrolled-hifi-resolved.gfa
+cat alns-ont-nogap.gaf gaps-ont.gaf | awk -F '\t' '{if ($4-$3 >= $2*0.8 && $12 >= 20) print;}' | $SCRIPTS/trim_dbg_alignment.py gapped-unitig-unrolled-hifi-resolved.gfa 1500 > alns-ont-filter-trim.gaf
+$SCRIPTS/calculate_coverage.py gapped-unitig-unrolled-hifi-resolved.gfa < alns-ont-filter-trim.gaf > nodecovs-ont.csv
 awk '{if ($2 >= 100000) {sum += $2*$3; count += $2;}}END{print sum/count;}' < nodecovs-ont.csv
+cut -f 6 < alns-ont-filter-trim.gaf > paths.txt
 
 cat *mapping* > combined-nodemap-uniques.txt
 rm -f combined-edges-uniques.gfa
