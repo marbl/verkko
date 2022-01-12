@@ -151,12 +151,16 @@ for node in long_nodes:
 chain_of_longnode = set()
 for node in long_nodes:
 	bubble_end = find_bubble_end(edges, ">" + node)
-	while bubble_end is not None:
+	visited = set()
+	while bubble_end is not None and bubble_end[1:] not in visited:
+		visited.add(bubble_end[1:])
 		next_node = bubble_end
 		chain_of_longnode.add(next_node[1:])
 		bubble_end = find_bubble_end(edges, next_node)
 	bubble_end = find_bubble_end(edges, "<" + node)
-	while bubble_end is not None:
+	visited = set()
+	while bubble_end is not None and bubble_end[1:] not in visited:
+		visited.add(bubble_end[1:])
 		next_node = bubble_end
 		chain_of_longnode.add(next_node[1:])
 		bubble_end = find_bubble_end(edges, next_node)
