@@ -7,6 +7,8 @@ longest_n = int(sys.argv[2])
 # paths from stdin
 # graph to stdout
 
+max_unroll_length = 200000
+
 def revnode(n):
 	assert len(n) >= 2
 	assert n[0] == "<" or n[0] == ">"
@@ -39,6 +41,7 @@ for node in nodeseqs:
 	if len(edges[">" + node]) > 2 or len(edges["<" + node]) > 2: continue
 	if ">" + node not in edges[">" + node]: continue
 	if len(edges[">" + node]) == 2 and len(edges["<" + node]) == 2: continue
+	if len(nodeseqs[node]) > max_unroll_length: continue
 	tip_loops.add(node)
 	counts_per_tiploop[node] = []
 
