@@ -48,8 +48,6 @@ ifeq ($(wildcard canu/src/seqrequester/src/Makefile), )
   $(info $(space))
 endif
 
-#rm meryl overlapInCore seqrequester overlapErrorAdjustment stores utgcns  utility 
-
 #  Make symlinks to source directories if needed.
 ifeq ($(wildcard meryl/src), )
   $(shell ln -s canu/src/meryl meryl)
@@ -737,6 +735,9 @@ $(foreach TGT,${ALL_TGTS},\
 .PHONY: clean
 $(foreach TGT,${ALL_TGTS},\
   $(eval $(call ADD_CLEAN_RULE,${TGT})))
+clean:
+	find build -type d -print | sort -r | xargs -n 100 rmdir
+	rm meryl overlapInCore seqrequester overlapErrorAdjustment stores utgcns  utility 
 
 # Include generated rules that define additional (header) dependencies.
 $(foreach TGT,${ALL_TGTS},\
