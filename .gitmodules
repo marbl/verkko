@@ -1,0 +1,3 @@
+[submodule "src/canu"]
+	path = src/canu
+	url = https://github.com/marbl/canu.git
