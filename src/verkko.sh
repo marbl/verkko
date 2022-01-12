@@ -55,6 +55,23 @@ else
   else
     verkko=`dirname $0`
   fi
+
+  #  If we're running out of the src/ directory, we need to make
+  #  a symlink to the Canu binaries, but otherwise, the Verkko
+  #  components are in the correct place.
+
+  if   [ -e "${verkko}/verkko.sh" ] ; then
+    if [ ! -e "bin" ] ; then
+      ln -s build/bin .
+    fi
+
+  #  Otherwise, massage the path to point to lib/verkko instead of bin/,
+
+  else
+    verkko=`dirname $verkko`
+    verkko="$verkko/lib/verkko"
+  fi
+
   export VERKKO=$verkko
 fi
 
@@ -314,12 +331,18 @@ done
 #  Set stuff not set by a user-supplied option.
 #
 
-if [ "x$mbg" = "x" ] ; then
-  mbg=${verkko}/bin/MBG
+if [ "x$mbg" = "x" ] ; then    #  Not set by an option,
+  mbg=${verkko}/bin/MBG        #  Set it to our bin/ directory.
+fi
+if [ ! -e $mbg ] ; then        #  Not in the bin directory,
+  mbg=$(which MBG)             #  Set it to whatever is in the PATH.
 fi
 
 if [ "x$graphaligner" = "x" ] ; then
   graphaligner=${verkko}/bin/GraphAligner
+fi
+if [ ! -e $graphaligner ] ; then
+  graphaligner=$(which GraphAligner)
 fi
 
 #
@@ -343,11 +366,7 @@ fi
 
 #           bin/seqrequester
 
-for exe in verkko.sh \
-           bin/GraphAligner \
-           bin/MBG \
-           bin/findErrors \
-           bin/fixErrors \
+for exe in bin/findErrors \
            bin/fixErrors \
            bin/layoutToPackage \
            bin/meryl \
@@ -363,11 +382,15 @@ for exe in verkko.sh \
   fi
 done
 
-if [ ! -e "$mbg" ] ; then
+if   [ "x$mbg" = "x" ] ; then
+    errors="${errors}Can't find MBG executable in \$PATH \$VERKKO/bin/MBG.\n"
+elif [ ! -e "$mbg" ] ; then
     errors="${errors}Can't find MBG executable at '$mbg'.\n"
 fi
 
-if [ ! -e "$graphaligner" ] ; then
+if   [ "x$graphaligner" = "x" ] ; then
+    errors="${errors}Can't find GraphAligner executable in \$PATH or \$VERKKO/bin/GraphAligner.\n"
+elif [ ! -e "$graphaligner" ] ; then
     errors="${errors}Can't find GraphAligner executable at '$graphaligner'.\n"
 fi
 
@@ -438,6 +461,8 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --sub-run"
     echo "    --par-run"
     echo "    --cns-run"
+    echo ""
+    echo "  Verkko module path: ${verkko}/"
     echo ""
     printf "${errors}"
     exit 0
