@@ -189,7 +189,9 @@ for node in nodelens:
 	long_coverage_len_sum += nodelens[node]
 	long_coverage_cov_sum += nodelens[node] * coverage[node]
 
-avg_coverage = long_coverage_cov_sum / long_coverage_len_sum
+avg_coverage = 0
+if long_coverage_len_sum != 0:
+	long_coverage_cov_sum / long_coverage_len_sum
 sys.stderr.write("average coverage " + str(avg_coverage) + "\n")
 
 chain_coverage_sum = {}
