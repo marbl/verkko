@@ -103,7 +103,7 @@ echo Pop bubbles based on coverage
   ../{output.hificov} \\\\
 < ../5-untip/unitig-normal-connected-tip.gfa \\\\
 > popped-unitig-normal-connected-tip.gfa \\\\
-2> popinfo.txt
+2> popinfo.err
 
 echo Unitigify 4
 {PYTHON} {VERKKO}/scripts/unitigify.py utig4- unitig-mapping-4.txt \\\\
