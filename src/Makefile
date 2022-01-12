@@ -698,18 +698,71 @@ INCDIRS := $(addprefix -I,$(call CANONICAL_PATH,${INCDIRS}))
 # default goal.
 .PHONY: all
 all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
-     ../bin \
-     ../bin/findErrors \
-     ../bin/fixErrors \
-     ../bin/layoutToPackage \
-     ../bin/meryl \
-     ../bin/ovStoreBuild \
-     ../bin/ovStoreConfig \
-     ../bin/overlapInCore \
-     ../bin/overlapInCorePartition \
-     ../bin/sqStoreCreate \
-     ../bin/utgcns \
-     ../bin/seqrequester
+     ../bin/verkko \
+     \
+     ../lib/verkko/bin/findErrors \
+     ../lib/verkko/bin/fixErrors \
+     ../lib/verkko/bin/layoutToPackage \
+     ../lib/verkko/bin/meryl \
+     ../lib/verkko/bin/ovStoreBuild \
+     ../lib/verkko/bin/ovStoreConfig \
+     ../lib/verkko/bin/overlapInCore \
+     ../lib/verkko/bin/overlapInCorePartition \
+     ../lib/verkko/bin/sqStoreCreate \
+     ../lib/verkko/bin/utgcns \
+     ../lib/verkko/bin/seqrequester \
+     \
+     ../lib/verkko/scripts/add_fake_alignments.py \
+     ../lib/verkko/scripts/add_fake_bridging_paths.py \
+     ../lib/verkko/scripts/calculate_coverage.py \
+     ../lib/verkko/scripts/check_layout_gaps.py \
+     ../lib/verkko/scripts/connect_uniques.py \
+     ../lib/verkko/scripts/estimate_unique_local.py \
+     ../lib/verkko/scripts/find_bridges.py \
+     ../lib/verkko/scripts/fix_diploid_paths.py \
+     ../lib/verkko/scripts/fix_diploid_unique_nodes.py \
+     ../lib/verkko/scripts/forbid_unbridged_tangles.py \
+     ../lib/verkko/scripts/get_bridge_mapping.py \
+     ../lib/verkko/scripts/get_layout_from_mbg.py \
+     ../lib/verkko/scripts/get_original_coverage.py \
+     ../lib/verkko/scripts/get_unroll_mapping.py \
+     ../lib/verkko/scripts/insert_aln_gaps.py \
+     ../lib/verkko/scripts/merge_unresolved_dbg_nodes.py \
+     ../lib/verkko/scripts/pick_majority_bridge.py \
+     ../lib/verkko/scripts/pop_bubbles_coverage_based.py \
+     ../lib/verkko/scripts/pop_bubbles_keep_longest.py \
+     ../lib/verkko/scripts/process_reads.py \
+     ../lib/verkko/scripts/remove_crosslink_paths.py \
+     ../lib/verkko/scripts/remove_wrong_connections_2.py \
+     ../lib/verkko/scripts/resolve_triplets_kmerify.py \
+     ../lib/verkko/scripts/trim_dbg_alignment.py \
+     ../lib/verkko/scripts/unitigify.py \
+     ../lib/verkko/scripts/unroll_tip_loops.py \
+     ../lib/verkko/scripts/untip_relative.py \
+     \
+     ../lib/verkko/Snakefile \
+     ../lib/verkko/Snakefiles/1-buildGraph.sm \
+     ../lib/verkko/Snakefiles/2-processGraph.sm \
+     ../lib/verkko/Snakefiles/3-alignONT.sm \
+     ../lib/verkko/Snakefiles/3-combineONT.sm \
+     ../lib/verkko/Snakefiles/3-splitONT.sm \
+     ../lib/verkko/Snakefiles/4-processONT.sm \
+     ../lib/verkko/Snakefiles/5-untip.sm \
+     ../lib/verkko/Snakefiles/6-layoutContigs.sm \
+     ../lib/verkko/Snakefiles/7-buildPackage.sm \
+     ../lib/verkko/Snakefiles/7-combineConsensus.sm \
+     ../lib/verkko/Snakefiles/7-extractONT.sm \
+     ../lib/verkko/Snakefiles/7-generateConsensus.sm \
+     ../lib/verkko/Snakefiles/c1-buildStore.sm \
+     ../lib/verkko/Snakefiles/c2-countKmers.sm \
+     ../lib/verkko/Snakefiles/c3-computeOverlaps.sm \
+     ../lib/verkko/Snakefiles/c4-findErrors.sm \
+     ../lib/verkko/Snakefiles/functions.sm \
+     \
+     ../lib/verkko/profiles/config.yaml \
+     ../lib/verkko/profiles/jobscript.sh \
+     ../lib/verkko/profiles/slurm-sge-status.sh \
+     ../lib/verkko/profiles/slurm-sge-submit.sh
 	@echo ""
 	@echo "Success!"
 	@echo "${MODULE} installed in ${TARGET_DIR}/bin/${MODULE}"
@@ -743,42 +796,31 @@ clean:
 $(foreach TGT,${ALL_TGTS},\
   $(eval -include ${${TGT}_DEPS}))
 
+#  Add rules to 'install' stuff.
+../bin/verkko: verkko.sh
+	@mkdir -p ../bin
+	cp -pf verkko.sh ../bin/verkko
+	chmod +x ../bin/verkko
 
-../bin:
-	mkdir -p ../bin
+../lib/verkko/scripts/%.py: scripts/%.py
+	@mkdir -p ../lib/verkko/scripts
+	cp -pf $< $@
 
-../bin/findErrors: ${TARGET_DIR}/bin/findErrors
-	cp -pf ${TARGET_DIR}/bin/findErrors ../bin/findErrors
+../lib/verkko/bin/%: ${TARGET_DIR}/bin/%
+	@mkdir -p ../lib/verkko/bin
+	cp -pf $< $@
 
-../bin/fixErrors: ${TARGET_DIR}/bin/fixErrors
-	cp -pf ${TARGET_DIR}/bin/fixErrors ../bin/fixErrors
+../lib/verkko/Snakefile: Snakefile
+	cp -pf $< $@
 
-../bin/layoutToPackage: ${TARGET_DIR}/bin/layoutToPackage
-	cp -pf ${TARGET_DIR}/bin/layoutToPackage ../bin/layoutToPackage
+../lib/verkko/Snakefiles/%: Snakefiles/%
+	@mkdir -p ../lib/verkko/Snakefiles
+	cp -pf $< $@
 
-../bin/meryl: ${TARGET_DIR}/bin/meryl
-	cp -pf ${TARGET_DIR}/bin/meryl ../bin/meryl
+../lib/verkko/profiles/%: profiles/%
+	@mkdir -p ../lib/verkko/profiles
+	cp -pf $< $@
 
-../bin/ovStoreBuild: ${TARGET_DIR}/bin/ovStoreBuild
-	cp -pf ${TARGET_DIR}/bin/ovStoreBuild ../bin/ovStoreBuild
-
-../bin/ovStoreConfig: ${TARGET_DIR}/bin/ovStoreConfig
-	cp -pf ${TARGET_DIR}/bin/ovStoreConfig ../bin/ovStoreConfig
-
-../bin/overlapInCore: ${TARGET_DIR}/bin/overlapInCore
-	cp -pf ${TARGET_DIR}/bin/overlapInCore ../bin/overlapInCore
-
-../bin/overlapInCorePartition: ${TARGET_DIR}/bin/overlapInCorePartition
-	cp -pf ${TARGET_DIR}/bin/overlapInCorePartition ../bin/overlapInCorePartition
-
-../bin/sqStoreCreate: ${TARGET_DIR}/bin/sqStoreCreate
-	cp -pf ${TARGET_DIR}/bin/sqStoreCreate ../bin/sqStoreCreate
-
-../bin/utgcns: ${TARGET_DIR}/bin/utgcns
-	cp -pf ${TARGET_DIR}/bin/utgcns ../bin/utgcns
-
-../bin/seqrequester: ${TARGET_DIR}/bin/seqrequester
-	cp -pf ${TARGET_DIR}/bin/seqrequester ../bin/seqrequester
 
 #  Makefile processed.  Regenerate the version number file, make some
 #  directories, and report that we're starting the build.
