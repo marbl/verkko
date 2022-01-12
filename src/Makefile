@@ -709,6 +709,7 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/bin/overlapInCore \
      ../lib/verkko/bin/overlapInCorePartition \
      ../lib/verkko/bin/sqStoreCreate \
+     ../lib/verkko/bin/sqStoreDumpMetaData \
      ../lib/verkko/bin/utgcns \
      ../lib/verkko/bin/seqrequester \
      \
