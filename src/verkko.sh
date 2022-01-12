@@ -51,7 +51,13 @@ if [ -e "${VERKKO}/verkko.sh" ] ; then
 else
   echo $0 | grep -q ^/            #  If a relative path, prepend
   if [ $? -ne 0 ] ; then          #  PWD to make it an absolute path.
-    verkko=`dirname $PWD/$0`
+    f=$0
+
+    echo $0 | grep -q ^\\./       #  If the path looks like ./ something
+    if [ $? -eq 0 ] ;then         #  remove the start ./ from the command
+       f=`echo $0 | cut -d'/' -f2-`
+    fi
+    verkko=`dirname $PWD/$f`
   else
     verkko=`dirname $0`
   fi
@@ -62,7 +68,7 @@ else
 
   if   [ -e "${verkko}/verkko.sh" ] ; then
     if [ ! -e "bin" ] ; then
-      ln -s build/bin .
+      cd ${verkko} && ln -s build/bin .
     fi
 
   #  Otherwise, massage the path to point to lib/verkko instead of bin/,
@@ -375,6 +381,7 @@ for exe in bin/findErrors \
            bin/overlapInCore \
            bin/overlapInCorePartition \
            bin/sqStoreCreate \
+           bin/sqStoreDumpMetaData \
            bin/utgcns \
            scripts/get_layout_from_mbg.py ; do
   if [ ! -e "$verkko/$exe" ] ; then
@@ -615,6 +622,7 @@ echo >> snakemake.sh "  --configfile verkko.yml \\"
 echo >> snakemake.sh "  --reason \\"
 echo >> snakemake.sh "  --keep-going \\"
 echo >> snakemake.sh "  --rerun-incomplete \\"
+echo >> snakemake.sh "  --restart-times 1\\"
 if [ $grid = "local" ] ; then
   echo >> snakemake.sh "  --latency-wait 2 \\"
   echo >> snakemake.sh "  --cores ${local_cpus} \\"
