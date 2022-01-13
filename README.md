@@ -44,7 +44,7 @@ To test your installation we have an E. coli K12 dataset available.
     curl -L https://obj.umiacs.umd.edu/sergek/shared/ecoli_ont_subset50x.fastq.gz -o ont.fastq.gz
     verkko -d asm --hifi ./hifi.fastq.gz --nano ./ont.fastq.gz
 
-The final assembly result is under `asm/7-consensus/concat.fa`. The final graph is under `asm/5-untip/unitig-popped-unitig-normal-connected-tip.gfa` along with coverage files in `asm/5-untip/unitig*csv`. You can find intermediate graphs and coverage files under `asm/*/unitig-*gfa` and `asm/*/unitig-*csv`.
+The final assembly result is under `asm/7-consensus/unitig-popped.fa`. The final graph is under `asm/5-untip/unitig-popped-unitig-normal-connected-tip.gfa` along with coverage files in `asm/5-untip/unitig*csv`. You can find intermediate graphs and coverage files under `asm/*/unitig-*gfa` and `asm/*/unitig-*csv`.
 
 ## Citations:
  
