@@ -1,0 +1,11 @@
+bin/
+lib/
+src/bin
+src/build
+src/utility
+src/seqrequester
+src/stores
+src/utgcns
+src/overlapErrorAdjustment
+src/overlapInCore
+src/meryl
