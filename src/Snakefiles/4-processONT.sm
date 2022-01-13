@@ -64,42 +64,30 @@ awk 'BEGIN \\\\
         FS="\\t"; \\\\
      }} \\\\
      {{ \\\\
-        if (\$4-\$3 >= \$2 * 0.8 && \$12 >= 20) print; \\\\
-     }}' \\\\
-  < ../{input.ont_paths} \\\\
-  > alns-ont-filter.gaf
-
-echo ""
-echo Step 1b
-{PYTHON} {VERKKO}/scripts/trim_dbg_alignment.py ../{input.graph} 1500 \\\\
-  < alns-ont-filter.gaf \\\\
-  > alns-ont-filter-trim.gaf
-
-echo ""
-echo Step 1c
-{PYTHON} {VERKKO}/scripts/calculate_coverage.py ../{input.graph} \\\\
-  < alns-ont-filter-trim.gaf \\\\
-  > ../{output.ontcov}
-
-echo ""
-echo Step 2a
-cut -f 6 < alns-ont-filter-trim.gaf > paths.txt
-
-awk 'BEGIN \\\\
-     {{ \\\\
-        FS="\\t"; \\\\
-     }} \\\\
-     {{ \\\\
         if (\$12 >= 20) print; \\\\
      }}' \\\\
   < ../{input.ont_paths} \\\\
   > alns-ont-mapqfilter.gaf
 
 echo ""
-echo Step 2b
-{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py ../{input.graph} 3 50 ../{output.ont_gap_align} gapont \\\\
+echo Step 2a
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py ../{input.graph} alns-ont-mapqfilter.gaf 3 50 alns-ont-nogap.gaf ../{output.ont_gap_align} gapont \\\\
   < alns-ont-mapqfilter.gaf \\\\
   > gapped-unitig-unrolled-hifi-resolved.gfa
+
+echo ""
+echo Step 2b
+cat alns-ont-nogap.gaf ../{output.ont_gap_align} | awk -F '\t' '{if ($4-$3 >= $2*0.8 && $12 >= 20) print;}' | {PYTHON} {VERKKO}/scripts/trim_dbg_alignment.py gapped-unitig-unrolled-hifi-resolved.gfa 1500 > alns-ont-filter-trim.gaf
+
+echo ""
+echo Step 2c
+{PYTHON} {VERKKO}/scripts/calculate_coverage.py ../{input.graph} \\\\
+  < alns-ont-filter-trim.gaf \\\\
+  > ../{output.ontcov}
+
+echo ""
+echo Step 2d
+cut -f 6 < alns-ont-filter-trim.gaf > paths.txt
 
 echo ""
 echo Step 3a
