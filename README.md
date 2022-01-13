@@ -34,7 +34,7 @@ and create a config.yml file.
 
     verkko -d <work-directory> --hifi <hifi-read-files> --nano <ont-read-files>
 
-By default, verkko will run the snakemake workflow and all compute on the local machine. Support for SGE, Slurm and LSF (untested) can be enabled with options `--sge`, `--slurm` and `--lsf`, respectively. This will run the snakemake workflow on the local machine but submit all compute to the grid. To launch the both the snakemake workflow and compute on the grid, wrap the verkko command in a shell script and submit using your scheduler.  You may need to set the environment variable VERKKO to the installation directory of Verkko.  This is necessary only if Verkko gives errors that it cannot find component scripts.
+By default, verkko will run the snakemake workflow and all compute on the local machine. Support for SGE, Slurm and LSF (untested) can be enabled with options `--sge`, `--slurm` and `--lsf`, respectively. This will run the snakemake workflow on the local machine but submit all compute to the grid. To launch the both the snakemake workflow and compute on the grid, wrap the verkko command in a shell script and submit using your scheduler.  You may need to set the environment variable VERKKO to the installation directory of Verkko if there are errors that component scripts are not found.
 
 You can pass through snakemake options to restrict CPU/memory/cluster resources by adding the `--snakeopts` option to verkko. For example, `--snakeopts "--dry-run"` will print what jobs will run while `--snakeopts "--cores 1000"` would restrict grid runs to at most 1000 cores across all submited jobs.
 
@@ -44,7 +44,7 @@ To test your installation we have an E. coli K12 dataset available.
     curl -L https://obj.umiacs.umd.edu/sergek/shared/ecoli_ont_subset50x.fastq.gz -o ont.fastq.gz
     verkko -d asm --hifi ./hifi.fastq.gz --nano ./ont.fastq.gz
 
-The final assembly result is under `asm/7-consensus/unitig-popped.fa`. The final graph is under `asm/5-untip/unitig-popped-unitig-normal-connected-tip.gfa` along with coverage files in `asm/5-untip/unitig*csv`. You can find intermediate graphs and coverage files under `asm/*/unitig-*gfa` and `asm/*/unitig-*csv`.
+The final assembly result is under `asm/7-consensus/unitig-popped.fasta`. The final graph is under `asm/5-untip/unitig-popped-unitig-normal-connected-tip.gfa` along with coverage files in `asm/5-untip/unitig*csv`. You can find intermediate graphs and coverage files under `asm/*/unitig-*gfa` and `asm/*/unitig-*csv`.
 
 ## Citations:
  
