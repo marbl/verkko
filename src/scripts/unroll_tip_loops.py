@@ -69,31 +69,29 @@ for node in counts_per_tiploop:
 	if len(edges["<" + node]) == 2:
 		for edge in edges["<" + node]:
 			if edge[1:] == node: continue
-			#assert ">" + node in edges[revnode(edge)]
-			if ">" + node not in edges[revnode(edge)]:
-				sys.stderr.write("WARN: prevented assertion check for >" + node + "\n")
-				continue
+			assert ">" + node in edges[revnode(edge)]
 			edges[revnode(edge)].remove(">" + node)
 			edges[revnode(edge)].add(">unroll_" + node + "_1")
+			edges["<unroll_" + node + "_1"] = set()
+			edges["<unroll_" + node + "_1"].add(edge)
 			overlaps[(revnode(edge), ">unroll_" + node + "_1")] = overlaps[(revnode(edge), ">" + node)]
 			overlaps[("<unroll_" + node + "_1", edge)] = overlaps[(revnode(edge), ">" + node)]
 	self_overlap = overlaps[(">" + node, ">" + node)]
 	for i in range(0, count):
 		nodeseqs["unroll_" + node + "_" + str(i+1)] = nodeseqs[node]
 		edges[">" + "unroll_" + node + "_" + str(i+1)] = set()
-		edges["<" + "unroll_" + node + "_" + str(i+1)] = set()
+		if i > 0: edges["<" + "unroll_" + node + "_" + str(i+1)] = set()
 	for i in range(1, count):
 		edges[">" + "unroll_" + node + "_" + str(i)].add(">" +  "unroll_" + node + "_" + str(i+1))
 		overlaps[(">" + "unroll_" + node + "_" + str(i), ">" +  "unroll_" + node + "_" + str(i+1))] = self_overlap
 	if len(edges[">" + node]) == 2:
 		for edge in edges[">" + node]:
 			if edge[1:] == node: continue
-			#assert "<" + node in edges[revnode(edge)]
-			if "<" + node not in edges[revnode(edge)]:
-				sys.stderr.write("WARN: prevented assertion check for <" + node + "\n")
-				continue
+			assert "<" + node in edges[revnode(edge)]
 			edges[revnode(edge)].remove("<" + node)
 			edges[revnode(edge)].add("<unroll_" + node + "_" + str(count))
+			assert ">unroll_" + node + "_" + str(count) in edges
+			edges[">unroll_" + node + "_"  + str(count)].add(edge)
 			overlaps[(revnode(edge), "<unroll_" + node + "_" + str(count))] = overlaps[(revnode(edge), "<" + node)]
 			overlaps[(">unroll_" + node + "_" + str(count), edge)] = overlaps[(revnode(edge), "<" + node)]
 	del edges[">" + node]
