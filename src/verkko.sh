@@ -17,6 +17,7 @@
 #  Verkko, Finnish.  Net, network, mesh, web, grid, grill, fishnet, network, graph.
 #
 
+version=""
 help=""
 
 hifi=""
