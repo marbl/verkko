@@ -17,7 +17,6 @@
 #  Verkko, Finnish.  Net, network, mesh, web, grid, grill, fishnet, network, graph.
 #
 
-version="Verkko 1.0"
 help=""
 
 hifi=""
@@ -614,6 +613,8 @@ echo >> verkko.yml ""
 echo >> verkko.yml "#  This is the end."
 
 echo  > snakemake.sh "#!/bin/sh"
+echo >> snakemake.sh ""
+echo >> snakemake.sh "echo \"Launching verkko $version ...\""
 echo >> snakemake.sh ""
 echo >> snakemake.sh "snakemake --nocolor \\"
 echo >> snakemake.sh "  --directory . \\"
