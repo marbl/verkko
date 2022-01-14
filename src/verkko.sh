@@ -614,7 +614,7 @@ echo >> verkko.yml "#  This is the end."
 
 echo  > snakemake.sh "#!/bin/sh"
 echo >> snakemake.sh ""
-echo >> snakemake.sh "echo \"Launching verkko $version ...\""
+echo >> snakemake.sh "echo \"Launching $version ...\""
 echo >> snakemake.sh ""
 echo >> snakemake.sh "snakemake --nocolor \\"
 echo >> snakemake.sh "  --directory . \\"
