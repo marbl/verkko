@@ -693,7 +693,7 @@ $(eval $(call INCLUDE_SUBMAKEFILE,main.mk))
 # Perform post-processing on global variables as needed.
 DEFS := $(addprefix -D,${DEFS})
 INCDIRS := $(addprefix -I,$(call CANONICAL_PATH,${INCDIRS}))
-VERSION := Verkko branch $(shell git rev-parse --abbrev-ref HEAD) commit $(shell git rev-parse HEAD) $(shell git show -s --format=%ci)
+VERSION := verkko branch $(shell git rev-parse --abbrev-ref HEAD) commit $(shell git rev-parse HEAD) $(shell git show -s --format=%ci)
 
 # Define the "all" target (which simply builds all user-defined targets) as the
 # default goal.
