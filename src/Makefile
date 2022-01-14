@@ -801,8 +801,7 @@ $(foreach TGT,${ALL_TGTS},\
 #  Add rules to 'install' stuff.
 ../bin/verkko: verkko.sh
 	@mkdir -p ../bin
-	@echo "version=\"$(VERSION)\"" > ../bin/verkko
-	cat verkko.sh >> ../bin/verkko
+	cat verkko.sh |sed s/'version=""'/'version="$(VERSION)"'/g >  ../bin/verkko
 	chmod +x ../bin/verkko
 
 ../lib/verkko/scripts/%.py: scripts/%.py
