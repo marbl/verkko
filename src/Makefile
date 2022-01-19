@@ -35,6 +35,10 @@ ifeq (1, $(gitv))
   $(error git '$(shell which git)' version '$(gitv)' too old; at least version 2.12 is required)
 endif
 
+ifeq ($(wildcard canu/src/Makefile), )
+  $(info $(shell git submodule update --init canu))
+  $(info $(space))
+endif
 ifeq ($(wildcard canu/src/utility/src/Makefile), )
   $(info $(shell cd canu/src ; git submodule update --init utility))
   $(info $(space))
