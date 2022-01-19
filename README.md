@@ -18,6 +18,8 @@ creates contig consensus sequences using Canu's consensus module.
   * `conda install -c conda-forge -c bioconda -c defaults MBG`
   * `conda install -c conda-forge -c bioconda -c defaults GraphAligner`
 
+Verkko also requires Snakemake (v6.0+) and a recent Python (v3.5+).
+
 To install Verkko run:
 
     git clone https://github.com/maickrau/verkko.git
