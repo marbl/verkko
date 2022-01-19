@@ -14,11 +14,11 @@ creates contig consensus sequences using Canu's consensus module.
 
 * Do NOT download the .zip source code.  It is missing files and will not compile.  This is a [known flaw](https://github.com/dear-github/dear-github/issues/214) with git itself.
 
-* Verkko requires both https://github.com/maickrau/MBG and https://github.com/maickrau/GraphAligner to be installed. Installing with a 'package manager' is encouraged:
+* Verkko requires both [MBG](https://github.com/maickrau/MBG) and [GraphAligner](https://github.com/maickrau/GraphAligner) to be installed. Installing with a 'package manager' is encouraged:
   * `conda install -c conda-forge -c bioconda -c defaults MBG`
   * `conda install -c conda-forge -c bioconda -c defaults GraphAligner`
 
-Verkko also requires Snakemake (v6.0+) and a recent Python (v3.5+).
+Verkko also requires [Snakemake](https://snakemake.readthedocs.io/en/stable/) (v6.0+) and a recent [Python](https://www.python.org) (v3.5+).
 
 To install Verkko run:
 
