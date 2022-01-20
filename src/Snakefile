@@ -56,12 +56,30 @@ ONT_READS  = config.get('ONT_READS')
 #
 rule verkko:
     input:
-        graph      = '5-untip/unitig-popped-unitig-normal-connected-tip.gfa',
-        hificov    = expand("{id}.hifi-coverage.csv", id="2-processGraph/unitig-unrolled-hifi-resolved 4-processONT/unitig-unrolled-ont-resolved 5-untip/unitig-popped-unitig-normal-connected-tip".split()),
-        ontcov     = expand("{id}.ont-coverage.csv",  id="2-processGraph/unitig-unrolled-hifi-resolved 4-processONT/unitig-unrolled-ont-resolved 5-untip/unitig-popped-unitig-normal-connected-tip".split()),
+        graph       = '5-untip/unitig-popped-unitig-normal-connected-tip.gfa',
+        hificov     = '5-untip/unitig-popped-unitig-normal-connected-tip.hifi-coverage.csv',
+        ontcov      = '5-untip/unitig-popped-unitig-normal-connected-tip.ont-coverage.csv',
+        layout      = '6-layoutContigs/unitig-popped.layout',   # layout.txt
+        consensus   = '7-consensus/unitig-popped.fasta',        # concat.fa
+        morecov     = expand("{step}.{tech}-coverage.csv", step=['2-processGraph/unitig-unrolled-hifi-resolved',
+                                                                 '4-processONT/unitig-unrolled-ont-resolved'],
+                                                           tech=['hifi',
+                                                                 'ont']),
+    output:
+        graph       = 'assembly.gfa',
+        layout      = 'assembly.layout',
+        hificov     = 'assembly.hifi-coverage.csv',
+        ontcov      = 'assembly.ont-coverage.csv',
+        consensus   = 'assembly.fasta'
+    shell:
+        '''
+cp -p {input.graph}     {output.graph}
+cp -p {input.layout}    {output.layout}
+cp -p {input.hificov}   {output.hificov}
+cp -p {input.ontcov}    {output.ontcov}
+cp -p {input.consensus} {output.consensus}
+        '''
 
-        layout     = '6-layoutContigs/unitig-popped.layout',   # layout.txt
-        consensus  = '7-consensus/unitig-popped.fasta',        # concat.fa
 
 ##########
 #
