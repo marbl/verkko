@@ -10,6 +10,10 @@ graph using GraphAligner, progressively resolves loops and tangles first with
 the HiFi reads then with the aligned Oxford Nanopore reads, and finally
 creates contig consensus sequences using Canu's consensus module.
 
+**Note: Verkko is a work in progress and currently available as a beta
+release. Expect to encounter instability, but please feel free to submit
+an issue if you encounter any problems.**
+
 ## Install:
 
 * Do NOT download the .zip source code.  It is missing files and will not compile.  This is a [known flaw](https://github.com/dear-github/dear-github/issues/214) with git itself.
