@@ -81,7 +81,7 @@ cat alns-ont-nogap.gaf ../{output.ont_gap_align} | awk -F '\\t' '{{if (\$4-\$3 >
 
 echo ""
 echo Step 2c
-{PYTHON} {VERKKO}/scripts/calculate_coverage.py ../{input.graph} \\\\
+{PYTHON} {VERKKO}/scripts/calculate_coverage.py gapped-unitig-unrolled-hifi-resolved.gfa \\\\
   < alns-ont-filter-trim.gaf \\\\
   > ../{output.ontcov}
 

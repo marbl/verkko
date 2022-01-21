@@ -94,6 +94,7 @@ mer_threshold=20
 
 cor_min_read=4000
 cor_min_overlap=2000
+cor_hash_bits=25
 
 #  buildGraph, parameters for MBG
 mbg_baseK=1001
@@ -273,6 +274,7 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--correct-mer-threshold" ] ;      then mer_threshold=$arg;   shift
     elif [ "$opt" = "--correct-min-read-length" ] ;    then cor_min_read=$arg;    shift
     elif [ "$opt" = "--correct-min-overlap-length" ] ; then cor_min_overlap=$arg; shift
+    elif [ "$opt" = "--correct-hash-bits" ] ;          then cor_hash_bits=$arg;   shift 
 
     #
     #  MBG options
@@ -430,6 +432,7 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --correct-mer-threshold"
     echo "    --correct-min-read-length"
     echo "    --correct-min-overlap-length"
+    echo "    --correct-hash-bits" 
     echo "    "
     echo "    --seed-min-length"
     echo "    --seed-max-length"
@@ -516,6 +519,7 @@ echo >> verkko.yml "mer_threshold:       '${mer_threshold}'"
 echo >> verkko.yml ""
 echo >> verkko.yml "cor_min_read:        '${cor_min_read}'"
 echo >> verkko.yml "cor_min_overlap:     '${cor_min_overlap}'"
+echo >> verkko.yml "cor_hash_bits:       '${cor_hash_bits}'"
 echo >> verkko.yml ""
 echo >> verkko.yml "#  build-graph, MBG"
 echo >> verkko.yml "mbg_baseK:           '${mbg_baseK}'"

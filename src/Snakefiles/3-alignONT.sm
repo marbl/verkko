@@ -35,7 +35,7 @@ rule indexGraph:
         int(config['ali_n_cpus'])
     resources:
         n_cpus = config['ali_n_cpus'],
-        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'ali'),
+        mem_gb = lambda wildcards, input, attempt: getAlignMemoryRequest(attempt, 20, input.gfa.replace(".gfa", ""), ".gfa".split()),
         time_h = config['ali_time_h']
     shell:
         '''
@@ -104,7 +104,7 @@ rule alignONT:
         int(config['ali_n_cpus'])
     resources:
         n_cpus = config['ali_n_cpus'],
-        mem_gb = lambda wildcards, input, attempt: getAlignMemoryRequest(attempt, input.index),
+        mem_gb = lambda wildcards, input, attempt: getAlignMemoryRequest(attempt, 2, input.index, ".aux _index.aux _index.isa _index.lcp _index.sa".split()),
         time_h = config['ali_time_h']
     shell:
         '''
