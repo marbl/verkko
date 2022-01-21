@@ -28,17 +28,18 @@ def getMemoryRequest(attempt, tag):
    return int(scl * mem) + 1
 
 
-def getAlignMemoryRequest(attempt, prefix):
+def getAlignMemoryRequest(attempt, factor, prefix, suffixes):
    scl = 0.75 + attempt / 4.0
    mem = float(config['ali_mem_gb'])
 
    sum = 0
-   for suffix in ".aux _index.aux _index.isa _index.lcp _index.sa".split():
+   for suffix in suffixes:
       filename = f"{prefix}{suffix}"
       if os.path.exists(filename):
+
          sum += os.path.getsize(filename)
    if sum > 0:
-      mem = 2 * sum / 1024 / 1024 / 1024
+      mem = factor * sum / 1024 / 1024 / 1024
 
    return int(scl * mem) + 1
 
