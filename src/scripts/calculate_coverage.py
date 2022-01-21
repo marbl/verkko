@@ -38,9 +38,12 @@ for l in sys.stdin:
 		continue
 	for i in range(1, len(path)-1):
 		nodename = path[i][1:]
-		assert nodename in node_sizes
+		# skip gap nodes that aren't in the graph and have no coverage to compute anyway
+		if nodename not in node_sizes:
+			continue
 		if nodename not in node_average_coverages: node_average_coverages[nodename] = 0.0
 		node_average_coverages[nodename] += 1.0
+	# unlike above, we do want to make sure the path starts and ends with a valid node or else we have a problem
 	nodename = path[0][1:]
 	assert nodename in node_sizes
 	if nodename not in node_average_coverages: node_average_coverages[nodename] = 0.0
