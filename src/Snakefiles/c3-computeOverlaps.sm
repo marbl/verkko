@@ -90,6 +90,7 @@ rule computeOverlaps:
         mersize   = config['mer_size'],
         minread   = config['cor_min_read'],
         minolap   = config['cor_min_overlap'],
+        hashbits  = config['cor_hash_bits'],
         jobid     = '{nnnn}'
     threads:
         int(config['ovb_n_cpus']),
@@ -114,7 +115,7 @@ set -e
   -t {threads} \\\\
   -k {params.mersize} \\\\
   -k ../../{input.ignore} \\\\
-  --hashbits 25 \\\\
+  --hashbits {params.hashbits} \\\\
   --hashload 0.8 \\\\
   --maxerate  0.01 \\\\
   --minlength {params.minolap} \\\\
