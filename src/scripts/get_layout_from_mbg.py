@@ -109,6 +109,7 @@ def get_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_overlaps,
 			read_end_pos = readend - (read_end_along_path - path_end_pos)
 			read_node_end = raw_node_lens[path[i][1:]]
 		assert read_start_pos >= readstart
+		if read_end_pos <= read_start_pos: return []
 		assert read_end_pos > read_start_pos
 		assert read_end_pos <= readend
 		read_path_start_pos.append(read_start_pos)
@@ -158,10 +159,12 @@ def get_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_overlaps,
 					node_start_offset = node_max_end - read_wanted_end_pos
 				read_start_offset = read_path_start_pos[i] + extra_left_clip
 				read_end_offset = read_path_end_pos[i] - extra_right_clip
+			if read_end_offset <= read_start_offset: continue
 			assert read_start_offset >= 0
 			assert read_end_offset > read_start_offset
 			assert read_end_offset <= readlen
 			assert extra_left_clip + extra_right_clip < read_path_end_pos[i] - read_path_start_pos[i]
+			if node_end_offset <= node_start_offset: continue
 			assert node_start_offset >= 0
 			assert node_end_offset > node_start_offset
 			assert node_end_offset <= raw_node_lens[path[i][1:]]
