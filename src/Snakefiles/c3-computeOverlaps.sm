@@ -140,7 +140,9 @@ def combineOverlapsI(wildcards):
 
 def combineOverlapsP(wildcards):
     paths = expand("overlap-jobs/{nnnn}.ovb", nnnn = glob_wildcards("0-correction/overlap-jobs/{xxxx}.params").xxxx) 
-
+    if len(paths) == 0:
+       return paths
+       
     outf  = open("0-correction/ovb-files", mode="wb")
     for path in paths:
         outf.write(f"{path}\n".encode())
