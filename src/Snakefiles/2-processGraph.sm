@@ -64,7 +64,7 @@ echo ""
 echo Tip unrolling.
 cut -f 6 < ../{input.paths} \\\\
 | \\\\
-{PYTHON} {VERKKO}/scripts/unroll_tip_loops.py gapped-hifi-resolved.gfa 5 \\\\
+{PYTHON} {VERKKO}/scripts/unroll_tip_loops.py gapped-hifi-resolved.gfa 2 \\\\
   > unrolled-hifi-resolved.gfa
 
 {PYTHON} {VERKKO}/scripts/get_unroll_mapping.py gapped-hifi-resolved.gfa unrolled-hifi-resolved.gfa \\\\
