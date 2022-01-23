@@ -61,17 +61,13 @@ echo Gap insertion pass 3.
   > gapped-hifi-resolved.gfa
 
 echo ""
-echo Unitigify gaps.
-{PYTHON} {VERKKO}/scripts/unitigify.py "utig-hifigap-" unitig-mapping-hifigap.txt < gapped-hifi-resolved.gfa > unitig-gapped-hifi-resolved.gfa
-
-echo ""
 echo Tip unrolling.
 cut -f 6 < ../{input.paths} \\\\
 | \\\\
-{PYTHON} {VERKKO}/scripts/unroll_tip_loops.py unitig-gapped-hifi-resolved.gfa 5 \\\\
+{PYTHON} {VERKKO}/scripts/unroll_tip_loops.py gapped-hifi-resolved.gfa 5 \\\\
   > unrolled-hifi-resolved.gfa
 
-{PYTHON} {VERKKO}/scripts/get_unroll_mapping.py unitig-gapped-hifi-resolved.gfa unrolled-hifi-resolved.gfa \\\\
+{PYTHON} {VERKKO}/scripts/get_unroll_mapping.py gapped-hifi-resolved.gfa unrolled-hifi-resolved.gfa \\\\
   > unroll_mapping_1.txt
 
 echo ""
