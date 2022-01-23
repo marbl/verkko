@@ -80,43 +80,56 @@ def get_leafs(path, mapping, edge_overlaps, raw_node_lens):
 	return (result, overlaps)
 
 def get_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_overlaps, pathleftclip, pathrightclip, readleftclip, readrightclip, readlen, readstart, readend, gap):
-	longest = None
-	result = []
-	read_path_start_pos = []
-	read_path_end_pos = []
-	read_node_start_pos = []
-	read_node_end_pos = []
-	path_start_pos = 0
-	read_start_along_path = pathleftclip
-	read_end_along_path = pathleftclip + readend - readstart
+	node_path_start_poses = []
+	node_path_end_poses = []
+	current_pos = 0
 	for i in range(0, len(path)):
 		if i > 0:
-			path_start_pos += raw_node_lens[path[i-1][1:]]
-			path_start_pos -= edge_overlaps[canon(path[i-1], path[i])]
-		path_end_pos = path_start_pos + raw_node_lens[path[i][1:]]
-		read_start_pos = 0
-		if path_start_pos < read_start_along_path:
-			read_start_pos = readstart
-			read_node_start = read_start_along_path - path_start_pos
-		else:
-			read_start_pos = readstart + path_start_pos - read_start_along_path
-			read_node_start = 0
-		read_end_pos = 0
-		if path_end_pos > read_end_along_path:
-			read_end_pos = readend
-			read_node_end = raw_node_lens[path[i][1:]] - (path_end_pos - read_end_along_path)
-		else:
-			read_end_pos = readend - (read_end_along_path - path_end_pos)
-			read_node_end = raw_node_lens[path[i][1:]]
-		assert read_start_pos >= readstart
-		if read_end_pos <= read_start_pos: return []
-		assert read_end_pos > read_start_pos
-		assert read_end_pos <= readend
-		read_path_start_pos.append(read_start_pos)
-		read_path_end_pos.append(read_end_pos)
-		read_node_start_pos.append(read_node_start)
-		read_node_end_pos.append(read_node_end)
+			current_pos -= edge_overlaps[canon(path[i-1], path[i])]
+			assert current_pos > 0
+		node_path_start_poses.append(current_pos)
+		current_pos += raw_node_lens[path[i][1:]]
+		node_path_end_poses.append(current_pos)
+	raw_path_start = pathleftclip
+	raw_path_end = node_path_end_poses[-1] - pathrightclip
+	path_length = node_path_end_poses[-1] - pathleftclip - pathrightclip
+	start_in_node = []
+	end_in_node = []
 	for i in range(0, len(path)):
+		if node_path_start_poses[i] < pathleftclip:
+			start_in_node.append(pathleftclip - node_path_start_poses[i])
+			node_path_start_poses[i] = pathleftclip
+		else:
+			start_in_node.append(0)
+		if node_path_end_poses[i] > raw_path_end:
+			end_in_node.append(raw_node_lens[path[i][1:]] - (node_path_end_poses[i] - raw_path_end))
+			node_path_end_poses[i] = raw_path_end
+		else:
+			end_in_node.append(raw_node_lens[path[i][1:]])
+		assert start_in_node[i] >= 0
+		assert end_in_node[i] > start_in_node[i]
+		assert end_in_node[i] <= raw_node_lens[path[i][1:]]
+		node_path_start_poses[i] -= pathleftclip
+		node_path_end_poses[i] -= pathleftclip
+		assert node_path_start_poses[i] >= 0
+		assert node_path_end_poses[i] <= path_length
+		assert node_path_end_poses[i] > node_path_start_poses[i]
+	assert node_path_start_poses[0] == 0
+	assert node_path_end_poses[-1] == path_length
+	node_read_start_poses = []
+	node_read_end_poses = []
+	read_aln_length = readlen - (readleftclip + readrightclip)
+	for i in range(0, len(path)):
+		start_fraction = float(node_path_start_poses[i]) / float(path_length)
+		end_fraction = float(node_path_end_poses[i]) / float(path_length)
+		node_read_start_poses.append(int(start_fraction * read_aln_length) + readleftclip)
+		node_read_end_poses.append(int(end_fraction * read_aln_length) + readleftclip)
+		assert node_read_end_poses[i] > node_read_start_poses[i]
+	assert node_read_start_poses[0] == readleftclip
+	assert node_read_end_poses[-1] == readlen - readrightclip
+	result = []
+	for i in range(0, len(path)):
+		assert node_read_end_poses[i] > node_read_start_poses[i]
 		if path[i][1:] not in node_poses: continue
 		for startpos in node_poses[path[i][1:]]:
 			(contig, index, fw) = startpos
@@ -125,51 +138,41 @@ def get_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_overlaps,
 			assert (fw) or revnode(contig_nodeseqs[contig][index][0]) == path[i]
 			node_min_start = contig_nodeseqs[contig][index][1]
 			node_max_end = contig_nodeseqs[contig][index][2]
-			if fw:
-				if node_min_start >= read_node_end_pos[i] or node_max_end <= read_node_start_pos[i]: continue
-				extra_left_clip = 0
-				extra_right_clip = 0
-				if node_min_start > read_node_start_pos[i]:
-					extra_left_clip = node_min_start - read_node_start_pos[i]
-					node_start_offset = 0
-				else:
-					node_start_offset = read_node_start_pos[i] - node_min_start
-				if node_max_end < read_node_end_pos[i]:
-					extra_right_clip = read_node_end_pos[i] - node_max_end
-					node_end_offset = node_max_end
-				else:
-					node_end_offset = read_node_end_pos[i]
-				read_start_offset = read_path_start_pos[i] + extra_left_clip
-				read_end_offset = read_path_end_pos[i] - extra_right_clip
+			if node_min_start == node_max_end: continue
+			assert node_min_start >= 0
+			if node_min_start > node_max_end:
+				print(startpos)
+			assert node_min_start <= node_max_end
+			assert node_max_end <= raw_node_lens[path[i][1:]]
+			nodestart = start_in_node[i]
+			nodeend = end_in_node[i]
+			if not fw:
+				(nodestart, nodeend) = (nodeend, nodestart)
+				nodestart = raw_node_lens[path[i][1:]] - nodestart
+				nodeend = raw_node_lens[path[i][1:]] - nodeend
+			if nodestart >= node_max_end or nodeend <= node_min_start: continue
+			readstart = node_read_start_poses[i]
+			readend = node_read_end_poses[i]
+			if nodestart < node_min_start:
+				readstart += node_min_start - nodestart
+				nodestart = 0
 			else:
-				read_wanted_start_pos = raw_node_lens[path[i][1:]] - read_node_end_pos[i]
-				read_wanted_end_pos = raw_node_lens[path[i][1:]] - read_node_start_pos[i]
-				if node_min_start >= read_wanted_end_pos or node_max_end <= read_wanted_start_pos: continue
-				extra_left_clip = 0
-				extra_right_clip = 0
-				if node_min_start > read_wanted_start_pos:
-					extra_right_clip = node_min_start - read_wanted_start_pos
-					node_end_offset = node_max_end
-				else:
-					node_end_offset = node_max_end - (read_wanted_start_pos - node_min_start)
-				if node_max_end < read_wanted_end_pos:
-					extra_left_clip = read_wanted_end_pos - node_max_end
-					node_start_offset = 0
-				else:
-					node_start_offset = node_max_end - read_wanted_end_pos
-				read_start_offset = read_path_start_pos[i] + extra_left_clip
-				read_end_offset = read_path_end_pos[i] - extra_right_clip
-			if read_end_offset <= read_start_offset: continue
-			assert read_start_offset >= 0
-			assert read_end_offset > read_start_offset
-			assert read_end_offset <= readlen
-			assert extra_left_clip + extra_right_clip < read_path_end_pos[i] - read_path_start_pos[i]
-			if node_end_offset <= node_start_offset: continue
-			assert node_start_offset >= 0
-			assert node_end_offset > node_start_offset
-			assert node_end_offset <= raw_node_lens[path[i][1:]]
-			match_bp_len = read_path_end_pos[i] - read_path_start_pos[i] - (extra_left_clip + extra_right_clip)
-			result.append((match_bp_len, contig, index, fw, i, node_start_offset, node_end_offset, read_start_offset, read_end_offset, readlen, gap))
+				nodestart -= node_min_start
+			if nodeend > node_max_end:
+				readend -= nodeend - node_max_end
+				nodeend = node_max_end
+			if not fw:
+				(nodestart, nodeend) = (nodeend, nodestart)
+				nodestart = node_max_end - (nodestart + node_min_start) + node_min_start
+				nodeend = node_max_end - (nodeend + node_min_start) + node_min_start
+			assert nodestart >= 0
+			assert nodeend > nodestart
+			assert nodeend <= raw_node_lens[path[i][1:]]
+			assert readstart >= 0
+			assert readend > readstart
+			assert readend <= readlen
+			match_bp_len = readend - readstart
+			result.append((match_bp_len, contig, index, fw, i, nodestart, nodeend, readstart, readend, readlen, gap))
 	return result
 
 raw_node_lens = {}
