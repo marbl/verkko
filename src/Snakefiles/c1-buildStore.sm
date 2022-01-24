@@ -49,6 +49,9 @@ echo "Building seqStore."
   -minlength {params.minread} \\\\
   -homopolycompress \\\\
   -pacbio-hifi hifi {input}
+
+{VERKKO}/bin/sqStoreDumpMetaData -stats -S ../{output.seqstore}
+
 EOF
 
 chmod +x ./buildStore.sh
