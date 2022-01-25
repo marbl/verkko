@@ -52,7 +52,7 @@ lsf=$LSF_ENVDIR
 #  Note that --time expects format hh:mm:ss.
 #
 if [ "x$slurm" != "x" ] ; then
-  jobid=$(sbatch --cpus-per-task ${n_cpus} --mem ${mem_gb}g --time ${time_h}:00:00 --output batch-scripts/%A.${rule_n}.${jobidx}.out "$@")
+  jobid=$(sbatch --cpus-per-task ${n_cpus} --mem ${mem_gb}g --time ${time_h}:00:00 --output batch-scripts/%A.${rule_n}.${jobidx}.out "$@" |awk '{print $NF}')
 
 
 #  Submit to SGE.  '-terse' reports just the job ID instead of the usual
