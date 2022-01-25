@@ -54,7 +54,7 @@ cat > ./untip.sh <<EOF
 set -e
 
 echo UntipRelative
-{PYTHON} {VERKKO}/scripts/untip_relative.py 30000 30000 0.1 0.1 \\\\
+{PYTHON} {VERKKO}/scripts/untip_relative.py 35000 35000 0.1 0.1 \\\\
 < ../{input.graph} \\\\
 > connected-tip.gfa
 

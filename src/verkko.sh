@@ -108,7 +108,7 @@ spl_min_length=0
 
 #  align_ont, alignment of ont reads to the initial graph
 ali_mxm_length=30
-ali_mem_count=1000
+ali_mem_count=10000
 ali_bandwidth=15
 ali_multi_score_f=0.99
 ali_clipping=0.85
