@@ -151,7 +151,7 @@ def try_pop_tip(start, edges, coverage, removed_nodes, removed_edges, max_remova
 		if coverage_here < max_coverage:
 			assert remove_this is None
 			remove_this = node
-	assert remove_this is not None
+	if remove_this is None: return
 	removed_nodes.add(remove_this[1:])
 	removed_edges.add((start, remove_this))
 	sys.stderr.write("pop tip " + str(start) + " remove " + str(remove_this) + "\n")
