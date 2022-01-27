@@ -134,18 +134,21 @@ def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage):
 def try_pop_tip(start, edges, coverage, removed_nodes, removed_edges, max_removable):
 	if start not in edges: return
 	if len(edges[start]) != 2: return
-	max_coverage_node = None
+	max_coverage = 0
 	for node in edges[start]:
 		assert revnode(node) in edges
 		if len(edges[revnode(node)]) != 1: return
 		if node in edges and len(edges[node]) > 0: return
-		assert node[1:] in coverage
-		if coverage[node[1:]] >= max_removable: return
-		if max_coverage_node is None or coverage[node[1:]] > coverage[max_coverage_node]:
-			max_coverage_node = node[1:]
+		coverage_here = 0
+		if node[1:] in coverage: coverage_here = coverage[node[1:]]
+		if coverage_here >= max_removable: return
+		if coverage_here > max_coverage:
+			max_coverage = coverage_here
 	remove_this = None
 	for node in edges[start]:
-		if node[1:] != max_coverage_node:
+		coverage_here = 0
+		if node[1:] in coverage: coverage_here = coverage[node[1:]]
+		if coverage_here < max_coverage:
 			assert remove_this is None
 			remove_this = node
 	assert remove_this is not None
