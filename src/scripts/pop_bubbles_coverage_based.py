@@ -131,7 +131,7 @@ def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage):
 			if revnode(edge[0]) in edges[revnode(edge[1])]:
 				edges[revnode(edge[1])].remove(revnode(edge[0]))
 
-def try_pop_tip(start, edges, coverage, removed_nodes, removed_edges, max_removable):
+def try_pop_tip(start, edges, coverage, removed_nodes, removed_edges, max_removable, nodelens):
 	if start not in edges: return
 	if len(edges[start]) != 2: return
 	max_coverage = 0
@@ -152,6 +152,8 @@ def try_pop_tip(start, edges, coverage, removed_nodes, removed_edges, max_remova
 			assert remove_this is None
 			remove_this = node
 	if remove_this is None: return
+	assert remove_this[1:] in nodelens
+	if nodelens[remove_this[1:]] > 100000: return
 	removed_nodes.add(remove_this[1:])
 	removed_edges.add((start, remove_this))
 	sys.stderr.write("pop tip " + str(start) + " remove " + str(remove_this) + "\n")
@@ -267,10 +269,10 @@ for node in nodelens:
 	if node in removed_nodes: continue
 	bubble = find_bubble(">" + node, edges, max_bubble_pop_size)
 	if not bubble:
-		try_pop_tip(">" + node, edges, coverage, removed_nodes, removed_edges, avg_coverage*.75)
+		try_pop_tip(">" + node, edges, coverage, removed_nodes, removed_edges, avg_coverage*.75, nodelens)
 	bubble = find_bubble("<" + node, edges, max_bubble_pop_size)
 	if not bubble:
-		try_pop_tip("<" + node, edges, coverage, removed_nodes, removed_edges, avg_coverage*.75)
+		try_pop_tip("<" + node, edges, coverage, removed_nodes, removed_edges, avg_coverage*.75, nodelens)
 
 for node in removed_nodes:
 	sys.stderr.write(node + "\n")
