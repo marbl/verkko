@@ -64,10 +64,10 @@ lsf=$LSF_ENVDIR
 #  Note that --time expects format hh:mm:ss.
 #
 if [ "x$slurm" != "x" ] ; then
-  jobid=$(sbatch --cpus-per-task ${n_cpus} --mem ${mem_gb}g --time ${time_h}:00:00 --output batch-scripts/%A.${rule_n}.${jobidx}.out "$@")
+  jobid=$(sbatch --parsable --cpus-per-task ${n_cpus} --mem ${mem_gb}g --time ${time_h}:00:00 --output batch-scripts/%A.${rule_n}.${jobidx}.out "$@")
 
   echo > batch-scripts/${jobid}.${rule_n}.${jobidx}.submit \
-          sbatch --cpus-per-task ${n_cpus} --mem ${mem_gb}g --time ${time_h}:00:00 --output batch-scripts/%A.${rule_n}.${jobidx}.out "$@"
+          sbatch --parsable --cpus-per-task ${n_cpus} --mem ${mem_gb}g --time ${time_h}:00:00 --output batch-scripts/%A.${rule_n}.${jobidx}.out "$@"
 
 ##########
 #
