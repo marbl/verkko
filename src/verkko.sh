@@ -392,7 +392,7 @@ for exe in bin/findErrors \
 done
 
 if   [ "x$mbg" = "x" ] ; then
-    errors="${errors}Can't find MBG executable in \$PATH \$VERKKO/bin/MBG.\n"
+    errors="${errors}Can't find MBG executable in \$PATH or \$VERKKO/bin/MBG.\n"
 elif [ ! -e "$mbg" ] ; then
     errors="${errors}Can't find MBG executable at '$mbg'.\n"
 fi
