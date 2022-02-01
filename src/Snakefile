@@ -103,7 +103,7 @@ cp -p {input.consensus} {output.consensus}
 #    configureOverlaps - runs a Canu binary to load read lengths and decide
 #                        on batche sizes to compute overlaps.
 #
-localrules: verkko, configureOverlaps, configureFindErrors
+localrules: verkko, configureOverlaps, correctHiFi, configureFindErrors
 
 
 ##########

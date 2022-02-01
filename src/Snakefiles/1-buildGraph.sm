@@ -35,7 +35,7 @@ def toFloat(val):
 
 rule buildGraph:
     input:
-        reads     = {rules.combineErrors.output.corfasta} if config['correction_enabled'] == "True" else HIFI_READS,
+        reads     = {rules.correctHiFi.output.fasta} if config['correction_enabled'] == "True" else HIFI_READS,
     output:
         graph     = '1-buildGraph/hifi-resolved.gfa',
         hificov   = '1-buildGraph/hifi_nodecov.csv',

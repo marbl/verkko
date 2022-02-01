@@ -119,12 +119,12 @@ chmod +x ./{wildcards.nnnn}.sh
         '''
 
 
-def combineErrorsI(wildcards):
+def fixErrorsI(wildcards):
     paths = expand("0-correction/find-errors-jobs/{nnnn}.red", nnnn = glob_wildcards("0-correction/find-errors-jobs/{xxxx}.range").xxxx)
     return paths
 
 
-def combineErrorsP(wildcards):
+def fixErrorsP(wildcards):
     paths = expand("find-errors-jobs/{nnnn}.red", nnnn = glob_wildcards("0-correction/find-errors-jobs/{xxxx}.range").xxxx) 
 
     #outf  = open("0-correction/red-files", mode="wb")
@@ -135,48 +135,68 @@ def combineErrorsP(wildcards):
     return paths
 
 
-rule combineErrors:
+rule fixErrors:
     input:
         seqstore  = {rules.buildStore.output.seqstore},
         ovlstore  = {rules.combineOverlaps.output.ovlstore},
-        reds      = combineErrorsI,
+        reds      = fixErrorsI,
         finished  = {rules.configureFindErrors.output.finished}
     output:
         red       = '0-correction/red.red',
-        corfasta  = '0-correction/hifi-corrected.fasta'
+        fasta     = '0-correction/hifi-corrected.fasta'
     log:
-        err       = "0-correction/combineErrors.err"
+        err       = "0-correction/fixErrors.err"
     params:
-        paths     = combineErrorsP,
+        paths     = fixErrorsP,
         jobid     = 1
     threads:
         1
     resources:
         n_cpus = 1,
-        mem_gb = 8,
+        mem_gb = 16,
         time_h = 4
     shell:
         '''
 cd 0-correction
 
-cat > ./combineErrors.sh <<EOF
+cat > ./fixErrors.sh <<EOF
 #!/bin/sh
 
 echo ""
 echo Combine corrections.
 echo ""
 
-#  red files MUST be in sorted order, which combineErrorsP doesn't return.
+#  red files MUST be in sorted order, which fixErrorsP doesn't return.
 cat find-errors-jobs/*red > red.red
 
 #  Use those corrections to correct the reads.
 {VERKKO}/bin/fixErrors \\\\
   -S   ../{input.seqstore} \\\\
   -red ../{output.red} \\\\
-  -O   ../{output.corfasta}
+  -O   ../{output.fasta}
 EOF
 
-chmod +x ./combineErrors.sh
+chmod +x ./fixErrors.sh
 
-./combineErrors.sh > ../{log.err} 2>&1
+./fixErrors.sh > ../{log.err} 2>&1
+        '''
+
+
+rule correctHiFi:
+    input:
+        fasta    = {rules.fixErrors.output.fasta}
+    output:
+        fasta    = 'hifi-corrected.fasta'
+    log:
+    params:
+    threads:
+        1
+    resources:
+        n_cpus = 1,
+        mem_gb = 1,
+        time_h = 1
+    shell:
+        '''
+mv {input.fasta} {output.fasta}
+rm -rf ./0-correction
         '''
