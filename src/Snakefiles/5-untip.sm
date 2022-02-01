@@ -213,7 +213,7 @@ rule getFinalCoverages:
         1
     resources:
         n_cpus = 1,
-        mem_gb = 4,
+        mem_gb = 16,
         time_h = 2
     shell:
         '''
