@@ -155,13 +155,18 @@ awk 'BEGIN \\\\
 # cat unique_nodes_ont_coverage.txt unique_nodes_ont_translated.txt | sort | uniq > unique_nodes_ont.txt
 
 echo ""
-echo Step 4
+echo Step 4a
 {PYTHON} {VERKKO}/scripts/fix_diploid_unique_nodes.py unique_nodes_ont_coverage.txt nodecovs-ont.csv gapped-unitig-unrolled-hifi-resolved.gfa \\\\
   > unique_nodes_diploidfix.txt
 
 echo ""
+echo Step 4b
+{PYTHON} {VERKKO}/scripts/add_hairpin_uniques.py unique_nodes_ont_diploidfix.txt hifi-nodecov-gapped-unitig-unrolled-hifi-resolved.csv < gapped-unitig-unrolled-hifi-resolved.gfa \\\\
+  > unique_nodes_hairpinfix.txt
+
+echo ""
 echo Step 5
-cp unique_nodes_diploidfix.txt unique_nodes_ont.txt
+cp unique_nodes_hairpinfix.txt unique_nodes_ont.txt
 
 echo ""
 echo Step 6
