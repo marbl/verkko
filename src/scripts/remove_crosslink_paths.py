@@ -37,16 +37,32 @@ def check_side(start):
 	has_two = False
 	this_side = set()
 	has_many = False
-	for side in other_side:
-		for path in connections_per_unique[side]:
-			if len(connections_per_unique[side]) == 2: has_two = True
-			if len(connections_per_unique[side]) > 2: has_many = True
-			for side2 in connections_per_unique[side]:
-				this_side.add(side2)
-				used_connections.add(canontip(side, side2))
-				if len(connections_per_unique[side2]) > 2: has_many = True
+	while True:
+		added_any = False
+		for side in other_side:
+			for path in connections_per_unique[side]:
+				if len(connections_per_unique[side]) == 2: has_two = True
+				if len(connections_per_unique[side]) > 2: has_many = True
+				for side2 in connections_per_unique[side]:
+					if side2 in this_side: continue
+					this_side.add(side2)
+					added_any = True
+					used_connections.add(canontip(side, side2))
+					if len(connections_per_unique[side2]) > 2: has_many = True
+		for side in this_side:
+			for path in connections_per_unique[side]:
+				if len(connections_per_unique[side]) == 2: has_two = True
+				if len(connections_per_unique[side]) > 2: has_many = True
+				for side2 in connections_per_unique[side]:
+					if side2 in other_side: continue
+					other_side.add(side2)
+					added_any = True
+					used_connections.add(canontip(side, side2))
+					if len(connections_per_unique[side2]) > 2: has_many = True
+		if not added_any: break
 	if not has_two: return
 	if has_many: return
+	if len(other_side) != 2: return
 	if len(this_side) != 2: return
 	total_used_nodes = set()
 	for node in this_side: total_used_nodes.add(node[1:])
