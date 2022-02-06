@@ -80,6 +80,7 @@ rule computeErrors:
     log:
         err               = '0-correction/find-errors-jobs/{nnnn}.err'
     params:
+        minolap           = config['cor_min_overlap'],
         jobid             = 1
     threads:
         int(config['red_n_cpus']),
@@ -103,8 +104,8 @@ set -e
   -S ../../{input.seqstore} \\\\
   -O ../../{input.ovlstore} \\\\
   -R $range \\\\
-  -l 2500 \\\\
-  -e 0.0003 \\\\
+  -l {params.minolap} \\\\
+  -e 0.01 \\\\
   -m 0.003 \\\\
   -s \\\\
   -p 5 \\\\
