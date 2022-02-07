@@ -100,6 +100,7 @@ cor_hash_bits=25
 mbg_baseK=1001
 mbg_maxK=15000
 mbg_window=100
+mbg_max_resolution=2000
 
 #  split_ont, partitioning ont reads for alignment
 spl_bases=3000000000
@@ -284,6 +285,7 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--max-k" ] ;    then mbg_maxK=$arg;    shift
     elif [ "$opt" = "--window" ] ;   then mbg_window=$arg;  shift
     elif [ "$opt" = "--threads" ] ;  then mbg_threads=$arg; shift
+    elif [ "$opt" = "--max-r" ]   ;  then mbg_max_resolution=$arg; shift
 
     #
     #  splitONT options
@@ -525,6 +527,7 @@ echo >> verkko.yml "#  build-graph, MBG"
 echo >> verkko.yml "mbg_baseK:           '${mbg_baseK}'"
 echo >> verkko.yml "mbg_maxK:            '${mbg_maxK}'"
 echo >> verkko.yml "mbg_window:          '${mbg_window}'"
+echo >> verkko.yml "mbg_max_resolution:  '${mbg_max_resolution}'"
 echo >> verkko.yml ""
 echo >> verkko.yml "#  split_ont"
 echo >> verkko.yml "spl_bases:           '${spl_bases}'"
