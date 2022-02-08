@@ -49,5 +49,29 @@ jobs:
     - name: Assemble
       run: |
         export PATH=${PATH}:$CONDA/bin
-        ./bin/verkko --version
-        ./bin/verkko -d asm --no-correction --mbg $PWD/cache/mbg-simple.sh --graphaligner $PWD/cache/graphaligner-simple.sh --hifi ./hifi.fastq.gz --nano ./ont.fastq.gz
+
+        rm -f mbg.sh
+        rm -f ga.sh
+        rm -f lib/verkko/bin/utgcns
+
+        echo  > mbg.sh '#!/bin/sh'
+        echo >> mbg.sh 'xz -dc ../../cache/hifi-resolved.gfa.xz  > hifi-resolved.gfa'
+        echo >> mbg.sh 'cp     ../../cache/hifi_nodecov.csv        hifi_nodecov.csv'
+        echo >> mbg.sh 'xz -dc ../../cache/paths.gaf.xz          > paths.gaf'
+
+        echo  > ga.sh '#!/bin/sh'
+        echo >> ga.sh 'if [ ! -e "graph" ] ; then'
+        echo >> ga.sh '  touch graph'
+        echo >> ga.sh '  touch empty.gaf'
+        echo >> ga.sh 'else'
+        echo >> ga.sh '  xz -dc ../../cache/aligned001.WORKING.gaf.xz > aligned001.WORKING.gaf'
+        echo >> ga.sh 'fi'
+
+        echo  > lib/verkko/bin/utgcns '#!/bin/sh'
+        echo >> lib/verkko/bin/utgcns 'cp ../../cache/part001.fasta packages/part001.fasta'
+
+        chmod 755 mbg.sh
+        chmod 755 ga.sh
+        chmod 755 lib/verkko/bin/utgcns
+
+        ./bin/verkko -d asm --no-correction --mbg $PWD/mbg.sh --graphaligner $PWD/ga.sh --hifi ./hifi.fastq.gz --nano ./ont.fastq.gz
