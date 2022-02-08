@@ -24,6 +24,8 @@ hifi=""
 nano=""
 outd=""
 
+keepinter="False"
+
 errors=""
 verkko=""
 
@@ -213,17 +215,18 @@ while [ $# -gt 0 ] ; do
     #  Run options
     #
 
-    elif [ "$opt" = "-d" ] ;             then outd=$arg;          shift
-    elif [ "$opt" = "--python" ] ;       then python=$arg;        shift
-    elif [ "$opt" = "--mbg" ] ;          then mbg=$arg;           shift
-    elif [ "$opt" = "--graphaligner" ] ; then graphaligner=$arg;  shift
-    elif [ "$opt" = "--local" ] ;        then grid="local";
-    elif [ "$opt" = "--sge" ] ;          then grid="slurm-sge";
-    elif [ "$opt" = "--slurm" ] ;        then grid="slurm-sge";
-    elif [ "$opt" = "--lsf" ] ;          then grid="lsf";
-    elif [ "$opt" = "--local-memory" ] ; then local_mem=$arg;     shift
-    elif [ "$opt" = "--local-cpus" ] ;   then local_cpus=$arg;    shift
-    elif [ "$opt" = "--snakeopts" ] ;    then snakeopts=$arg;     shift
+    elif [ "$opt" = "-d" ] ;                   then outd=$arg;          shift
+    elif [ "$opt" = "--keep-intermediate" ] ;  then keepinter="True";
+    elif [ "$opt" = "--python" ] ;             then python=$arg;        shift
+    elif [ "$opt" = "--mbg" ] ;                then mbg=$arg;           shift
+    elif [ "$opt" = "--graphaligner" ] ;       then graphaligner=$arg;  shift
+    elif [ "$opt" = "--local" ] ;              then grid="local";
+    elif [ "$opt" = "--sge" ] ;                then grid="slurm-sge";
+    elif [ "$opt" = "--slurm" ] ;              then grid="slurm-sge";
+    elif [ "$opt" = "--lsf" ] ;                then grid="lsf";
+    elif [ "$opt" = "--local-memory" ] ;       then local_mem=$arg;     shift
+    elif [ "$opt" = "--local-cpus" ] ;         then local_cpus=$arg;    shift
+    elif [ "$opt" = "--snakeopts" ] ;          then snakeopts=$arg;     shift
 
     #
     #  Inputs.
@@ -547,6 +550,8 @@ echo >> verkko.yml "pop_min_allowed_cov: '${pop_min_allowed_cov}'"
 echo >> verkko.yml "pop_resolve_steps:   '${pop_resolve_steps}'"
 echo >> verkko.yml ""
 echo >> verkko.yml "#  Run parameters."
+echo >> verkko.yml ""
+echo >> verkko.yml "keep_intermediate:   '${keepinter}'"
 echo >> verkko.yml ""
 echo >> verkko.yml "#  buildStore, countKmers and computeOverlaps"
 echo >> verkko.yml "sto_n_cpus:          '${sto_n_cpus}'"

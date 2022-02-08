@@ -58,15 +58,16 @@ def combineONTP(wildcards):
 
 rule combineONT:
     input:
-        finished   = {rules.splitONT.output.finished},
-        alignments = combineONTI
+        split_finished = {rules.splitONT.output.finished},
+        alignments     = combineONTI
     output:
-        alignments = '3-align/alns-ont.gaf'
+        alignments     = '3-align/alns-ont.gaf'
     log:
-        err        = '3-align/combineONT.err'
+        err            = '3-align/combineONT.err'
     params:
-        alignments = combineONTP,
-        jobid      = 1
+        alignments     = combineONTP,
+        keepinter      = config['keep_intermediate'],
+        jobid          = 1
     threads:
         1
     resources:
@@ -82,9 +83,19 @@ cat > ./combineONT.sh <<EOF
 set -e
 
 cat {params.alignments} \\\\
-> ../{output.alignments} \\\\
-&& \\\\
-rm -f {params.alignments}
+> ../{output.alignments}
+
+if [ {params.keepinter} = False ] ; then
+  rm -f {params.alignments}
+
+  rm -f ./aligned*.err
+  rm -f ./aligned*.sh
+
+  rm -f ./graph
+  rm -f ./graph.aux
+  rm -f ./graph_index.*
+fi
+
 EOF
 
 chmod +x ./combineONT.sh

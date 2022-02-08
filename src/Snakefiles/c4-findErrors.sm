@@ -190,6 +190,7 @@ rule correctHiFi:
         fasta    = 'hifi-corrected.fasta'
     log:
     params:
+        keepinter= config['keep_intermediate']
     threads:
         1
     resources:
@@ -199,5 +200,8 @@ rule correctHiFi:
     shell:
         '''
 mv {input.fasta} {output.fasta}
-rm -rf ./0-correction
+
+if [ {params.keepinter} = "False" ] ; then
+  rm -rf ./0-correction
+fi
         '''

@@ -31,17 +31,19 @@ def extractONTP(wildcards):
 
 rule extractONT:
     input:
-        ont_files     = extractONTI,
-        ont_gap_align = {rules.processONT.output.ont_gap_align}
+        split_finished = {rules.splitONT.output.finished},
+        ont_files      = extractONTI,
+        ont_gap_align  = {rules.processONT.output.ont_gap_align}
     output:
-        ont_subset_id = '7-consensus/ont_subset.id',
-        ont_subset_ex = '7-consensus/ont_subset.extract',
-        ont_subset    = '7-consensus/ont_subset.fasta.gz'
+        ont_subset_id  = '7-consensus/ont_subset.id',
+        ont_subset_ex  = '7-consensus/ont_subset.extract',
+        ont_subset     = '7-consensus/ont_subset.fasta.gz'
     log:
-        err           = '7-consensus/extractONT.err'
+        err            = '7-consensus/extractONT.err'
     params:
-        ont_files     = extractONTP,
-        jobid         = 1
+        ont_files      = extractONTP,
+        keepinter      = config['keep_intermediate'],
+        jobid          = 1
     threads:
         int(config['sub_n_cpus'])
     resources:
@@ -86,6 +88,10 @@ cat {params.ont_files} > ../{output.ont_subset}
 #  Cleanup.
 #
 rm -f {params.ont_files}
+
+if [ {params.keepinter} = "False" ] ; then
+  rm -rf ../3-align/split
+fi
 EOF
 
 chmod +x ./extractONT.sh

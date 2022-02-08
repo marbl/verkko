@@ -40,6 +40,7 @@ rule combineConsensus:
         err       = '7-consensus/combineConsensus.err'
     params:
         paths     = combineConsensusP,
+        keepinter = config['keep_intermediate'],
         jobid     = 1
     threads:
         1
@@ -58,6 +59,10 @@ set -e
 {PYTHON} {VERKKO}/scripts/process_reads.py rename ../{output.fasta} \\\\
   ../{input.tigmap} \\\\
   {params.paths}
+
+if [ {params.keepinter} = False ] ; then
+  rm -rf packages
+fi
 EOF
 
 chmod +x ./combineConsensus.sh
