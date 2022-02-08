@@ -54,17 +54,22 @@ ONT_READS  = config.get('ONT_READS')
 #  The two coverage files are from rule create_final_coverages in the original.
 #  Computed here in 5-untip.sm getFinalCoverages
 #
+
+rule emptyfile:
+    output:   'emptyfile'
+    shell:    'touch emptyfile'
+
 rule verkko:
     input:
         graph       = '5-untip/unitig-popped-unitig-normal-connected-tip.gfa',
-        hificov     = '5-untip/unitig-popped-unitig-normal-connected-tip.hifi-coverage.csv',
-        ontcov      = '5-untip/unitig-popped-unitig-normal-connected-tip.ont-coverage.csv',
-        layout      = '6-layoutContigs/unitig-popped.layout',   # layout.txt
-        consensus   = '7-consensus/unitig-popped.fasta',        # concat.fa
-        morecov     = expand("{step}.{tech}-coverage.csv", step=['2-processGraph/unitig-unrolled-hifi-resolved',
-                                                                 '4-processONT/unitig-unrolled-ont-resolved'],
-                                                           tech=['hifi',
-                                                                 'ont']),
+        layout      = '6-layoutContigs/unitig-popped.layout',
+        consensus   = '7-consensus/unitig-popped.fasta',
+        hifi2cov    = '2-processGraph/unitig-unrolled-hifi-resolved.hifi-coverage.csv',
+        ont2cov     = '2-processGraph/unitig-unrolled-hifi-resolved.ont-coverage.csv'       if config['withONT'] == "True" else {rules.emptyfile.output},
+        hifi4cov    = '4-processONT/unitig-unrolled-ont-resolved.hifi-coverage.csv'         if config['withONT'] == "True" else {rules.emptyfile.output},
+        ont4cov     = '4-processONT/unitig-unrolled-ont-resolved.ont-coverage.csv'          if config['withONT'] == "True" else {rules.emptyfile.output},
+        hifi5cov    = '5-untip/unitig-popped-unitig-normal-connected-tip.hifi-coverage.csv',
+        ont5cov     = '5-untip/unitig-popped-unitig-normal-connected-tip.ont-coverage.csv'  if config['withONT'] == "True" else {rules.emptyfile.output},
     output:
         graph       = 'assembly.gfa',
         layout      = 'assembly.layout',
@@ -75,9 +80,10 @@ rule verkko:
         '''
 cp -p {input.graph}     {output.graph}
 cp -p {input.layout}    {output.layout}
-cp -p {input.hificov}   {output.hificov}
-cp -p {input.ontcov}    {output.ontcov}
 cp -p {input.consensus} {output.consensus}
+cp -p {input.hifi5cov}  {output.hificov}
+cp -p {input.ont5cov}   {output.ontcov}
+rm -f {rules.emptyfile.output}
         '''
 
 
@@ -103,7 +109,8 @@ cp -p {input.consensus} {output.consensus}
 #    configureOverlaps - runs a Canu binary to load read lengths and decide
 #                        on batche sizes to compute overlaps.
 #
-localrules: verkko, configureOverlaps, correctHiFi, configureFindErrors
+localrules: verkko, configureOverlaps, correctHiFi, configureFindErrors, emptyfile
+
 
 
 ##########
@@ -127,6 +134,7 @@ include: 'Snakefiles/3-combineONT.sm'
 
 include: 'Snakefiles/4-processONT.sm'
 
+include: 'Snakefiles/get-coverage.sm'
 include: 'Snakefiles/5-untip.sm'
 
 include: 'Snakefiles/6-layoutContigs.sm'

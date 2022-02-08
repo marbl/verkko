@@ -29,13 +29,13 @@
 
 rule processONT:
     input:
-       graph            = rules.processGraph.output.gfa,
-       hificov          = rules.buildGraph.output.hificov,
-       ont_paths        = rules.combineONT.output.alignments    #  alns-ont.gaf
+       graph            = {rules.processGraph.output.gfa},
+       hificov          = {rules.buildGraph.output.hificov},
+       ont_paths        = {rules.combineONT.output.alignments}
     output:
-       graph            = '4-processONT/unitig-unrolled-ont-resolved.gfa',   #  confirmed
-       ont_gap_align    = '4-processONT/gaps-ont.gaf',                       #  confirmed
-       ontcov           = '4-processONT/nodecovs-ont.csv'                    #  confirmed
+       graph            = '4-processONT/unitig-unrolled-ont-resolved.gfa',
+       ont_gap_align    = '4-processONT/gaps-ont.gaf',
+       ontcov           = '4-processONT/nodecovs-ont.csv'
     log:
         err             = '4-processONT/processONT.err'
     params:

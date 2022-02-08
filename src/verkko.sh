@@ -24,6 +24,8 @@ hifi=""
 nano=""
 outd=""
 
+withont="False"
+
 keepinter="False"
 
 errors=""
@@ -162,7 +164,7 @@ spl_time_h=96
 #  align_ont
 ali_n_cpus=24
 ali_mem_gb=160
-ali_time_h=12
+ali_time_h=24
 
 #  process_ont_paths
 pop_n_cpus=1
@@ -248,10 +250,10 @@ while [ $# -gt 0 ] ; do
             fi
             shift
             arg=$1
-            #errors="${errors}Can\'t find HiFi reads file \'$arg\'.\n"
         done
 
     elif [ "$opt" = "--nano" ] ; then
+        withont="True"
         while [ -e "$arg" ] ; do
             if [ -e "/$arg" ] ; then
                 nano="$nano $arg"
@@ -260,12 +262,10 @@ while [ $# -gt 0 ] ; do
             fi
             shift
             arg=$1
-            #errors="${errors}Can\'t find Nanopore reads file \'$arg\'.\n"
         done
 
-    #
-    #
-    #
+    elif [ "$opt" = "--no-nano" ] ; then
+        withont="False"
 
     #
     #  Canu correction options
@@ -371,7 +371,7 @@ if [ "x$hifi" = "x" ] ; then
     errors="${errors}No PacBio HiFi reads (--hifi) supplied.\n"
 fi
 
-if [ "x$nano" = "x" ] ; then
+if [ "x$nano" = "x" -a "x$withont" = "xTrue" ] ; then
     errors="${errors}No Oxford Nanopore reads (--nano) supplied.\n"
 fi
 
@@ -419,8 +419,8 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "                             number of files can be supplied; *.gz works."
     echo ""
     echo "  ALGORITHM PARAMETERS:"
-    echo "    --no-correction"
-    echo ""
+    echo "    --no-correction          Do not perform Canu correction on the HiFi reads."
+    echo "    --no-nano                Assemble without ONT data."
     echo ""
     echo "    --base-k"
     echo "    --max-k"
@@ -481,9 +481,6 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     exit 0
 fi
 
-
-
-
 #
 #  All good!
 #    Make a work directory for us.
@@ -508,6 +505,8 @@ echo >> verkko.yml "HIFI_READS:"
 for h in ${hifi} ; do
   echo >> verkko.yml " - '$h'"
 done
+echo >> verkko.yml ""
+echo >> verkko.yml "withONT:             '${withont}'"
 echo >> verkko.yml "ONT_READS:"
 for o in ${nano} ; do
   echo >> verkko.yml " - '$o'"
@@ -626,7 +625,7 @@ echo  > snakemake.sh "#!/bin/sh"
 echo >> snakemake.sh ""
 echo >> snakemake.sh "echo \"Launching $version ...\""
 echo >> snakemake.sh ""
-echo >> snakemake.sh "snakemake --nocolor \\"
+echo >> snakemake.sh "snakemake verkko --nocolor \\"
 echo >> snakemake.sh "  --directory . \\"
 echo >> snakemake.sh "  --snakefile ${verkko}/Snakefile \\"
 echo >> snakemake.sh "  --configfile verkko.yml \\"
