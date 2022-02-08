@@ -1,0 +1,53 @@
+name: compile and e.coli
+
+on:
+  push:
+    paths:
+    - '**.sm'
+    - '**.py'
+    - '**.sh'
+    - 'src/*'
+
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build_linux:
+    name:    Linux
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Compile
+      run: |
+        cd src
+        make -j 2
+
+    - name: Setup Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+
+    - name: Setup Conda
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        auto-update-conda: true
+        python-version: 3.8
+
+    - name: Install snakemake-minimal
+      run: |
+        $CONDA/bin/conda install -c conda-forge -c bioconda snakemake-minimal
+
+    - name: Fetch Data
+      run: |
+        curl -L https://obj.umiacs.umd.edu/sergek/shared/ecoli_hifi_subset24x.fastq.gz -o hifi.fastq.gz
+        curl -L https://obj.umiacs.umd.edu/sergek/shared/ecoli_ont_subset50x.fastq.gz  -o ont.fastq.gz
+        curl -L https://obj.umiacs.umd.edu/sergek/shared/ecoli-test-cache.tar          -o cache.tar
+        tar -xf cache.tar
+
+    - name: Assemble
+      run: |
+        export PATH=${PATH}:$CONDA/bin
+        ./bin/verkko --version
+        ./bin/verkko -d asm --no-correction --mbg $PWD/cache/mbg-simple.sh --graphaligner $PWD/cache/graphaligner-simple.sh --hifi ./hifi.fastq.gz --nano ./ont.fastq.gz
