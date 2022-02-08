@@ -645,9 +645,4 @@ echo >> snakemake.sh "  ${snakeopts}"
 echo >> snakemake.sh ""
 
 chmod +x snakemake.sh
-
-#export PATH=${verkko}/bin:${verkko}/scripts:$PATH
-
 ./snakemake.sh
-
-exit 0
