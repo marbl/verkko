@@ -368,11 +368,11 @@ if [ "x$verkko" = "x" ] ; then
 fi
 
 if [ "x$hifi" = "x" ] ; then
-    errors="${errors}No PacBio HiFi reads (-hifi) supplied.\n"
+    errors="${errors}No PacBio HiFi reads (--hifi) supplied.\n"
 fi
 
 if [ "x$nano" = "x" ] ; then
-    errors="${errors}No Oxford Nanopore reads (-nano) supplied.\n"
+    errors="${errors}No Oxford Nanopore reads (--nano) supplied.\n"
 fi
 
 #           bin/seqrequester
@@ -407,7 +407,7 @@ elif [ ! -e "$graphaligner" ] ; then
 fi
 
 if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
-    echo "usage: $0 -d <output-directory> -hifi <hifi-reads ...> -nano <nanopore-reads ...>"
+    echo "usage: $0 -d <output-directory> --hifi <hifi-reads ...> --nano <nanopore-reads ...>"
     echo "  MANDATORY PARAMETERS:"
     echo "    -d <output-directory>    Directory to use for verkko intermediate and final results."
     echo "                             Will be created if needed."
