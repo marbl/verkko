@@ -27,7 +27,7 @@ import math
 def getMemoryRequest(attempt, tag):
    scl = 0.75 + attempt / 4.0
    mem = float(config[f"{tag}_mem_gb"])
-   return int(math.ceil(scl * mem))
+   return int(math.ceil(math.ceil(mem)*scl))
 
 def getAlignMemoryRequest(attempt, factor, prefix, suffixes):
    scl = 0.75 + attempt / 4.0
@@ -41,7 +41,7 @@ def getAlignMemoryRequest(attempt, factor, prefix, suffixes):
    if sum > 0:
       mem = factor * sum / 1024 / 1024 / 1024
 
-   return int(math.ceil(scl * mem))
+   return int(math.ceil(math.ceil(mem)*scl))
 
 
 #
