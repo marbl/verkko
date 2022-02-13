@@ -90,8 +90,10 @@ next_gap_id = 1
 gap_lens = {}
 allowed_gaps = set()
 gap_names = {}
+gapkeys = list(gaps)
+gapkeys.sort()
 
-for gap in gaps:
+for gap in gapkeys:
 	if len(gaps[gap]) < min_gap_coverage: continue
 	gap_len_list = list(gaps[gap])
 	gap_len_list.sort()
@@ -137,8 +139,11 @@ for gap in gaps:
 
 used_gap_alns = set()
 
+used_names = list(alns_per_read)
+used_names.sort()
+
 with open(gap_aln_file_out, "w") as f:
-	for name in alns_per_read:
+	for name in used_names:
 		if len(alns_per_read[name]) < 2: continue
 		alns = alns_per_read[name]
 		last_used_index = None

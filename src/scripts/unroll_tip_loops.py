@@ -102,8 +102,17 @@ for node in counts_per_tiploop:
 
 sys.stderr.write("unrolled " + str(unrolled_count) + " looptips\n")
 
-for node in nodeseqs:
+nodenames = list(nodeseqs)
+nodenames.sort()
+
+for node in nodenames:
 	print("S\t" + node + "\t" + nodeseqs[node])
-for edge in edges:
-	for target in edges[edge]:
+
+edgenames = list(edges)
+edgenames.sort()
+
+for edge in edgenames:
+	targets = list(edges[edge])
+	targets.sort()
+	for target in targets:
 		print("L\t" + edge[1:] + "\t" + ("+" if edge[0] == ">" else "-") + "\t" + target[1:] + "\t" + ("+" if target[0] == ">" else "-") + "\t" + overlaps[(edge, target)])

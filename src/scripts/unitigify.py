@@ -81,7 +81,10 @@ for l in sys.stdin:
 belongs_to_unitig = set()
 unitigs = []
 
-for node in node_seqs:
+nodenames = list(node_seqs)
+nodenames.sort()
+
+for node in nodenames:
 	assert ">" + node in edges
 	assert "<" + node in edges
 	if len(edges[">" + node]) != 1:
@@ -97,7 +100,7 @@ for node in node_seqs:
 	if len(edges["<" + node]) == 1 and getone(edges["<" + node])[1:] == node:
 		if node not in belongs_to_unitig: start_unitig(">" + node, unitigs, belongs_to_unitig, edges)
 
-for node in node_seqs:
+for node in nodenames:
 	if node in belongs_to_unitig: continue
 	start_circular_unitig(">" + node, unitigs, belongs_to_unitig, edges)
 
@@ -110,7 +113,7 @@ for i in range(0, len(unitigs)):
 	unitig_end[revnode(unitigs[i][0])] = "<" + str(i)
 
 unitig_edges = set()
-for node in node_seqs:
+for node in nodenames:
 	assert node in belongs_to_unitig
 	if ">" + node in unitig_end:
 		for target in edges[">" + node]:
@@ -131,6 +134,9 @@ for i in range(0, len(unitigs)):
 	sys.stdout.write("S\t" + prefix + str(i) + "\t")
 	write_seq(sys.stdout, unitigs[i], node_seqs, edge_overlaps)
 	sys.stdout.write("\n")
+
+unitig_edges = list(unitig_edges)
+unitig_edges.sort()
 
 for edge in unitig_edges:
 	print("L\t" + prefix + edge[0][1:] + "\t" + ("+" if edge[0][0] == ">" else "-") + "\t" + prefix + edge[1][1:] + "\t" + ("+" if edge[1][0] == ">" else "-") + "\t" + str(edge[2]) + "M")
