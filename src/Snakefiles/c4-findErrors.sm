@@ -87,7 +87,7 @@ rule computeErrors:
     resources:
         n_cpus = config['red_n_cpus'],
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'red'),
-        time_h = config['red_time_h']
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'red')
     shell:
         '''
 cd       0-correction/find-errors-jobs

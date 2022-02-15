@@ -15,7 +15,7 @@
 import math
 
 #
-#  These two functions return a memory estimate for a given component.
+#  These functions return a memory estimate for a given component.
 #   - The first is a generic function used by all rules.
 #   - The second is specific to alignONT, it will analyze the inputs
 #     to decide a proper memory estimate.
@@ -23,6 +23,11 @@ import math
 #  Both use ceil instead of int(x + 0.5) so they don't overshoot the
 #  actual value ({tag}_mem_gb = 64 returns 64 instead of 65).
 #
+
+def getTimeRequest(attempt, tag, factor=1.5):
+   scl=max(1.0, (attempt - 1) * factor)
+   time=float(config[f"{tag}_time_h"])*scl
+   return int(math.ceil(time))
 
 def getMemoryRequest(attempt, tag):
    scl = 0.75 + attempt / 4.0

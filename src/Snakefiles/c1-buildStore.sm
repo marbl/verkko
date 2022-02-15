@@ -32,7 +32,7 @@ rule buildStore:
     resources:
         n_cpus = config['sto_n_cpus'],
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'sto'),
-        time_h = config['sto_time_h']
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'sto')
     shell:
         '''
 cd 0-correction

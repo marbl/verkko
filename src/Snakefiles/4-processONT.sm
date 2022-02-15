@@ -49,7 +49,7 @@ rule processONT:
     resources:
         n_cpus = config['pop_n_cpus'],
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'pop'),
-        time_h = config['pop_time_h']
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'pop')
     shell:
         '''
 cd 4-processONT

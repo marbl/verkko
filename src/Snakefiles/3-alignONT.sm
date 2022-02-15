@@ -36,7 +36,7 @@ rule indexGraph:
     resources:
         n_cpus = config['ali_n_cpus'],
         mem_gb = lambda wildcards, input, attempt: getAlignMemoryRequest(attempt, 40, input.gfa.replace(".gfa", ""), ".gfa".split()),
-        time_h = config['ali_time_h']
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt,  'ali', 5.0)
     shell:
         '''
 cd 3-align

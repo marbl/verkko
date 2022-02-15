@@ -32,7 +32,7 @@ rule countKmers:
     resources:
         n_cpus = config['mer_n_cpus'],
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'mer'),
-        time_h = config['mer_time_h']
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'mer')
     shell:
         '''
 cd 0-correction
