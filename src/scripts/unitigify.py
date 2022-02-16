@@ -7,6 +7,12 @@ mapping_file = sys.argv[2]
 # gfa from stdin
 # gfa to stdout
 
+def iterate_deterministic(l):
+	tmp = list(l)
+	tmp.sort()
+	for x in tmp:
+		yield x
+
 def getone(s):
 	assert len(s) == 1
 	for n in s:
@@ -89,11 +95,11 @@ for node in nodenames:
 	assert "<" + node in edges
 	if len(edges[">" + node]) != 1:
 		if node not in belongs_to_unitig: start_unitig("<" + node, unitigs, belongs_to_unitig, edges)
-		for edge in edges[">" + node]:
+		for edge in iterate_deterministic(edges[">" + node]):
 			if edge[1:] not in belongs_to_unitig: start_unitig(edge, unitigs, belongs_to_unitig, edges)
 	if len(edges["<" + node]) != 1:
 		if node not in belongs_to_unitig: start_unitig(">" + node, unitigs, belongs_to_unitig, edges)
-		for edge in edges["<" + node]:
+		for edge in iterate_deterministic(edges["<" + node]):
 			if edge[1:] not in belongs_to_unitig: start_unitig(edge, unitigs, belongs_to_unitig, edges)
 	if len(edges[">" + node]) == 1 and getone(edges[">" + node])[1:] == node:
 		if node not in belongs_to_unitig: start_unitig("<" + node, unitigs, belongs_to_unitig, edges)
@@ -116,12 +122,12 @@ unitig_edges = set()
 for node in nodenames:
 	assert node in belongs_to_unitig
 	if ">" + node in unitig_end:
-		for target in edges[">" + node]:
+		for target in iterate_deterministic(edges[">" + node]):
 			assert target in unitig_start
 			edge = (unitig_end[">" + node], unitig_start[target], edge_overlaps[(">" + node, target)])
 			unitig_edges.add(edge)
 	if "<" + node in unitig_end:
-		for target in edges["<" + node]:
+		for target in iterate_deterministic(edges["<" + node]):
 			assert target in unitig_start
 			edge = (unitig_end["<" + node], unitig_start[target], edge_overlaps[("<" + node, target)])
 			unitig_edges.add(edge)

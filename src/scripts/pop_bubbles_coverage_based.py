@@ -8,6 +8,12 @@ node_coverage_file = sys.argv[1]
 
 max_bubble_pop_size = 10
 
+def iterate_deterministic(l):
+	tmp = list(l)
+	tmp.sort()
+	for x in tmp:
+		yield x
+
 def getone(s):
 	for n in s:
 		return n
@@ -99,7 +105,7 @@ def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage):
 		bubble_nodes.add(top[1:])
 		bubble_edges.add((before, top))
 		if top == end: continue
-		for edge in edges[top]:
+		for edge in iterate_deterministic(edges[top]):
 			stack.append((edge, top, min(pathwidth, coverage.get(edge[1:], 0))))
 	assert end in predecessor
 	path = [end]
@@ -135,7 +141,7 @@ def try_pop_tip(start, edges, coverage, removed_nodes, removed_edges, max_remova
 	if start not in edges: return
 	if len(edges[start]) != 2: return
 	max_coverage = 0
-	for node in edges[start]:
+	for node in iterate_deterministic(edges[start]):
 		assert revnode(node) in edges
 		if len(edges[revnode(node)]) != 1: return
 		if node in edges and len(edges[node]) > 0: return
@@ -145,7 +151,7 @@ def try_pop_tip(start, edges, coverage, removed_nodes, removed_edges, max_remova
 		if coverage_here > max_coverage:
 			max_coverage = coverage_here
 	remove_this = None
-	for node in edges[start]:
+	for node in iterate_deterministic(edges[start]):
 		coverage_here = 0
 		if node[1:] in coverage: coverage_here = coverage[node[1:]]
 		if coverage_here < max_coverage:
@@ -246,7 +252,7 @@ for node in nodelens:
 	if chain_coverage >= avg_coverage * 0.5 and chain_coverage <= avg_coverage * 1.5:
 		unique_chains.add(key)
 
-for node in nodelens:
+for node in iterate_deterministic(nodelens):
 	key = find(parent, node)
 	if key not in unique_chains: continue
 	if node in removed_nodes: continue
@@ -263,7 +269,7 @@ for node in nodelens:
 		if find(parent, bubble[1][1:]) != key: continue
 		pop_bubble(bubble[0], bubble[1], removed_nodes, removed_edges, edges, coverage)
 
-for node in nodelens:
+for node in iterate_deterministic(nodelens):
 	key = find(parent, node)
 	if key not in unique_chains: continue
 	if node in removed_nodes: continue
