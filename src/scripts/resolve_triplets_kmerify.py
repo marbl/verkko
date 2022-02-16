@@ -26,6 +26,7 @@ def revcomp(s):
 	return "".join(comp[c] for c in s[::-1])
 
 def getone(s):
+	assert len(s) == 1
 	for n in s:
 		return n
 
@@ -613,7 +614,7 @@ def resolve(node_lens, edge_overlaps, node_seqs, edges, paths_crossing, min_edge
 		if len(resolved) > 0:
 			assert current_length > last_resolved
 			last_resolved = current_length
-		for n in new_nodes:
+		for n in iterate_deterministic(new_nodes):
 			if n not in node_seqs: continue # already unitigified
 			new_unitig = unitigify_one(node_seqs, node_lens, edges, paths_crossing, n)
 			heapq.heappush(nodes_by_len, (get_unitig_len(node_lens, edge_overlaps, node_seqs, new_unitig), new_unitig))
@@ -653,8 +654,10 @@ def get_unitig_len_path(node_lens, edge_overlaps, path, left_clip, right_clip):
 	return unitig_len
 
 def iterate_paths(paths_crossing, node):
-	for pathid in iterate_deterministic(paths_crossing[node]):
-		yield paths_crossing[node][pathid]
+	paths = [paths_crossing[node][pathid] for pathid in paths_crossing[node]]
+	paths.sort()
+	for path in paths:
+		yield path
 
 def remove_path(paths_crossing, path):
 	nodes_in_path = set(n[1:] for n in path)
@@ -743,7 +746,7 @@ def replace_unitig(node_seqs, node_lens, edges, paths_crossing, unitig):
 	edges["<" + new_node] = set()
 	if unitig[-1] in edges:
 		add_edges = []
-		for edge in edges[unitig[-1]]:
+		for edge in iterate_deterministic(edges[unitig[-1]]):
 			assert revnode(edge) in edges
 			add_edges.append((">" + new_node, edge))
 			edge_overlaps[canon(">" + new_node, edge)] = edge_overlaps[canon(unitig[-1], edge)]
@@ -752,7 +755,7 @@ def replace_unitig(node_seqs, node_lens, edges, paths_crossing, unitig):
 			edges[revnode(edge[1])].add(revnode(edge[0]))
 	if revnode(unitig[0]) in edges:
 		add_edges = []
-		for edge in edges[revnode(unitig[0])]:
+		for edge in iterate_deterministic(edges[revnode(unitig[0])]):
 			assert revnode(edge) in edges
 			add_edges.append(("<" + new_node, edge))
 			edge_overlaps[canon("<" + new_node, edge)] = edge_overlaps[canon(revnode(unitig[0]), edge)]
