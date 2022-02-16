@@ -71,7 +71,7 @@ rule verkko:
         hifi5cov    = '5-untip/unitig-popped-unitig-normal-connected-tip.hifi-coverage.csv',
         ont5cov     = '5-untip/unitig-popped-unitig-normal-connected-tip.ont-coverage.csv'  if config['withONT'] == "True" else {rules.emptyfile.output},
     output:
-        graph       = 'assembly.gfa',
+        graph       = 'assembly.homopolymer-compressed.gfa',
         layout      = 'assembly.layout',
         hificov     = 'assembly.hifi-coverage.csv',
         ontcov      = 'assembly.ont-coverage.csv',
