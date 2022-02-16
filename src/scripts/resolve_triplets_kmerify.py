@@ -15,6 +15,12 @@ resolve_steps = [int(n) for n in sys.argv[7:]]
 
 next_unitig_num = 1
 
+def iterate_deterministic(l):
+	tmp = list(l)
+	tmp.sort()
+	for x in tmp:
+		yield x
+
 def revcomp(s):
 	comp = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C', 'N': 'N'}
 	return "".join(comp[c] for c in s[::-1])
@@ -69,7 +75,7 @@ def replace_path_nodes(resolvable, paths_crossing, new_edgenodes, maybe_resolvab
 	found_identities = set()
 	remove_paths = []
 	add_paths = []
-	for node in resolvable:
+	for node in iterate_deterministic(resolvable):
 		for path in iterate_paths(paths_crossing, node):
 			if id(path) in found_identities: continue
 			found_identities.add(id(path))
@@ -134,14 +140,14 @@ def remove_graph_node(node, node_seqs, edges):
 	del node_seqs[node]
 	remove_edges = []
 	if ">" + node in edges:
-		for edge in edges[">" + node]:
+		for edge in iterate_deterministic(edges[">" + node]):
 			if edge[1:] == node: continue
 			assert revnode(edge) in edges
 			assert "<" + node in edges[revnode(edge)]
 			remove_edges.append((revnode(edge), "<" + node))
 		del edges[">" + node]
 	if "<" + node in edges:
-		for edge in edges["<" + node]:
+		for edge in iterate_deterministic(edges["<" + node]):
 			if edge[1:] == node: continue
 			assert revnode(edge) in edges
 			assert ">" + node in edges[revnode(edge)]
@@ -227,17 +233,17 @@ def get_valid_triplets(node, edges, paths_crossing, min_edge_support):
 	if len(edge_covered_out_neighbors) < len(edges[">" + node]): return []
 	if len(triplet_covered_in_neighbors) < len(edge_covered_in_neighbors): return []
 	if len(triplet_covered_out_neighbors) < len(edge_covered_out_neighbors): return []
-	allowed_triplets = set()
-	for triplet in triplets:
+	allowed_triplets = []
+	for triplet in iterate_deterministic(triplets):
 		cov = triplets[triplet]
 		if cov < min_edge_support: continue
-		allowed_triplets.add(triplet)
+		allowed_triplets.append(triplet)
 	return allowed_triplets
 
 def resolve_nodes(nodelength, nodes, paths_crossing, node_seqs, node_lens, edges, maybe_resolvable, min_edge_support):
 	resolvable = set()
 	triplets = []
-	for node in nodes:
+	for node in iterate_deterministic(nodes):
 		triplets_here = get_valid_triplets(node, edges, paths_crossing, min_edge_support)
 		if len(triplets_here) == 0:
 			maybe_resolvable.remove(node)
@@ -258,7 +264,7 @@ def resolve_nodes(nodelength, nodes, paths_crossing, node_seqs, node_lens, edges
 	resolvable = set()
 	triplets = []
 	longest_extension_per_node = {}
-	for node in nodes:
+	for node in iterate_deterministic(nodes):
 		if node not in maybe_resolvable: continue
 		triplets_here = get_valid_triplets(node, edges, paths_crossing, min_edge_support)
 		if len(triplets_here) == 0:
@@ -474,11 +480,11 @@ def resolve_nodes(nodelength, nodes, paths_crossing, node_seqs, node_lens, edges
 		assert key not in edge_overlaps
 		edge_overlaps[key] = overlap
 	replace_path_nodes(resolvable, paths_crossing, new_edgenodes, maybe_resolvable)
-	for node in resolvable: remove_graph_node(node, node_seqs, edges)
+	for node in iterate_deterministic(resolvable): remove_graph_node(node, node_seqs, edges)
 	self_edge_coverage = {}
 	new_paths = []
 	found_identities = set()
-	for n in new_edgenodes:
+	for n in iterate_deterministic(new_edgenodes):
 		for path in iterate_paths(paths_crossing, new_edgenodes[n]):
 			if id(path) in found_identities: continue
 			found_identities.add(id(path))
@@ -519,8 +525,8 @@ def remove_and_split_low_coverage(node_seqs, edges, initial_paths, paths_crossin
 			if c not in edge_coverage: edge_coverage[c] = 0
 			edge_coverage[c] += 1
 	remove_edges = set()
-	for fromnode in edges:
-		for tonode in edges[fromnode]:
+	for fromnode in iterate_deterministic(edges):
+		for tonode in iterate_deterministic(edges[fromnode]):
 			cov = 0
 			if canon(fromnode, tonode) in edge_coverage: cov = edge_coverage[canon(fromnode, tonode)]
 			if cov >= min_coverage: continue
@@ -567,7 +573,7 @@ def remove_and_split_low_coverage(node_seqs, edges, initial_paths, paths_crossin
 		if remove_this: remove_path(paths_crossing, path)
 		for addable in add_these:
 			if len(addable) >= 2: add_path(paths_crossing, addable)
-	for node in removables:
+	for node in iterate_deterministic(removables):
 		remove_graph_node(node, node_seqs, edges)
 		coverage = 0
 		if node in node_coverage: coverage = node_coverage[node]
@@ -647,7 +653,7 @@ def get_unitig_len_path(node_lens, edge_overlaps, path, left_clip, right_clip):
 	return unitig_len
 
 def iterate_paths(paths_crossing, node):
-	for pathid in paths_crossing[node]:
+	for pathid in iterate_deterministic(paths_crossing[node]):
 		yield paths_crossing[node][pathid]
 
 def remove_path(paths_crossing, path):
@@ -826,7 +832,7 @@ def unitigify_one(node_seqs, node_lens, edges, paths_crossing, node):
 
 def unitigify_all(node_seqs, node_lens, edges, paths_crossing):
 	maybe_unitigifiable = set(node_seqs)
-	for node in maybe_unitigifiable:
+	for node in iterate_deterministic(maybe_unitigifiable):
 		if node not in node_seqs: continue # already unitigified
 		unitigify_one(node_seqs, node_lens, edges, paths_crossing, node)
 
@@ -885,7 +891,7 @@ sys.stderr.write("done resolving" + "\n")
 
 unitig_name = {}
 unitig_num = 1
-for n in node_seqs:
+for n in iterate_deterministic(node_seqs):
 	if len(node_seqs[n]) == 1:
 		assert node_seqs[n][0][0] == ">"
 		unitig_name[n] = node_seqs[n][0][1:]
@@ -897,7 +903,7 @@ sys.stderr.write("write paths" + "\n")
 
 found_identities = set()
 with open(out_path_file, "w") as f:
-	for n in paths_crossing:
+	for n in iterate_deterministic(paths_crossing):
 		for path in iterate_paths(paths_crossing, n):
 			if id(path) in found_identities: continue
 			found_identities.add(id(path))
@@ -909,15 +915,15 @@ del found_identities
 sys.stderr.write("paths written" + "\n")
 sys.stderr.write("write graph" + "\n")
 
-for e1 in edges:
-	for e2 in edges[e1]:
+for e1 in iterate_deterministic(edges):
+	for e2 in iterate_deterministic(edges[e1]):
 		print("L\t" + unitig_name[e1[1:]] + "\t" + ("+" if e1[0] == ">" else "-") + "\t" + unitig_name[e2[1:]] + "\t" + ("+" if e2[0] == ">" else "-") + "\t" + str(edge_overlaps[canon(e1, e2)]) + "M")
 
 del edges
 
 base_seqs = read_graph_only_bases(input_gfa)
 
-for n in node_seqs:
+for n in iterate_deterministic(node_seqs):
 	print("S\t" + unitig_name[n] + "\t" + get_seq(base_seqs, edge_overlaps, node_seqs[n][0], node_seqs[n][1], node_seqs[n][2]))
 
 sys.stderr.write("graph written" + "\n")

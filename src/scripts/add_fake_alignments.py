@@ -37,6 +37,9 @@ with open(output_fake_node_coverages_file, "w") as f:
 	for node in fake_nodes:
 		f.write(node + "\t" + str(fake_nodes[node]) + "\t" + str(int(fake_nodes[node]) * fake_coverage) + "\n")
 
+fake_edges = list(fake_edges)
+fake_edges.sort()
+
 with open(output_fake_alignments_file, "w") as f:
 	with open(input_alignments_file) as f2:
 		for l in f2:
