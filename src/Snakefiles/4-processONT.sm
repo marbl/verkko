@@ -209,7 +209,7 @@ echo Step 9
   3 \\\\
   > bridging_seq_diploidfix_all.txt
 
-cp bridging_seq_diploidfix_all.txt bridging_seq_picked.txt
+sort < bridging_seq_diploidfix_all.txt > bridging_seq_picked.txt
 
 echo ""
 echo Step 10
