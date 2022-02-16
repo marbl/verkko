@@ -65,15 +65,19 @@ unresolve_number = {}
 for base in belongs_to_base:
 	unresolve_number[base] = 1
 
+base_names = list(belongs_to_base.keys())
+base_names.sort()
+
 iteration = 0
 while True:
 	num_resolved = 0
-	resolvables = list(belongs_to_base.keys())
-	for base in resolvables:
+	for base in base_names:
 		assert len(belongs_to_base[base]) >= 1
 		if len(belongs_to_base[base]) == 1: continue
+		nodes_here = list(belongs_to_base[base])
+		nodes_here.sort()
 		outneighbor_groups = {}
-		for node in belongs_to_base[base]:
+		for node in nodes_here:
 			out_neighbors = set()
 			if ">" + node in edges: out_neighbors = edges[">" + node]
 			out_neighbors = tuple(out_neighbors)
@@ -107,7 +111,7 @@ while True:
 			break # only do one per loop because of interactions between different outneighbor groups in weird cyclic tangles
 		if any_resolved: continue
 		inneighbor_groups = {}
-		for node in belongs_to_base[base]:
+		for node in nodes_here:
 			in_neighbors = set()
 			if "<" + node in edges: in_neighbors = edges["<" + node]
 			in_neighbors = tuple(in_neighbors)
@@ -146,17 +150,28 @@ while True:
 sys.stderr.write("done unresolving, write graph" + "\n")
 
 name_mapping = {}
-for base in belongs_to_base:
-	for node in belongs_to_base[base]:
+for base in base_names:
+	nodes_here = list(belongs_to_base[base])
+	nodes_here.sort()
+	for node in nodes_here:
 		if len(belongs_to_base[base]) == 1:
 			name_mapping[node] = base
 		else:
 			name_mapping[node] = node
 
-for n in nodeseqs:
+node_names = list(nodeseqs)
+node_names.sort()
+
+for n in node_names:
 	print("S\t" + name_mapping[n] + "\t" + nodeseqs[n])
-for edge in edges:
-	for target in edges[edge]:
+
+edge_names = list(edges)
+edge_names.sort()
+
+for edge in edge_names:
+	targets = list(edges[edge])
+	targets.sort()
+	for target in targets:
 		from_base = "_".join(edge.split('_')[:-1])
 		to_base = "_".join(target.split('_')[:-1])
 		if "_" not in edge: from_base = edge
