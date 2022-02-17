@@ -7,6 +7,7 @@ on:
     - '**.py'
     - '**.sh'
     - 'src/*'
+    - '.github/workflows/*.yml'
 
   pull_request:
     branches: [ master ]
@@ -48,6 +49,15 @@ jobs:
 
     - name: Assemble
       run: |
+        reportLogs() {
+          for fn in `find . -name \*err -print` ; do
+            echo ""
+            echo "==BEGIN $fn"
+            cat $fn
+            echo "==END   $fn"
+          done
+          exit 1
+        }
         export PATH=${PATH}:$CONDA/bin
 
         rm -f mbg.sh
@@ -74,4 +84,4 @@ jobs:
         chmod 755 ga.sh
         chmod 755 lib/verkko/bin/utgcns
 
-        ./bin/verkko -d asm --no-correction --mbg $PWD/mbg.sh --graphaligner $PWD/ga.sh --hifi ./hifi.fastq.gz --nano ./ont.fastq.gz
+        ./bin/verkko -d asm --no-correction --mbg $PWD/mbg.sh --graphaligner $PWD/ga.sh --hifi ./hifi.fastq.gz --nano ./ont.fastq.gz || reportLogs
