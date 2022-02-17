@@ -52,6 +52,7 @@ set -e
     -threads {threads} \\\\
     -import ../{input.package} \\\\
     -A ../{output.consensus} \\\\
+    -C 2 -norealign \\\\
     -maxcoverage 50 \\\\
     -e 0.20 \\\\
     -l 2500 \\\\
