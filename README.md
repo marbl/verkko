@@ -39,7 +39,7 @@ This will create the folder `verkko/bin` and `verkko/lib/verkko`. You can move t
 Verkko is implemented as a Snakemake workflow, launched by a wrapper script to parse options
 and create a config.yml file.
 
-    verkko -d <work-directory> --hifi <hifi-read-files> --nano <ont-read-files>
+    verkko -d <work-directory> --hifi <hifi-read-files> [--nano <ont-read-files>]
 
 By default, verkko will run the snakemake workflow and all compute on the local machine. Support for SGE, Slurm and LSF (untested) can be enabled with options `--sge`, `--slurm` and `--lsf`, respectively. This will run the snakemake workflow on the local machine but submit all compute to the grid. To launch the both the snakemake workflow and compute on the grid, wrap the verkko command in a shell script and submit using your scheduler.  You may need to set the environment variable VERKKO to the installation directory of Verkko if there are errors that component scripts are not found.
 
