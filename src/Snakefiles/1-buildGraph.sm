@@ -49,6 +49,7 @@ rule buildGraph:
         baseK             = config['mbg_baseK'],
         maxK              = config['mbg_maxK'],
         window            = config['mbg_window'],
+        maxR              = config['mbg_max_resolution'],
         kmer_abundance    = 1,                   #  MBG default = 1
         unitig_abundance  = 2,                   #  MBG default = 2
         jobid             = 1
@@ -95,7 +96,7 @@ echo ""
   \$iopt \\\\
   -t {resources.n_cpus} \\\\
   -k {params.baseK} \\\\
-  -r {params.maxK} \\\\
+  -r {params.maxK} -R {params.maxR} \\\\
   -w {params.window} \\\\
   --kmer-abundance {params.kmer_abundance} \\\\
   --unitig-abundance {params.unitig_abundance} \\\\
