@@ -104,7 +104,7 @@ cor_hash_bits=25
 mbg_baseK=1001
 mbg_maxK=15000
 mbg_window=100
-mbg_max_resolution=2000
+mbg_max_resolution=4000
 
 #  split_ont, partitioning ont reads for alignment
 spl_bases=3000000000
