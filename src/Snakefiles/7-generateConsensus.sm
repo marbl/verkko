@@ -56,7 +56,6 @@ set -e
     -maxcoverage 50 \\\\
     -e 0.20 \\\\
     -l 2500 \\\\
-    -pbdagcon \\\\
     -edlib
 EOF
 
