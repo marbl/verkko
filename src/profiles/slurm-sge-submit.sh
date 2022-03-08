@@ -53,21 +53,37 @@ mkdir -p batch-scripts/
 #    SGE:   if SGE_CELL exists in the environment, assume SGE works.
 #    LSF:   if LSF_ENVDIR exists in the environment, assume LSF works.
 #
-slurm=`which sinfo 2> /dev/null`
+slurm=$(which sinfo 2> /dev/null)
 sge=$SGE_CELL
 lsf=$LSF_ENVDIR
 
 ##########
 #
-#  Submit to Slurm.
+#  Submit to Slurm.  If the inital submission fails, wait a lengthy time and
+#  try again.  If that also fails, return failure and let snakemake deal with
+#  it.
 #
 #  Note that --time expects format hh:mm:ss.
 #
 if [ "x$slurm" != "x" ] ; then
   jobid=$(sbatch --parsable --cpus-per-task ${n_cpus} --mem ${mem_gb}g --time ${time_h}:00:00 --output batch-scripts/%A.${rule_n}.${jobidx}.out "$@")
 
+  if [ $? != 0 ] ; then
+    sleep 30
+    jobid=$(sbatch --parsable --cpus-per-task ${n_cpus} --mem ${mem_gb}g --time ${time_h}:00:00 --output batch-scripts/%A.${rule_n}.${jobidx}.out "$@")
+  fi
+
+  if [ $? != 0 ] ; then
+    exit 1
+  fi
+
   echo > batch-scripts/${jobid}.${rule_n}.${jobidx}.submit \
           sbatch --parsable --cpus-per-task ${n_cpus} --mem ${mem_gb}g --time ${time_h}:00:00 --output batch-scripts/%A.${rule_n}.${jobidx}.out "$@"
+
+  if [ -x /usr/local/bin/dashboard_cli ] ; then    #  If on NIH biowulf, slow down
+    sleep 2                                        #  job submission.
+  fi
+
 
 ##########
 #
@@ -84,6 +100,7 @@ elif [ "x$sge" != "x" ] ; then
 
   echo > batch-scripts/${jobid}.${rule_n}.${jobidx}.submit \
           qsub -terse -cwd -V -pe thread ${n_cpus} -l memory=${mem_per_thread}g -j y -o batch-scripts/${jobid}.${rule_n}.${jobidx}.out "$@"
+
 
 ##########
 #

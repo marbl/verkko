@@ -5,10 +5,10 @@
 
 #  JobID and return status.
 jobid=$1
-jobstatus="failed"
+jobstatus="running"
 
 #  Test for Slurm: if sinfo is present, assume slurm works.
-slurm=`which sinfo 2> /dev/null`
+slurm=$(which sinfo 2> /dev/null)
 
 #  Test for SGE: if SGE_CELL exists in the environment, assume SGE works.
 sge=$SGE_CELL
@@ -25,21 +25,46 @@ lsf=$LSF_ENVDIR
 #  is possible that sacct returns no output, and so our default state
 #  is "running".
 #
+#  dashboard_cli is an NIH biowulf extension that caches sacct results.
+#
 if [ "x$slurm" != "x" ] ; then
-  jobstatus=`sacct -j "$jobid" --format State --noheader | head -n 1 \
+  if [ -x /usr/local/bin/dashboard_cli ] ; then
+    sleep 2
+    sacct="/usr/local/bin/dashboard_cli jobs --fields state"
+  else
+    sacct="sacct --format State"
+  fi
+
+  jobstatus=$($sacct -j "$jobid" --noheader)
+  if [ $? != 0 ] ; then   #  If sacct fails, report
+    echo running          #  that the job is running.
+    echo 1>&2 "Job $jobid is $jobstatus (by default)."
+    exit 0
+  fi
+
+  jobstatus=$(echo $jobstatus | head -n 1 \
   | \
   awk \
-  'BEGIN { stat="running" } \
+   'BEGIN { stat="running" } \
    { \
-    if      ($1 == "COMPLETED")   { stat="success" } \
-    else if ($1 == "RUNNING")     { stat="running" } \
-    else if ($1 == "PENDING")     { stat="running" } \
-    else if ($1 == "COMPLETING")  { stat="running" } \
-    else if ($1 == "CONFIGURING") { stat="running" } \
-    else if ($1 == "SUSPENDED")   { stat="running" } \
-    else                          { stat="failed"  }
+    if      ($1 == "COMPLETED")     { stat="success" } \
+    else if ($1 == "PENDING")       { stat="running" } \
+    else if ($1 == "CONFIGURING")   { stat="running" } \
+    else if ($1 == "RUNNING")       { stat="running" } \
+    else if ($1 == "SUSPENDED")     { stat="running" } \
+    else if ($1 == "PREEMPTED")     { stat="running" } \
+    else if ($1 == "COMPLETING")    { stat="running" } \
+    else if ($1 == "BOOT_FAIL")     { stat="failed"  } \
+    else if ($1 == "CANCELLED")     { stat="failed"  } \
+    else if ($1 == "DEADLINE")      { stat="failed"  } \
+    else if ($1 == "FAILED")        { stat="failed"  } \
+    else if ($1 == "NODE_FAIL")     { stat="failed"  } \
+    else if ($1 == "OUT_OF_MEMORY") { stat="failed"  } \
+    else if ($1 == "PREEMPTED")     { stat="failed"  } \
+    else if ($1 == "TIMEOUT")       { stat="failed"  } \
+    else                            { stat="failed"  }
    }
-   END { print stat }'`
+   END { print stat }')
 
 
 #  Check SGE status.
@@ -51,14 +76,14 @@ if [ "x$slurm" != "x" ] ; then
 #  If no output, then we need to query qacct for the job status.
 #
 elif [ "x$sge" != "x" ] ; then
-  if   [ `qstat -j $jobid 2> /dev/null | grep error\ reason | wc -c` -gt 0 ] ; then
+  if   [ $(qstat -j $jobid 2> /dev/null | grep error\ reason | wc -c) -gt 0 ] ; then
     jobstatus="failed"
 
-  elif [ `qstat -j $jobid 2> /dev/null | wc -c` -gt 0 ] ; then
+  elif [ $(qstat -j $jobid 2> /dev/null | wc -c) -gt 0 ] ; then
     jobstatus="running"
 
   else
-    jobstatus=`qacct -j $jobid 2> /dev/null \
+    jobstatus=$(qacct -j $jobid 2> /dev/null \
     | \
     awk \
     '{ \
@@ -67,7 +92,7 @@ elif [ "x$sge" != "x" ] ; then
      } END { \
       if (fail > 0) { print "failed" }  \
       else          { print "success" } \
-     }'`
+     }')
   fi
 
 
@@ -78,8 +103,8 @@ elif [ "x$sge" != "x" ] ; then
 #    success -- DONE POST_DONE
 #    failed  -- UNKWN ZOMBI EXIT POST_ERR
 #
-elif [ "x$lsf" != "x" ; then
-  jobstatus=`bjobs -o stat -noheader "$jobid" | head -n 1 \
+elif [ "x$lsf" != "x" ] ; then
+  jobstatus=$(bjobs -o stat -noheader "$jobid" | head -n 1 \
   | \
   awk \
   'BEGIN { stat="running" } \
@@ -96,15 +121,17 @@ elif [ "x$lsf" != "x" ; then
     else if ($1 == "ZOMBI")       { stat="failed"  } \
     else if ($1 == "EXIT")        { stat="failed"  } \
     else if ($1 == "POST_ERR")    { stat="failed"  } \
-    else                          { stat="failed"  }
-   }
-   END { print stat }'`
+    else                          { stat="failed"  } \
+   } \
+   END { print stat }')
 
 
 #  Otherwise, do what?  Fail!
 else
     jobstatus="failed"
 fi
+
+echo 1>&2 "Job $jobid is $jobstatus."
 
 echo $jobstatus
 exit 0
