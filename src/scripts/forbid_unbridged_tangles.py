@@ -7,8 +7,10 @@ graphfile = sys.argv[2]
 forbidden_connectionfile = sys.argv[3]
 picked_connections_file = sys.argv[4]
 pathsfile = sys.argv[5]
-coveragefile = sys.argv[6]
-min_solid_coverage = int(sys.argv[7])
+ontcoveragefile = sys.argv[6]
+min_ont_solid_coverage = int(sys.argv[7])
+hificoveragefile = sys.argv[8]
+min_hifi_solid_coverage = int(sys.argv[9])
 
 def find(s, parent):
 	while parent[s] != parent[parent[s]]:
@@ -42,7 +44,7 @@ with open(pathsfile) as f:
 
 solid_edges = set()
 for key in edge_coverage:
-	if edge_coverage[key] < min_solid_coverage: continue
+	if edge_coverage[key] < min_ont_solid_coverage: continue
 	solid_edges.add(key)
 
 unique_nodes = set()
@@ -50,14 +52,28 @@ with open(uniquefile) as f:
 	for l in f:
 		unique_nodes.add(l.strip())
 
-solid_nodes = set()
-with open(coveragefile) as f:
+hifi_solid_nodes = set()
+with open(hificoveragefile) as f:
+	for l in f:
+		parts = l.strip().split('\t')
+		if parts[1] == "coverage": continue
+		if float(parts[1]) < min_hifi_solid_coverage: continue
+		if parts[0] in unique_nodes: continue
+		hifi_solid_nodes.add(parts[0])
+
+ont_solid_nodes = set()
+with open(ontcoveragefile) as f:
 	for l in f:
 		parts = l.strip().split('\t')
 		if parts[2] == "coverage": continue
-		if float(parts[2]) < min_solid_coverage: continue
+		if float(parts[2]) < min_ont_solid_coverage: continue
 		if parts[0] in unique_nodes: continue
-		solid_nodes.add(parts[0])
+		ont_solid_nodes.add(parts[0])
+
+solid_nodes = set()
+for node in hifi_solid_nodes:
+	if node in ont_solid_nodes:
+		solid_nodes.add(node)
 
 parent = {}
 rank = {}

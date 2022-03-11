@@ -227,6 +227,8 @@ echo Step 11
   paths.txt \\\\
   nodecovs-ont.csv \\\\
   30 \\\\
+  hifi-nodecov-gapped-unitig-unrolled-hifi-resolved.csv \\\\
+  10 \\\\
 > forbidden_ends.txt
 
 echo ""
