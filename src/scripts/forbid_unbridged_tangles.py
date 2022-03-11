@@ -42,11 +42,6 @@ with open(pathsfile) as f:
 			if key not in edge_coverage: edge_coverage[key] = 0
 			edge_coverage[key] += 1
 
-solid_edges = set()
-for key in edge_coverage:
-	if edge_coverage[key] < min_ont_solid_coverage: continue
-	solid_edges.add(key)
-
 unique_nodes = set()
 with open(uniquefile) as f:
 	for l in f:
@@ -74,6 +69,12 @@ solid_nodes = set()
 for node in hifi_solid_nodes:
 	if node in ont_solid_nodes:
 		solid_nodes.add(node)
+
+solid_edges = set()
+for key in edge_coverage:
+	if edge_coverage[key] < min_ont_solid_coverage: continue
+	if key[0][1:] not in hifi_solid_nodes or key[1][1:] not in hifi_solid_nodes: continue
+	solid_edges.add(key)
 
 parent = {}
 rank = {}
