@@ -71,9 +71,15 @@ awk 'BEGIN \\\\
 
 echo ""
 echo Step 2a
-{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py ../{input.graph} alns-ont-mapqfilter.gaf 3 50 alns-ont-nogap.gaf ../{output.ont_gap_align} gapont \\\\
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py ../{input.graph} alns-ont-mapqfilter.gaf 3 50 alns-ont-nogap-1.gaf alns-ont-gap1.gaf gapont1 \\\\
   < alns-ont-mapqfilter.gaf \\\\
+  > gapped-once-unitig-unrolled-hifi-resolved.gfa
+
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-once-unitig-unrolled-hifi-resolved.gfa alns-ont-nogap-1.gaf 5 1500 alns-ont-nogap.gaf alns-ont-gap2.gaf gapont2 \\\\
+  < alns-ont-nogap-1.gaf \\\\
   > gapped-unitig-unrolled-hifi-resolved.gfa
+
+cat alns-ont-gap1.gaf alns-ont-gap2.gaf > ../{output.ont_gap_align}
 
 echo ""
 echo Step 2b
