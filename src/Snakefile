@@ -63,6 +63,7 @@ rule verkko:
     input:
         graph       = '5-untip/unitig-popped-unitig-normal-connected-tip.gfa',
         layout      = '6-layoutContigs/unitig-popped.layout',
+        scfmap      = '6-layoutContigs/unitig-popped.layout.scfmap',
         consensus   = '7-consensus/unitig-popped.fasta',
         hifi2cov    = '2-processGraph/unitig-unrolled-hifi-resolved.hifi-coverage.csv',
         ont2cov     = '2-processGraph/unitig-unrolled-hifi-resolved.ont-coverage.csv'       if config['withONT'] == "True" else {rules.emptyfile.output},

@@ -1,13 +1,18 @@
 #!/usr/bin/env python
 
 import sys
+import re
 
 mapping_file = sys.argv[1]
 edge_overlap_file = sys.argv[2]
 read_alignment_file = sys.argv[3]
 paths_file = sys.argv[4]
 nodelens_file = sys.argv[5]
-# layout to stdout
+layout_output = sys.argv[6]
+layscf_output = sys.argv[7]
+
+tig_layout_file = open(f"{layout_output}", mode="w")
+scf_layout_file = open(f"{layscf_output}", mode="w")
 
 min_read_len_fraction = 0.5
 
@@ -211,33 +216,57 @@ contig_lens = {}
 contig_nodeseqs = {}
 contig_nodeoverlaps = {}
 contig_node_offsets = {}
+
+pieceid = 0
+
 with open(paths_file) as f:
 	for l in f:
-		parts = l.strip().split('\t')
-		pathname = parts[0]
-		path = parts[1].replace('<', '\t<').replace('>', '\t>').strip().split('\t')
-		(path, overlaps) = get_leafs(path, node_mapping, edge_overlaps, raw_node_lens)
-		contig_nodeseqs[pathname] = path
-		contig_nodeoverlaps[pathname] = overlaps
-		contig_node_offsets[pathname] = []
-		pos = 0
-		for i in range(0, len(path)-1):
+		lp    = l.strip().split('\t')
+
+		#  Find all words that
+		#    begin with [<>], contain anything but [
+		#    begin with [N, contain digits and end with N]
+		#
+		fullname = lp[0]
+		pathfull = re.findall(r"([<>][^[]+|\[N\d+N\])", lp[1])
+
+		print(f"path {fullname}", file=scf_layout_file)
+
+		for pp in pathfull:
+			if re.match(r"\[N\d+N\]", pp):
+				print(f"{pp}", file=scf_layout_file)
+				continue
+
+			pieceid = pieceid + 1
+			pathname = f"piece{pieceid}"
+
+			print(f"{pathname}", file=scf_layout_file)
+
+			(path, overlaps) = get_leafs(re.findall(r"[<>][^<>]+", pp), node_mapping, edge_overlaps, raw_node_lens)
+
+			contig_nodeseqs[pathname] = path
+			contig_nodeoverlaps[pathname] = overlaps
+			contig_node_offsets[pathname] = []
+			pos = 0
+			for i in range(0, len(path)-1):
+				contig_node_offsets[pathname].append(pos)
+				pos += path[i][2] - path[i][1]
+				pos -= overlaps[i]
 			contig_node_offsets[pathname].append(pos)
-			pos += path[i][2] - path[i][1]
-			pos -= overlaps[i]
-		contig_node_offsets[pathname].append(pos)
-		contig_lens[pathname] = contig_node_offsets[pathname][-1] + path[-1][2] - path[-1][1]
-		check_len = 0
-		for i in range(0, len(path)):
-			check_len += path[i][2] - path[i][1]
-			if i > 0: check_len -= overlaps[i-1]
-		assert contig_lens[pathname] == check_len
-		pathstr = ""
-		for i in range(0, len(path)):
-			pathstr += path[i][0] + ":" + str(path[i][1]) + ":" + str(path[i][2]) + "(" + str(contig_node_offsets[pathname][i]) + ")"
-			if i < len(path)-1: pathstr += "-" + str(overlaps[i])
-		# sys.stderr.write(pathname + "\t" + "".join(str(n[0]) + ":" + str(n[1]) + ":" + str(n[2]) for n in path) + "\n")
-		sys.stderr.write(pathname + "\t" + pathstr + "\n")
+			contig_lens[pathname] = contig_node_offsets[pathname][-1] + path[-1][2] - path[-1][1]
+			check_len = 0
+			for i in range(0, len(path)):
+				check_len += path[i][2] - path[i][1]
+				if i > 0: check_len -= overlaps[i-1]
+			assert contig_lens[pathname] == check_len
+			pathstr = ""
+			for i in range(0, len(path)):
+				pathstr += path[i][0] + ":" + str(path[i][1]) + ":" + str(path[i][2]) + "(" + str(contig_node_offsets[pathname][i]) + ")"
+				if i < len(path)-1: pathstr += "-" + str(overlaps[i])
+			# sys.stderr.write(pathname + "\t" + "".join(str(n[0]) + ":" + str(n[1]) + ":" + str(n[2]) for n in path) + "\n")
+			sys.stderr.write(pathname + "\t" + pathstr + "\n")
+
+		print(f"end", file=scf_layout_file)
 
 node_poses = {}
 for contigname in contig_nodeseqs:
@@ -383,9 +412,14 @@ for contig in contig_actual_lines:
 		start_pos = min(start_pos, line[2])
 		end_pos = max(end_pos, line[1])
 		end_pos = max(end_pos, line[2])
-	print("tig\t" + contig)
-	print("len\t" + str(end_pos - start_pos))
-	print("rds\t" + str(len(contig_actual_lines[contig])))
+	print(f"tig\t{contig}", file=tig_layout_file)
+	print(f"len\t{end_pos - start_pos}", file=tig_layout_file)
+	print(f"rds\t{len(contig_actual_lines[contig])}", file=tig_layout_file)
 	for line in contig_actual_lines[contig]:
-		print(line[0] + "\t" + str(line[1] - start_pos) + "\t" + str(line[2] - start_pos))
-	print("end")
+		bgn = line[1] - start_pos
+		end = line[2] - start_pos
+		print(f"{line[0]}\t{bgn}\t{end}", file=tig_layout_file)
+	print(f"end", file=tig_layout_file)
+
+tig_layout_file.close()
+scf_layout_file.close()

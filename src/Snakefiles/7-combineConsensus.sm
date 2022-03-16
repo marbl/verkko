@@ -33,6 +33,7 @@ rule combineConsensus:
     input:
         consensus = combineConsensusI,
         tigmap    = {rules.buildPackages.output.tigmap},
+        scfmap    = {rules.layoutContigs.output.scfmap},
         finished  = {rules.buildPackages.output.finished},
     output:
         fasta     = {rules.verkko.input.consensus}
@@ -56,8 +57,9 @@ cat > ./combineConsensus.sh <<EOF
 #!/bin/sh
 set -e
 
-{PYTHON} {VERKKO}/scripts/process_reads.py rename ../{output.fasta} \\\\
+{PYTHON} {VERKKO}/scripts/process_reads.py combine ../{output.fasta} \\\\
   ../{input.tigmap} \\\\
+  ../{input.scfmap} \\\\
   {params.paths}
 
 if [ {params.keepinter} = False ] ; then

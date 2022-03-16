@@ -107,7 +107,6 @@ def readNameMap(filename):
   return(namedict)
 
 
-
 #  Replace the 'name' (excluding any 'tig0..' prefix) with whatever is in the
 #  dictionary.  If nothing matches, the original name is retained.
 #
@@ -116,7 +115,7 @@ def replaceName(name, namedict, mode):
     return(name)
   elif mode == 'extract':
     return(namedict.get(name))
-  elif mode == 'rename':
+  elif mode == 'rename' or mode == 'combine':
     return(namedict.get(re.sub('tig0+', '', name), name))
   else:
     return(name)
@@ -127,12 +126,35 @@ def existsInDict(name, namedict):
   return(name in namedict)
 
 
+def readScfMap(filename):
+  scfmap  = dict()
+  ctgname = ""
+  ctglist = []
+
+  with openInput(filename) as f:
+    for l in f:
+      words = re.findall(r"(\S+)", l)
+
+      if words[0] == "path":
+        ctgname = words[1]
+        ctglist = []
+        print(f"{ctgname}")
+      elif words[0] == "end":
+        scfmap[ctgname] = ctglist
+        print(f"")
+      else:
+        ctglist.append(words[0])
+        print(f" - {words[0]}")
+
+  return(scfmap)
 
 
 mode             = None
 filenames        = []
 
 namedict         = dict()
+scfmap           = []
+pieces           = dict()
 
 output_prefix    = None
 output_max_bytes = 0
@@ -169,11 +191,19 @@ elif (len(sys.argv) > 4) and (sys.argv[1] == 'rename'):
   namedict         = readNameMap(sys.argv[3])
   filenames        =             sys.argv[4:]
 
+elif (len(sys.argv) > 5) and (sys.argv[1] == 'combine'):
+  mode             =             sys.argv[1]
+  output_name      =             sys.argv[2]
+  namedict         = readNameMap(sys.argv[3])
+  scfmap           =  readScfMap(sys.argv[4])
+  filenames        =             sys.argv[5:]
+
 else:
   sys.stderr.write(f"usage:\n")
-  sys.stderr.write(f"  {sys.argv[0]} partition <output-prefix> <max-bytes> <max-seqs> <files ....>\n")
-  sys.stderr.write(f"  {sys.argv[0]} extract   <output-file>   <list-of-names> <files ....>\n")
-  sys.stderr.write(f"  {sys.argv[0]} rename    <output-file>   <name-map> <files ...>\n")
+  sys.stderr.write(f"  {sys.argv[0]} partition <output-prefix> <max-bytes> <max-seqs>    <files ....>\n")
+  sys.stderr.write(f"  {sys.argv[0]} extract   <output-file>   <list-of-names>           <files ....>\n")
+  sys.stderr.write(f"  {sys.argv[0]} rename    <output-file>   <name-map>                <files ...>\n")
+  sys.stderr.write(f"  {sys.argv[0]} combine   <output-file>   <name-map> <scaffold-map> <files ...>\n")
   sys.stderr.write(f"\n")
   sys.stderr.write(f"  'partition' creates output files no bigger than <max-bytes> and containing\n")
   sys.stderr.write(f"   no more than <max-seqs> sequences each.  Output is FASTA, gzip level-1\n")
@@ -184,6 +214,9 @@ else:
   sys.stderr.write(f"\n")
   sys.stderr.write(f"  'rename' changes the name of sequences according to 'name-map' or leaves\n")
   sys.stderr.write(f"  alone if not in the map and writes the output to stdout.  Output is uncompressed FASTA.\n")
+  sys.stderr.write(f"\n")
+  sys.stderr.write(f"  'combine' performs 'rename' and then combines sequences to scaffolds as\n")
+  sys.stderr.write(f"  described in the <scaffold-map>.  Output is uncompressed FASTA.\n")
   sys.stderr.write(f"\n")
   sys.exit(1)
 
@@ -230,7 +263,10 @@ for filename in filenames:
       if (mode =='partition') and (len(sSeq) < min_read_length):
         sName = None
 
-      if sName:
+      if scfmap:
+        print(f"SAVE {sName}")
+        pieces[sName] = sSeq
+      elif sName:
         #print(f"Write '{sName}' of length {len(sSeq)} to index {format(outf_index, '03d')}")
         outf_bytes += len(sSeq)
         outf_seqs  += 1
@@ -249,7 +285,10 @@ for filename in filenames:
       if (mode =='partition') and (len(sSeq) < min_read_length):
         sName = None
 
-      if sName:
+      if scfmap:
+        print(f"SAVE {sName}")
+        pieces[sName] = sSeq
+      elif sName:
         #print(f"Write '{sName}' of length {len(sSeq)} to index {format(outf_index, '03d')}")
         outf_bytes += len(sSeq)
         outf_seqs  += 1
@@ -265,10 +304,36 @@ for filename in filenames:
   inf.close()
 
 
+if scfmap:
+  print(f"\nWriting output.")
+  print(f"")
+
+  for clist in scfmap:
+    print(f">{clist}")
+
+    seq = ""
+    for piece in scfmap[clist]:
+      numn = re.match(r"\[N(\d+)N]", piece)
+
+      if numn:
+        print(f"  - {numn[1]} Ns")
+        seq += "N" * int(numn[1])
+      else:
+        print(f"  - {piece}")
+        seq += pieces[piece]
+
+    outf.write(f">{clist}\n".encode())
+    outf.write(f"{seq}\n".encode())
+
+  print(f"")
+  print(f"Finished.")
+
+
 if ((output_prefix) and
     (output_max_bytes > 0) and
     (output_max_seqs  > 0)):
   print(f"File {output_prefix}{format(outf_index, '03d')}.fasta.gz complete with {outf_bytes} bp and {outf_seqs} reads.")
+
 
 if outf != None:
   outf.close()
