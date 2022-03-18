@@ -11,9 +11,6 @@ nodelens_file = sys.argv[5]
 layout_output = sys.argv[6]
 layscf_output = sys.argv[7]
 
-tig_layout_file = open(f"{layout_output}", mode="w")
-scf_layout_file = open(f"{layscf_output}", mode="w")
-
 min_read_len_fraction = 0.5
 
 def revnode(n):
@@ -212,13 +209,12 @@ with open(mapping_file) as f:
 			if i > 0: right_len -= edge_overlaps[canon(path[i-1], path[i])]
 		assert left_len == right_len - left_clip - right_clip
 
+pieceid = 0
 contig_lens = {}
 contig_nodeseqs = {}
 contig_nodeoverlaps = {}
 contig_node_offsets = {}
-
-pieceid = 0
-
+contig_pieces = {}
 with open(paths_file) as f:
 	for l in f:
 		lp    = l.strip().split('\t')
@@ -230,17 +226,17 @@ with open(paths_file) as f:
 		fullname = lp[0]
 		pathfull = re.findall(r"([<>][^[]+|\[N\d+N\])", lp[1])
 
-		print(f"path {fullname}", file=scf_layout_file)
+		contig_pieces[fullname] = []
 
 		for pp in pathfull:
 			if re.match(r"\[N\d+N\]", pp):
-				print(f"{pp}", file=scf_layout_file)
+				contig_pieces[fullname].append(pp)
 				continue
 
 			pieceid = pieceid + 1
-			pathname = f"piece{pieceid}"
+			pathname = f"piece{pieceid:06d}"
 
-			print(f"{pathname}", file=scf_layout_file)
+			contig_pieces[fullname].append(pathname)
 
 			(path, overlaps) = get_leafs(re.findall(r"[<>][^<>]+", pp), node_mapping, edge_overlaps, raw_node_lens)
 
@@ -266,7 +262,7 @@ with open(paths_file) as f:
 			# sys.stderr.write(pathname + "\t" + "".join(str(n[0]) + ":" + str(n[1]) + ":" + str(n[2]) for n in path) + "\n")
 			sys.stderr.write(pathname + "\t" + pathstr + "\n")
 
-		print(f"end", file=scf_layout_file)
+		contig_pieces[fullname].append("end")
 
 node_poses = {}
 for contigname in contig_nodeseqs:
@@ -401,7 +397,30 @@ for readname in read_clusters:
 		if line[0] not in contig_actual_lines: contig_actual_lines[line[0]] = []
 		contig_actual_lines[line[0]].append((readname, line[1], line[2]))
 
-for contig in contig_actual_lines:
+
+tig_layout_file = open(f"{layout_output}", mode="w")
+scf_layout_file = open(f"{layscf_output}", mode="w")
+nul_layout_file = open(f"{layscf_output}.dropped", mode="w")
+
+#  Emit a scaffold-map entry if Count the number of pieces that have reads assigned to them, delete
+#  contigs if there are no pieces with reads assigned.
+for contig in sorted(contig_pieces.keys()):
+	npieces = ngaps = nempty = 0
+	ngaps   = 0
+	nempty  = 0
+	for line in contig_pieces[contig]:
+		if re.match(r"\[N\d+N\]", line):  ngaps   += 1
+		elif line in contig_actual_lines: npieces += 1
+		elif line != "end":               nempty  += 1
+	if npieces > 0 and nempty > 0:
+		print(f"{contig} has empty pieces.  npieces {npieces} ngaps {ngaps} nempty {nempty}", file=nul_layout_file)
+	elif nempty == 0:
+		print(f"path {contig}", file=scf_layout_file)
+		for line in contig_pieces[contig]:
+			print(line, file=scf_layout_file)
+
+
+for contig in sorted(contig_actual_lines.keys()):
 	if len(contig_actual_lines[contig]) == 0: continue
 	assert len(contig_actual_lines[contig]) > 0
 	contig_actual_lines[contig].sort(key=lambda x: min(x[1], x[2]))
@@ -423,3 +442,6 @@ for contig in contig_actual_lines:
 
 tig_layout_file.close()
 scf_layout_file.close()
+nul_layout_file.close()
+
+
