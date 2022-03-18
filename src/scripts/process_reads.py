@@ -138,13 +138,10 @@ def readScfMap(filename):
       if words[0] == "path":
         ctgname = words[1]
         ctglist = []
-        print(f"{ctgname}")
       elif words[0] == "end":
         scfmap[ctgname] = ctglist
-        print(f"")
       else:
         ctglist.append(words[0])
-        print(f" - {words[0]}")
 
   return(scfmap)
 
@@ -264,7 +261,6 @@ for filename in filenames:
         sName = None
 
       if scfmap:
-        print(f"SAVE {sName}")
         pieces[sName] = sSeq
       elif sName:
         #print(f"Write '{sName}' of length {len(sSeq)} to index {format(outf_index, '03d')}")
@@ -286,7 +282,6 @@ for filename in filenames:
         sName = None
 
       if scfmap:
-        print(f"SAVE {sName}")
         pieces[sName] = sSeq
       elif sName:
         #print(f"Write '{sName}' of length {len(sSeq)} to index {format(outf_index, '03d')}")
@@ -306,21 +301,18 @@ for filename in filenames:
 
 if scfmap:
   print(f"\nWriting output.")
-  print(f"")
 
   for clist in scfmap:
-    print(f">{clist}")
-
     seq = ""
     for piece in scfmap[clist]:
       numn = re.match(r"\[N(\d+)N]", piece)
 
       if numn:
-        print(f"  - {numn[1]} Ns")
         seq += "N" * int(numn[1])
-      else:
-        print(f"  - {piece}")
+      elif piece in pieces:
         seq += pieces[piece]
+      elif seq:
+        print(f"ERROR: piece {piece} missing from gapped contig.", file=sys.stderr)
 
     outf.write(f">{clist}\n".encode())
     outf.write(f"{seq}\n".encode())
