@@ -50,6 +50,9 @@ withont="False"
 
 keepinter="False"
 
+cnspaths=""
+cnsdir=""
+
 errors=""
 verkko=""
 
@@ -247,6 +250,13 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--snakeopts" ] ;          then snakeopts=$arg;     shift
 
     #
+    #  Run options for running only consensus on a set of user-supplied paths.
+    #
+
+    elif [ "$opt" = "--paths" ] ;              then cnspaths=$arg;      shift
+    elif [ "$opt" = "--assembly" ] ;           then cnsassembly=$arg;   shift
+
+    #
     #  Inputs.
     #
     #  While $arg is a file, append it to the list of input reads.  The test
@@ -371,6 +381,14 @@ if [ "x$graphaligner" = "x" ] ; then
 fi
 if [ ! -e $graphaligner ] ; then
   graphaligner=$(which GraphAligner)
+fi
+
+#
+#  Fix stuff.
+#
+
+if [ "x$cnspaths" != "x" ] ; then
+  correction_enabled=False
 fi
 
 #
@@ -500,171 +518,225 @@ fi
 
 #
 #  All good!
-#    Make a work directory for us.
-#    Write a yaml config file for snakemake.
-#    Create a script to run snakemake.
+#
+
+
+#
+#  Make a YAML configuration for Snakemake.
 #
 
 mkdir -p ${outd}
-cd       ${outd}
 
-echo  > verkko.yml "#  Generated automatically by verkko.sh."
-echo >> verkko.yml "#  Changes will be overwritten."
-echo >> verkko.yml ""
-echo >> verkko.yml "VERKKO:              '${verkko}'"
-echo >> verkko.yml ""
-echo >> verkko.yml "MBG:                 '${mbg}'"
-echo >> verkko.yml "GRAPHALIGNER:        '${graphaligner}'"
-echo >> verkko.yml ""
-echo >> verkko.yml "PYTHON:              '${python}'"
-echo >> verkko.yml ""
-echo >> verkko.yml "HIFI_READS:"
+echo  > ${outd}/verkko.yml "#  Generated automatically by verkko.sh."
+echo >> ${outd}/verkko.yml "#  Changes will be overwritten."
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "VERKKO:              '${verkko}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "MBG:                 '${mbg}'"
+echo >> ${outd}/verkko.yml "GRAPHALIGNER:        '${graphaligner}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "PYTHON:              '${python}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "HIFI_READS:"
 for h in ${hifi} ; do
-  echo >> verkko.yml " - '$h'"
+  echo >> ${outd}/verkko.yml " - '$h'"
 done
-echo >> verkko.yml ""
-echo >> verkko.yml "withONT:             '${withont}'"
-echo >> verkko.yml "ONT_READS:"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "withONT:             '${withont}'"
+echo >> ${outd}/verkko.yml "ONT_READS:"
 for o in ${nano} ; do
-  echo >> verkko.yml " - '$o'"
+  echo >> ${outd}/verkko.yml " - '$o'"
 done
-echo >> verkko.yml ""
-echo >> verkko.yml "#  Algorithm parameters."
-echo >> verkko.yml ""
-echo >> verkko.yml "#  buildStore, countKmers and computeOverlaps"
-echo >> verkko.yml "correction_enabled:  '${correction_enabled}'"
-echo >> verkko.yml "mer_size:            '${mer_size}'"
-echo >> verkko.yml "mer_threshold:       '${mer_threshold}'"
-echo >> verkko.yml ""
-echo >> verkko.yml "cor_min_read:        '${cor_min_read}'"
-echo >> verkko.yml "cor_min_overlap:     '${cor_min_overlap}'"
-echo >> verkko.yml "cor_hash_bits:       '${cor_hash_bits}'"
-echo >> verkko.yml ""
-echo >> verkko.yml "#  build-graph, MBG"
-echo >> verkko.yml "mbg_baseK:           '${mbg_baseK}'"
-echo >> verkko.yml "mbg_maxK:            '${mbg_maxK}'"
-echo >> verkko.yml "mbg_window:          '${mbg_window}'"
-echo >> verkko.yml "mbg_max_resolution:  '${mbg_max_resolution}'"
-echo >> verkko.yml ""
-echo >> verkko.yml "#  split_ont"
-echo >> verkko.yml "spl_bases:           '${spl_bases}'"
-echo >> verkko.yml "spl_reads:           '${spl_reads}'"
-echo >> verkko.yml "spl_min_length:      '${spl_min_length}'"
-echo >> verkko.yml ""
-echo >> verkko.yml "#  align_ont, GraphAligner"
-echo >> verkko.yml "ali_mxm_length:      '${ali_mxm_length}'"
-echo >> verkko.yml "ali_mem_count:       '${ali_mem_count}'"
-echo >> verkko.yml "ali_bandwidth:       '${ali_bandwidth}'"
-echo >> verkko.yml "ali_multi_score_f:   '${ali_multi_score_f}'"
-echo >> verkko.yml "ali_clipping:        '${ali_clipping}'"
-echo >> verkko.yml "ali_min_score:       '${ali_min_score}'"
-echo >> verkko.yml "ali_end_clipping:    '${ali_end_clipping}'"
-echo >> verkko.yml "ali_incompat_cutoff: '${ali_incompat_cutoff}'"
-echo >> verkko.yml "ali_max_trace:       '${ali_max_trace}'"
-echo >> verkko.yml ""
-echo >> verkko.yml "#  process_ont_paths"
-echo >> verkko.yml "pop_min_allowed_cov: '${pop_min_allowed_cov}'"
-echo >> verkko.yml "pop_resolve_steps:   '${pop_resolve_steps}'"
-echo >> verkko.yml ""
-echo >> verkko.yml "#  Run parameters."
-echo >> verkko.yml ""
-echo >> verkko.yml "keep_intermediate:   '${keepinter}'"
-echo >> verkko.yml ""
-echo >> verkko.yml "#  buildStore, countKmers and computeOverlaps"
-echo >> verkko.yml "sto_n_cpus:          '${sto_n_cpus}'"
-echo >> verkko.yml "sto_mem_gb:          '${sto_mem_gb}'"
-echo >> verkko.yml "sto_time_h:          '${sto_time_h}'"
-echo >> verkko.yml ""
-echo >> verkko.yml "mer_n_cpus:          '${mer_n_cpus}'"
-echo >> verkko.yml "mer_mem_gb:          '${mer_mem_gb}'"
-echo >> verkko.yml "mer_time_h:          '${mer_time_h}'"
-echo >> verkko.yml ""
-echo >> verkko.yml "ovb_n_cpus:          '${ovb_n_cpus}'"
-echo >> verkko.yml "ovb_mem_gb:          '${ovb_mem_gb}'"
-echo >> verkko.yml "ovb_time_h:          '${ovb_time_h}'"
-echo >> verkko.yml ""
-echo >> verkko.yml "red_n_cpus:          '${red_n_cpus}'"
-echo >> verkko.yml "red_mem_gb:          '${red_mem_gb}'"
-echo >> verkko.yml "red_time_h:          '${red_time_h}'"
-echo >> verkko.yml ""
-echo >> verkko.yml "#  build-graph"
-echo >> verkko.yml "mbg_n_cpus:          '${mbg_n_cpus}'"
-echo >> verkko.yml "mbg_mem_gb:          '${mbg_mem_gb}'"
-echo >> verkko.yml "mbg_time_h:          '${mbg_time_h}'"
-echo >> verkko.yml ""
-echo >> verkko.yml "#  process_graph"
-echo >> verkko.yml "utg_n_cpus:          '${utg_n_cpus}'"
-echo >> verkko.yml "utg_mem_gb:          '${utg_mem_gb}'"
-echo >> verkko.yml "utg_time_h:          '${utg_time_h}'"
-echo >> verkko.yml ""
-echo >> verkko.yml "#  split_ont"
-echo >> verkko.yml "spl_n_cpus:          '${spl_n_cpus}'"
-echo >> verkko.yml "spl_mem_gb:          '${spl_mem_gb}'"
-echo >> verkko.yml "spl_time_h:          '${spl_time_h}'"
-echo >> verkko.yml ""
-echo >> verkko.yml "#  align_ont"
-echo >> verkko.yml "ali_n_cpus:          '${ali_n_cpus}'"
-echo >> verkko.yml "ali_mem_gb:          '${ali_mem_gb}'"
-echo >> verkko.yml "ali_time_h:          '${ali_time_h}'"
-echo >> verkko.yml ""
-echo >> verkko.yml "#  process_ont_paths"
-echo >> verkko.yml "pop_n_cpus:          '${pop_n_cpus}'"
-echo >> verkko.yml "pop_mem_gb:          '${pop_mem_gb}'"
-echo >> verkko.yml "pop_time_h:          '${pop_time_h}'"
-echo >> verkko.yml ""
-echo >> verkko.yml "#  untip"
-echo >> verkko.yml "utp_n_cpus:          '${utp_n_cpus}'"
-echo >> verkko.yml "utp_mem_gb:          '${utp_mem_gb}'"
-echo >> verkko.yml "utp_time_h:          '${utp_time_h}'"
-echo >> verkko.yml ""
-echo >> verkko.yml "#  create_layout"
-echo >> verkko.yml "lay_n_cpus:          '${lay_n_cpus}'"
-echo >> verkko.yml "lay_mem_gb:          '${lay_mem_gb}'"
-echo >> verkko.yml "lay_time_h:          '${lay_time_h}'"
-echo >> verkko.yml ""
-echo >> verkko.yml "#  get_ont_subset"
-echo >> verkko.yml "sub_n_cpus:          '${sub_n_cpus}'"
-echo >> verkko.yml "sub_mem_gb:          '${sub_mem_gb}'"
-echo >> verkko.yml "sub_time_h:          '${sub_time_h}'"
-echo >> verkko.yml ""
-echo >> verkko.yml "#  partition_consensus"
-echo >> verkko.yml "par_n_cpus:          '${par_n_cpus}'"
-echo >> verkko.yml "par_mem_gb:          '${par_mem_gb}'"
-echo >> verkko.yml "par_time_h:          '${par_time_h}'"
-echo >> verkko.yml ""
-echo >> verkko.yml "#  cns"
-echo >> verkko.yml "cns_n_cpus:          '${cns_n_cpus}'"
-echo >> verkko.yml "cns_mem_gb:          '${cns_mem_gb}'"
-echo >> verkko.yml "cns_time_h:          '${cns_time_h}'"
-echo >> verkko.yml ""
-echo >> verkko.yml "#  This is the end."
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  Algorithm parameters."
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  buildStore, countKmers and computeOverlaps"
+echo >> ${outd}/verkko.yml "correction_enabled:  '${correction_enabled}'"
+echo >> ${outd}/verkko.yml "mer_size:            '${mer_size}'"
+echo >> ${outd}/verkko.yml "mer_threshold:       '${mer_threshold}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "cor_min_read:        '${cor_min_read}'"
+echo >> ${outd}/verkko.yml "cor_min_overlap:     '${cor_min_overlap}'"
+echo >> ${outd}/verkko.yml "cor_hash_bits:       '${cor_hash_bits}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  build-graph, MBG"
+echo >> ${outd}/verkko.yml "mbg_baseK:           '${mbg_baseK}'"
+echo >> ${outd}/verkko.yml "mbg_maxK:            '${mbg_maxK}'"
+echo >> ${outd}/verkko.yml "mbg_window:          '${mbg_window}'"
+echo >> ${outd}/verkko.yml "mbg_max_resolution:  '${mbg_max_resolution}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  split_ont"
+echo >> ${outd}/verkko.yml "spl_bases:           '${spl_bases}'"
+echo >> ${outd}/verkko.yml "spl_reads:           '${spl_reads}'"
+echo >> ${outd}/verkko.yml "spl_min_length:      '${spl_min_length}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  align_ont, GraphAligner"
+echo >> ${outd}/verkko.yml "ali_mxm_length:      '${ali_mxm_length}'"
+echo >> ${outd}/verkko.yml "ali_mem_count:       '${ali_mem_count}'"
+echo >> ${outd}/verkko.yml "ali_bandwidth:       '${ali_bandwidth}'"
+echo >> ${outd}/verkko.yml "ali_multi_score_f:   '${ali_multi_score_f}'"
+echo >> ${outd}/verkko.yml "ali_clipping:        '${ali_clipping}'"
+echo >> ${outd}/verkko.yml "ali_min_score:       '${ali_min_score}'"
+echo >> ${outd}/verkko.yml "ali_end_clipping:    '${ali_end_clipping}'"
+echo >> ${outd}/verkko.yml "ali_incompat_cutoff: '${ali_incompat_cutoff}'"
+echo >> ${outd}/verkko.yml "ali_max_trace:       '${ali_max_trace}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  process_ont_paths"
+echo >> ${outd}/verkko.yml "pop_min_allowed_cov: '${pop_min_allowed_cov}'"
+echo >> ${outd}/verkko.yml "pop_resolve_steps:   '${pop_resolve_steps}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  Run parameters."
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "keep_intermediate:   '${keepinter}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  buildStore, countKmers and computeOverlaps"
+echo >> ${outd}/verkko.yml "sto_n_cpus:          '${sto_n_cpus}'"
+echo >> ${outd}/verkko.yml "sto_mem_gb:          '${sto_mem_gb}'"
+echo >> ${outd}/verkko.yml "sto_time_h:          '${sto_time_h}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "mer_n_cpus:          '${mer_n_cpus}'"
+echo >> ${outd}/verkko.yml "mer_mem_gb:          '${mer_mem_gb}'"
+echo >> ${outd}/verkko.yml "mer_time_h:          '${mer_time_h}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "ovb_n_cpus:          '${ovb_n_cpus}'"
+echo >> ${outd}/verkko.yml "ovb_mem_gb:          '${ovb_mem_gb}'"
+echo >> ${outd}/verkko.yml "ovb_time_h:          '${ovb_time_h}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "red_n_cpus:          '${red_n_cpus}'"
+echo >> ${outd}/verkko.yml "red_mem_gb:          '${red_mem_gb}'"
+echo >> ${outd}/verkko.yml "red_time_h:          '${red_time_h}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  build-graph"
+echo >> ${outd}/verkko.yml "mbg_n_cpus:          '${mbg_n_cpus}'"
+echo >> ${outd}/verkko.yml "mbg_mem_gb:          '${mbg_mem_gb}'"
+echo >> ${outd}/verkko.yml "mbg_time_h:          '${mbg_time_h}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  process_graph"
+echo >> ${outd}/verkko.yml "utg_n_cpus:          '${utg_n_cpus}'"
+echo >> ${outd}/verkko.yml "utg_mem_gb:          '${utg_mem_gb}'"
+echo >> ${outd}/verkko.yml "utg_time_h:          '${utg_time_h}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  split_ont"
+echo >> ${outd}/verkko.yml "spl_n_cpus:          '${spl_n_cpus}'"
+echo >> ${outd}/verkko.yml "spl_mem_gb:          '${spl_mem_gb}'"
+echo >> ${outd}/verkko.yml "spl_time_h:          '${spl_time_h}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  align_ont"
+echo >> ${outd}/verkko.yml "ali_n_cpus:          '${ali_n_cpus}'"
+echo >> ${outd}/verkko.yml "ali_mem_gb:          '${ali_mem_gb}'"
+echo >> ${outd}/verkko.yml "ali_time_h:          '${ali_time_h}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  process_ont_paths"
+echo >> ${outd}/verkko.yml "pop_n_cpus:          '${pop_n_cpus}'"
+echo >> ${outd}/verkko.yml "pop_mem_gb:          '${pop_mem_gb}'"
+echo >> ${outd}/verkko.yml "pop_time_h:          '${pop_time_h}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  untip"
+echo >> ${outd}/verkko.yml "utp_n_cpus:          '${utp_n_cpus}'"
+echo >> ${outd}/verkko.yml "utp_mem_gb:          '${utp_mem_gb}'"
+echo >> ${outd}/verkko.yml "utp_time_h:          '${utp_time_h}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  create_layout"
+echo >> ${outd}/verkko.yml "lay_n_cpus:          '${lay_n_cpus}'"
+echo >> ${outd}/verkko.yml "lay_mem_gb:          '${lay_mem_gb}'"
+echo >> ${outd}/verkko.yml "lay_time_h:          '${lay_time_h}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  get_ont_subset"
+echo >> ${outd}/verkko.yml "sub_n_cpus:          '${sub_n_cpus}'"
+echo >> ${outd}/verkko.yml "sub_mem_gb:          '${sub_mem_gb}'"
+echo >> ${outd}/verkko.yml "sub_time_h:          '${sub_time_h}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  partition_consensus"
+echo >> ${outd}/verkko.yml "par_n_cpus:          '${par_n_cpus}'"
+echo >> ${outd}/verkko.yml "par_mem_gb:          '${par_mem_gb}'"
+echo >> ${outd}/verkko.yml "par_time_h:          '${par_time_h}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  cns"
+echo >> ${outd}/verkko.yml "cns_n_cpus:          '${cns_n_cpus}'"
+echo >> ${outd}/verkko.yml "cns_mem_gb:          '${cns_mem_gb}'"
+echo >> ${outd}/verkko.yml "cns_time_h:          '${cns_time_h}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  This is the end."
 
-echo  > snakemake.sh "#!/bin/sh"
-echo >> snakemake.sh ""
-echo >> snakemake.sh "echo \"Launching $version ...\""
-echo >> snakemake.sh ""
-echo >> snakemake.sh "snakemake verkko --nocolor \\"
-echo >> snakemake.sh "  --directory . \\"
-echo >> snakemake.sh "  --snakefile ${verkko}/Snakefile \\"
-echo >> snakemake.sh "  --configfile verkko.yml \\"
-echo >> snakemake.sh "  --reason \\"
-echo >> snakemake.sh "  --keep-going \\"
-echo >> snakemake.sh "  --rerun-incomplete \\"
-if [ $grid = "local" ] ; then
-  echo >> snakemake.sh "  --latency-wait 2 \\"
-  echo >> snakemake.sh "  --cores ${local_cpus} \\"
-  echo >> snakemake.sh "  --resources mem_gb=${local_mem} \\"
-else
-  echo >> snakemake.sh "  --latency-wait 30 \\"
-  echo >> snakemake.sh "  --jobs 1000 \\"
-  echo >> snakemake.sh "  --profile ${verkko}/profiles \\"
-  echo >> snakemake.sh "  --restart-times 1 \\"
-  echo >> snakemake.sh "  --max-jobs-per-second 10 \\"
-  echo >> snakemake.sh "  --max-status-checks-per-second 0.02 \\"
-  echo >> snakemake.sh "  --local-cores 1 \\"
+#
+#  If cnspaths (and cnsassembly) are defined and exist, set up to run just
+#  consensus on the paths in ${cnspaths}, using various bits from an existing
+#  Verkko assembly in ${cnsassembly}.
+#
+
+target="verkko"
+
+if [ "x$cnspaths" != "x" ] ; then
+    target="cnspath"
+
+    cnspaths=$(fullpath $cnspaths)         #  Convert to full
+    cnsassembly=$(fullpath $cnsassembly)   #  path.
+
+    if [ ! -e $cnspaths ] ; then
+        echo "Can't find --paths ${cnspaths}."
+        exit
+    fi
+
+    if [ ! -d $cnsassembly ] ; then
+        echo "Can't find --assembly ${cnsassembly}."
+        exit
+    fi
+
+    #  Copy pieces from the previous assembly to the new run directory.  This
+    #  is done - instead of symlinking - to prevent Snakemake from
+    #  'accidentally' obliterating precious original files.
+
+    if [ ! -e "${outd}/6-layoutContigs" ] ; then
+        mkdir ${outd}/6-layoutContigs
+        cp -p ${cnsassembly}/6-layoutContigs/combined-nodemap.txt     ${outd}/6-layoutContigs/combined-nodemap.txt
+        cp -p ${cnsassembly}/6-layoutContigs/combined-edges.gfa       ${outd}/6-layoutContigs/combined-edges.gfa
+        cp -p ${cnsassembly}/6-layoutContigs/combined-alignments.gaf  ${outd}/6-layoutContigs/combined-alignments.gaf
+        cp -p ${cnspaths}                                             ${outd}/6-layoutContigs/consensus_paths.txt
+        cp -p ${cnsassembly}/6-layoutContigs/nodelens.txt             ${outd}/6-layoutContigs/nodelens.txt
+    fi
+
+    if [ ! -e "${outd}/7-consensus" ] ; then
+        mkdir ${outd}/7-consensus
+        cp -p ${cnsassembly}/7-consensus/ont_subset.fasta.gz          ${outd}/7-consensus/ont_subset.fasta.gz
+    fi
 fi
-echo >> snakemake.sh "  ${snakeopts}"
-echo >> snakemake.sh ""
 
-chmod +x snakemake.sh
+#
+#  Generate a script to launch snakemake.
+#
+
+echo  > ${outd}/snakemake.sh "#!/bin/sh"
+echo >> ${outd}/snakemake.sh ""
+echo >> ${outd}/snakemake.sh "echo \"Launching $version ...\""
+echo >> ${outd}/snakemake.sh ""
+echo >> ${outd}/snakemake.sh "snakemake ${target} --nocolor \\"
+echo >> ${outd}/snakemake.sh "  --directory . \\"
+echo >> ${outd}/snakemake.sh "  --snakefile ${verkko}/Snakefile \\"
+echo >> ${outd}/snakemake.sh "  --configfile verkko.yml \\"
+echo >> ${outd}/snakemake.sh "  --reason \\"
+echo >> ${outd}/snakemake.sh "  --keep-going \\"
+echo >> ${outd}/snakemake.sh "  --rerun-incomplete \\"
+if [ $grid = "local" ] ; then
+    echo >> ${outd}/snakemake.sh "  --latency-wait 2 \\"
+    echo >> ${outd}/snakemake.sh "  --cores ${local_cpus} \\"
+    echo >> ${outd}/snakemake.sh "  --resources mem_gb=${local_mem} \\"
+else
+    echo >> ${outd}/snakemake.sh "  --latency-wait 30 \\"
+    echo >> ${outd}/snakemake.sh "  --jobs 1000 \\"
+    echo >> ${outd}/snakemake.sh "  --profile ${verkko}/profiles \\"
+    echo >> ${outd}/snakemake.sh "  --restart-times 1 \\"
+    echo >> ${outd}/snakemake.sh "  --max-jobs-per-second 10 \\"
+    echo >> ${outd}/snakemake.sh "  --max-status-checks-per-second 0.02 \\"
+    echo >> ${outd}/snakemake.sh "  --local-cores 1 \\"
+fi
+echo >> ${outd}/snakemake.sh "  ${snakeopts}"
+echo >> ${outd}/snakemake.sh ""
+
+chmod +x ${outd}/snakemake.sh
+
+#
+#  Move into the output directory and run the command.
+#
+
+cd ${outd}
 ./snakemake.sh
