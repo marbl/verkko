@@ -14,8 +14,30 @@
  #
  ##
 
-#  Verkko, Finnish.  Net, network, mesh, web, grid, grill, fishnet, network, graph.
-#
+
+#  Use 'cd' and 'pwd' to find the full path to a file/directory.
+fullpath() {
+  local ipath=$1
+  local iname=$(basename $ipath)
+  local fpath=
+
+  if [ ! -e $ipath ] ; then
+    echo 1>&2 "File '$ipath' doesn't exist."
+    exit
+  fi
+
+  if [ -d $ipath ] ; then      #  If a directory, go in there and
+    fpath=$(cd $ipath ; pwd)   #  get the path according to the shell.
+  else
+    ipath=$(dirname $ipath)    #  If not, strip off the filename,
+    fpath=$(cd $ipath ; pwd)   #  then go in, then add the filename
+    fpath="$fpath/$iname"      #  back.
+  fi
+
+  echo "$fpath"
+}
+
+
 
 version=""
 help=""
@@ -42,49 +64,42 @@ local_mem=64
 snakeopts=""
 
 
-#  If environment variable VERKKO is set, assume that is the path to our
-#  installed directory, otherwise, figure it out from the shell script name
-#  and set VERKKO.
+#  Set shell variable 'verkko' and environment variable VERKKO to the
+#  location of the Verkko components (e.g., /software/verkko/lib/verkko or
+#  /usr/local/lib/verkko/).
 #
-#  This is to allow submitting verkko.sh directly to the grid; the grid will
-#  (typically) copy the shell script to a spool directory and run it there -
-#  so any auto-detected path based on the script name will be incorrect.
-
+#  If environment variable VERKKO is set, assume that is the path.
+#   - this is used when the verkko driver (either src/verkko.sh or
+#     bin/verkko) is submitted directly to the grid: the grid will
+#     (typically) copy the supplied shell script to a spool directory and run
+#     it there - so any auto-detected path based on that path name will be
+#     incorrect.
+#
+#  Otherwise, use the path to this script as a base and look for the
+#  lib/verkko components, then set VERKKO in the environment.
+#   - if ${verkko}/verkko.sh exists, then we are running out of the source
+#     directory (since the 'compiled' version is named 'verkko') and
+#     we symlink the compilied binaries here.  This mode of operation
+#     will use src/verkko.sh, build/bin/* and src/scripts/* for execution.
+#   - if ${verkko}/verkko.sh does not exist, we're running from a fully
+#     installed Verkko, and components will be in ${verkko}/../lib/verkko/.
+#
+#
 if [ -e "${VERKKO}/verkko.sh" ] ; then
   verkko=$VERKKO
 else
-  echo $0 | grep -q ^/            #  If a relative path, prepend
-  if [ $? -ne 0 ] ; then          #  PWD to make it an absolute path.
-    f=$0
-
-    echo $0 | grep -q ^\\./       #  If the path looks like ./ something
-    if [ $? -eq 0 ] ;then         #  remove the start ./ from the command
-       f=`echo $0 | cut -d'/' -f2-`
-    fi
-    verkko=`dirname $PWD/$f`
-  else
-    verkko=`dirname $0`
-  fi
-
-  #  If we're running out of the src/ directory, we need to make
-  #  a symlink to the Canu binaries, but otherwise, the Verkko
-  #  components are in the correct place.
+  verkko=$( fullpath $0 )
+  verkko=$( dirname $verkko )
 
   if   [ -e "${verkko}/verkko.sh" ] ; then
-    if [ ! -e "bin" ] ; then
-      cd ${verkko} && ln -s build/bin .
-    fi
-
-  #  Otherwise, massage the path to point to lib/verkko instead of bin/,
-
+    if [ ! -e "${verkko}/bin" ] ; then  cd ${verkko} && ln -s ../build/bin .;  fi
   else
-    verkko=`dirname $verkko`
+    verkko=$( dirname $verkko )
     verkko="$verkko/lib/verkko"
   fi
 
   export VERKKO=$verkko
 fi
-
 
 #
 #  Algorithm parameters.
