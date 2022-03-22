@@ -13,80 +13,80 @@
  ##
 
 #
-#  Rule layoutContigs ....
+#  Rules generateLayoutContigsInputs and layoutContigs collect the bits
+#  and bobs from the assembly (nodemap, edges, alignments, paths, lengths)
+#  and creates a layout for Canu's utgcns to generate consensus sequences from.
 #
-#  Collects:
-#    all graph nodes
-#    all edges from all graphs
-#    all ONT alignments used for gap filling
+#  generateLayoutContigsInputs doesn't need all the resources it claims it
+#  needs, but in order to 'group' them together into a single grid job,
+#  we need to make it have the same resources as layoutContigs.
 #
-#  and outputs a layout of reads for each contig.
-#  
-#  Configuration Parameters:
-#    ...
+#  But, sigh, job grouping won't work with our profiles/config.yaml.
+#  The created job group is missing {params.jobid} and execution fails
+#  with the cryptic error:
+#    Traceback (most recent call last):
+#      File "/usr/local/lib/python3.8/site-packages/snakemake/utils.py", line 430, in format
+#        return fmt.format(_pattern, *args, **variables)
+#      File "/usr/local/lib/python3.8/string.py", line 163, in format
+#        return self.vformat(format_string, args, kwargs)
+#      File "/usr/local/lib/python3.8/string.py", line 167, in vformat
+#        result, _ = self._vformat(format_string, args, kwargs, used_args, 2)
+#      File "/usr/local/lib/python3.8/string.py", line 207, in _vformat
+#        obj, arg_used = self.get_field(field_name, args, kwargs)
+#      File "/usr/local/lib/python3.8/string.py", line 272, in get_field
+#        obj = self.get_value(first, args, kwargs)
+#      File "/usr/local/lib/python3.8/string.py", line 229, in get_value
+#        return kwargs[key]
+#    KeyError: 'params'
+#
+#    During handling of the above exception, another exception occurred:
 #
 
-rule layoutContigs:
+rule generateLayoutContigsInputs:
     input:
-        graph  = rules.verkko.input.graph,
-        paths  = rules.buildGraph.output.paths,
+        graph      = rules.verkko.input.graph,
+        paths      = rules.buildGraph.output.paths
     output:
-        layout = rules.verkko.input.layout,
-        scfmap = rules.verkko.input.scfmap,
-        gaps   = '6-layoutContigs/gaps.txt'
-    log:
-        err    = '6-layoutContigs/createLayout.err'
-
+        nodemap    = '6-layoutContigs/combined-nodemap.txt',
+        edges      = '6-layoutContigs/combined-edges.gfa',
+        alignments = '6-layoutContigs/combined-alignments.gaf',
+        paths      = '6-layoutContigs/consensus_paths.txt',
+        lengths    = '6-layoutContigs/nodelens.txt'
+    log:        
+        err        = '6-layoutContigs/createLayout.err'
     params:
-        maps   = getAllMappings(6),
-        graphs = getAllGraphs(6),
-        aligns = getAllAlignments(6),
-
-        jobid  = 1
-
+        maps       = getAllMappings(6),
+        graphs     = getAllGraphs(6),
+        aligns     = getAllAlignments(6),
+        jobid      = 1
     threads:
         int(config['lay_n_cpus'])
     resources:
-        n_cpus = config['lay_n_cpus'],
-        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'lay'),
-        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'lay')
+        n_cpus = 1,
+        mem_gb = 8,
+        time_h = 2
+        #n_cpus = config['lay_n_cpus'],
+        #mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'lay'),
+        #time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'lay')
+    #group:
+    #    'layoutGroup'
     shell:
         '''
 cd 6-layoutContigs
 
-cat > ./createLayout.sh <<EOF
+cat > ./createLayoutInputs.sh <<EOF
 #!/bin/sh
 set -e
 
 cat {params.maps} \\\\
-> combined-nodemap.txt
+> ../{output.nodemap}
 
-#  The original is explicitly using these files:
-#    hifi-resolved.gfa
-#    gapped-once-hifi-resolved.gfa
-#    gapped-twice-hifi-resolved.gfa
-#    gapped-hifi-resolved.gfa
-#    unrolled-hifi-resolved.gfa
-#    unitig-unrolled-hifi-resolved.gfa
-#    gapped-unitig-unrolled-hifi-resolved.gfa
-#    connected.gfa
-#    normal-connected.gfa
-#    ont-resolved-graph.gfa
-#    unrolled-ont-resolved.gfa
-#    unitig-unrolled-ont-resolved.gfa
-#    connected-tip.gfa
-#    unitig-normal-connected-tip.gfa
-#    popped-unitig-normal-connected-tip.gfa
-#    unitig-popped-unitig-normal-connected-tip.gfa
-#
-#  Confirmed that is what getAllGraphs(6) returns
- 
 cat {params.graphs} \\\\
 | grep '^L' \\\\
-> combined-edges.gfa
+> ../{output.edges}
 
 cat {params.aligns} ../{input.paths} \\\\
-> combined-alignments.gaf
+> ../{output.alignments}
 
 cat ../{input.graph} \\\\
 | awk 'BEGIN \\\\
@@ -97,7 +97,7 @@ cat ../{input.graph} \\\\
        {{ \\\\
           print \$2, ">"\$2; \\\\
        }}' \\\\
-> consensus_paths.txt
+> ../{output.paths}
 
 cat {params.graphs} \\\\
 | awk 'BEGIN \\\\
@@ -108,14 +108,53 @@ cat {params.graphs} \\\\
        {{ \\\\
           print \$2, length(\$3); \\\\
        }}' \\\\
-> nodelens.txt
+> ../{output.lengths}
+EOF
+
+chmod +x ./createLayoutInputs.sh
+
+./createLayoutInputs.sh > ../{log.err} 2>&1
+        '''
+
+
+
+rule layoutContigs:
+    input:
+        nodemap    = rules.generateLayoutContigsInputs.output.nodemap,
+        edges      = rules.generateLayoutContigsInputs.output.edges,
+        alignments = rules.generateLayoutContigsInputs.output.alignments,
+        paths      = rules.generateLayoutContigsInputs.output.paths,
+        lengths    = rules.generateLayoutContigsInputs.output.lengths
+    output:
+        layout     = rules.verkko.input.layout,
+        scfmap     = rules.verkko.input.scfmap,
+        gaps       = '6-layoutContigs/gaps.txt'
+    log:
+        err        = '6-layoutContigs/createLayout.err'
+    params:
+        jobid      = 1
+    threads:
+        int(config['lay_n_cpus'])
+    resources:
+        n_cpus = config['lay_n_cpus'],
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'lay'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'lay')
+    #group:
+    #    'layoutGroup'
+    shell:
+        '''
+cd 6-layoutContigs
+
+cat > ./createLayout.sh <<EOF
+#!/bin/sh
+set -e
 
 {PYTHON} {VERKKO}/scripts/get_layout_from_mbg.py \\\\
-  combined-nodemap.txt \\\\
-  combined-edges.gfa \\\\
-  combined-alignments.gaf \\\\
-  consensus_paths.txt \\\\
-  nodelens.txt \\\\
+  ../{input.nodemap} \\\\
+  ../{input.edges} \\\\
+  ../{input.alignments} \\\\
+  ../{input.paths} \\\\
+  ../{input.lengths} \\\\
   ../{output.layout} \\\\
   ../{output.scfmap}
 
