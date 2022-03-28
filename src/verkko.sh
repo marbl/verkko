@@ -375,6 +375,7 @@ fi
 if [ ! -e $mbg ] ; then        #  Not in the bin directory,
   mbg=$(which MBG)             #  Set it to whatever is in the PATH.
 fi
+mbg=$(fullpath $mbg)
 
 if [ "x$graphaligner" = "x" ] ; then
   graphaligner=${verkko}/bin/GraphAligner
@@ -382,6 +383,7 @@ fi
 if [ ! -e $graphaligner ] ; then
   graphaligner=$(which GraphAligner)
 fi
+graphaligner=$(fullpath $graphaligner)
 
 #
 #  Fix stuff.
