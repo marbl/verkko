@@ -16,18 +16,17 @@
 #  Rule combineConsensus combines the outputs of consensus into a single
 #  file, and rename the sequences back to their original names.
 #
-#  See comments in 3-combineONT for details on the functions.
-#
-#  Configuration Parameters:
-#    ...
-#
 
 
+#  These two functions return different paths to the inputs.  The first
+#  returns a path relative to the root directory, used by Snakemake itself to
+#  figure out the DAG.  The second returns a path relative to the 7-consensus
+#  directory, which we use when running the command.
+#
 def combineConsensusI(wildcards):
     return expand("7-consensus/packages/part{nnnn}.fasta", nnnn = glob_wildcards("7-consensus/packages/part{xxxx}.cnspack").xxxx)
-
 def combineConsensusP(wildcards):
-    return expand("packages/part{nnnn}.fasta", nnnn = glob_wildcards("7-consensus/packages/part{xxxx}.cnspack").xxxx)
+    return expand(            "packages/part{nnnn}.fasta", nnnn = glob_wildcards("7-consensus/packages/part{xxxx}.cnspack").xxxx)
 
 rule combineConsensus:
     input:
@@ -40,14 +39,14 @@ rule combineConsensus:
     log:
         err       = '7-consensus/combineConsensus.err'
     params:
-        paths     = combineConsensusP,
+        consensus = combineConsensusP,
         keepinter = config['keep_intermediate'],
         jobid     = 1
     threads:
         1
     resources:
         n_cpus = 1,
-        mem_gb = 4,
+        mem_gb = lambda wildcards, input, attempt: getAlignMemoryRequest(attempt, 1.25, input.consensus),
         time_h = 4
     shell:
         '''
@@ -60,7 +59,7 @@ set -e
 {PYTHON} {VERKKO}/scripts/process_reads.py combine ../{output.fasta} \\\\
   ../{input.tigmap} \\\\
   ../{input.scfmap} \\\\
-  {params.paths}
+  {params.consensus}
 
 if [ {params.keepinter} = False ] ; then
   rm -rf packages

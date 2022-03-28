@@ -34,13 +34,12 @@ def getMemoryRequest(attempt, tag):
    mem = float(config[f"{tag}_mem_gb"])
    return int(math.ceil(math.ceil(mem)*scl))
 
-def getAlignMemoryRequest(attempt, factor, prefix, suffixes):
+def getAlignMemoryRequest(attempt, factor, files):
    scl = 0.75 + attempt / 4.0
    mem = float(config['ali_mem_gb'])
 
    sum = 0
-   for suffix in suffixes:
-      filename = f"{prefix}{suffix}"
+   for filename in files:
       if os.path.exists(filename):
          sum += os.path.getsize(filename)
    if sum > 0:
