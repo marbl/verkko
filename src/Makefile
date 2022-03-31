@@ -718,6 +718,8 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/bin/utgcns \
      ../lib/verkko/bin/seqrequester \
      \
+     ../lib/verkko/bin/rukki \
+     \
      ../lib/verkko/scripts/add_fake_alignments.py \
      ../lib/verkko/scripts/add_fake_bridging_paths.py \
      ../lib/verkko/scripts/add_hairpin_uniques.py \
@@ -797,8 +799,9 @@ $(foreach TGT,${ALL_TGTS},\
 $(foreach TGT,${ALL_TGTS},\
   $(eval $(call ADD_CLEAN_RULE,${TGT})))
 clean:
+	rm -rf rukki/target
+	rm  -f meryl overlapInCore seqrequester overlapErrorAdjustment stores utgcns utility
 	find build -type d -print | sort -r | xargs -n 100 rmdir
-	rm meryl overlapInCore seqrequester overlapErrorAdjustment stores utgcns  utility 
 
 # Include generated rules that define additional (header) dependencies.
 $(foreach TGT,${ALL_TGTS},\
@@ -828,6 +831,22 @@ $(foreach TGT,${ALL_TGTS},\
 ../lib/verkko/profiles/%: profiles/%
 	@mkdir -p ../lib/verkko/profiles
 	cp -pf $< $@
+
+rukki/target/release/rukki: rukki/Cargo.toml \
+                            rukki/src/graph.rs \
+                            rukki/src/lib.rs \
+                            rukki/src/main.rs \
+                            rukki/src/pseudo_hap.rs \
+                            rukki/src/trio.rs \
+                            rukki/src/trio_walk.rs \
+                            rukki/src/graph_algos.rs \
+                            rukki/src/graph_algos/dfs.rs \
+                            rukki/src/graph_algos/scc.rs \
+                            rukki/src/graph_algos/superbubble.rs
+	cargo build --release --manifest-path rukki/Cargo.toml
+
+../lib/verkko/bin/rukki: rukki/target/release/rukki
+	cp -p rukki/target/release/rukki $@
 
 
 #  Makefile processed.  Regenerate the version number file, make some
