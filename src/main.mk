@@ -1,5 +1,5 @@
-MODULE       :=    canu
-TARGET       := libcanu.a
+MODULE       :=    verkko
+TARGET       := libverkko.a
 SOURCES      := utility/src/utility/runtime.C \
                 \
                 utility/src/utility/align-parasail-driver.C \

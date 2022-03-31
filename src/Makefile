@@ -853,7 +853,7 @@ rukki/target/release/rukki: rukki/Cargo.toml \
 #  Makefile processed.  Regenerate the version number file, make some
 #  directories, and report that we're starting the build.
 
-$(eval $(shell cd canu/src ; ../scripts/version_update.pl $(MODULE) utility/src/utility/version.H))
+$(eval $(shell cd canu/src ; ../../scripts/version_update.pl $(MODULE) utility/src/utility/version.H))
 
 $(shell mkdir -p ${TARGET_DIR}/lib/site_perl/canu)
 $(shell mkdir -p ${TARGET_DIR}/share/java/classes)
