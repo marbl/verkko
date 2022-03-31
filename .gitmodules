@@ -1,3 +1,6 @@
 [submodule "src/canu"]
 	path = src/canu
 	url = https://github.com/marbl/canu.git
+[submodule "src/rukki"]
+	path = src/rukki
+	url = https://github.com/marbl/rukki
