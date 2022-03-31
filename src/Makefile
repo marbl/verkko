@@ -709,6 +709,7 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/bin/fixErrors \
      ../lib/verkko/bin/layoutToPackage \
      ../lib/verkko/bin/meryl \
+     ../lib/verkko/bin/meryl-lookup \
      ../lib/verkko/bin/ovStoreBuild \
      ../lib/verkko/bin/ovStoreConfig \
      ../lib/verkko/bin/overlapInCore \

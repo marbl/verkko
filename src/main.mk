@@ -142,6 +142,7 @@ SUBMAKEFILES := stores/ovStoreBuild.mk \
                 stores/sqStoreDumpMetaData.mk \
                 \
                 meryl/src/meryl/meryl.mk \
+                meryl/src/meryl-lookup/meryl-lookup.mk \
                 \
                 overlapInCore/overlapInCore.mk \
                 overlapInCore/overlapInCorePartition.mk \
