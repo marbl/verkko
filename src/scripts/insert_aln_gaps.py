@@ -9,6 +9,7 @@ max_end_clip = int(sys.argv[4])
 nongap_aln_file_out = sys.argv[5]
 gap_aln_file_out = sys.argv[6]
 prefix = sys.argv[7]
+allow_nontips = (True if sys.argv[8] == "y" else False)
 # graph to stdout
 
 def revnode(n):
@@ -43,16 +44,23 @@ with open(graph_file) as f:
 			not_tips.add(tonode)
 		print(l.strip())
 
+if allow_nontips: not_tips = set()
+
 gaps = {}
-reads_per_gap = {}
-alns = []
-last_read_name = ""
+
+count_per_read = {}
+with open(input_aln_file) as f:
+	for l in f:
+		readname = l.strip().split('\t')[0].split(' ')[0]
+		if readname not in count_per_read: count_per_read[readname] = 0
+		count_per_read[readname] += 1
 
 alns_per_read = {}
 with open(input_aln_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
 		readname = parts[0].split(' ')[0]
+		if count_per_read[readname] < 2: continue
 		readlen = int(parts[1])
 		readstart = int(parts[2])
 		readend = int(parts[3])
@@ -64,6 +72,9 @@ with open(input_aln_file) as f:
 		assert rightclip >= 0
 		if readname not in alns_per_read: alns_per_read[readname] = []
 		alns_per_read[readname].append((readstart, readend, alnstart, alnend, leftclip, rightclip, readlen, path))
+
+used_names = list(alns_per_read)
+used_names.sort()
 
 for name in alns_per_read:
 	alns_per_read[name].sort(key=lambda x: x[0])
@@ -79,12 +90,9 @@ for name in alns_per_read:
 		key = canontip(alns[i-1][3], alns[i][2])
 		if key not in gaps: gaps[key] = []
 		gaps[key].append(gap_len)
-		if key not in reads_per_gap: reads_per_gap[key] = set()
 		readlen = alns[i][6]
 		readstart = alns[i-1][1] + alns[i-1][5]
 		readend = alns[i][0] - alns[i][4]
-		reads_per_gap[key].add((name, alns[i-1], alns[i], gap_len))
-		# reads_per_gap[key].add((name, readlen, min(readstart, readend), max(readstart, readend), fw))
 
 next_gap_id = 1
 gap_lens = {}
@@ -138,9 +146,6 @@ for gap in gapkeys:
 	allowed_gaps.add(gap)
 
 used_gap_alns = set()
-
-used_names = list(alns_per_read)
-used_names.sort()
 
 with open(gap_aln_file_out, "w") as f:
 	for name in used_names:
