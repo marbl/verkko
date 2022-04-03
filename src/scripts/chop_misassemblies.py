@@ -34,21 +34,49 @@ with open(in_graph_file) as f:
 			max_overlap[fromnode] = max(max_overlap[fromnode], overlap)
 			max_overlap[revnode(tonode)] = max(max_overlap[revnode(tonode)], overlap)
 
-aln_end_positions = {}
+alns_per_read = {}
 with open(in_alns_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
+		readname = parts[0]
+		if readname not in alns_per_read: aln_end_positions[readname] = 0
+		alns_per_read[readname] += 1
+
+read_aln_positions = {}
+with open(in_alns_file) as f:
+	for l in f:
+		parts = l.strip().split('\t')
+		readname = parts[0]
+		assert alns_per_read[readname] >= 1
+		if alns_per_read[readname] == 1: continue
 		path = parts[5].replace('>', '\t>').replace('<', '\t<').strip().split('\t')
-		if int(parts[2]) >= cut_anchor_min_size:
-			if path[0][1:] not in aln_end_positions: aln_end_positions[path[0][1:]] = []
-			offset = int(parts[7])
-			if path[0][0] == "<": offset = nodelens[path[0][1:]] - offset - 1
-			aln_end_positions[path[0][1:]].append(offset)
-		if int(parts[3]) <= int(parts[1]) - cut_anchor_min_size:
-			if path[-1][1:] not in aln_end_positions: aln_end_positions[path[-1][1:]] = []
-			offset = int(parts[6]) - int(parts[8])
-			if path[-1][0] == ">": offset = nodelens[path[-1][1:]] - offset - 1
-			aln_end_positions[path[-1][1:]].append(offset)
+		alnstart = int(parts[2])
+		alnend = int(parts[3])
+		start_node_offset = int(parts[7])
+		start_node = path[0][1:]
+		if path[0][0] == "<": start_node_offset = nodelens[start_node] - start_node_offset - 1
+		end_node = path[-1][1:]
+		end_node_offset = int(parts[6]) - int(parts[8])
+		if path[-1][0] == ">": end_node_offset = nodelens[end_node] - end_node_offset - 1
+		if readname not in read_aln_positions: read_aln_positions[readname] = []
+		read_aln_positions[readname].append((alnstart, alnend, start_node, start_node_offset, end_node, end_node_offset))
+
+aln_end_positions = {}
+for read in read_aln_positions:
+	assert len(read_aln_positions[read]) >= 2
+	read_aln_positions[read].sort(key= lambda x: x[0])
+	for i in range(1, len(read_aln_positions[read])):
+		assert read_aln_positions[read][i][0] >= read_aln_positions[read][i-1][0]
+		if read_aln_positions[read][i][0] == read_aln_positions[read][i-1][0]: continue
+		if read_aln_positions[read][i][1] <= read_aln_positions[read][i-1][1]: continue
+		prev_node = read_aln_positions[read][i-1][4]
+		this_node = read_aln_positions[read][i][2]
+		prev_node_offset = read_aln_positions[read][i-1][5]
+		this_node_offset = read_aln_positions[read][i][3]
+		if prev_node not in aln_end_positions: aln_end_positions[prev_node] = []
+		if this_node not in aln_end_positions: aln_end_positions[this_node] = []
+		aln_end_positions[prev_node].append(prev_node_offset)
+		aln_end_positions[this_node].append(this_node_offset)
 
 cut_positions = {}
 for node in aln_end_positions:
