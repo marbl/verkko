@@ -51,6 +51,10 @@ ifeq ($(wildcard canu/src/seqrequester/src/Makefile), )
   $(info $(shell cd canu/src ; git submodule update --init seqrequester))
   $(info $(space))
 endif
+ifeq ($(wildcard rukki/Cargo.toml), )
+  $(info $(shell git submodule update --init rukki))
+  $(info $(space))
+endif
 
 #  Make symlinks to source directories if needed.
 ifeq ($(wildcard meryl/src), )
