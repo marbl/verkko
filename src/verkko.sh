@@ -144,6 +144,13 @@ ali_max_trace=5
 pop_min_allowed_cov=5
 pop_resolve_steps="20 10 5"
 
+#  Rukki.
+ruk_enable="False"
+ruk_hap1=""
+ruk_hap2=""
+ruk_type="hic"
+ruk_fract="0.9"
+
 #
 #  Run parameters.
 #
@@ -194,6 +201,11 @@ pop_time_h=24
 utp_n_cpus=1
 utp_mem_gb=64
 utp_time_h=24
+
+#  rukki
+ruk_n_cpus=8
+ruk_mem_gb=16
+ruk_time_h=4
 
 #  create_layout
 lay_n_cpus=1
@@ -248,6 +260,15 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--local-memory" ] ;       then local_mem=$arg;     shift
     elif [ "$opt" = "--local-cpus" ] ;         then local_cpus=$arg;    shift
     elif [ "$opt" = "--snakeopts" ] ;          then snakeopts=$arg;     shift
+
+    #
+    #  Run options for running Rukki before consensus.
+    #
+
+    elif [ "$opt" = "--hap-kmers" ] ; then
+      ruk_enable="True"
+      ruk_hap1=$(fullpath $arg);   shift
+      ruk_hap2=$(fullpath $1);     shift
 
     #
     #  Run options for running only consensus on a set of user-supplied paths.
@@ -351,6 +372,7 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--ali-run" ] ;  then ali_n_cpus=$1; ali_mem_gb=$2; ali_time_h=$3; shift; shift; shift;
     elif [ "$opt" = "--pop-run" ] ;  then pop_n_cpus=$1; pop_mem_gb=$2; pop_time_h=$3; shift; shift; shift;
     elif [ "$opt" = "--utp-run" ] ;  then utp_n_cpus=$1; utp_mem_gb=$2; utp_time_h=$3; shift; shift; shift;
+    elif [ "$opt" = "--ruk-run" ] ;  then ruk_n_cpus=$1; ruk_mem_gb=$2; ruk_time_h=$3; shift; shift; shift;
     elif [ "$opt" = "--lay-run" ] ;  then lay_n_cpus=$1; lay_mem_gb=$2; lay_time_h=$3; shift; shift; shift;
     elif [ "$opt" = "--sub-run" ] ;  then sub_n_cpus=$1; sub_mem_gb=$2; sub_time_h=$3; shift; shift; shift;
     elif [ "$opt" = "--par-run" ] ;  then par_n_cpus=$1; par_mem_gb=$2; par_time_h=$3; shift; shift; shift;
@@ -587,6 +609,13 @@ echo >> ${outd}/verkko.yml "#  process_ont_paths"
 echo >> ${outd}/verkko.yml "pop_min_allowed_cov: '${pop_min_allowed_cov}'"
 echo >> ${outd}/verkko.yml "pop_resolve_steps:   '${pop_resolve_steps}'"
 echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  Rukki"
+echo >> ${outd}/verkko.yml "ruk_enable:          '${ruk_enable}'"
+echo >> ${outd}/verkko.yml "ruk_hap1:            '${ruk_hap1}'"
+echo >> ${outd}/verkko.yml "ruk_hap2:            '${ruk_hap2}'"
+echo >> ${outd}/verkko.yml "ruk_type:            '${ruk_type}'"
+echo >> ${outd}/verkko.yml "ruk_fract:           '${ruk_fract}'"
+echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  Run parameters."
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "keep_intermediate:   '${keepinter}'"
@@ -637,6 +666,11 @@ echo >> ${outd}/verkko.yml "#  untip"
 echo >> ${outd}/verkko.yml "utp_n_cpus:          '${utp_n_cpus}'"
 echo >> ${outd}/verkko.yml "utp_mem_gb:          '${utp_mem_gb}'"
 echo >> ${outd}/verkko.yml "utp_time_h:          '${utp_time_h}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  rukki"
+echo >> ${outd}/verkko.yml "ruk_n_cpus:          '${ruk_n_cpus}'"
+echo >> ${outd}/verkko.yml "ruk_mem_gb:          '${ruk_mem_gb}'"
+echo >> ${outd}/verkko.yml "ruk_time_h:          '${ruk_time_h}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  create_layout"
 echo >> ${outd}/verkko.yml "lay_n_cpus:          '${lay_n_cpus}'"

@@ -740,6 +740,7 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/scripts/get_layout_from_mbg.py \
      ../lib/verkko/scripts/get_original_coverage.py \
      ../lib/verkko/scripts/get_unroll_mapping.py \
+     ../lib/verkko/scripts/inject_coverage.py \
      ../lib/verkko/scripts/insert_aln_gaps.py \
      ../lib/verkko/scripts/merge_unresolved_dbg_nodes.py \
      ../lib/verkko/scripts/pick_majority_bridge.py \
@@ -762,6 +763,7 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/Snakefiles/3-splitONT.sm \
      ../lib/verkko/Snakefiles/4-processONT.sm \
      ../lib/verkko/Snakefiles/5-untip.sm \
+     ../lib/verkko/Snakefiles/6-rukki.sm \
      ../lib/verkko/Snakefiles/6-layoutContigs.sm \
      ../lib/verkko/Snakefiles/7-buildPackage.sm \
      ../lib/verkko/Snakefiles/7-combineConsensus.sm \

@@ -117,13 +117,22 @@ chmod +x ./createLayoutInputs.sh
         '''
 
 
+#
+#  Layout paths from either
+#     rules.verkko.input.graph
+#        5-untip/unitig-popped-unitig-normal-connected-tip.gfa
+#  or from
+#     rules.rukki.output.pathsgaf
+#        6-rukki/unitig-popped-unitig-normal-connected-tip.paths.gaf
+#  depending on config ruk_enable.
+#
 
 rule layoutContigs:
     input:
         nodemap    = rules.generateLayoutContigsInputs.output.nodemap,
         edges      = rules.generateLayoutContigsInputs.output.edges,
         alignments = rules.generateLayoutContigsInputs.output.alignments,
-        paths      = rules.generateLayoutContigsInputs.output.paths,
+        paths      = rules.generateLayoutContigsInputs.output.paths if config['ruk_enable'] == "False" else rules.rukki.output.pathsgaf,
         lengths    = rules.generateLayoutContigsInputs.output.lengths
     output:
         layout     = rules.verkko.input.layout,

@@ -154,6 +154,8 @@ include: 'Snakefiles/4-processONT.sm'
 include: 'Snakefiles/get-coverage.sm'
 include: 'Snakefiles/5-untip.sm'
 
+include: 'Snakefiles/6-rukki.sm'
+
 include: 'Snakefiles/6-layoutContigs.sm'
 
 include: 'Snakefiles/7-extractONT.sm'
