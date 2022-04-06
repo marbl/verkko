@@ -126,7 +126,7 @@ rm -f {rules.emptyfile.output}
 #    configureOverlaps - runs a Canu binary to load read lengths and decide
 #                        on batche sizes to compute overlaps.
 #
-localrules: verkko, configureOverlaps, correctHiFi, configureFindErrors, emptyfile
+localrules: verkko, configureOverlaps, correctHiFi, configureFindErrors, cnspath, emptyfile
 
 
 
