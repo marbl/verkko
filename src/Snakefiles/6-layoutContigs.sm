@@ -53,7 +53,7 @@ rule generateLayoutContigsInputs:
         paths      = '6-layoutContigs/consensus_paths.txt',
         lengths    = '6-layoutContigs/nodelens.txt'
     log:        
-        err        = '6-layoutContigs/createLayout.err'
+        err        = '6-layoutContigs/createLayoutInputs.err'
     params:
         maps       = getAllMappings(6),
         graphs     = getAllGraphs(6),
