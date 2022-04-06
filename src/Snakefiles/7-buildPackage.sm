@@ -15,9 +15,6 @@
 #
 #  Rule buildPackages creates input packages for Canu's consensus module.
 #
-#  Configuration Parameters:
-#    ...
-#
 
 checkpoint buildPackages:
     input:
@@ -47,10 +44,6 @@ set -e
 
 mkdir -p packages
 
-#if [ -e ../{input.ont_subset} ] ; then
-#  ont=../{input.ont_subset}
-#fi
-
 {VERKKO}/bin/layoutToPackage \\\\
     -layout ../{input.layout} \\\\
     -output packages/part###.cnspack \\\\
@@ -60,8 +53,6 @@ mkdir -p packages
 && \\\\
 touch ../{output.finished}
 EOF
-
-#\$ont
 
 chmod +x ./buildPackages.sh
 
