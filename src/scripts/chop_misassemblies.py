@@ -39,7 +39,7 @@ with open(in_alns_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
 		readname = parts[0]
-		if readname not in alns_per_read: aln_end_positions[readname] = 0
+		if readname not in alns_per_read: alns_per_read[readname] = 0
 		alns_per_read[readname] += 1
 
 read_aln_positions = {}
@@ -53,15 +53,15 @@ with open(in_alns_file) as f:
 		alnstart = int(parts[2])
 		alnend = int(parts[3])
 		start_node_offset = int(parts[7])
-		start_node = path[0][1:]
-		if path[0][0] == "<": start_node_offset = nodelens[start_node] - start_node_offset - 1
-		end_node = path[-1][1:]
+		start_node = path[0]
+		if path[0][0] == "<": start_node_offset = nodelens[start_node[1:]] - start_node_offset - 1
+		end_node = revnode(path[-1])
 		end_node_offset = int(parts[6]) - int(parts[8])
-		if path[-1][0] == ">": end_node_offset = nodelens[end_node] - end_node_offset - 1
+		if path[-1][0] == ">": end_node_offset = nodelens[end_node[1:]] - end_node_offset - 1
 		if readname not in read_aln_positions: read_aln_positions[readname] = []
 		read_aln_positions[readname].append((alnstart, alnend, start_node, start_node_offset, end_node, end_node_offset))
 
-aln_end_positions = {}
+aln_connect_positions = {}
 for read in read_aln_positions:
 	assert len(read_aln_positions[read]) >= 2
 	read_aln_positions[read].sort(key= lambda x: x[0])
@@ -73,54 +73,70 @@ for read in read_aln_positions:
 		this_node = read_aln_positions[read][i][2]
 		prev_node_offset = read_aln_positions[read][i-1][5]
 		this_node_offset = read_aln_positions[read][i][3]
-		if prev_node not in aln_end_positions: aln_end_positions[prev_node] = []
-		if this_node not in aln_end_positions: aln_end_positions[this_node] = []
-		aln_end_positions[prev_node].append(prev_node_offset)
-		aln_end_positions[this_node].append(this_node_offset)
+		if prev_node > this_node or (prev_node == this_node and prev_node_offset > this_node_offset):
+			(prev_node, this_node) = (this_node, prev_node)
+			(prev_node_offset, this_node_offset) = (this_node_offset, prev_node_offset)
+		key = (prev_node, this_node)
+		if key not in aln_connect_positions: aln_connect_positions[key] = []
+		aln_connect_positions[key].append((prev_node_offset, this_node_offset))
 
 cut_positions = {}
-for node in aln_end_positions:
-	aln_end_positions[node].sort()
-	cut_start = None
-	for i in range(0, len(aln_end_positions[node]) - cut_coverage_threshold):
-		if aln_end_positions[node][i+cut_coverage_threshold] - aln_end_positions[node][i] <= cut_length_threshold:
-			if cut_start is None:
-				cut_start = i
-			continue
-		if cut_start is not None:
-			start = cut_start
-			end = i - 1 + cut_coverage_threshold
-			mid = int((end - start) / 2) + start
-			if node not in cut_positions: cut_positions[node] = []
-			if len(cut_positions[node]) == 0 or cut_positions[node][-1] != aln_end_positions[node][mid]:
-				cut_positions[node].append(aln_end_positions[node][mid])
-		cut_start = None
-	if cut_start is not None:
-		start = cut_start
-		end = len(aln_end_positions[node])-1
-		mid = int((end - start) / 2) + start
-		if node not in cut_positions: cut_positions[node] = []
-		if len(cut_positions[node]) == 0 or cut_positions[node][-1] != aln_end_positions[node][mid]:
-			cut_positions[node].append(aln_end_positions[node][mid])
+for key in aln_connect_positions:
+	poses = aln_connect_positions[key]
+	poses.sort(key=lambda x: x[1])
+	poses.sort(key=lambda x: x[0])
+	cluster_origin = []
+	cluster_poses = []
+	for i in range(0, len(poses)):
+		cluster_origin.append(i)
+		cluster_poses.append([poses[i]])
+	for i in range(0, len(poses)):
+		for j in range(i-1, -1, -1):
+			if abs(poses[i][0] - poses[j][0]) <= cut_length_threshold and abs(poses[i][1] - poses[j][1]) <= cut_length_threshold:
+				cluster_origin[i] = j
+				break
+	for i in range(len(poses)-1, -1, -1):
+		if cluster_origin[i] == i:
+			if len(cluster_poses[i]) >= cut_coverage_threshold:
+				start_poses = [x[0] for x in cluster_poses[i]]
+				end_poses = [x[1] for x in cluster_poses[i]]
+				if key[0][1:] not in cut_positions: cut_positions[key[0][1:]] = []
+				if key[1][1:] not in cut_positions: cut_positions[key[1][1:]] = []
+				cut_positions[key[0][1:]].append(start_poses[len(start_poses)//2])
+				cut_positions[key[1][1:]].append(end_poses[len(end_poses)//2])
+		else:
+			assert cluster_origin[i] < i
+			cluster_poses[cluster_origin[i]] += cluster_poses[i]
 
 for node in cut_positions:
 	if len(cut_positions[node]) < 1: continue
+	cut_positions[node].sort()
 	start = 0
 	end = len(cut_positions[node])-1
-	if start < end and cut_positions[node][start] < min_dist_from_end: start += 1
-	if start < end and cut_positions[node][end] > nodelens[node]-1-min_dist_from_end: end -= 1
+	while start <= end and cut_positions[node][start] < min_dist_from_end:
+		sys.stderr.write("discarded cut site at node " + str(node) + " at position " + str(cut_positions[node][start]) + " due to too close to start" + "\n")
+		start += 1
+	while start <= end and cut_positions[node][end] > nodelens[node]-1-min_dist_from_end:
+		sys.stderr.write("discarded cut site at node " + str(node) + " at position " + str(cut_positions[node][end]) + " due to too close to end" + "\n")
+		end -= 1
 	if "<" + node in max_overlap:
-		while start < end and cut_positions[node][start] <= max_overlap["<" + node]:
+		while start <= end and cut_positions[node][start] <= max_overlap["<" + node]:
 			sys.stderr.write("discarded cut site at node " + str(node) + " at position " + str(cut_positions[node][start]) + " due to overlap" + "\n")
 			start += 1
 	if ">" + node in max_overlap:
-		while start < end and cut_positions[node][end] >= nodelens[node] - max_overlap[">" + node]:
+		while start <= end and cut_positions[node][end] >= nodelens[node] - max_overlap[">" + node]:
 			sys.stderr.write("discarded cut site at node " + str(node) + " at position " + str(cut_positions[node][end]) + " due to overlap" + "\n")
 			end -= 1
-	if end == start:
+	if end < start:
 		cut_positions[node] = []
 	else:
-		cut_positions[node] = cut_positions[node][start:end+1]
+		chosen_positions = []
+		for i in range(start, end+1):
+			if len(chosen_positions) >= 1 and cut_positions[node][i] == chosen_positions[-1]:
+				continue
+			assert len(chosen_positions) == 0 or cut_positions[node][i] > chosen_positions[-1]
+			chosen_positions.append(cut_positions[node][i])
+		cut_positions[node] = chosen_positions
 		sys.stderr.write("cut sites for node " + node + " : " + " ".join(str(s) for s in cut_positions[node]) + "\n")
 
 with open(out_mapping_file, "w") as f:
