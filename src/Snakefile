@@ -126,7 +126,7 @@ rm -f {rules.emptyfile.output}
 #    configureOverlaps - runs a Canu binary to load read lengths and decide
 #                        on batche sizes to compute overlaps.
 #
-localrules: verkko, configureOverlaps, correctHiFi, configureFindErrors, emptyfile
+localrules: verkko, configureOverlaps, correctHiFi, configureFindErrors, cnspath, emptyfile
 
 
 
@@ -153,6 +153,8 @@ include: 'Snakefiles/4-processONT.sm'
 
 include: 'Snakefiles/get-coverage.sm'
 include: 'Snakefiles/5-untip.sm'
+
+include: 'Snakefiles/6-rukki.sm'
 
 include: 'Snakefiles/6-layoutContigs.sm'
 

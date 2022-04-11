@@ -131,7 +131,7 @@ else
     jobstatus="failed"
 fi
 
-echo 1>&2 "Job $jobid is $jobstatus."
+#echo 1>&2 "Job $jobid is $jobstatus."
 
 echo $jobstatus
 exit 0
