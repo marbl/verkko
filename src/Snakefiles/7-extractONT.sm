@@ -69,7 +69,7 @@ sort -u > ../{output.ont_subset_id}
 #  Build command lines for extracting those reads from
 #  all the partitioned input files.
 #
-rm -f ../7-consensus/ont_subset.commands
+rm -f ../7-consensus/{output.ont_subset_ex}
 
 for fn in {params.ont_files} ; do
   echo >> ../{output.ont_subset_ex} extract \\$fn ../{output.ont_subset_id} ../3-align/split/\\$fn
