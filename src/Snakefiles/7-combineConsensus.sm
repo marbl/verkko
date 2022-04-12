@@ -44,11 +44,11 @@ rule combineConsensus:
         err       = '7-consensus/combineConsensus.err'
     params:
         packcns   = combineConsensusP,
-        keepinter = config['keep_intermediate'],
-        jobid     = 1
+        keepinter = config['keep_intermediate']
     threads:
         1
     resources:
+        job_id = 1,
         n_cpus = 1,
         mem_gb = lambda wildcards, input, attempt: getAlignMemoryRequest(attempt, 1.25, input.packcns),
         time_h = 4

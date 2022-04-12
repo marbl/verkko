@@ -51,11 +51,11 @@ rule buildGraph:
         window            = config['mbg_window'],
         maxR              = config['mbg_max_resolution'],
         kmer_abundance    = 1,                   #  MBG default = 1
-        unitig_abundance  = 2,                   #  MBG default = 2
-        jobid             = 1
+        unitig_abundance  = 2                    #  MBG default = 2
     threads:
         int(config['mbg_n_cpus'])
     resources:
+        job_id = 1,
         n_cpus = config['mbg_n_cpus'],
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'mbg'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'mbg')

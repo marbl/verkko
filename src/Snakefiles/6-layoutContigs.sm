@@ -57,19 +57,19 @@ rule generateLayoutContigsInputs:
     params:
         maps       = getAllMappings(6),
         graphs     = getAllGraphs(6),
-        aligns     = getAllAlignments(6),
-        jobid      = 1
+        aligns     = getAllAlignments(6)
     threads:
         int(config['lay_n_cpus'])
     resources:
-        n_cpus = 1,
-        mem_gb = 8,
-        time_h = 2
-        #n_cpus = config['lay_n_cpus'],
-        #mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'lay'),
-        #time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'lay')
-    #group:
-    #    'layoutGroup'
+        job_id = 1,
+        #n_cpus = 1,
+        #mem_gb = 8,
+        #time_h = 2
+        n_cpus = config['lay_n_cpus'],
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'lay'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'lay')
+    group:
+        'layoutGroup'
     shell:
         '''
 cd 6-layoutContigs
@@ -140,16 +140,15 @@ rule layoutContigs:
         gaps       = '6-layoutContigs/gaps.txt'
     log:
         err        = '6-layoutContigs/createLayout.err'
-    params:
-        jobid      = 1
     threads:
         int(config['lay_n_cpus'])
     resources:
+        job_id = 1,
         n_cpus = config['lay_n_cpus'],
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'lay'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'lay')
-    #group:
-    #    'layoutGroup'
+    group:
+        'layoutGroup'
     shell:
         '''
 cd 6-layoutContigs

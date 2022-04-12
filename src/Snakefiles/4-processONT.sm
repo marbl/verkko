@@ -42,11 +42,11 @@ rule processONT:
         maps            = getAllMappings(4),
         graphs          = getAllGraphs(4),
         min_allowed_cov = config['pop_min_allowed_cov'],
-        resolve_steps   = config['pop_resolve_steps'],
-        jobid           = 1
+        resolve_steps   = config['pop_resolve_steps']
     threads:
         int(config['pop_n_cpus'])
     resources:
+        job_id = 1,
         n_cpus = config['pop_n_cpus'],
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'pop'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'pop')

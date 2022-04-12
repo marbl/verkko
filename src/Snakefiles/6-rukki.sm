@@ -29,11 +29,11 @@ rule rukki:
         hap1mers   = config['ruk_hap1'],
         hap2mers   = config['ruk_hap2'],
         haptype    = config['ruk_type'],
-        fraction   = config['ruk_fract'],
-        jobid      = 1
+        fraction   = config['ruk_fract']
     threads:
         int(config['ruk_n_cpus'])
     resources:
+        job_id = 1,
         n_cpus = config['ruk_n_cpus'],
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'ruk'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ruk')

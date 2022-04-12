@@ -30,11 +30,10 @@ rule processGraph:
         map = '2-processGraph/unitig-mapping-1.txt'
     log:
         err = '2-processGraph/process.err'
-    params:
-        jobid  = 1
     threads:
         int(config['utg_n_cpus'])
     resources:
+        job_id = 1,
         n_cpus = config['utg_n_cpus'],
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'utg'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'utg')

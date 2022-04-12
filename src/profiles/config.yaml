@@ -36,7 +36,7 @@
 #
 
 jobscript:      "./jobscript.sh"
-cluster:        "./slurm-sge-submit.sh {threads} {resources.mem_gb} {resources.time_h} {rulename} {params.jobid}"
+cluster:        "./slurm-sge-submit.sh {threads} {resources.mem_gb} {resources.time_h} {rulename} {resources.job_id}"
 cluster-status: "./slurm-sge-status.sh"
 
 jobname: verkko.{name}.{jobid}.sh

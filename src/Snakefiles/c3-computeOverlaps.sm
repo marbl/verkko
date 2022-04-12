@@ -25,11 +25,11 @@ checkpoint configureOverlaps:
         err       = '0-correction/configureOverlaps.err'
     params:
         minread   = config['cor_min_read'],
-        minolap   = config['cor_min_overlap'],
-        jobid     = 1
+        minolap   = config['cor_min_overlap']
     threads:
         1
     resources:
+        job_id = 1,
         n_cpus = 1,
         mem_gb = 1,
         time_h = 1
@@ -90,11 +90,11 @@ rule computeOverlaps:
         mersize   = config['mer_size'],
         minread   = config['cor_min_read'],
         minolap   = config['cor_min_overlap'],
-        hashbits  = config['cor_hash_bits'],
-        jobid     = '{nnnn}'
+        hashbits  = config['cor_hash_bits']
     threads:
         int(config['ovb_n_cpus']),
     resources:
+        job_id = '{nnnn}',
         n_cpus = config['ovb_n_cpus'],
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'ovb'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ovb')
@@ -161,11 +161,11 @@ rule combineOverlaps:
     log:
         err       = "0-correction/combineOverlaps.err"
     params:
-        paths     = combineOverlapsP,
-        jobid     = 1
+        paths     = combineOverlapsP
     threads:
         1
     resources:
+        job_id = 1,
         n_cpus = 1,
         mem_gb = 128,
         time_h = 4
