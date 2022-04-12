@@ -51,6 +51,7 @@ def check_side(start, checked_sides, graph_edges):
 	for node in tangle_sides:
 		best_count = 0
 		best_connection = None
+		if node not in connections_per_unique: return
 		for connection in connections_per_unique[node]:
 			key = canontip(node, connection)
 			if connection_counts[key] > best_count:
