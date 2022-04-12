@@ -30,23 +30,27 @@ def combineConsensusP(wildcards):
 
 rule combineConsensus:
     input:
-        consensus = combineConsensusI,
-        tigmap    = {rules.buildPackages.output.tigmap},
-        scfmap    = {rules.layoutContigs.output.scfmap},
-        finished  = {rules.buildPackages.output.finished},
+        packcns   = combineConsensusI,
+        tigmap    = rules.buildPackages.output.tigmap,
+        scfmap    = rules.layoutContigs.output.scfmap,
+        finished  = rules.buildPackages.output.finished,
+        pathstsv  = rules.rukki.output.pathstsv if config['ruk_enable'] == "True" else rules.emptyfile.output
     output:
-        fasta     = {rules.verkko.input.consensus}
+        cns       = rules.verkko.input.cns,
+        cnshap1   = rules.verkko.input.cnshap1,
+        cnshap2   = rules.verkko.input.cnshap2,
+        cnsunas   = rules.verkko.input.cnsunas
     log:
         err       = '7-consensus/combineConsensus.err'
     params:
-        consensus = combineConsensusP,
+        packcns   = combineConsensusP,
         keepinter = config['keep_intermediate'],
         jobid     = 1
     threads:
         1
     resources:
         n_cpus = 1,
-        mem_gb = lambda wildcards, input, attempt: getAlignMemoryRequest(attempt, 1.25, input.consensus),
+        mem_gb = lambda wildcards, input, attempt: getAlignMemoryRequest(attempt, 1.25, input.packcns),
         time_h = 4
     shell:
         '''
@@ -56,10 +60,18 @@ cat > ./combineConsensus.sh <<EOF
 #!/bin/sh
 set -e
 
-{PYTHON} {VERKKO}/scripts/process_reads.py combine ../{output.fasta} \\\\
+{PYTHON} {VERKKO}/scripts/process_reads.py combine ../{output.cns} \\\\
   ../{input.tigmap} \\\\
   ../{input.scfmap} \\\\
-  {params.consensus}
+  {params.packcns}
+
+grep ^path.haplotype1 < ../{input.scfmap} | cut -d \\  -f 2 > ./paths-haplotype1
+grep ^path.haplotype2 < ../{input.scfmap} | cut -d \\  -f 2 > ./paths-haplotype2
+grep ^path.unassigned < ../{input.scfmap} | cut -d \\  -f 2 > ./paths-unassigned
+
+{PYTHON} {VERKKO}/scripts/process_reads.py extract ../{output.cnshap1} ./paths-haplotype1 ../{output.cns}
+{PYTHON} {VERKKO}/scripts/process_reads.py extract ../{output.cnshap2} ./paths-haplotype2 ../{output.cns}
+{PYTHON} {VERKKO}/scripts/process_reads.py extract ../{output.cnsunas} ./paths-unassigned ../{output.cns}
 
 if [ {params.keepinter} = False ] ; then
   rm -rf packages

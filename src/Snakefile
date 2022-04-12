@@ -64,7 +64,10 @@ rule verkko:
         graph       = '5-untip/unitig-popped-unitig-normal-connected-tip.gfa',
         layout      = '6-layoutContigs/unitig-popped.layout',
         scfmap      = '6-layoutContigs/unitig-popped.layout.scfmap',
-        consensus   = '7-consensus/unitig-popped.fasta',
+        cns         = '7-consensus/unitig-popped.fasta',
+        cnshap1     = '7-consensus/unitig-popped.haplotype1.fasta',
+        cnshap2     = '7-consensus/unitig-popped.haplotype2.fasta',
+        cnsunas     = '7-consensus/unitig-popped.unassigned.fasta',
         hifi2cov    = '2-processGraph/unitig-unrolled-hifi-resolved.hifi-coverage.csv',
         ont2cov     = '2-processGraph/unitig-unrolled-hifi-resolved.ont-coverage.csv'       if config['withONT'] == "True" else {rules.emptyfile.output},
         hifi4cov    = '4-processONT/unitig-unrolled-ont-resolved.hifi-coverage.csv'         if config['withONT'] == "True" else {rules.emptyfile.output},
@@ -76,15 +79,20 @@ rule verkko:
         layout      = 'assembly.homopolymer-compressed.layout',
         hificov     = 'assembly.hifi-coverage.csv',
         ontcov      = 'assembly.ont-coverage.csv',
-        consensus   = 'assembly.fasta'
+        cns         = 'assembly.fasta',
+        cnshap1     = 'assembly.haplotype1.fasta',
+        cnshap2     = 'assembly.haplotype2.fasta',
+        cnsunas     = 'assembly.unassigned.fasta'
     shell:
         '''
 cp -p {input.graph}     {output.graph}
 cp -p {input.layout}    {output.layout}
-cp -p {input.consensus} {output.consensus}
+cp -p {input.cns}       {output.cns}
+cp -p {input.cnshap1}   {output.cnshap1}
+cp -p {input.cnshap2}   {output.cnshap2}
+cp -p {input.cnsunas}   {output.cnsunas}
 cp -p {input.hifi5cov}  {output.hificov}
 cp -p {input.ont5cov}   {output.ontcov}
-rm -f {rules.emptyfile.output}
         '''
 
 

@@ -402,22 +402,40 @@ tig_layout_file = open(f"{layout_output}", mode="w")
 scf_layout_file = open(f"{layscf_output}", mode="w")
 nul_layout_file = open(f"{layscf_output}.dropped", mode="w")
 
-#  Emit a scaffold-map entry if Count the number of pieces that have reads assigned to them, delete
-#  contigs if there are no pieces with reads assigned.
+#  Emit a scaffold-map entry if the contig has pieces with reads assigned.
+#  Also renames contigs from the rukki name ("mat_from_{verkko_name}") to
+#  "hap1-{id}", arbitrarily assigning mat to hap1.
+#
+#  If the contig has pieces both with and without reads assigned, emit
+#  a warning (that probably nobody will see).  On the other hand, if the
+#  contig actually has pieces, output the scaffold map.  (The header line
+#  output from rukki looks like a contig with no pieces.)
+#  
+nameid = 1
 for contig in sorted(contig_pieces.keys()):
 	npieces = ngaps = nempty = 0
 	ngaps   = 0
 	nempty  = 0
 	for line in contig_pieces[contig]:
-		if re.match(r"\[N\d+N\]", line):  ngaps   += 1
-		elif line in contig_actual_lines: npieces += 1
-		elif line != "end":               nempty  += 1
+		if re.match(r"\[N\d+N\]", line):  ngaps   += 1   #  Actual gap.
+		elif line in contig_actual_lines: npieces += 1   #  Piece with reads assigned.
+		elif line != "end":               nempty  += 1   #  Piece with no reads assigned.
 	if npieces > 0 and nempty > 0:
 		print(f"{contig} has empty pieces.  npieces {npieces} ngaps {ngaps} nempty {nempty}", file=nul_layout_file)
-	elif nempty == 0:
-		print(f"path {contig}", file=scf_layout_file)
+	elif npieces > 0:
+		if   re.match(r"^mat_", contig):
+			outname = f"haplotype1-{nameid:07}"
+		elif re.match(r"^pat_", contig):
+			outname = f"haplotype2-{nameid:07}"
+		else:
+			outname = f"unassigned-{nameid:07}"
+
+		print(f"path {outname} {contig}", file=scf_layout_file)
 		for line in contig_pieces[contig]:
 			print(line, file=scf_layout_file)
+
+		nameid += 1
+del nameid
 
 
 for contig in sorted(contig_actual_lines.keys()):
