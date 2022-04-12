@@ -208,6 +208,7 @@ echo Step 7b
 echo ""
 echo Step 8
 {PYTHON} {VERKKO}/scripts/remove_crosslink_paths.py \\\\
+  gapped-unitig-unrolled-hifi-resolved.gfa \\\\
   unique_nodes_ont.txt \\\\
   bridging_seq_picked_all.txt \\\\
   bridges.txt \\\\
