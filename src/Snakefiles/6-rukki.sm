@@ -71,7 +71,7 @@ awk 'BEGIN \\\\
 #    contig-name  kmers-contig-and-db-1  kmers-contig-and-db-2
 #
 
-meryl-lookup -existence -threads {threads} \\\\
+{VERKKO}/bin/meryl-lookup -existence -threads {threads} \\\\
   -mers {params.hap1mers} {params.hap2mers} \\\\
   -sequence ../{output.fasta} \\\\
 | \\\\
