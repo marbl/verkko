@@ -96,9 +96,21 @@ awk \\\\
 #  Inject coverage into the graph.
 #
 
+awk < ../{input.graph} \\\\
+  'BEGIN \\\\
+   {{ \\\\
+     FS="[ \\t]+"; OFS="\\t"; \\\\
+   }} \\\\
+   {{ \\\\
+     if (\$1 == "S") {{ \\\\
+       print "S", \$2, "*", "LN:i:"length(\$3); \\\\
+     }} else {{ \\\\
+       print \$0; \\\\
+     }} \\\\
+   }}' \\\\
+| \\\\
 {PYTHON} {VERKKO}/scripts/inject_coverage.py --allow-absent \\\\
   ../{input.hificov} \\\\
-  ../{input.graph} \\\\
 > ../{output.graph}
 
 #
