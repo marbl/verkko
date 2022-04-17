@@ -398,7 +398,9 @@ fi
 if [ ! -e $mbg ] ; then        #  Not in the bin directory,
   mbg=$(which MBG)             #  Set it to whatever is in the PATH.
 fi
-mbg=$(fullpath $mbg)
+if [ "x$mbg" != "x" ]; then
+  mbg=$(fullpath $mbg)
+fi
 
 if [ "x$graphaligner" = "x" ] ; then
   graphaligner=${verkko}/bin/GraphAligner
@@ -406,7 +408,9 @@ fi
 if [ ! -e $graphaligner ] ; then
   graphaligner=$(which GraphAligner)
 fi
-graphaligner=$(fullpath $graphaligner)
+if [ "x$graphaligner" != "x" ]; then
+  graphaligner=$(fullpath $graphaligner)
+fi
 
 #
 #  Fix stuff.
@@ -450,6 +454,7 @@ for exe in bin/findErrors \
            bin/fixErrors \
            bin/layoutToPackage \
            bin/meryl \
+           bin/meryl-lookup \
            bin/ovStoreBuild \
            bin/ovStoreConfig \
            bin/overlapInCore \
