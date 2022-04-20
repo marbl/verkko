@@ -162,7 +162,7 @@ awk 'BEGIN \\\\
 
 echo ""
 echo Step 4a
-{PYTHON} {VERKKO}/scripts/fix_diploid_unique_nodes.py unique_nodes_ont_coverage.txt nodecovs-ont.csv gapped-unitig-unrolled-hifi-resolved.gfa \\\\
+{PYTHON} {VERKKO}/scripts/fix_diploid_unique_nodes.py unique_nodes_ont_coverage.txt alns-ont-filter-trim.gaf hifi-nodecov-gapped-unitig-unrolled-hifi-resolved.csv nodecovs-ont.csv gapped-unitig-unrolled-hifi-resolved.gfa \\\\
   > unique_nodes_diploidfix.txt
 
 echo ""
