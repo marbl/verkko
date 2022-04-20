@@ -50,11 +50,11 @@ mkdir -p batch-scripts/
 #
 #  Figure out what type of grid we have:
 #    Slurm: if sinfo is present, assume slurm works.
-#    SGE:   if SGE_CELL exists in the environment, assume SGE works.
+#    SGE:   if SGE_ROOT exists in the environment, assume SGE works.
 #    LSF:   if LSF_ENVDIR exists in the environment, assume LSF works.
 #
 slurm=$(which sinfo 2> /dev/null)
-sge=$SGE_CELL
+sge=$SGE_ROOT
 lsf=$LSF_ENVDIR
 
 ##########

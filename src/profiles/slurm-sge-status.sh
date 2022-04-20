@@ -10,8 +10,8 @@ jobstatus="running"
 #  Test for Slurm: if sinfo is present, assume slurm works.
 slurm=$(which sinfo 2> /dev/null)
 
-#  Test for SGE: if SGE_CELL exists in the environment, assume SGE works.
-sge=$SGE_CELL
+#  Test for SGE: if SGE_ROOT exists in the environment, assume SGE works.
+sge=$SGE_ROOT
 
 #  Test for LSF: if LSF_ENVDIR exists in the environment, assume LSF works.
 lsf=$LSF_ENVDIR
