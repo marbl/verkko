@@ -88,7 +88,7 @@ rule alignONT:
     threads:
         int(config['ali_n_cpus'])
     resources:
-        job_id = '{nnnn}',
+        job_id = lambda wildcards, input, attempt: wildcards.nnnn,
         n_cpus = config['ali_n_cpus'],
         mem_gb = lambda wildcards, input, attempt: getAlignMemoryRequest(attempt, 10, [ input.index ]),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ali', 6.0)
