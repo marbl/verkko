@@ -24,11 +24,10 @@ checkpoint configureFindErrors:
         finished          = '0-correction/configureFindErrors.finished'
     log:
         err               = '0-correction/configureFindErrors.err'
-    params:
-        jobid             = 1
     threads:
         1
     resources:
+        job_id = 1,
         n_cpus = 1,
         mem_gb = 1,
         time_h = 1
@@ -80,11 +79,11 @@ rule computeErrors:
     log:
         err               = '0-correction/find-errors-jobs/{nnnn}.err'
     params:
-        minolap           = config['cor_min_overlap'],
-        jobid             = 1
+        minolap           = config['cor_min_overlap']
     threads:
         int(config['red_n_cpus']),
     resources:
+        job_id = 1,
         n_cpus = config['red_n_cpus'],
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'red'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'red')
@@ -148,11 +147,11 @@ rule fixErrors:
     log:
         err       = "0-correction/fixErrors.err"
     params:
-        paths     = fixErrorsP,
-        jobid     = 1
+        paths     = fixErrorsP
     threads:
         1
     resources:
+        job_id = 1,
         n_cpus = 1,
         mem_gb = 16,
         time_h = 4

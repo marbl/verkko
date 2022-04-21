@@ -148,7 +148,7 @@ pop_resolve_steps="20 10 5"
 ruk_enable="False"
 ruk_hap1=""
 ruk_hap2=""
-ruk_type="hic"
+ruk_type=""
 ruk_fract="0.9"
 
 #
@@ -269,6 +269,7 @@ while [ $# -gt 0 ] ; do
       ruk_enable="True"
       ruk_hap1=$(fullpath $arg);   shift
       ruk_hap2=$(fullpath $1);     shift
+      ruk_type=$1;                 shift
 
     #
     #  Run options for running only consensus on a set of user-supplied paths.
@@ -397,7 +398,9 @@ fi
 if [ ! -e $mbg ] ; then        #  Not in the bin directory,
   mbg=$(which MBG)             #  Set it to whatever is in the PATH.
 fi
-mbg=$(fullpath $mbg)
+if [ "x$mbg" != "x" ]; then
+  mbg=$(fullpath $mbg)
+fi
 
 if [ "x$graphaligner" = "x" ] ; then
   graphaligner=${verkko}/bin/GraphAligner
@@ -405,7 +408,9 @@ fi
 if [ ! -e $graphaligner ] ; then
   graphaligner=$(which GraphAligner)
 fi
-graphaligner=$(fullpath $graphaligner)
+if [ "x$graphaligner" != "x" ]; then
+  graphaligner=$(fullpath $graphaligner)
+fi
 
 #
 #  Fix stuff.
@@ -433,6 +438,15 @@ fi
 if [ "x$nano" = "x" -a "x$withont" = "xTrue" ] ; then
     errors="${errors}No Oxford Nanopore reads (--nano) supplied.\n"
 fi
+if [ "x$ruk_enable" = "xTrue" ]; then
+   if [ "x$ruk_hap1" = "x" -o "x$ruk_hap2" = x ]; then
+      errors="${errors}Invalid haplotype databases specified, make sure the paths are valid.\n"
+   fi
+   if [ "x$ruk_type" = "x" -o "x$ruk_type" != "xtrio" -a "x$ruk_type" != "xhic" -a "x$ruk_type" != "xstrandseq" ]; then
+      errors="${errors}Invalid rukki phasing '$ruk_type', must be one of trio/hic/strandseq.\n"
+   fi
+fi
+
 
 #           bin/seqrequester
 
@@ -440,6 +454,7 @@ for exe in bin/findErrors \
            bin/fixErrors \
            bin/layoutToPackage \
            bin/meryl \
+           bin/meryl-lookup \
            bin/ovStoreBuild \
            bin/ovStoreConfig \
            bin/overlapInCore \
@@ -480,6 +495,10 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "  ALGORITHM PARAMETERS:"
     echo "    --no-correction          Do not perform Canu correction on the HiFi reads."
     echo "    --no-nano                Assemble without ONT data."
+    echo ""
+    echo "    --hap-kmers h1 h2 type  Use rukki to assign paths to haplotypes.  'h1' and 'h2"
+    echo "                            must be Meryl databases of homopolymer-compressed parental"
+    echo "                            kmers.  'type' must be 'trio', 'hic' or 'strandseq'."
     echo ""
     echo "    --base-k"
     echo "    --max-k"

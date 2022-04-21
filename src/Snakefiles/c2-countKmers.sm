@@ -25,11 +25,11 @@ rule countKmers:
         err       = '0-correction/countKmers.err'
     params:
         mersize   = config['mer_size'],
-        merthresh = config['mer_threshold'],
-        jobid     = 1
+        merthresh = config['mer_threshold']
     threads:
         int(config['mer_n_cpus'])
     resources:
+        job_id = 1,
         n_cpus = config['mer_n_cpus'],
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'mer'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'mer')

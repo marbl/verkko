@@ -29,11 +29,10 @@ rule generateConsensus:
         consensus = '7-consensus/packages/part{nnnn}.fasta'
     log:
         err       = '7-consensus/packages/part{nnnn}.err'
-    params:
-        jobid     = '{nnnn}'
     threads:
         int(config['cns_n_cpus']),
     resources:
+        job_id = lambda wildcards, input, attempt: wildcards.nnnn,
         n_cpus = config['cns_n_cpus'],
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'cns'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'cns')

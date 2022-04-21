@@ -18,7 +18,7 @@ an issue if you encounter any problems.**
 
 * Do NOT download the .zip source code.  It is missing files and will not compile.  This is a [known flaw](https://github.com/dear-github/dear-github/issues/214) with git itself.
 
-* Verkko requires both [MBG](https://github.com/maickrau/MBG) and [GraphAligner](https://github.com/maickrau/GraphAligner) to be installed. Verkko also requires [Snakemake](https://snakemake.readthedocs.io/en/stable/) (v6.0+) and a recent [Python](https://www.python.org) (v3.5+).
+* Verkko requires both [MBG](https://github.com/maickrau/MBG) and [GraphAligner](https://github.com/maickrau/GraphAligner) to be installed. Verkko also requires [Snakemake](https://snakemake.readthedocs.io/en/stable/) (v7.0+) and a recent [Python](https://www.python.org) (v3.5+).
 
 Installing with a 'package manager' is encouraged:
   * `conda install -c conda-forge -c bioconda -c defaults verkko`
@@ -46,6 +46,16 @@ and create a config.yml file.
 
 By default, verkko will run the snakemake workflow and all compute on the local machine. Support for SGE, Slurm and LSF (untested) can be enabled with options `--sge`, `--slurm` and `--lsf`, respectively. This will run the snakemake workflow on the local machine but submit all compute to the grid. To launch the both the snakemake workflow and compute on the grid, wrap the verkko command in a shell script and submit using your scheduler.  You may need to set the environment variable VERKKO to the installation directory of Verkko if there are errors that component scripts are not found.
 
+Verkko supports trio-based phasing using using [rukki](https://github.com/marbl/rukki). To run in this mode, you must first generate [merqury](https://github.com/marbl/merqury) hapmer databases and pass them to verkko. See the merqury documentation for details but in brief you can run:
+
+    $MERQURY/build/_submit_build.sh -c 30 maternal.fofn maternal_compress
+    $MERQURY/build/_submit_build.sh -c 30 paternal.fofn paternal_compress
+    $MERQURY/build/_submit_build.sh -c 30 child.fofn    child_compress
+    $MERQURY/trio/hapmers.sh maternal_compress.k30.meryl paternal_compress.k30.meryl child_compress.k30.meryl
+    verkko -d asm --hifi hifi/*.fastq.gz --nano ont/*.fastq.gz --hap-kmers maternal_compress.k30.hapmer.meryl paternal_compress.k30.hapmer.meryl trio
+
+Make sure to count k-mers in compressed space (the `-c` parameter). Child data is optional. Preliminary support is available for read sets binned by haplotype from another method, such as [PGAS](https://github.com/daewoooo/SaaRclust) and Strand-Seq or [DipAsm](https://github.com/shilpagarg/DipAsm) and Hi-C. In these cases, make sure the phase blocks are chromosome-scale and consistent within each chromosome. You can build merqury DBs as above and specify them along with either `hic` or `strandseq` instead of `trio` to verkko instead.
+
 You can pass through snakemake options to restrict CPU/memory/cluster resources by adding the `--snakeopts` option to verkko. For example, `--snakeopts "--dry-run"` will print what jobs will run while `--snakeopts "--cores 1000"` would restrict grid runs to at most 1000 cores across all submited jobs.
 
 To test your installation we have an E. coli K12 dataset available. 
@@ -54,7 +64,7 @@ To test your installation we have an E. coli K12 dataset available.
     curl -L https://obj.umiacs.umd.edu/sergek/shared/ecoli_ont_subset50x.fastq.gz -o ont.fastq.gz
     verkko -d asm --hifi ./hifi.fastq.gz --nano ./ont.fastq.gz
 
-The final assembly result is under `asm/assembly.fasta`. The final graph (in homopolymer-compressed space) is under `asm/assembly.homopolymer-compressed.gfa` along with coverage files in `asm/assembly*csv`. You can find intermediate graphs and coverage files under `asm/*/unitig-*gfa` and `asm/*/unitig-*csv`.
+The final assembly result is under `asm/assembly.fasta`. The final graph (in homopolymer-compressed space) is under `asm/assembly.homopolymer-compressed.gfa` along with coverage files in `asm/assembly*csv`. If you provided phasing information, you will also have `asm/assembly.haplotype[12].fasta`. You can find intermediate graphs and coverage files under `asm/*/unitig-*gfa` and `asm/*/unitig-*csv`.
 
 ## Citations:
  

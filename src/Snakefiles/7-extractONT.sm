@@ -42,11 +42,11 @@ rule extractONT:
         err            = '7-consensus/extractONT.err'
     params:
         ont_files      = extractONTP,
-        keepinter      = config['keep_intermediate'],
-        jobid          = 1
+        keepinter      = config['keep_intermediate']
     threads:
         int(config['sub_n_cpus'])
     resources:
+        job_id = 1,
         n_cpus = config['sub_n_cpus'],
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'sub'),
         time_h = config['sub_time_h']

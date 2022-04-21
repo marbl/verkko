@@ -66,11 +66,11 @@ rule combineONT:
         err            = '3-align/combineONT.err'
     params:
         alignments     = combineONTP,
-        keepinter      = config['keep_intermediate'],
-        jobid          = 1
+        keepinter      = config['keep_intermediate']
     threads:
         1
     resources:
+        job_id = 1,
         n_cpus = 1,
         mem_gb = 4,
         time_h = 2

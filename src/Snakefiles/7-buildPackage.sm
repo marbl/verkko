@@ -26,11 +26,10 @@ checkpoint buildPackages:
         finished   = "7-consensus/packages.finished"
     log:
         err        = '7-consensus/buildPackages.err'
-    params:
-        jobid      = 1
     threads:
         int(config['par_n_cpus'])
     resources:
+        job_id = 1,
         n_cpus = config['par_n_cpus'],
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'par'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'par')

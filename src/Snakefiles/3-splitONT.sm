@@ -31,11 +31,11 @@ checkpoint splitONT:
     params:
         bases    = config['spl_bases'],
         reads    = config['spl_reads'],
-        length   = config['spl_min_length'],
-        jobid    = 1
+        length   = config['spl_min_length']
     threads:
         int(config['spl_n_cpus'])
     resources:
+        job_id = 1,
         n_cpus = config['spl_n_cpus'],
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'spl'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'spl')

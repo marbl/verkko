@@ -39,11 +39,10 @@ rule prepCoverage:
     params:
         maps          = getAllMappings(6),
         graphs        = getAllGraphs(6),
-
-        jobid         = 1
     threads:
         1
     resources:
+        job_id = 1,
         n_cpus = 1,
         mem_gb = 4,
         time_h = 2
@@ -94,11 +93,10 @@ rule getCoverage:
         ont_coverage  = "{dir}/{id}.ont-coverage.csv"
     log:
         err           = "{dir}/{id}.getCoverage.err"
-    params:
-        jobid         = 1
     threads:
         1
     resources:
+        job_id = 1,
         n_cpus = 1,
         mem_gb = 16,
         time_h = 2

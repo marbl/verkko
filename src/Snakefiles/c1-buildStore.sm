@@ -25,11 +25,11 @@ rule buildStore:
         err       = '0-correction/buildStore.err'
     params:
         minread   = config['cor_min_read'],
-        minolap   = config['cor_min_overlap'],
-        jobid     = 1
+        minolap   = config['cor_min_overlap']
     threads:
         int(config['sto_n_cpus'])
     resources:
+        job_id = 1,
         n_cpus = config['sto_n_cpus'],
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'sto'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'sto')

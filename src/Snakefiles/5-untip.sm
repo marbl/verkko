@@ -36,12 +36,11 @@ rule untip:
     params:
         maps   = getAllMappings(5),
         graphs = getAllGraphs(5),
-        aligns = getAllAlignments(5),
-
-        jobid             = 1
+        aligns = getAllAlignments(5)
     threads:
         int(config['utp_n_cpus'])
     resources:
+        job_id = 1,
         n_cpus = config['utp_n_cpus'],
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'utp'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'utp')

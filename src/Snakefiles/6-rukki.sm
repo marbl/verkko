@@ -29,11 +29,11 @@ rule rukki:
         hap1mers   = config['ruk_hap1'],
         hap2mers   = config['ruk_hap2'],
         haptype    = config['ruk_type'],
-        fraction   = config['ruk_fract'],
-        jobid      = 1
+        fraction   = config['ruk_fract']
     threads:
         int(config['ruk_n_cpus'])
     resources:
+        job_id = 1,
         n_cpus = config['ruk_n_cpus'],
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'ruk'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ruk')
@@ -71,7 +71,7 @@ awk 'BEGIN \\\\
 #    contig-name  kmers-contig-and-db-1  kmers-contig-and-db-2
 #
 
-meryl-lookup -existence -threads {threads} \\\\
+{VERKKO}/bin/meryl-lookup -existence -threads {threads} \\\\
   -mers {params.hap1mers} {params.hap2mers} \\\\
   -sequence ../{output.fasta} \\\\
 | \\\\
@@ -96,9 +96,21 @@ awk \\\\
 #  Inject coverage into the graph.
 #
 
+awk < ../{input.graph} \\\\
+  'BEGIN \\\\
+   {{ \\\\
+     FS="[ \\t]+"; OFS="\\t"; \\\\
+   }} \\\\
+   {{ \\\\
+     if (\$1 == "S") {{ \\\\
+       print "S", \$2, "*", "LN:i:"length(\$3); \\\\
+     }} else {{ \\\\
+       print \$0; \\\\
+     }} \\\\
+   }}' \\\\
+| \\\\
 {PYTHON} {VERKKO}/scripts/inject_coverage.py --allow-absent \\\\
   ../{input.hificov} \\\\
-  ../{input.graph} \\\\
 > ../{output.graph}
 
 #
@@ -111,13 +123,12 @@ params="\$params --refined-assign out_refined_ann.csv"
 params="\$params --final-assign out_final_ann.csv"
 params="\$params --marker-sparsity 5000"
 params="\$params --issue-sparsity 1000"
-params="\$params --issue-len 200000"
 params="\$params --try-fill-bubbles"
 
-if [ x{params.haptype} = xhic ]; then
-   params="\$params --marker-ratio 3. --issue-ratio 2. --issue-cnt 1000"
+if [ x{params.haptype} = xtrio ]; then
+   params="\$params --issue-len 200000  --marker-ratio 5. --issue-ratio 3. --issue-cnt 100"
 else
-   params="\$params --marker-ratio 5. --issue-ratio 3. --issue-cnt 100"
+   params="\$params --issue-len 2000000 --marker-ratio 3. --issue-ratio 2. --issue-cnt 1000"
 fi
 
 {VERKKO}/bin/rukki trio -g ../{output.graph} -m ../{output.colors}              -p ../{output.pathstsv} \$params
