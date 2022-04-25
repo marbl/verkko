@@ -29,6 +29,8 @@ rule generateConsensus:
         consensus = '7-consensus/packages/part{nnnn}.fasta'
     log:
         err       = '7-consensus/packages/part{nnnn}.err'
+    params:
+        ont_ids   = getNumLines({rules.extractONT.output.ont_subset_id}) if config['withONT'] == "True" else 0
     threads:
         int(config['cns_n_cpus']),
     resources:
@@ -53,7 +55,9 @@ set -e
     -A ../{output.consensus} \\\\
     -C 2 -norealign \\\\
     -maxcoverage 50 \\\\
-    -e 0.20 \\\\
+    -e  0.05 \\\\
+    -em 0.20 \\\\
+    -EM {params.ont_ids} \\\\
     -l 2500 \\\\
     -edlib
 EOF

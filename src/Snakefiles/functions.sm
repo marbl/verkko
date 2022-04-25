@@ -14,6 +14,12 @@
 
 import math
 
+def getNumLines(input):
+   infile = input.pop()
+   if os.path.exists(infile):
+      return sum(1 for line in open(infile))
+   else:
+      return 0
 #
 #  These functions return a memory estimate for a given component.
 #   - The first is a generic function used by all rules.
