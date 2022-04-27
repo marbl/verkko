@@ -168,6 +168,10 @@ ovb_n_cpus=8
 ovb_mem_gb=32
 ovb_time_h=24
 
+ovs_n_cpus=1
+ovs_mem_gb=128
+ovs_time_h=12
+
 red_n_cpus=4
 red_mem_gb=32
 red_time_h=4
@@ -366,6 +370,7 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--sto-run" ] ;  then sto_n_cpus=$1; sto_mem_gb=$2; sto_time_h=$3; shift; shift; shift;
     elif [ "$opt" = "--mer-run" ] ;  then mer_n_cpus=$1; mer_mem_gb=$2; mer_time_h=$3; shift; shift; shift;
     elif [ "$opt" = "--ovb-run" ] ;  then ovb_n_cpus=$1; ovb_mem_gb=$2; ovb_time_h=$3; shift; shift; shift;
+    elif [ "$opt" = "--ovs-run" ] ;  then ovs_n_cpus=$1; ovs_mem_gb=$2; ovs_time_h=$3; shift; shift; shift;
     elif [ "$opt" = "--red-run" ] ;  then red_n_cpus=$1; red_mem_gb=$2; red_time_h=$3; shift; shift; shift;
     elif [ "$opt" = "--mbg-run" ] ;  then mbg_n_cpus=$1; mbg_mem_gb=$2; mbg_time_h=$3; shift; shift; shift;
     elif [ "$opt" = "--utg-run" ] ;  then utg_n_cpus=$1; utg_mem_gb=$2; utg_time_h=$3; shift; shift; shift;
@@ -541,6 +546,7 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --sto-run                Set resource limits for various stages."
     echo "    --mer-run                Format: number-of-cpus memory-in-gb time-in-hours"
     echo "    --ovb-run                  --cns-run 8 32 2"
+    echo "    --ovs-run"
     echo "    --red-run"
     echo "    --mbg-run"
     echo "    --utg-run"
@@ -651,6 +657,10 @@ echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "ovb_n_cpus:          '${ovb_n_cpus}'"
 echo >> ${outd}/verkko.yml "ovb_mem_gb:          '${ovb_mem_gb}'"
 echo >> ${outd}/verkko.yml "ovb_time_h:          '${ovb_time_h}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "ovs_n_cpus:          '${ovs_n_cpus}'"
+echo >> ${outd}/verkko.yml "ovs_mem_gb:          '${ovs_mem_gb}'"
+echo >> ${outd}/verkko.yml "ovs_time_h:          '${ovs_time_h}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "red_n_cpus:          '${red_n_cpus}'"
 echo >> ${outd}/verkko.yml "red_mem_gb:          '${red_mem_gb}'"

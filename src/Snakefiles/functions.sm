@@ -53,6 +53,20 @@ def getAlignMemoryRequest(attempt, factor, files):
 
    return int(math.ceil(math.ceil(mem)*scl))
 
+def getCombineOverlapsMemory(attempt):
+   scl = 0.75 + attempt / 4.0
+   mem = float(config[f"ovs_mem_gb"])
+
+   print(f"mem={mem}")
+   if os.path.exists(rules.combineOverlapsConfigure.output.ovlmemory):
+      mem = 2.0    #  2 GB of extra memory!
+      with open(rules.combineOverlapsConfigure.output.ovlmemory) as f:
+           for l in f:
+               mem += float(l)
+   print(f"mem={mem}")
+
+   return int(math.ceil(math.ceil(mem)*scl))
+
 
 #
 #  These functions return lists of intermediate files that should exist at

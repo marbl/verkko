@@ -151,11 +151,64 @@ def combineOverlapsP(wildcards):
     return paths
 
 
-rule combineOverlaps:
+
+rule combineOverlapsConfigure:
     input:
         finished  = {rules.configureOverlaps.output.finished},
         seqstore  = {rules.buildStore.output.seqstore},
         ovbs      = combineOverlapsI
+    output:
+        ovlconfig = "0-correction/hifi.ovlStore.config",
+        ovlmemory = "0-correction/hifi.ovlStore.config.memory-request"
+    log:
+        err       = "0-correction/combineOverlapsConfigure.err"
+    params:
+        paths     = combineOverlapsP
+    threads:
+        int(config['ovs_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = config['ovs_n_cpus'],
+        mem_gb = int(config['ovs_mem_gb']),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ovs')
+    shell:
+        '''
+cd 0-correction
+
+cat > ./combineOverlapsConfigure.sh <<EOF
+#!/bin/sh
+set -e
+
+#  Note: file ./ovb-files is created by Snakemake when it discovers inputs
+#  for rule combineOverlaps.  This lets us avoid having to convert a list of
+#  filenames into a newline separated file, or having to use a very very long
+#  command line.
+
+{VERKKO}/bin/ovStoreConfig \\\\
+  -S ../{input.seqstore} \\\\
+  -L ./ovb-files \\\\
+  -M 1-{resources.mem_gb} \\\\
+  -create ../{output.ovlconfig}
+
+{VERKKO}/bin/ovStoreConfig \\\\
+  -S ../{input.seqstore} \\\\
+  -sortmemory \\\\
+  -describe ../{output.ovlconfig} \\\\
+> ../{output.ovlmemory}
+EOF
+
+chmod +x ./combineOverlapsConfigure.sh
+
+./combineOverlapsConfigure.sh > ../{log.err} 2>&1
+        '''
+
+
+rule combineOverlaps:
+    input:
+        finished  = {rules.configureOverlaps.output.finished},
+        seqstore  = {rules.buildStore.output.seqstore},
+        ovlconfig = {rules.combineOverlapsConfigure.output.ovlconfig},
+        ovlmemory = {rules.combineOverlapsConfigure.output.ovlmemory}
     output:
         ovlstore  = directory("0-correction/hifi.ovlStore")
     log:
@@ -163,42 +216,26 @@ rule combineOverlaps:
     params:
         paths     = combineOverlapsP
     threads:
-        1
+        int(config['ovs_n_cpus'])
     resources:
         job_id = 1,
-        n_cpus = 1,
-        mem_gb = 128,
-        time_h = 4
+        n_cpus = config['ovs_n_cpus'],
+        mem_gb = lambda wildcards, input, attempt: getCombineOverlapsMemory(attempt),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ovs')
     shell:
         '''
 cd 0-correction
 
-sortmem=`expr {resources.mem_gb} - 1`
-
 cat > ./combineOverlaps.sh <<EOF
 #!/bin/sh
 set -e
-
-
-#ls ./overlap-jobs/*ovb > ./ovb-files
-
-#  Note: file ../{output.ovlstore}.config is created by Snakemake when it
-#  discovers inputs for rule combineOverlaps.  This lets us avoid having to
-#  convert a list of filenames into a newline separated file, or having to
-#  use a very very long command line.
-
-{VERKKO}/bin/ovStoreConfig \\\\
-  -S ../{input.seqstore} \\\\
-  -L ./ovb-files \\\\
-  -M $sortmem \\\\
-  -create ../{output.ovlstore}.config
 
 #  This version sorts in one giant batch and uses as much memory as it wants.
 #
 {VERKKO}/bin/ovStoreBuild \\\\
   -S ../{input.seqstore} \\\\
   -O ../{output.ovlstore} \\\\
-  -C ../{output.ovlstore}.config
+  -C ../{input.ovlconfig}
 EOF
 
 chmod +x ./combineOverlaps.sh
