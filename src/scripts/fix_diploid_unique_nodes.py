@@ -39,6 +39,7 @@ def check_side(edges, node, ont_node_covs, hifi_node_covs):
 
 def check_triplets(edges, node, triplet_coverages):
 	copycount = len(edges[node])
+	if node not in triplet_coverages: return False
 	if len(triplet_coverages[node]) < copycount: return False
 	counts = [triplet_coverages[node][key] for key in triplet_coverages[node]]
 	counts.sort(key = lambda x: -x)
