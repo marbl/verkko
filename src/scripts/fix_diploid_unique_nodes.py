@@ -25,10 +25,19 @@ def check_side(edges, node, ont_node_covs, hifi_node_covs):
 		if max_ont_coverage is None: max_ont_coverage = ont_node_covs[edge[1:]]
 		min_ont_coverage = min(min_ont_coverage, ont_node_covs[edge[1:]])
 		max_ont_coverage = max(max_ont_coverage, ont_node_covs[edge[1:]])
-		if min_hifi_coverage is None: min_hifi_coverage = hifi_node_covs[edge[1:]]
-		if max_hifi_coverage is None: max_hifi_coverage = hifi_node_covs[edge[1:]]
-		min_hifi_coverage = min(min_hifi_coverage, hifi_node_covs[edge[1:]])
-		max_hifi_coverage = max(max_hifi_coverage, hifi_node_covs[edge[1:]])
+		if min_hifi_coverage is None:
+			if edge[1:] in hifi_node_covs:
+				min_hifi_coverage = hifi_node_covs[edge[1:]]
+			else:
+				min_hifi_coverage = 0
+		if max_hifi_coverage is None:
+			if edge[1:] in hifi_node_covs:
+				max_hifi_coverage = hifi_node_covs[edge[1:]]
+			else:
+				max_hifi_coverage = 0
+		if edge[1:] in hifi_node_covs:
+			min_hifi_coverage = min(min_hifi_coverage, hifi_node_covs[edge[1:]])
+			max_hifi_coverage = max(max_hifi_coverage, hifi_node_covs[edge[1:]])
 	if max_ont_coverage > min_ont_coverage * 1.5: return False
 	if max_hifi_coverage > max_hifi_coverage * 1.5: return False
 	# if ont_node_covs[node[1:]] > max_ont_coverage * (len(edges[node]) + 0.5): return False
