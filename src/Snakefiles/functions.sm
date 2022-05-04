@@ -13,6 +13,7 @@
  ##
 
 import math
+import re
 
 def getNumLines(input):
    infile = input.pop()
@@ -21,11 +22,12 @@ def getNumLines(input):
    else:
       return 0
 #
-#  These functions return a memory estimate for a given component.
-#   - The first is a generic function used by all rules.
-#   - The second is specific to alignONT, it will analyze the inputs
-#     to decide a proper memory estimate.
-#  Both will increase the request by 25% on successive retries.
+#  These functions return time and memory estimates for a given rule.
+#   - The first two are generic functions used by all rules.
+#   - The rest are specific to certain rules.
+#
+#  Memory requests will be increased by 25% on successive retries.
+#
 #  Both use ceil instead of int(x + 0.5) so they don't overshoot the
 #  actual value ({tag}_mem_gb = 64 returns 64 instead of 65).
 #
@@ -57,15 +59,52 @@ def getCombineOverlapsMemory(attempt):
    scl = 0.75 + attempt / 4.0
    mem = float(config[f"ovs_mem_gb"])
 
-   print(f"mem={mem}")
    if os.path.exists(rules.combineOverlapsConfigure.output.ovlmemory):
       mem = 2.0    #  2 GB of extra memory!
       with open(rules.combineOverlapsConfigure.output.ovlmemory) as f:
-           for l in f:
-               mem += float(l)
-   print(f"mem={mem}")
+         for l in f:
+            mem += float(l)
 
    return int(math.ceil(math.ceil(mem)*scl))
+
+def getBuildPackageMemoryRequest(attempt):     #  Sum the size of input files, 2-bit encoded,
+   scl = 0.75 + attempt / 4.0                  #  then add 10% and 2GB.
+   mem = float(config[f"par_mem_gb"])          #  But allow par_mem_gb to completely override.
+   gib = 1024.0 * 1024.0 * 1024.0
+
+   if mem < 2.0:
+      mem = 0
+
+      for f in rules.buildPackages.input.ont_subset:
+         mem += os.path.getsize(f)
+
+      for f in HIFI_READS:
+         if re.match(r".*(xz|gz|bz2)$", f):   #  Zipped files expected to compress
+            mem += os.path.getsize(f) * 4     #  to 25% original size
+         else:
+            mem += os.path.getsize(f)
+
+      mem = mem * 1.10    #  Expand by 10%
+      mem = mem / gib     #  Convert to GB
+      mem = mem + 2.0     #  Add 2 GB
+
+   return int(math.ceil(math.ceil(mem)*scl))
+
+def getConsensusMemoryRequest(attempt, jobid):    #  Figure out what partitioning claims each
+   scl = 0.75 + attempt / 4.0                     #  job will need, add 25% and 2GB.
+   mem = float(config[f"cns_mem_gb"])             #  But allow cns_mem_gb to completely override.
+
+   if mem < 0.1:
+      jobid = jobid.lstrip('0')
+      if os.path.exists(rules.buildPackages.output.packreport):
+         with open(rules.buildPackages.output.packreport) as f:
+            for l in f:
+               words = l.strip().split();
+               if jobid == words[5]:
+                  mem = max(mem, 2.0 + 1.25 * float(words[4]))
+
+   return int(math.ceil(math.ceil(mem)*scl))
+
 
 
 #

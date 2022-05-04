@@ -223,12 +223,12 @@ sub_time_h=24
 
 #  partition_consensus
 par_n_cpus=8
-par_mem_gb=120
+par_mem_gb=0
 par_time_h=24
 
 #  cns
 cns_n_cpus=8
-cns_mem_gb=200
+cns_mem_gb=0
 cns_time_h=24
 
 #

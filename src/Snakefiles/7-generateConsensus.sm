@@ -23,20 +23,21 @@
 
 rule generateConsensus:
     input:
-        package   = '7-consensus/packages/part{nnnn}.cnspack',
-        tigmap    = rules.buildPackages.output.tigmap
+        package    = '7-consensus/packages/part{nnnn}.cnspack',
+        tigmap     = rules.buildPackages.output.tigmap,
+        packreport = rules.buildPackages.output.packreport
     output:
-        consensus = '7-consensus/packages/part{nnnn}.fasta'
+        consensus  = '7-consensus/packages/part{nnnn}.fasta'
     log:
-        err       = '7-consensus/packages/part{nnnn}.err'
+        err        = '7-consensus/packages/part{nnnn}.err'
     params:
-        ont_ids   = getNumLines({rules.extractONT.output.ont_subset_id}) if config['withONT'] == "True" else 0
+        ont_ids    = getNumLines({rules.extractONT.output.ont_subset_id}) if config['withONT'] == "True" else 0
     threads:
         int(config['cns_n_cpus']),
     resources:
         job_id = lambda wildcards, input, attempt: wildcards.nnnn,
         n_cpus = config['cns_n_cpus'],
-        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'cns'),
+        mem_gb = lambda wildcards, input, attempt: getConsensusMemoryRequest(attempt, wildcards.nnnn),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'cns')
     shell:
         '''

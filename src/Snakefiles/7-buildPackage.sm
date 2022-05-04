@@ -23,7 +23,8 @@ checkpoint buildPackages:
         ont_subset = {rules.extractONT.output.ont_subset} if config['withONT'] == "True" else {rules.emptyfile.output}
     output:
         tigmap     = "7-consensus/packages.tigName_to_ID.map",
-        finished   = "7-consensus/packages.finished"
+        finished   = "7-consensus/packages.finished",
+        packreport = "7-consensus/packages.report"
     log:
         err        = '7-consensus/buildPackages.err'
     threads:
@@ -31,7 +32,7 @@ checkpoint buildPackages:
     resources:
         job_id = 1,
         n_cpus = config['par_n_cpus'],
-        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'par'),
+        mem_gb = lambda wildcards, input, attempt: getBuildPackageMemoryRequest(attempt),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'par')
     shell:
         '''
@@ -49,6 +50,7 @@ mkdir -p packages
     -idmap  packages \\\\
     -partition 0.8 1.5 0.1 \\\\
     -reads ../{input.ont_subset} {input.hifi} \\\\
+  > ../{output.packreport} \\\\
 && \\\\
 touch ../{output.finished}
 EOF
