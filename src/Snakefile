@@ -62,6 +62,7 @@ rule emptyfile:
 rule verkko:
     input:
         graph       = '5-untip/unitig-popped-unitig-normal-connected-tip.gfa',
+        nseqgraph   = '6-rukki/unitig-popped-unitig-normal-connected-tip.noseq.gfa'        if config['ruk_enable'] == "True" else {rules.emptyfile.output},
         layout      = '6-layoutContigs/unitig-popped.layout',
         scfmap      = '6-layoutContigs/unitig-popped.layout.scfmap',
         cns         = '7-consensus/unitig-popped.fasta',
@@ -76,6 +77,7 @@ rule verkko:
         ont5cov     = '5-untip/unitig-popped-unitig-normal-connected-tip.ont-coverage.csv'  if config['withONT'] == "True" else {rules.emptyfile.output},
     output:
         graph       = 'assembly.homopolymer-compressed.gfa',
+        nseqgraph   = 'assembly.homopolymer-compressed.noseq.gfa',
         layout      = 'assembly.homopolymer-compressed.layout',
         hificov     = 'assembly.hifi-coverage.csv',
         ontcov      = 'assembly.ont-coverage.csv',
@@ -86,6 +88,29 @@ rule verkko:
     shell:
         '''
 cp -p {input.graph}     {output.graph}
+if [ -s {input.nseqgraph} ]; then
+   cp -p {input.nseqgraph} {output.nseqgraph}
+else
+   #
+   #  Inject coverage into the graph.
+   #
+   awk < {input.graph} \\
+     'BEGIN \\
+      {{ \\
+        FS="[ \\t]+"; OFS="\\t"; \\
+      }} \\
+      {{ \\
+        if ($1 == "S") {{ \\
+          print "S", $2, "*", "LN:i:"length($3); \\
+        }} else {{ \\
+          print $0; \\
+        }} \\
+      }}' \\
+   | \\
+   {PYTHON} {VERKKO}/scripts/inject_coverage.py --allow-absent \\
+     {input.hifi5cov} \\
+   > {output.nseqgraph}
+fi
 cp -p {input.layout}    {output.layout}
 cp -p {input.cns}       {output.cns}
 cp -p {input.cnshap1}   {output.cnshap1}
