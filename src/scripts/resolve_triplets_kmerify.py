@@ -518,6 +518,26 @@ def merge(parent, left, right):
 	right = find(parent, right)
 	parent[right] = left
 
+def add_safe_unitig(node, edges, safe_nodes, safe_edges):
+	if node[1:] in safe_nodes: return
+	while node in edges and len(edges[node]) == 1:
+		edge = getone(edges[node])
+		assert revnode(edge) in edges
+		if len(edges[revnode(edge)]) != 1: break
+		if edge[1:] in safe_nodes: break
+		safe_nodes.add(edge[1:])
+		safe_edges.add(canon(node, edge))
+		node = edge
+
+def get_safe_unitigs_and_edges(node_seqs, edges, min_coverage, node_coverage, edge_coverage):
+	safe_nodes = set()
+	safe_edges = set()
+	for node in node_seqs:
+		if node not in node_coverage or node_coverage[node] < min_coverage: continue
+		add_safe_unitig(">" + node, edges, safe_nodes, safe_edges)
+		add_safe_unitig("<" + node, edges, safe_nodes, safe_edges)
+	return (safe_nodes, safe_edges)
+
 def remove_and_split_low_coverage(node_seqs, edges, initial_paths, paths_crossing, min_coverage, node_coverage):
 	edge_coverage = {}
 	for path in initial_paths:
@@ -525,9 +545,11 @@ def remove_and_split_low_coverage(node_seqs, edges, initial_paths, paths_crossin
 			c = canon(path[i-1], path[i])
 			if c not in edge_coverage: edge_coverage[c] = 0
 			edge_coverage[c] += 1
+	(safe_nodes, safe_edges) = get_safe_unitigs_and_edges(node_seqs, edges, min_coverage, node_coverage, edge_coverage)
 	remove_edges = set()
 	for fromnode in iterate_deterministic(edges):
 		for tonode in iterate_deterministic(edges[fromnode]):
+			if canon(fromnode, tonode) in safe_edges: continue
 			cov = 0
 			if canon(fromnode, tonode) in edge_coverage: cov = edge_coverage[canon(fromnode, tonode)]
 			if cov >= min_coverage: continue
@@ -544,6 +566,7 @@ def remove_and_split_low_coverage(node_seqs, edges, initial_paths, paths_crossin
 		edges[revnode(tonode)].remove(revnode(fromnode))
 	removables = set()
 	for node in node_seqs:
+		if node in safe_nodes: continue
 		if node in node_coverage and node_coverage[node] >= min_coverage: continue
 		removables.add(node)
 	for path in initial_paths:
