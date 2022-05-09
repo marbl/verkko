@@ -69,14 +69,16 @@ with open(resolving_paths_file) as f:
 		paths.append(path)
 		assert find(end_parent, path[0]) == find(end_parent, revnode(path[-1]))
 
-forbidden_tangles = set()
+resolved_tangles = set()
 
 with open(forbidden_ends_file) as f:
 	for l in f:
 		parts = l.strip().split(',')
 		for part in parts:
 			if part in resolvable_ends: resolvable_ends.remove(part)
-			forbidden_tangles.add(find(end_parent, part))
+
+for tip in resolvable_ends:
+	resolved_tangles.add(find(end_parent, tip))
 
 for path in paths:
 	if path[0] not in resolvable_ends or revnode(path[-1]) not in resolvable_ends: continue
@@ -96,7 +98,7 @@ with open(graph_file) as f:
 		if parts[0] == 'S':
 			node_seq[parts[1]] = parts[2]
 			if parts[1] in path_covered_nodes: continue
-			if parts[1] not in uniques and find(end_parent, ">" + parts[1]) not in forbidden_tangles: continue
+			if parts[1] not in uniques and find(end_parent, ">" + parts[1]) in resolved_tangles: continue
 		elif parts[0] == 'L':
 			check_from = (">" if parts[2] == "+" else "<") + parts[1]
 			check_to = ("<" if parts[4] == "+" else ">") + parts[3]
@@ -106,7 +108,7 @@ with open(graph_file) as f:
 				continue
 			if parts[1] in path_covered_nodes or parts[3] in path_covered_nodes: continue
 			assert find(end_parent, check_from) == find(end_parent, check_to)
-			if (parts[1] not in uniques or parts[3] not in uniques) and find(end_parent, check_from) not in forbidden_tangles: continue
+			if (parts[1] not in uniques or parts[3] not in uniques) and find(end_parent, check_from) in resolved_tangles: continue
 		print(l.strip())
 
 # sys.stderr.write(str(len(node_seq)) + " nodes\n")
