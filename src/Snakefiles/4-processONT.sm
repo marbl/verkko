@@ -239,7 +239,7 @@ echo Step 11
 
 echo ""
 echo Step 12
-{PYTHON} {VERKKO}/scripts/connect_uniques.py gapped-unitig-unrolled-hifi-resolved.gfa forbidden_ends.txt bridging_seq_picked.txt \\\\
+{PYTHON} {VERKKO}/scripts/connect_uniques.py gapped-unitig-unrolled-hifi-resolved.gfa forbidden_ends.txt bridging_seq_picked.txt unique_nodes_ont.txt \\\\
   > connected.gfa \\\\
  2> connected.gfa.err     #  It writes lots of chatter!
 
