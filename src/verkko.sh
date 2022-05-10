@@ -178,7 +178,7 @@ red_time_h=4
 
 #  build-graph
 mbg_n_cpus=4
-mbg_mem_gb=128
+mbg_mem_gb=0
 mbg_time_h=72
 
 #  process_graph

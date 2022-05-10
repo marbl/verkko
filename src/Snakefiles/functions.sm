@@ -67,6 +67,30 @@ def getCombineOverlapsMemory(attempt):
 
    return int(math.ceil(math.ceil(mem)*scl))
 
+def getMBGMemoryRequest(attempt):              #  Sum the input size, divide by three.
+   scl = 0.75 + attempt / 4.0                  #  https://github.com/marbl/verkko/issues/34
+   mem = float(config[f"mbg_mem_gb"])          #
+   gib = 1024.0 * 1024.0 * 1024.0
+
+   if mem < 2.0:
+      mem = 0
+
+      if config['correction_enabled'] == "True" and os.path.exists(rules.correctHiFi.output.fasta):
+         mem += os.path.getsize(rules.correctHiFi.output.fasta)
+      else:
+         for f in HIFI_READS:
+            if re.match(r".*(xz|gz|bz2)$", f):   #  Zipped files expected to compress
+               mem += os.path.getsize(f) * 4     #  to 25% original size
+            else:
+               mem += os.path.getsize(f)
+
+      mem = mem * 1.10    #  Expand by 10%
+      mem = mem / 3       #  MBG is expected to use 1 byte for each 3 bytes of input
+      mem = mem / gib     #  Convert to GB
+      mem = mem + 2.0     #  Add 2 GB
+
+   return int(math.ceil(math.ceil(mem)*scl))
+
 def getBuildPackageMemoryRequest(attempt):     #  Sum the size of input files, 2-bit encoded,
    scl = 0.75 + attempt / 4.0                  #  then add 10% and 2GB.
    mem = float(config[f"par_mem_gb"])          #  But allow par_mem_gb to completely override.
