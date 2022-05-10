@@ -443,17 +443,30 @@ fi
 if [ "x$nano" = "x" -a "x$withont" = "xTrue" ] ; then
     errors="${errors}No Oxford Nanopore reads (--nano) supplied.\n"
 fi
-if [ "x$ruk_enable" = "xTrue" ]; then
-   if [ "x$ruk_hap1" = "x" -o "x$ruk_hap2" = x ]; then
-      errors="${errors}Invalid haplotype databases specified, make sure the paths are valid.\n"
-   fi
-   if [ "x$ruk_type" = "x" -o "x$ruk_type" != "xtrio" -a "x$ruk_type" != "xhic" -a "x$ruk_type" != "xstrandseq" ]; then
-      errors="${errors}Invalid rukki phasing '$ruk_type', must be one of trio/hic/strandseq.\n"
-   fi
+
+if [ "x$ruk_enable" = "xTrue" ] ; then
+    if [ "x$ruk_hap1" = "x" -o "x$ruk_hap2" = "x" ] ; then
+        errors="${errors}Invalid haplotype databases specified, make sure the paths are valid.\n"
+    fi
+    if [ "x$ruk_type" != "xtrio" -a "x$ruk_type" != "xhic" -a "x$ruk_type" != "xstrandseq" ] ; then
+        errors="${errors}Invalid rukki phasing '$ruk_type', must be one of trio/hic/strandseq.\n"
+    fi
 fi
 
-
-#           bin/seqrequester
+if [ "x$ruk_enable" = "xTrue" -a -e "$verkko/bin/meryl" ] ; then
+    if [ "x$ruk_hap1}" != "x" ] ; then
+        $verkko/bin/meryl print threads=1 $ruk_hap1 2> /dev/null | head | grep -q AA
+        if [ $? -ne 1 ] ; then
+            errors="${errors}Meryl database '$ruk_hap1' appears to be built using non-homopolymer compressed kmers.\n"
+        fi
+    fi
+    if [ "x$ruk_hap2}" != "x" ] ; then
+        $verkko/bin/meryl print threads=1 $ruk_hap2 2> /dev/null | head | grep -q AA
+        if [ $? -ne 1 ] ; then
+            errors="${errors}Meryl database '$ruk_hap2' appears to be built using non-homopolymer compressed kmers.\n"
+        fi
+    fi
+fi
 
 for exe in bin/findErrors \
            bin/fixErrors \
