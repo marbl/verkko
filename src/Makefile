@@ -730,6 +730,7 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/scripts/add_hairpin_uniques.py \
      ../lib/verkko/scripts/calculate_coverage.py \
      ../lib/verkko/scripts/check_layout_gaps.py \
+     ../lib/verkko/scripts/chop_misassemblies.py \
      ../lib/verkko/scripts/connect_uniques.py \
      ../lib/verkko/scripts/estimate_unique_local.py \
      ../lib/verkko/scripts/find_bridges.py \
@@ -742,6 +743,7 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/scripts/get_unroll_mapping.py \
      ../lib/verkko/scripts/inject_coverage.py \
      ../lib/verkko/scripts/insert_aln_gaps.py \
+     ../lib/verkko/scripts/maybe_trim_alignment.py \
      ../lib/verkko/scripts/merge_unresolved_dbg_nodes.py \
      ../lib/verkko/scripts/pick_majority_bridge.py \
      ../lib/verkko/scripts/pop_bubbles_coverage_based.py \
