@@ -38,7 +38,7 @@ if [ "x$slurm" != "x" ] ; then
   jobstatus=$($sacct -j "$jobid" --noheader)
   if [ $? != 0 ] ; then   #  If sacct fails, report
     echo running          #  that the job is running.
-    echo 1>&2 "Job $jobid is $jobstatus (by default)."
+    echo 1>&2 "Job $jobid not known (yet) by slurm; will return 'running' by default."
     exit 0
   fi
 
