@@ -2,9 +2,10 @@
 
 import sys
 
-unique_nodes_file = sys.argv[1]
-picked_paths_file = sys.argv[2]
-counted_paths_file = sys.argv[3]
+graph_file = sys.argv[1]
+unique_nodes_file = sys.argv[2]
+picked_paths_file = sys.argv[3]
+counted_paths_file = sys.argv[4]
 # paths to stdout
 
 def revnode(n):
@@ -24,64 +25,62 @@ def canontip(n1, n2):
 	if n2 + n1 < n1 + n2: return (n2, n1)
 	return (n1, n2)
 
-def check_side(start):
+def check_side(start, checked_sides, graph_edges):
 	global forbidden_connections
+	if start in checked_sides: return
 	if start not in connections_per_unique: return
-	if len(connections_per_unique[start]) != 2: return
-	other_side = set()
-	used_connections = set()
-	for node in connections_per_unique[start]:
-		other_side.add(node)
-		used_connections.add(canontip(start, node))
-	if len(other_side) != 2: return
-	has_two = False
-	this_side = set()
-	has_many = False
-	while True:
-		added_any = False
-		for side in other_side:
-			for path in connections_per_unique[side]:
-				if len(connections_per_unique[side]) == 2: has_two = True
-				if len(connections_per_unique[side]) > 2: has_many = True
-				for side2 in connections_per_unique[side]:
-					if side2 in this_side: continue
-					this_side.add(side2)
-					added_any = True
-					used_connections.add(canontip(side, side2))
-					if len(connections_per_unique[side2]) > 2: has_many = True
-		for side in this_side:
-			for path in connections_per_unique[side]:
-				if len(connections_per_unique[side]) == 2: has_two = True
-				if len(connections_per_unique[side]) > 2: has_many = True
-				for side2 in connections_per_unique[side]:
-					if side2 in other_side: continue
-					other_side.add(side2)
-					added_any = True
-					used_connections.add(canontip(side, side2))
-					if len(connections_per_unique[side2]) > 2: has_many = True
-		if not added_any: break
-	if not has_two: return
-	if has_many: return
-	if len(other_side) != 2: return
-	if len(this_side) != 2: return
-	total_used_nodes = set()
-	for node in this_side: total_used_nodes.add(node[1:])
-	for node in other_side: total_used_nodes.add(node[1:])
-	if len(total_used_nodes) != 4: return
-	if len(used_connections) < 3: return
-	if len(used_connections) > 4: return
-	abundant_connections = list(used_connections)
-	abundant_connections.sort(key=lambda x: -connection_counts[x])
-	assert connection_counts[abundant_connections[1]] >= connection_counts[abundant_connections[2]]
-	if connection_counts[abundant_connections[1]] == connection_counts[abundant_connections[2]]: return
-	used_here = set()
-	used_here.add(abundant_connections[0][0])
-	used_here.add(abundant_connections[0][1])
-	used_here.add(abundant_connections[1][0])
-	used_here.add(abundant_connections[1][1])
-	if len(used_here) < 4: return
-	for i in range(2, len(abundant_connections)): forbidden_connections.add(abundant_connections[i])
+	tangle_sides = set()
+	check_stack = [start]
+	tangle_nodes = set()
+	while len(check_stack) > 0:
+		top = check_stack.pop()
+		if top in tangle_nodes: continue
+		tangle_nodes.add(top)
+		if top[1:] in unique_nodes:
+			tangle_sides.add(top)
+		else:
+			check_stack.append(revnode(top))
+		if top in graph_edges:
+			for edge in graph_edges[top]:
+				check_stack.append(edge)
+	for node in tangle_sides:
+		assert node not in checked_sides
+		checked_sides.add(node)
+	if len(tangle_sides) % 2 != 0: return
+	best_per_side = {}
+	for node in tangle_sides:
+		best_count = 0
+		best_connection = None
+		if node not in connections_per_unique: return
+		for connection in connections_per_unique[node]:
+			key = canontip(node, connection)
+			if connection_counts[key] > best_count:
+				best_count = connection_counts[key]
+				best_connection = connection
+			elif connection_counts[key] == best_count:
+				best_connection = None
+		if best_connection is None: return
+		best_per_side[node] = best_connection
+	for node in best_per_side:
+		if best_per_side[best_per_side[node]] != node: return
+	for node in tangle_sides:
+		for connection in connections_per_unique[node]:
+			if connection != best_per_side[node]:
+				key = canontip(node, connection)
+				forbidden_connections.add(key)
 
+graph_edges = {}
+with open(graph_file) as f:
+	for l in f:
+		parts = l.strip().split('\t')
+		if parts[0] == "L":
+			fromnode = (">" if parts[2] == "+" else "<") + parts[1]
+			tonode = (">" if parts[4] == "+" else "<") + parts[3]
+			tonode = revnode(tonode)
+			if fromnode not in graph_edges: graph_edges[fromnode] = set()
+			if tonode not in graph_edges: graph_edges[tonode] = set()
+			graph_edges[fromnode].add(tonode)
+			graph_edges[tonode].add(fromnode)
 
 unique_nodes = set()
 with open(unique_nodes_file) as f:
@@ -115,9 +114,10 @@ with open(counted_paths_file) as f:
 		connection_counts[key] += 1
 
 forbidden_connections = set()
+checked_sides = set()
 for node in unique_nodes:
-	check_side('>' + node)
-	check_side('<' + node)
+	check_side('>' + node, checked_sides, graph_edges)
+	check_side('<' + node, checked_sides, graph_edges)
 
 for pair in forbidden_connections:
 	sys.stderr.write("removed connection: " + str(pair) + "\n")

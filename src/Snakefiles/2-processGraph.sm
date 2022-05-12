@@ -46,17 +46,17 @@ cat > ./processGraph.sh <<EOF
 set -e
 
 echo Gap insertion pass 1.
-{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py ../{input.gfa} ../{input.paths} 2 50 paths-nogap-1.gaf gaps-hifi-1.gaf gapone \\\\
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py ../{input.gfa} ../{input.paths} 2 50 paths-nogap-1.gaf gaps-hifi-1.gaf gapone n \\\\
   > gapped-once-hifi-resolved.gfa
 
 echo ""
 echo Gap insertion pass 2.
-{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-once-hifi-resolved.gfa ../{input.paths} 2 300 paths-nogap-2.gaf gaps-hifi-2.gaf gaptwo \\\\
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-once-hifi-resolved.gfa ../{input.paths} 2 300 paths-nogap-2.gaf gaps-hifi-2.gaf gaptwo n \\\\
   > gapped-twice-hifi-resolved.gfa
 
 echo ""
 echo Gap insertion pass 3.
-{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-twice-hifi-resolved.gfa ../{input.paths} 1 5 paths-nogap-3.gaf gaps-hifi-3.gaf gapthree \\\\
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-twice-hifi-resolved.gfa ../{input.paths} 1 5 paths-nogap-3.gaf gaps-hifi-3.gaf gapthree n \\\\
   > gapped-hifi-resolved.gfa
 
 echo ""
