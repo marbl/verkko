@@ -98,6 +98,9 @@ SOURCES      := utility/src/utility/runtime.C \
                 utgcns/libNDalign/NDalgorithm-reverse.C \
                 \
                 utgcns/libpbutgcns/AlnGraphBoost.C  \
+                \
+                gfa/gfa.C \
+                gfa/bed.C \
 
 
 ifeq (${BUILDSTACKTRACE}, 1)
@@ -131,7 +134,8 @@ SRC_INCDIRS  := . \
                 utgcns/libNDFalcon \
                 utgcns/libboost \
                 overlapInCore \
-                overlapInCore/liboverlap
+                overlapInCore/liboverlap \
+                gfa
 
 SUBMAKEFILES := stores/ovStoreBuild.mk \
                 stores/ovStoreConfig.mk \
@@ -152,5 +156,7 @@ SUBMAKEFILES := stores/ovStoreBuild.mk \
                 \
                 utgcns/layoutToPackage.mk \
                 utgcns/utgcns.mk \
+                \
+                gfa/alignGFA.mk \
                 \
                 seqrequester/src/seqrequester/seqrequester.mk
