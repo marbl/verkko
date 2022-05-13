@@ -44,6 +44,7 @@ for l in sys.stdin:
 		front_trim = node_lens[path[-1][1:]] - edge_overlaps[(path[-2], path[-1])] - (int(parts[6]) - int(parts[8]))
 	parts[2] = str(int(parts[2]) + back_trim)
 	parts[3] = str(int(parts[3]) - front_trim)
+	if int(parts[3]) <= int(parts[2]): continue
 	parts[7] = str(int(parts[7]) + back_trim)
 	parts[8] = str(int(parts[8]) - front_trim)
 	while len(path) >= 2 and int(parts[7]) >= node_lens[path[0][1:]] - edge_overlaps[(path[0], path[1])]:

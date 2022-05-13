@@ -30,6 +30,7 @@ for l in sys.stdin:
 	assert len(path) >= 1
 	parts[2] = str(int(parts[2]) + edge_trim)
 	parts[3] = str(int(parts[3]) - edge_trim)
+	if int(parts[3]) <= int(parts[2]): continue
 	parts[7] = str(int(parts[7]) + edge_trim)
 	parts[8] = str(int(parts[8]) - edge_trim)
 	while len(path) >= 2 and int(parts[7]) >= node_lens[path[0][1:]] - edge_overlaps[(path[0], path[1])]:
