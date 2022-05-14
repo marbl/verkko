@@ -140,6 +140,7 @@ def getAllMappings(type):
     ret = ''
     if (type > 2):
         ret += ('../2-processGraph/unitig-mapping-1.txt ' +
+                '../2-processGraph/chop-map.txt' +
                 '../2-processGraph/unroll_mapping_1.txt ')
     if (type > 4) and config['withONT'] == "True":
         ret += ('../4-processONT/bridge_mapping.txt ' +
@@ -160,6 +161,8 @@ def getAllGraphs(type):
     if (type > 2):
         ret += ('../2-processGraph/gapped-once-hifi-resolved.gfa ' +
                 '../2-processGraph/gapped-twice-hifi-resolved.gfa ' +
+                '../2-processGraph/gapped-thrice-hifi-resolved.gfa ' +
+                '../2-processGraph/chopped-hifi-resolved.gfa ' +
                 '../2-processGraph/gapped-hifi-resolved.gfa ' +
                 '../2-processGraph/unrolled-hifi-resolved.gfa ' +
                 '../2-processGraph/unitig-unrolled-hifi-resolved.gfa ')
@@ -183,7 +186,8 @@ def getAllAlignments(type):
     if (type > 2):
         ret += ('../2-processGraph/gaps-hifi-1.gaf ' +
                 '../2-processGraph/gaps-hifi-2.gaf ' +
-                '../2-processGraph/gaps-hifi-3.gaf ')
+                '../2-processGraph/gaps-hifi-3.gaf ' +
+                '../2-processGraph/gaps-hifi-4.gaf ')
     if (type > 4) and config['withONT'] == "True":
         ret += ('../4-processONT/gaps-ont.gaf ')
     return ret

@@ -10,6 +10,8 @@ nongap_aln_file_out = sys.argv[5]
 gap_aln_file_out = sys.argv[6]
 prefix = sys.argv[7]
 allow_nontips = (True if sys.argv[8] == "y" else False)
+insert_seq = (True if sys.argv[9] == "y" else False)
+input_read_file = sys.argv[10]
 # graph to stdout
 
 def revnode(n):
@@ -76,6 +78,8 @@ with open(input_aln_file) as f:
 used_names = list(alns_per_read)
 used_names.sort()
 
+gap_source = {}
+
 for name in alns_per_read:
 	alns_per_read[name].sort(key=lambda x: x[0])
 	if len(alns_per_read[name]) < 2: continue
@@ -90,6 +94,10 @@ for name in alns_per_read:
 		key = canontip(alns[i-1][3], alns[i][2])
 		if key not in gaps: gaps[key] = []
 		gaps[key].append(gap_len)
+		if insert_seq:
+			if key not in gap_source: gap_source[key] = {}
+			if gap_len not in gap_source[key] or name < gap_source[key][gap_len][0]:
+				gap_source[key][gap_len] = (name, alns[i-1][1] + alns[i-1][5], alns[i][0] - alns[i][4])
 		readlen = alns[i][6]
 		readstart = alns[i-1][1] + alns[i-1][5]
 		readend = alns[i][0] - alns[i][4]
@@ -100,6 +108,25 @@ allowed_gaps = set()
 gap_names = {}
 gapkeys = list(gaps)
 gapkeys.sort()
+
+gap_insert_seqs = {}
+if insert_seq:
+	sources = {}
+	for key in gap_source:
+		for gap_len in gap_source[key]:
+			if gap_source[key][gap_len][0] not in sources: sources[gap_source[key][gap_len][0]] = []
+			sources[gap_source[key][gap_len][0]].append((key, gap_len))
+	with open(input_read_file) as f:
+		while True:
+			nameline = f.readline()
+			seqline = f.readline()
+			if not nameline and not seqline: break
+			nameline = nameline.strip()
+			seqline = seqline.strip()
+			if nameline[1:] not in sources: continue
+			for pair in sources[nameline[1:]]:
+				(key, gap_len) = pair
+				gap_insert_seqs[(key, gap_len)] = seqline[gap_source[key][gap_len][1]:gap_source[key][gap_len][2]]
 
 for gap in gapkeys:
 	if len(gaps[gap]) < min_gap_coverage: continue
@@ -131,7 +158,10 @@ for gap in gapkeys:
 		seq += base_seq[0]
 		overlap = 1
 	else:
-		seq = "N" * gap_len
+		if (gap, gap_len) in gap_insert_seqs:
+			seq = gap_insert_seqs[(gap, gap_len)]
+		else:
+			seq = "N" * gap_len
 		overlap = 0
 	gap_lens[gap_name] = len(seq)
 	if gap_len < 1: gap_len = 1
