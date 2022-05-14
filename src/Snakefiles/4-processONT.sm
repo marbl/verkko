@@ -83,7 +83,7 @@ cat alns-ont-nogap-2.gaf alns-ont-gap1.gaf alns-ont-gap2.gaf > alns-ont-choppabl
 
 {PYTHON} {VERKKO}/scripts/chop_misassemblies.py gapped-twice-unitig-unrolled-hifi-resolved.gfa alns-ont-choppable.gaf chop-mapping.txt alns-cut.gaf 10 20 > chopped-unitig-unrolled-hifi-resolved.gfa 2> chop-info.txt
 
-{PYTHON} {VERKKO}/scripts/maybe_trim_alignment.py chopped-unitig-unrolled-hifi-resolved.gfa 100 < alns-cut.gaf > alns-cut-trim.gaf 2> chop-info.txt
+{PYTHON} {VERKKO}/scripts/maybe_trim_alignment.py chopped-unitig-unrolled-hifi-resolved.gfa 100 < alns-cut.gaf > alns-cut-trim.gaf
 
 {PYTHON} {VERKKO}/scripts/insert_aln_gaps.py chopped-unitig-unrolled-hifi-resolved.gfa alns-cut-trim.gaf 10 100 alns-ont-nogap.gaf alns-ont-gap3.gaf cutgap y > gapped-unitig-unrolled-hifi-resolved.gfa
 
