@@ -64,7 +64,7 @@ echo ""
 echo Gap insertion pass 4.
 {PYTHON} {VERKKO}/scripts/chop_misassemblies.py gapped-thrice-hifi-resolved.gfa paths-nogap-3.gaf chop-map.txt paths-cut.gaf 3 0 \\\\
   > chopped-hifi-resolved.gfa
-{PYTHON} {VERKKO}/scripts/maybe_trim_alignments.py chopped-hifi-resolved.gfa 0 \\\\
+{PYTHON} {VERKKO}/scripts/maybe_trim_alignment.py chopped-hifi-resolved.gfa 0 \\\\
   < paths-cut.gaf \\\\
   > paths-cut-trim.gaf
 {PYTHON} {VERKKO}/scripts/insert_aln_gaps.py chopped-hifi-resolved.gfa paths-cut-trim.gaf 2 0 paths-nogap-4.gaf gaps-hifi-4.gaf gapfour y y ../{input.correctedHifi} \\\\
