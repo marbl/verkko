@@ -35,6 +35,12 @@ def remove_graph_node(node, nodeseqs, edges):
 			edges[revnode(edge)].remove(">" + node)
 		del edges["<" + node]
 
+def get_base_name(name):
+	if "_" not in name: return name
+	parts = name.split("_")
+	if parts[-1][0:3] == "cut": return name
+	return "_".join(parts[:-1])
+
 nodeseqs = {}
 edges = {}
 edge_overlaps = {}
@@ -44,8 +50,7 @@ for l in sys.stdin:
 	parts = l.strip().split('\t')
 	if parts[0] == 'S':
 		nodeseqs[parts[1]] = parts[2]
-		base = "_".join(parts[1].split('_')[:-1])
-		if "_" not in parts[1]: base = parts[1]
+		base = get_base_name(parts[1])
 		if base not in belongs_to_base: belongs_to_base[base] = set()
 		belongs_to_base[base].add(parts[1])
 	elif parts[0] == 'L':
@@ -55,10 +60,8 @@ for l in sys.stdin:
 		edges[fromnode].add(tonode)
 		if revnode(tonode) not in edges: edges[revnode(tonode)] = set()
 		edges[revnode(tonode)].add(revnode(fromnode))
-		frombase = "_".join(fromnode.split('_')[:-1])
-		tobase = "_".join(tonode.split('_')[:-1])
-		if "_" not in fromnode: frombase = fromnode
-		if "_" not in tonode: tobase = tonode
+		frombase = get_base_name(fromnode)
+		tobase = get_base_name(tonode)
 		edge_overlaps[canontip(frombase, revnode(tobase))] = parts[5]
 
 unresolve_number = {}
@@ -172,10 +175,8 @@ for edge in edge_names:
 	targets = list(edges[edge])
 	targets.sort()
 	for target in targets:
-		from_base = "_".join(edge.split('_')[:-1])
-		to_base = "_".join(target.split('_')[:-1])
-		if "_" not in edge: from_base = edge
-		if "_" not in target: to_base = target
+		from_base = get_base_name(edge)
+		to_base = get_base_name(target)
 		key = canontip(from_base, revnode(to_base))
 		overlap = "0M"
 		if key not in edge_overlaps:

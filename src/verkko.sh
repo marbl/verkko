@@ -123,6 +123,7 @@ mbg_baseK=1001
 mbg_maxK=15000
 mbg_window=100
 mbg_max_resolution=4000
+mbg_hifi_coverage=25
 
 #  split_ont, partitioning ont reads for alignment
 spl_bases=3000000000
@@ -340,6 +341,7 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--window" ] ;   then mbg_window=$arg;  shift
     elif [ "$opt" = "--threads" ] ;  then mbg_threads=$arg; shift
     elif [ "$opt" = "--max-r" ]   ;  then mbg_max_resolution=$arg; shift
+    elif [ "$opt" = "--hifi-coverage" ] ; then mbg_hifi_coverage=$arg; shift
 
     #
     #  splitONT options
@@ -629,6 +631,7 @@ echo >> ${outd}/verkko.yml "mbg_baseK:           '${mbg_baseK}'"
 echo >> ${outd}/verkko.yml "mbg_maxK:            '${mbg_maxK}'"
 echo >> ${outd}/verkko.yml "mbg_window:          '${mbg_window}'"
 echo >> ${outd}/verkko.yml "mbg_max_resolution:  '${mbg_max_resolution}'"
+echo >> ${outd}/verkko.yml "mbg_hifi_coverage:   '${mbg_hifi_coverage}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  split_ont"
 echo >> ${outd}/verkko.yml "spl_bases:           '${spl_bases}'"

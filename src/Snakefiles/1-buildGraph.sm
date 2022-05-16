@@ -50,6 +50,7 @@ rule buildGraph:
         maxK              = config['mbg_maxK'],
         window            = config['mbg_window'],
         maxR              = config['mbg_max_resolution'],
+        hifi_coverage     = config['mbg_hifi_coverage'],
         kmer_abundance    = 1,                   #  MBG default = 1
         unitig_abundance  = 2                    #  MBG default = 2
     threads:
@@ -102,6 +103,8 @@ echo ""
   --unitig-abundance {params.unitig_abundance} \\\\
   --error-masking=collapse-msat \\\\
   --output-sequence-paths ../{output.paths} \\\\
+  --hpc-variant-onecopy-coverage {params.hifi_coverage} \\\\
+  --do-unsafe-guesswork-resolutions \\\\
   --out ../{output.graph}
 
 #  Find coverage.
