@@ -22,7 +22,7 @@ def iterate_deterministic(l):
 		yield x
 
 def revcomp(s):
-	comp = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C', 'N': 'N'}
+	comp = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C', 'N': 'N', 'a': 'T', 't': 'A', 'c': 'G', 'g': 'C', 'n': 'N'}
 	return "".join(comp[c] for c in s[::-1])
 
 def getone(s):

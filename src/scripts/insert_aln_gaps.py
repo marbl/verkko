@@ -126,7 +126,7 @@ if insert_seq:
 			if nameline[1:] not in sources: continue
 			for pair in sources[nameline[1:]]:
 				(key, gap_len) = pair
-				gap_insert_seqs[(key, gap_len)] = seqline[gap_source[key][gap_len][1]:gap_source[key][gap_len][2]]
+				gap_insert_seqs[(key, gap_len)] = seqline[gap_source[key][gap_len][1]:gap_source[key][gap_len][2]].replace('a', 'A').replace('c', 'C').replace('g', 'G').replace('t', 'T')
 
 for gap in gapkeys:
 	if len(gaps[gap]) < min_gap_coverage: continue
