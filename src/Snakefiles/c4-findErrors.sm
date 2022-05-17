@@ -143,7 +143,7 @@ rule fixErrors:
         finished  = {rules.configureFindErrors.output.finished}
     output:
         red       = '0-correction/red.red',
-        fasta     = '0-correction/hifi-corrected.fasta'
+        fasta     = '0-correction/hifi-corrected.fasta.gz'
     log:
         err       = "0-correction/fixErrors.err"
     params:
@@ -186,7 +186,7 @@ rule correctHiFi:
     input:
         fasta    = {rules.fixErrors.output.fasta}
     output:
-        fasta    = 'hifi-corrected.fasta'
+        fasta    = 'hifi-corrected.fasta.gz'
     log:
     params:
         keepinter= config['keep_intermediate']

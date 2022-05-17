@@ -59,7 +59,7 @@ set -e
     -e  0.05 \\\\
     -em 0.20 \\\\
     -EM {params.ont_ids} \\\\
-    -l 2500 \\\\
+    -l 3000 \\\\
     -edlib
 EOF
 
