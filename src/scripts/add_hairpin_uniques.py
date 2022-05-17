@@ -84,7 +84,7 @@ for node in coverages:
 	if len(edges[">" + node]) != 1: continue
 	if len(edges["<" + node]) != 1: continue
 	if getone(edges[">" + node]) != getone(edges["<" + node]): continue
-	if len(get_reachable_uniques(node, edges, uniques)) != 2: continue
+#	if len(get_reachable_uniques(node, edges, uniques)) != 2: continue
 	new_uniques.add(node)
 
 for node in new_uniques:
