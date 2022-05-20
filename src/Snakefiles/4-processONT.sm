@@ -69,7 +69,7 @@ awk 'BEGIN \\\\
   < ../{input.ont_paths} \\\\
   > alns-ont-mapqfilter.gaf
 
-{PYTHON} {VERKKO}/scripts/chop_misassemblies.py unitig-unrolled-hifi-resolved.gfa alns-ont-mapqfilter.gaf chop-mapping.txt alns-cut.gaf 10 20 > chopped-unitig-unrolled-hifi-resolved.gfa 2> chop-info.txt
+{PYTHON} {VERKKO}/scripts/chop_misassemblies.py ../{input.graph} alns-ont-mapqfilter.gaf chop-mapping.txt alns-cut.gaf 10 20 > chopped-unitig-unrolled-hifi-resolved.gfa 2> chop-info.txt
 
 echo ""
 echo Step 2a
@@ -79,9 +79,9 @@ echo Step 2a
 {PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-once-unitig-unrolled-hifi-resolved.gfa alns-ont-nogap-1.gaf 5 1500 alns-ont-nogap-2.gaf alns-ont-gap2.gaf gapont2 n \\\\
   > gapped-twice-unitig-unrolled-hifi-resolved.gfa
 
-cat alns-ont-nogap-2.gaf alns-ont-gap1.gaf alns-ont-gap2.gaf | {PYTHON} {VERKKO}/scripts/maybe_trim_alignment.py chopped-unitig-unrolled-hifi-resolved.gfa 100 < alns-cut.gaf > alns-cut-trim.gaf
+cat alns-ont-nogap-2.gaf alns-ont-gap1.gaf alns-ont-gap2.gaf | {PYTHON} {VERKKO}/scripts/maybe_trim_alignment.py gapped-twice-unitig-unrolled-hifi-resolved.gfa 100 > alns-cut-trim.gaf
 
-{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py chopped-unitig-unrolled-hifi-resolved.gfa alns-cut-trim.gaf 10 100 alns-ont-nogap.gaf alns-ont-gap3.gaf cutgap y > gapped-unitig-unrolled-hifi-resolved.gfa
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-twice-unitig-unrolled-hifi-resolved.gfa alns-cut-trim.gaf 10 100 alns-ont-nogap.gaf alns-ont-gap3.gaf cutgap y > gapped-unitig-unrolled-hifi-resolved.gfa
 
 
 cat alns-ont-gap1.gaf alns-ont-gap2.gaf alns-ont-gap3.gaf > ../{output.ont_gap_align}
