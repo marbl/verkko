@@ -76,11 +76,11 @@ def getMBGMemoryRequest(attempt):              #  Sum the input size, divide by 
       mem = 0
 
       if config['correction_enabled'] == "True" and os.path.exists(rules.correctHiFi.output.fasta):
-         mem += os.path.getsize(rules.correctHiFi.output.fasta) * 4    # these are always compressed
+         mem += os.path.getsize(rules.correctHiFi.output.fasta) * 4.5    # these are always compressed
       else:
          for f in HIFI_READS:
             if re.match(r".*(xz|gz|bz2)$", f):   #  Zipped files expected to compress
-               mem += os.path.getsize(f) * 4     #  to 25% original size
+               mem += os.path.getsize(f) * 4.5   #  to 25% original size
             else:
                mem += os.path.getsize(f)
 
