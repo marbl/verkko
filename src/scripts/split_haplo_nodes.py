@@ -34,10 +34,10 @@ with open(in_node_alns) as f:
 			else:
 				cut_pos = int(parts[6]) - int(parts[8])
 		else:
-			if parts[4] == "-":
-				cut_pos = int(parts[6]) - int(parts[7])
-			else:
+			if parts[4] == "+":
 				cut_pos = int(parts[7])
+			else:
+				cut_pos = int(parts[6]) - int(parts[7])
 		if cut_direction[parts[0]]:
 			if parts[0] not in best_cut or int(parts[3]) > best_cut[parts[0]][0]:
 				best_cut[parts[0]] = (int(parts[3]), parts[5], cut_pos)
