@@ -21,6 +21,16 @@ def getNumLines(input):
       return sum(1 for line in open(infile))
    else:
       return 0
+
+def getFileBP(input):
+   s = os.path.getsize(input)
+   if re.match(r".*(fq|fastq).*", input):
+      s /= 2.50                             #  We don't use quality values so decrease the file size by about half
+   if re.match(r".*(xz|gz|bz2)$", input):   #  Zipped files expected to compress
+      s *= 4.25                             #  to 25% original size
+
+   return s
+
 #
 #  These functions return time and memory estimates for a given rule.
 #   - The first two are generic functions used by all rules.
@@ -76,16 +86,13 @@ def getMBGMemoryRequest(attempt):              #  Sum the input size, divide by 
       mem = 0
 
       if config['correction_enabled'] == "True" and os.path.exists(rules.correctHiFi.output.fasta):
-         mem += os.path.getsize(rules.correctHiFi.output.fasta) * 4.5    # these are always compressed
+         mem += getFileBP(rules.correctHiFi.output.fasta)
       else:
          for f in HIFI_READS:
-            if re.match(r".*(xz|gz|bz2)$", f):   #  Zipped files expected to compress
-               mem += os.path.getsize(f) * 4.5   #  to 25% original size
-            else:
-               mem += os.path.getsize(f)
+            mem += getFileBP(f)
 
       mem = mem * 1.10    #  Expand by 10%
-      mem = mem / 3       #  MBG is expected to use 1 byte for each 3 bytes of input
+      mem = mem / 2       #  MBG is expected to use 1 byte for each 2 bytes of input
       mem = mem / gib     #  Convert to GB
       mem = mem + 2.0     #  Add 2 GB
 
@@ -100,16 +107,14 @@ def getBuildPackageMemoryRequest(attempt):     #  Sum the size of input files, 2
       mem = 0
 
       for f in rules.buildPackages.input.ont_subset:
-         mem += os.path.getsize(f)
+         mem += getFileBP(f)
 
       for f in HIFI_READS:
-         if re.match(r".*(xz|gz|bz2)$", f):   #  Zipped files expected to compress
-            mem += os.path.getsize(f) * 4     #  to 25% original size
-         else:
-            mem += os.path.getsize(f)
+         mem += getFileBP(f)
 
       mem = mem * 1.10    #  Expand by 10%
       mem = mem / gib     #  Convert to GB
+      mem = mem / 4       #  2-bit encoding divide by 4
       mem = mem + 2.0     #  Add 2 GB
 
    return int(math.ceil(math.ceil(mem)*scl))
@@ -125,7 +130,7 @@ def getConsensusMemoryRequest(attempt, jobid):    #  Figure out what partitionin
             for l in f:
                words = l.strip().split();
                if jobid == words[5]:
-                  mem = max(mem, 2.0 + 1.25 * float(words[4]))
+                  mem = max(mem, 5.0 + float(words[4]))
 
    return int(math.ceil(math.ceil(mem)*scl))
 
