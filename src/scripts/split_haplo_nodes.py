@@ -39,11 +39,11 @@ with open(in_node_alns) as f:
 			else:
 				cut_pos = int(parts[6]) - int(parts[7])
 		if cut_direction[parts[0]]:
-			if parts[0] not in best_cut or int(parts[3]) > best_cut[parts[0]][0]:
-				best_cut[parts[0]] = (int(parts[3]), parts[5], cut_pos)
+			if parts[0] not in best_cut or int(parts[1]) - int(parts[3]) < best_cut[parts[0]][0]:
+				best_cut[parts[0]] = (int(parts[1]) - int(parts[3]), parts[5], cut_pos, parts[4])
 		else:
 			if parts[0] not in best_cut or int(parts[2]) < best_cut[parts[0]][0]:
-				best_cut[parts[0]] = (int(parts[2]), parts[5], cut_pos)
+				best_cut[parts[0]] = (int(parts[2]), parts[5], cut_pos, parts[4])
 
 nodelens = {}
 max_edge_overlaps = {}
@@ -52,6 +52,8 @@ with open(in_gfa) as f:
 		parts = l.strip().split('\t')
 		if parts[0] == "S":
 			nodelens[parts[1]] = len(parts[2])
+			if ">" + parts[1] not in max_edge_overlaps: max_edge_overlaps[">" + parts[1]] = 0
+			if "<" + parts[1] not in max_edge_overlaps: max_edge_overlaps["<" + parts[1]] = 0
 		if parts[0] == "L":
 			overlap = int(parts[5][:-1])
 			fromtip = (">" if parts[2] == "+" else "<") + parts[1]
@@ -65,12 +67,49 @@ cut_poses = {}
 for tip_node in best_cut:
 	cut_node = best_cut[tip_node][1]
 	cut_pos = best_cut[tip_node][2]
-	if "<" + cut_node in max_edge_overlaps and max_edge_overlaps["<" + cut_node] >= cut_pos:
+	tip_direction = cut_direction[tip_node]
+	cut_node_direction = best_cut[tip_node][3] == "+"
+	if tip_direction == cut_node_direction:
+		cut_pos += best_cut[tip_node][0]
+	else:
+		cut_pos -= best_cut[tip_node][0]
+	assert ">" + cut_node in max_edge_overlaps
+	assert "<" + cut_node in max_edge_overlaps
+	try_backtrace = 0
+	if max_edge_overlaps["<" + cut_node] >= cut_pos:
+		try_backtrace = max_edge_overlaps["<" + cut_node] - cut_pos + 1
+		assert try_backtrace > 0
+		sys.stderr.write("Shifted cut site " + cut_node + " " + str(cut_pos) + " to " + str(cut_pos + try_backtrace) + " due to overlaps" + "\n")
+		cut_pos = cut_pos + try_backtrace
+	if nodelens[cut_node] -  max_edge_overlaps[">" + cut_node] <= cut_pos:
+		try_backtrace = -(cut_pos - (nodelens[cut_node] - max_edge_overlaps[">" + cut_node]) + 1)
+		assert try_backtrace < 0
+		sys.stderr.write("Shifted cut site " + cut_node + " " + str(cut_pos) + " to " + str(cut_pos + try_backtrace) + " due to overlaps" + "\n")
+		cut_pos = cut_pos + try_backtrace
+	if max_edge_overlaps["<" + cut_node] >= cut_pos:
 		sys.stderr.write("Discarded cut site " + cut_node + " " + str(cut_pos) + " due to edge overlap" + "\n")
 		continue
-	if ">" + cut_node in max_edge_overlaps and nodelens[cut_node] - max_edge_overlaps[">" + cut_node] <= cut_pos:
+	if nodelens[cut_node] - max_edge_overlaps[">" + cut_node] <= cut_pos:
 		sys.stderr.write("Discarded cut site " + cut_node + " " + str(cut_pos) + " due to edge overlap" + "\n")
 		continue
+	if try_backtrace != 0:
+		if tip_direction:
+			tip_cut_position = nodelens[tip_node]
+		else:
+			tip_cut_position = 0
+		if cut_node_direction:
+			tip_cut_position += try_backtrace
+		else:
+			tip_cut_position -= try_backtrace
+		if max_edge_overlaps["<" + tip_node] >= tip_cut_position:
+			sys.stderr.write("Discarded cut site " + cut_node + " " + str(cut_pos) + " due to tip edge overlap (" + str(tip_cut_position) + ")" + "\n")
+			continue
+		if nodelens[tip_node] - max_edge_overlaps[">" + tip_node] <= tip_cut_position:
+			sys.stderr.write("Discarded cut site " + cut_node + " " + str(cut_pos) + " due to tip edge overlap (" + str(tip_cut_position) + ")" + "\n")
+			continue
+		if tip_node not in cut_poses: cut_poses[tip_node] = []
+		cut_poses[tip_node].append(tip_cut_position)
+		sys.stderr.write("Cut " + tip_node + " " + str(tip_cut_position) + "\n")
 	if cut_node not in cut_poses: cut_poses[cut_node] = []
 	cut_poses[cut_node].append(cut_pos)
 	sys.stderr.write("Cut " + cut_node + " " + str(cut_pos) + "\n")
