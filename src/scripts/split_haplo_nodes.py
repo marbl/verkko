@@ -146,22 +146,22 @@ with open(out_split_gfa, "w") as f2:
 				cuts = cut_poses[parts[1]]
 				cuts.sort()
 				assert len(cuts) >= 1
-				f2.write("S\t" + parts[1] + "_first\t" + parts[2][0:cuts[0]] + "\n")
+				f2.write("S\t" + parts[1] + "_hapcutfirst\t" + parts[2][0:cuts[0]] + "\n")
 				for i in range(1, len(cuts)):
-					f2.write("S\t" + parts[1] + "_cut" + str(i) + "\t" + parts[2][cuts[i-1]:cuts[i]] + "\n")
-				f2.write("S\t" + parts[1] + "_last\t" + parts[2][cuts[-1]:] + "\n")
+					f2.write("S\t" + parts[1] + "_hapcut" + str(i) + "\t" + parts[2][cuts[i-1]:cuts[i]] + "\n")
+				f2.write("S\t" + parts[1] + "_hapcutlast\t" + parts[2][cuts[-1]:] + "\n")
 				continue
 			if parts[0] == "L" and (parts[1] in cut_poses or parts[3] in cut_poses):
 				if parts[1] in cut_poses:
 					if parts[2] == "+":
-						parts[1] = parts[1] + "_last"
+						parts[1] = parts[1] + "_hapcutlast"
 					else:
-						parts[1] = parts[1] + "_first"
+						parts[1] = parts[1] + "_hapcutfirst"
 				if parts[3] in cut_poses:
 					if parts[4] == "+":
-						parts[3] = parts[3] + "_first"
+						parts[3] = parts[3] + "_hapcutfirst"
 					else:
-						parts[3] = parts[3] + "_last"
+						parts[3] = parts[3] + "_hapcutlast"
 				f2.write("\t".join(parts) + "\n")
 				continue
 			else:
