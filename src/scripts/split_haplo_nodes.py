@@ -147,7 +147,7 @@ with open(out_split_gfa, "w") as f2:
 				cuts.sort()
 				assert len(cuts) >= 1
 				f2.write("S\t" + parts[1] + "_first\t" + parts[2][0:cuts[0]] + "\n")
-				for i in range(1, len(cuts)-1):
+				for i in range(1, len(cuts)):
 					f2.write("S\t" + parts[1] + "_cut" + str(i) + "\t" + parts[2][cuts[i-1]:cuts[i]] + "\n")
 				f2.write("S\t" + parts[1] + "_last\t" + parts[2][cuts[-1]:] + "\n")
 				continue
