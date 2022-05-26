@@ -6,8 +6,9 @@ in_gfa = sys.argv[1]
 in_matches = sys.argv[2]
 in_node_alns = sys.argv[3]
 in_read_alns = sys.argv[4]
-out_split_gfa = sys.argv[5]
-out_relevant_read_names = sys.argv[6]
+in_distance_cuts = sys.argv[5]
+out_split_gfa = sys.argv[6]
+out_relevant_read_names = sys.argv[7]
 
 
 relevant_nodes = set()
@@ -63,16 +64,38 @@ with open(in_gfa) as f:
 			max_edge_overlaps[fromtip] = max(max_edge_overlaps[fromtip], overlap)
 			max_edge_overlaps[totip] = max(max_edge_overlaps[totip], overlap)
 
-cut_poses = {}
+cuts = []
 for tip_node in best_cut:
+	cut_offset = best_cut[tip_node][0]
 	cut_node = best_cut[tip_node][1]
 	cut_pos = best_cut[tip_node][2]
+	node_direction = best_cut[tip_node][3]
+	cuts.append((tip_node, cut_offset, cut_node, cut_pos, node_direction))
+
+with open(in_distance_cuts) as f:
+	for l in f:
+		parts = l.strip().split('\t')
+		tip_node = parts[0][1:]
+		assert (cut_direction[tip_node]) == (parts[0][0] == ">")
+		cut_offset = 0
+		cut_node = parts[1][1:]
+		cut_pos = int(parts[2])
+		node_direction = ("+" if parts[1][0] == ">" else "-")
+		cuts.append((tip_node, cut_offset, cut_node, cut_pos, node_direction))
+
+cut_poses = {}
+for cut_triplet in cuts:
+	tip_node = cut_triplet[0]
+	cut_offset = cut_triplet[1]
+	cut_node = cut_triplet[2]
+	cut_pos = cut_triplet[3]
+	node_direction = cut_triplet[4]
 	tip_direction = cut_direction[tip_node]
-	cut_node_direction = best_cut[tip_node][3] == "+"
+	cut_node_direction = node_direction == "+"
 	if tip_direction == cut_node_direction:
-		cut_pos += best_cut[tip_node][0]
+		cut_pos += cut_offset
 	else:
-		cut_pos -= best_cut[tip_node][0]
+		cut_pos -= cut_offset
 	assert ">" + cut_node in max_edge_overlaps
 	assert "<" + cut_node in max_edge_overlaps
 	try_backtrace = 0

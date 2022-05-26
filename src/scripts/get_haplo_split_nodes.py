@@ -7,6 +7,7 @@ hifi_coverage_csv = sys.argv[2]
 tip_node_names_out = sys.argv[3]
 context_node_names_out = sys.argv[4]
 node_matches_out = sys.argv[5]
+distance_based_cuts_out = sys.argv[6]
 
 
 long_node_size = 100000
@@ -90,7 +91,7 @@ def find_context_nodes(start, tip, backtrace_len, nodelens, edges):
 			edge_end_pos = top[1] - edge[1] + nodelens[edge[0][1:]]
 			if edge_end_pos >= backtrace_len - context_size and edge_start_pos <= backtrace_len + context_size:
 				if edge[0] != tip and "gap" not in edge[0]:
-					result.add(edge[0])
+					result.add((edge[0], edge_start_pos))
 			stack.append((edge[0], edge_end_pos))
 	return result
 
@@ -152,6 +153,7 @@ for tip in maybe_tip:
 tip_matches = {}
 cuttable_nodes = set()
 context_nodes = set()
+distance_cuts = []
 
 for node in tip_nodes:
 	hom = find_closest_homozygous(revnode(node), edges, nodelens, coverage, average_coverage)
@@ -159,8 +161,15 @@ for node in tip_nodes:
 	context = find_context_nodes(revnode(hom[0]), node, hom[1], nodelens, edges)
 	if len(context) == 0: continue
 	cuttable_nodes.add(node)
-	for c in context: context_nodes.add(c)
-	tip_matches[node] = context
+	for c in context:
+		context_nodes.add(c[0])
+		if c[1] <= hom[1] and c[1] + nodelens[c[0][1:]] >= hom[1]:
+			distance_cuts.append((node, c[0], hom[1] - c[1]))
+	tip_matches[node] = [c[0] for c in context]
+
+with open(distance_based_cuts_out, "w") as f:
+	for cut in distance_cuts:
+		f.write(cut[0] + "\t" + cut[1] + "\t" + str(cut[2]) + "\n")
 
 with open(tip_node_names_out, "w") as f:
 	for node in cuttable_nodes:
