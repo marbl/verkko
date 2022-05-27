@@ -80,7 +80,8 @@ with open(in_distance_cuts) as f:
 		cut_offset = 0
 		cut_node = parts[1][1:]
 		cut_pos = int(parts[2])
-		node_direction = ("+" if parts[1][0] == ">" else "-")
+		if parts[1][0] == "<": cut_pos = nodelens[parts[1][1:]] - cut_pos
+		node_direction = ("+" if (parts[1][0] == parts[0][0]) else "-")
 		cuts.append((tip_node, cut_offset, cut_node, cut_pos, node_direction))
 
 cut_poses = {}
