@@ -174,6 +174,22 @@ def get_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_overlaps,
 			result.append((match_bp_len, contig, index, fw, i, node_start_offset, node_end_offset, read_start_offset, read_end_offset, readlen, gap))
 	return result
 
+def get_exact_match_length(clusters):
+	clusters.sort(key=lambda x: x[0])
+	result = 0
+	max_match = 0
+	for cluster in clusters:
+		start = cluster[0]
+		end = cluster[1]
+		if end <= max_match: continue
+		if start > max_match:
+			result += end - start
+			max_match = end
+		else:
+			result += end - max_match
+			max_match = end
+	return result
+
 raw_node_lens = {}
 with open(nodelens_file) as f:
 	for l in f:
@@ -363,24 +379,24 @@ for contig in contig_contains_reads:
 			assert readstart < readend
 			if fw:
 				if fwcluster is None:
-					fwcluster = (contigstart, contigend, readstart, readend, real_readstart, real_readend)
+					fwcluster = (contigstart, contigend, readstart, readend, [(real_readstart, real_readend)])
 				elif contigstart < fwcluster[0] + 50 and contigend < fwcluster[1] + 50:
-					fwcluster = (contigstart, contigend, min(fwcluster[2], readstart), max(fwcluster[3], readend), min(fwcluster[4], real_readstart), max(fwcluster[5], real_readend))
+					fwcluster = (contigstart, contigend, min(fwcluster[2], readstart), max(fwcluster[3], readend), fwcluster[4] + [(real_readstart, real_readend)])
 				else:
-					if fwcluster[3] - fwcluster[2] >= readlen * min_read_len_fraction: read_clusters[readname].append((contig, fwcluster[0], fwcluster[1], fwcluster[4], fwcluster[5]))
-					fwcluster = (contigstart, contigend, readstart, readend, real_readstart, real_readend)
+					if fwcluster[3] - fwcluster[2] >= readlen * min_read_len_fraction: read_clusters[readname].append((contig, fwcluster[0], fwcluster[1], get_exact_match_length(fwcluster[4])))
+					fwcluster = (contigstart, contigend, readstart, readend, [(real_readstart, real_readend)])
 			else:
 				if bwcluster is None:
-					bwcluster = (contigstart, contigend, readstart, readend, real_readstart, real_readend)
+					bwcluster = (contigstart, contigend, readstart, readend, [(real_readstart, real_readend)])
 				elif contigstart < bwcluster[0] + 50 and contigend < bwcluster[1] + 50:
-					bwcluster = (contigstart, contigend, min(bwcluster[2], readstart), max(bwcluster[3], readend), min(bwcluster[4], real_readstart), max(bwcluster[5], real_readend))
+					bwcluster = (contigstart, contigend, min(bwcluster[2], readstart), max(bwcluster[3], readend), bwcluster[4] + [(real_readstart, real_readend)])
 				else:
-					if bwcluster[3] - bwcluster[2] >= readlen * min_read_len_fraction: read_clusters[readname].append((contig, bwcluster[1], bwcluster[0], bwcluster[4], bwcluster[5]))
-					bwcluster = (contigstart, contigend, readstart, readend, real_readstart, real_readend)
+					if bwcluster[3] - bwcluster[2] >= readlen * min_read_len_fraction: read_clusters[readname].append((contig, bwcluster[1], bwcluster[0], get_exact_match_length(bwcluster[4])))
+					bwcluster = (contigstart, contigend, readstart, readend, [(real_readstart, real_readend)])
 		if fwcluster is not None:
-			if fwcluster[3] - fwcluster[2] >= readlen * min_read_len_fraction: read_clusters[readname].append((contig, fwcluster[0], fwcluster[1], fwcluster[4], fwcluster[5]))
+			if fwcluster[3] - fwcluster[2] >= readlen * min_read_len_fraction: read_clusters[readname].append((contig, fwcluster[0], fwcluster[1], get_exact_match_length(fwcluster[4])))
 		if bwcluster is not None:
-			if bwcluster[3] - bwcluster[2] >= readlen * min_read_len_fraction: read_clusters[readname].append((contig, bwcluster[1], bwcluster[0], bwcluster[4], bwcluster[5]))
+			if bwcluster[3] - bwcluster[2] >= readlen * min_read_len_fraction: read_clusters[readname].append((contig, bwcluster[1], bwcluster[0], get_exact_match_length(bwcluster[4])))
 
 contig_actual_lines = {}
 for readname in read_clusters:
@@ -388,10 +404,10 @@ for readname in read_clusters:
 	for line in read_clusters[readname]:
 		if len(longest) == 0:
 			longest.append(line)
-		elif line[4] - line[3] > longest[0][4] - longest[0][3]:
+		elif line[3] > longest[0][3]:
 			longest = []
 			longest.append(line)
-		elif line[4] - line[3] == longest[0][4] - longest[0][3]:
+		elif line[3] == longest[0][3]:
 			longest.append(line)
 	for line in longest:
 		if line[0] not in contig_actual_lines: contig_actual_lines[line[0]] = []
