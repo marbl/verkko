@@ -144,7 +144,7 @@ with open(out_split_gfa, "w") as f2:
 			parts = l.strip().split('\t')
 			if parts[0] == "S" and parts[1] in cut_poses:
 				nodelen = len(parts[2])
-				cuts = cut_poses[parts[1]]
+				cuts = list(set(cut_poses[parts[1]]))
 				cuts.sort()
 				assert len(cuts) >= 1
 				f2.write("S\t" + parts[1] + "_hapcutfirst\t" + parts[2][0:cuts[0]] + "\n")
