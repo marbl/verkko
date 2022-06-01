@@ -1,0 +1,215 @@
+#############################################################################
+ #
+ #  This file is part of Verkko, a software program that assembles
+ #  whole-genome sequencing reads into telomere-to-telomere
+ #  haplotype-resolved chromosomes.
+ #
+ #  Except as indicated otherwise, this is a 'United States Government
+ #  Work', and is released in the public domain.
+ #
+ #  File 'README.licenses' in the root directory of this distribution
+ #  contains full conditions and disclaimers.
+ #
+ ##
+
+
+#
+#  Rule splitHaploGaps finds regions where one haplotype has a gap and inserts a gap into the other haplotype to make alignment less biased
+#
+
+def extractONTI(wildcards):
+    return expand("3-align/split/ont{nnnn}.fasta.gz", nnnn = glob_wildcards("3-align/split/ont{xxxx}.fasta.gz").xxxx)
+
+rule splitHaploGaps:
+    input:
+       raw_graph        = {rules.processGraph.output.gfa},
+       gapped_graph     = {rules.fillGapONT.output.graph},
+       ont_paths        = {rules.combineONT.output.alignments},
+       hificov          = {rules.buildGraph.output.hificov}
+    output:
+       graph            = '4b-fixHaploGaps/split.gfa',
+       relevant_reads   = '4b-fixHaploGaps/relevant_reads.txt',
+       split_mapping    = '4b-fixHaploGaps/split_mapping.txt'
+    log:
+        err             = '4b-fixHaploGaps/splitHaploGaps.err'
+    threads:
+        1
+    resources:
+        job_id = 1,
+        n_cpus = 1,
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'pop'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'pop')
+    shell:
+        '''
+cd 4b-fixHaploGaps
+
+cat > ./splitHaploGaps.sh <<EOF
+#!/bin/sh
+set -e
+
+{PYTHON} {VERKKO}/scripts/get_haplo_split_nodes.py ../{input.gapped_graph} ../{input.hificov} distancecuts.txt
+{PYTHON} {VERKKO}/scripts/split_haplo_nodes.py ../{input.raw_graph} ../{input.ont_paths} ../{input.hificov} distancecuts.txt ../{output.graph} ../{output.relevant_reads} ../{output.split_mapping}
+
+EOF
+
+chmod +x ./splitHaploGaps.sh
+
+./splitHaploGaps.sh > ../{log.err} 2>&1
+        '''
+
+rule extractHaplogapReads:
+    input:
+        relevant_reads   = rules.splitHaploGaps.output.relevant_reads,
+        ont_files        = extractONTI
+    output:
+        reads            = '4b-fixHaploGaps/ont_haplogap_subset.fa'
+    log:
+        err              = '4b-fixHaploGaps/extractHaplogapReads.err'
+    threads:
+        1
+    resources:
+        job_id = 1,
+        n_cpus = 1,
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'pop'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'pop')
+    shell:
+        '''
+cd 4b-fixHaploGaps
+
+cat > ./extractHaplogapReads.sh <<EOF
+#!/bin/sh
+set -e
+
+cat ../{input.ont_files} | {PYTHON} {VERKKO}/scripts/pick_reads_stdin.py ../{input.relevant_reads} > ../{output.reads}
+
+EOF
+
+chmod +x ./extractHaplogapReads.sh
+
+./extractHaplogapReads.sh > ../{log.err} 2>&1
+        '''
+
+
+rule alignHaplogapONTs:
+    input:
+        reads             = rules.extractHaplogapReads.output.reads,
+        gfa               = rules.splitHaploGaps.output.graph,
+    output:
+        alignments        = '4b-fixHaploGaps/aligned_haplogapONTs.gaf'
+    log:
+        err               = '4b-fixHaploGaps/aligned.err'
+    params:
+        GRAPHALIGNER      = config['GRAPHALIGNER'],
+        mxm_length        = config['ali_mxm_length'],
+        mem_count         = config['ali_mem_count'],
+        bandwidth         = config['ali_bandwidth'],
+        multi_score_f     = config['ali_multi_score_f'],
+        clipping          = config['ali_clipping'],
+        min_score         = config['ali_min_score'],
+        end_clipping      = config['ali_end_clipping'],
+        incompat_cutoff   = config['ali_incompat_cutoff'],
+        max_trace         = config['ali_max_trace']
+    threads:
+        int(config['ali_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = config['ali_n_cpus'],
+        mem_gb = lambda wildcards, input, attempt: getAlignMemoryRequest(attempt, 15, [ input.gfa ]), # use indexing memory estimate because this builds the index as well. the old index can't be reused because it's a different gfa
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ali', 6.0)
+    shell:
+        '''
+cd 3-align
+
+cat > ./aligned.sh <<EOF
+#!/bin/sh
+set -e
+
+{params.GRAPHALIGNER} -t {threads} -g ../{input.gfa} -f ../{input.reads} -a ../{output.alignments} \\\\
+  --seeds-mxm-length {params.mxm_length} \\\\
+  --seeds-mem-count {params.mem_count} \\\\
+  --bandwidth {params.bandwidth} \\\\
+  --multimap-score-fraction {params.multi_score_f} \\\\
+  --precise-clipping {params.clipping} \\\\
+  --min-alignment-score {params.min_score} \\\\
+  --hpc-collapse-reads \\\\
+  --discard-cigar \\\\
+  --clip-ambiguous-ends {params.end_clipping} \\\\
+  --overlap-incompatible-cutoff {params.incompat_cutoff} \\\\
+  --max-trace-count {params.max_trace}
+
+EOF
+
+chmod +x ./aligned.sh
+
+./aligned.sh > ../{log.err} 2>&1
+        '''
+
+
+rule refillGapONTs:
+    input:
+        graph            = {rules.splitHaploGaps.output.graph},
+        old_ont_paths    = {rules.combineONT.output.alignments},
+        new_ont_paths    = {rules.alignHaplogapONTs.output.alignments},
+        relevant_reads   = rules.splitHaploGaps.output.relevant_reads
+    output:
+        graph            = '4b-fixHaploGaps/gapped-unitig-unrolled-hifi-resolved.gfa',
+        ont_gap_align    = '4b-fixHaploGaps/gaps-ont.gaf',
+        paths            = '4b-fixHaploGaps/alns-ont.gaf'
+    log:
+        err             = '4b-fixHaploGaps/refillGapONTs.err'
+    threads:
+        1
+    resources:
+        job_id = 1,
+        n_cpus = 1,
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'pop'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'pop')
+    shell:
+        '''
+cd 4b-fixHaploGaps
+
+cat > ./refillGapONTs.sh <<EOF
+#!/bin/sh
+set -e
+
+{PYTHON} {VERKKO}/scripts/merge_new_alignments.py ../{input.relevant_reads} ../{input.old_ont_paths} ../{input.new_ont_paths} > alns-merged.gaf
+
+echo Step 1a
+awk 'BEGIN \\\\
+     {{ \\\\
+        FS="\\t"; \\\\
+     }} \\\\
+     {{ \\\\
+        if (\$12 >= 20) print; \\\\
+     }}' \\\\
+  < alns-merged.gaf \\\\
+  > alns-ont-mapqfilter.gaf
+
+{PYTHON} {VERKKO}/scripts/chop_misassemblies.py ../{input.graph} alns-ont-mapqfilter.gaf chop-mapping.txt alns-cut.gaf 10 20 > chopped-unitig-unrolled-hifi-resolved.gfa 2> chop-info.txt
+
+echo ""
+echo Step 2a
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py chopped-unitig-unrolled-hifi-resolved.gfa alns-cut.gaf 3 50 alns-ont-nogap-1.gaf alns-ont-gap1.gaf gapont1 n \\\\
+  > gapped-once-unitig-unrolled-hifi-resolved.gfa
+
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-once-unitig-unrolled-hifi-resolved.gfa alns-ont-nogap-1.gaf 5 1500 alns-ont-nogap-2.gaf alns-ont-gap2.gaf gapont2 n \\\\
+  > gapped-twice-unitig-unrolled-hifi-resolved.gfa
+
+cat alns-ont-nogap-2.gaf alns-ont-gap1.gaf alns-ont-gap2.gaf | {PYTHON} {VERKKO}/scripts/maybe_trim_alignment.py gapped-twice-unitig-unrolled-hifi-resolved.gfa 100 > alns-cut-trim.gaf
+
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-twice-unitig-unrolled-hifi-resolved.gfa alns-cut-trim.gaf 10 100 alns-ont-nogap.gaf alns-ont-gap3.gaf cutgap y > gapped-nohapedge-unitig-unrolled-hifi-resolved.gfa
+
+{PYTHON} {VERKKO}/scripts/reinsert_haplocut_edges.py < gapped-nohapedge-unitig-unrolled-hifi-resolved.gfa > ../{output.graph}
+
+cat alns-ont-gap1.gaf alns-ont-gap2.gaf alns-ont-gap3.gaf > ../{output.ont_gap_align}
+
+echo ""
+echo Step 2b
+cat alns-ont-nogap.gaf ../{output.ont_gap_align} | awk -F '\\t' '{{if (\$4-\$3 >= \$2*0.8 && \$12 >= 20) print;}}' | {PYTHON} {VERKKO}/scripts/trim_dbg_alignment.py gapped-unitig-unrolled-hifi-resolved.gfa 1500 > ../{output.paths}
+
+EOF
+
+chmod +x ./refillGapONTs.sh
+
+./refillGapONTs.sh > ../{log.err} 2>&1
+        '''

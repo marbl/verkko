@@ -182,6 +182,8 @@ include: 'Snakefiles/3-splitONT.sm'
 include: 'Snakefiles/3-alignONT.sm'
 include: 'Snakefiles/3-combineONT.sm'
 
+include: 'Snakefiles/4a-tipONT.sm'
+include: 'Snakefiles/4b-fixHaploGaps.sm'
 include: 'Snakefiles/4-processONT.sm'
 
 include: 'Snakefiles/get-coverage.sm'

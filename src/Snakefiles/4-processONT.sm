@@ -29,12 +29,11 @@
 
 rule processONT:
     input:
-       graph            = {rules.processGraph.output.gfa},
+       graph            = {rules.refillGapONTs.output.graph},
        hificov          = {rules.buildGraph.output.hificov},
-       ont_paths        = {rules.combineONT.output.alignments}
+       ont_paths        = {rules.refillGapONTs.output.paths}
     output:
        graph            = '4-processONT/unitig-unrolled-ont-resolved.gfa',
-       ont_gap_align    = '4-processONT/gaps-ont.gaf',
        ontcov           = '4-processONT/nodecovs-ont.csv'
     log:
         err             = '4-processONT/processONT.err'
@@ -58,47 +57,15 @@ cat > ./processONT.sh <<EOF
 #!/bin/sh
 set -e
 
-echo Step 1a
-awk 'BEGIN \\\\
-     {{ \\\\
-        FS="\\t"; \\\\
-     }} \\\\
-     {{ \\\\
-        if (\$12 >= 20) print; \\\\
-     }}' \\\\
-  < ../{input.ont_paths} \\\\
-  > alns-ont-mapqfilter.gaf
-
-{PYTHON} {VERKKO}/scripts/chop_misassemblies.py ../{input.graph} alns-ont-mapqfilter.gaf chop-mapping.txt alns-cut.gaf 10 20 > chopped-unitig-unrolled-hifi-resolved.gfa 2> chop-info.txt
-
-echo ""
-echo Step 2a
-{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py chopped-unitig-unrolled-hifi-resolved.gfa alns-cut.gaf 3 50 alns-ont-nogap-1.gaf alns-ont-gap1.gaf gapont1 n \\\\
-  > gapped-once-unitig-unrolled-hifi-resolved.gfa
-
-{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-once-unitig-unrolled-hifi-resolved.gfa alns-ont-nogap-1.gaf 5 1500 alns-ont-nogap-2.gaf alns-ont-gap2.gaf gapont2 n \\\\
-  > gapped-twice-unitig-unrolled-hifi-resolved.gfa
-
-cat alns-ont-nogap-2.gaf alns-ont-gap1.gaf alns-ont-gap2.gaf | {PYTHON} {VERKKO}/scripts/maybe_trim_alignment.py gapped-twice-unitig-unrolled-hifi-resolved.gfa 100 > alns-cut-trim.gaf
-
-{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-twice-unitig-unrolled-hifi-resolved.gfa alns-cut-trim.gaf 10 100 alns-ont-nogap.gaf alns-ont-gap3.gaf cutgap y > gapped-unitig-unrolled-hifi-resolved.gfa
-
-
-cat alns-ont-gap1.gaf alns-ont-gap2.gaf alns-ont-gap3.gaf > ../{output.ont_gap_align}
-
-echo ""
-echo Step 2b
-cat alns-ont-nogap.gaf ../{output.ont_gap_align} | awk -F '\\t' '{{if (\$4-\$3 >= \$2*0.8 && \$12 >= 20) print;}}' | {PYTHON} {VERKKO}/scripts/trim_dbg_alignment.py gapped-unitig-unrolled-hifi-resolved.gfa 1500 > alns-ont-filter-trim.gaf
-
 echo ""
 echo Step 2c
 {PYTHON} {VERKKO}/scripts/calculate_coverage.py gapped-unitig-unrolled-hifi-resolved.gfa \\\\
-  < alns-ont-filter-trim.gaf \\\\
+  < ../{input.ont_paths} \\\\
   > ../{output.ontcov}
 
 echo ""
 echo Step 2d
-cut -f 6 < alns-ont-filter-trim.gaf > paths.txt
+cut -f 6 < ../{input.ont_paths} > paths.txt
 
 echo ""
 echo Step 3a
@@ -157,7 +124,7 @@ awk 'BEGIN \\\\
 {PYTHON} {VERKKO}/scripts/estimate_unique_local.py \\\\
   gapped-unitig-unrolled-hifi-resolved.gfa \\\\
   hifi-nodecov-gapped-unitig-unrolled-hifi-resolved.csv \\\\
-  alns-ont-filter-trim.gaf 100000 30 0.8 \\\\
+  ../{input.ont_paths} 100000 30 0.8 \\\\
 > unique_nodes_ont_coverage.txt
 
 #  COMMENTED OUT IN ORIGINAL
@@ -167,7 +134,7 @@ awk 'BEGIN \\\\
 
 echo ""
 echo Step 4a
-{PYTHON} {VERKKO}/scripts/fix_diploid_unique_nodes.py unique_nodes_ont_coverage.txt alns-ont-filter-trim.gaf hifi-nodecov-gapped-unitig-unrolled-hifi-resolved.csv nodecovs-ont.csv gapped-unitig-unrolled-hifi-resolved.gfa \\\\
+{PYTHON} {VERKKO}/scripts/fix_diploid_unique_nodes.py unique_nodes_ont_coverage.txt ../{input.ont_paths} hifi-nodecov-gapped-unitig-unrolled-hifi-resolved.csv nodecovs-ont.csv gapped-unitig-unrolled-hifi-resolved.gfa \\\\
   > unique_nodes_diploidfix.txt
 
 echo ""
@@ -267,7 +234,7 @@ echo Step 15a
 {PYTHON} {VERKKO}/scripts/add_fake_alignments.py \\\\
   ../{input.graph} \\\\
   normal-connected.gfa \\\\
-  alns-ont-filter-trim.gaf \\\\
+  ../{input.ont_paths} \\\\
   nodecovs-ont.csv \\\\
   fake-ont-alns.gaf \\\\
   fake-ont-nodecovs-once.csv \\\\

@@ -1,0 +1,73 @@
+#############################################################################
+ #
+ #  This file is part of Verkko, a software program that assembles
+ #  whole-genome sequencing reads into telomere-to-telomere
+ #  haplotype-resolved chromosomes.
+ #
+ #  Except as indicated otherwise, this is a 'United States Government
+ #  Work', and is released in the public domain.
+ #
+ #  File 'README.licenses' in the root directory of this distribution
+ #  contains full conditions and disclaimers.
+ #
+ ##
+
+#
+#  Rule tipONT fills HiFi gaps with ONT reads in preparation for more precise realigning ONTs to gaps in haplotypes
+#
+#
+
+rule fillGapONT:
+    input:
+       graph            = {rules.processGraph.output.gfa},
+       ont_paths        = {rules.combineONT.output.alignments}
+    output:
+       graph            = '4a-tipONT/gapped-unitig-unrolled-hifi-resolved.gfa'
+    log:
+        err             = '4a-tipONT/tipONT.err'
+    threads:
+        1
+    resources:
+        job_id = 1,
+        n_cpus = 1,
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'pop'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'pop')
+    shell:
+        '''
+cd 4a-tipONT
+
+cat > ./tipONT.sh <<EOF
+#!/bin/sh
+set -e
+
+echo Step 1a
+awk 'BEGIN \\\\
+     {{ \\\\
+        FS="\\t"; \\\\
+     }} \\\\
+     {{ \\\\
+        if (\$12 >= 20) print; \\\\
+     }}' \\\\
+  < ../{input.ont_paths} \\\\
+  > alns-ont-mapqfilter.gaf
+
+{PYTHON} {VERKKO}/scripts/chop_misassemblies.py ../{input.graph} alns-ont-mapqfilter.gaf chop-mapping.txt alns-cut.gaf 10 20 > chopped-unitig-unrolled-hifi-resolved.gfa 2> chop-info.txt
+
+echo ""
+echo Step 2a
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py chopped-unitig-unrolled-hifi-resolved.gfa alns-cut.gaf 3 50 alns-ont-nogap-1.gaf alns-ont-gap1.gaf gapont1 n \\\\
+  > gapped-once-unitig-unrolled-hifi-resolved.gfa
+
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-once-unitig-unrolled-hifi-resolved.gfa alns-ont-nogap-1.gaf 5 1500 alns-ont-nogap-2.gaf alns-ont-gap2.gaf gapont2 n \\\\
+  > gapped-twice-unitig-unrolled-hifi-resolved.gfa
+
+cat alns-ont-nogap-2.gaf alns-ont-gap1.gaf alns-ont-gap2.gaf | {PYTHON} {VERKKO}/scripts/maybe_trim_alignment.py gapped-twice-unitig-unrolled-hifi-resolved.gfa 100 > alns-cut-trim.gaf
+
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-twice-unitig-unrolled-hifi-resolved.gfa alns-cut-trim.gaf 10 100 alns-ont-nogap.gaf alns-ont-gap3.gaf cutgap y > gapped-unitig-unrolled-hifi-resolved.gfa
+
+EOF
+
+chmod +x ./tipONT.sh
+
+./tipONT.sh > ../{log.err} 2>&1
+        '''

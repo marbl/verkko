@@ -7,6 +7,7 @@ in_read_alns = sys.argv[2]
 in_distance_cuts = sys.argv[3]
 out_split_gfa = sys.argv[4]
 out_relevant_read_names = sys.argv[5]
+out_split_mapping = sys.argv[6]
 
 
 def revnode(n):
@@ -88,6 +89,7 @@ for cut_triplet in cuts:
 	cut_poses[cut_node[1:]].append(cut_pos)
 	sys.stderr.write("Cut " + cut_node[1:] + " " + str(cut_pos) + "\n")
 
+mappings = []
 with open(out_split_gfa, "w") as f2:
 	with open(in_gfa) as f:
 		for l in f:
@@ -97,10 +99,13 @@ with open(out_split_gfa, "w") as f2:
 				cuts = list(set(cut_poses[parts[1]]))
 				cuts.sort()
 				assert len(cuts) >= 1
-				f2.write("S\t" + parts[1] + "_hapcutfirst\t" + parts[2][0:cuts[0]] + "\n")
+				f2.write("S\t" + parts[1] + "_hapcut0\t" + parts[2][0:cuts[0]] + "\n")
+				mappings.append((parts[1] + "_hapcut0", parts[1], 0, nodelens[parts[1]] - cuts[0]))
 				for i in range(1, len(cuts)):
 					f2.write("S\t" + parts[1] + "_hapcut" + str(i) + "\t" + parts[2][cuts[i-1]:cuts[i]] + "\n")
-				f2.write("S\t" + parts[1] + "_hapcutlast\t" + parts[2][cuts[-1]:] + "\n")
+					mappings.append((parts[1] + "_hapcut" + str(i), parts[1], cuts[i-1], nodelens[parts[1]] - cuts[i]))
+				f2.write("S\t" + parts[1] + "_hapcut" + str(len(cuts)) + "\t" + parts[2][cuts[-1]:] + "\n")
+				mappings.append((parts[1] + "_hapcut" + str(len(cuts)), parts[1], cuts[-1], 0))
 				continue
 			if parts[0] == "L" and (parts[1] in cut_poses or parts[3] in cut_poses):
 				if parts[1] in cut_poses:
@@ -126,3 +131,7 @@ with open(out_relevant_read_names, "w") as f2:
 			for node in path:
 				if node in relevant_nodes:
 					f2.write(parts[0].split(' ')[0] + "\n")
+
+with open(out_split_mapping, "w") as f:
+	for t in mappings:
+		f.write(t[0] + "\t>" + t[1] + ":" + str(t[2]) + ":" + str(t[3]) + "\n")

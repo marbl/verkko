@@ -33,7 +33,7 @@ rule extractONT:
     input:
         split_finished = {rules.splitONT.output.finished},
         ont_files      = extractONTI,
-        ont_gap_align  = {rules.processONT.output.ont_gap_align}
+        ont_gap_align  = {rules.refillGapONTs.output.ont_gap_align}
     output:
         ont_subset_id  = '7-consensus/ont_subset.id',
         ont_subset_ex  = '7-consensus/ont_subset.extract',
