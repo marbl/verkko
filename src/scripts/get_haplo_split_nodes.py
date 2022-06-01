@@ -4,10 +4,7 @@ import sys
 
 in_gfa = sys.argv[1]
 hifi_coverage_csv = sys.argv[2]
-tip_node_names_out = sys.argv[3]
-context_node_names_out = sys.argv[4]
-node_matches_out = sys.argv[5]
-distance_based_cuts_out = sys.argv[6]
+distance_based_cuts_out = sys.argv[3]
 
 
 long_node_size = 100000
@@ -150,9 +147,6 @@ for tip in maybe_tip:
 	if tip in has_telomere: continue
 	tip_nodes.add(tip)
 
-tip_matches = {}
-cuttable_nodes = set()
-context_nodes = set()
 distance_cuts = []
 
 for node in tip_nodes:
@@ -160,25 +154,10 @@ for node in tip_nodes:
 	if not hom: continue
 	context = find_context_nodes(revnode(hom[0]), node, hom[1], nodelens, edges)
 	if len(context) == 0: continue
-	cuttable_nodes.add(node)
 	for c in context:
-		context_nodes.add(c[0])
 		if c[1] <= hom[1] and c[1] + nodelens[c[0][1:]] >= hom[1]:
 			distance_cuts.append((node, c[0], hom[1] - c[1]))
-	tip_matches[node] = [c[0] for c in context]
 
 with open(distance_based_cuts_out, "w") as f:
 	for cut in distance_cuts:
 		f.write(cut[0] + "\t" + cut[1] + "\t" + str(cut[2]) + "\n")
-
-with open(tip_node_names_out, "w") as f:
-	for node in cuttable_nodes:
-		f.write(node[1:] + "\n")
-
-with open(context_node_names_out, "w") as f:
-	for node in context_nodes:
-		f.write(node[1:] + "\n")
-
-with open(node_matches_out, "w") as f:
-	for node in tip_matches:
-		f.write(node + "\t" + "\t".join(tip_matches[node]) + "\n")
