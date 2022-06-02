@@ -18,7 +18,7 @@
 #
 
 def extractONTI(wildcards):
-    return expand("3-align/split/ont{nnnn}.fasta.gz", nnnn = glob_wildcards("3-align/split/ont{xxxx}.fasta.gz").xxxx)
+    return expand("../3-align/split/ont{nnnn}.fasta.gz", nnnn = glob_wildcards("3-align/split/ont{xxxx}.fasta.gz").xxxx)
 
 rule splitHaploGaps:
     input:
@@ -80,7 +80,7 @@ cat > ./extractHaplogapReads.sh <<EOF
 #!/bin/sh
 set -e
 
-zcat ../{input.ont_files} | {PYTHON} {VERKKO}/scripts/pick_reads_stdin.py ../{input.relevant_reads} > ../{output.reads}
+zcat {input.ont_files} | {PYTHON} {VERKKO}/scripts/pick_reads_stdin.py ../{input.relevant_reads} > ../{output.reads}
 
 EOF
 
