@@ -146,18 +146,29 @@ for contig in nodes_per_contig:
 
 split_forbidden_intervals = {}
 for node in node_occurrences:
-	node_occurrences[node].sort(key=lambda x: x[0])
-	for i in range(0, len(node_occurrences[node])):
-		for j in range(i+1, len(node_occurrences[node])):
-			if node_occurrences[node][i][2] == node_occurrences[node][j][2]: continue
-			if node_occurrences[node][j][0] >= node_occurrences[node][i][1]: continue
-			assert node_occurrences[node][j][1] > node_occurrences[node][i][0]
-			assert node_occurrences[node][j][0] < node_occurrences[node][i][1]
-			assert node_occurrences[node][i][1] > node_occurrences[node][i][0]
-			assert node_occurrences[node][j][1] > node_occurrences[node][j][0]
-			assert node_occurrences[node][j][0] == max(node_occurrences[node][j][0], node_occurrences[node][i][0])
+	occurrences = list(set(node_occurrences[node]))
+	occurrences.sort(key = lambda x: x[0])
+	max_end = (occurrences[0][1], occurrences[0][2])
+	second_max_end = (occurrences[0][1], occurrences[0][2])
+	for i in range(1, len(occurrences)):
+		if occurrences[i][0] <= max_end[0] and occurrences[i][2] != max_end[1]:
 			if node not in split_forbidden_intervals: split_forbidden_intervals[node] = []
-			split_forbidden_intervals[node].append((node_occurrences[node][j][0], min(node_occurrences[node][j][1], node_occurrences[node][i][1])))
+			split_forbidden_intervals[node].append((occurrences[i][0], min(max_end[0], occurrences[i][1])))
+		if occurrences[i][0] <= second_max_end[0] and occurrences[i][2] != second_max_end[1]:
+			if node not in split_forbidden_intervals: split_forbidden_intervals[node] = []
+			split_forbidden_intervals[node].append((occurrences[i][0], min(second_max_end[0], occurrences[i][1])))
+		if occurrences[i][2] == max_end[1]:
+			max_end = (max(max_end[0], occurrences[i][1]), max_end[1])
+		elif occurrences[i][2] == second_max_end[1]:
+			second_max_end = (max(second_max_end[0], occurrences[i][1]), second_max_end[1])
+		elif occurrences[i][1] > max_end[0]:
+			assert second_max_end[0] <= max_end[0]
+			second_max_end = max_end
+			max_end = (occurrences[i][1], occurrences[i][2])
+		elif occurrences[i][1] > second_max_end[0]:
+			assert second_max_end[0] <= max_end[0]
+			assert occurrences[i][1] <= max_end[0]
+			second_max_end = (occurrences[i][1], occurrences[i][2])
 
 forbidden_intervals = {}
 for node in split_forbidden_intervals:
