@@ -26,6 +26,13 @@
 #  Rule getCoverage
 #    Computes {step}.{tech}-coverage.csv based on input graph.
 #
+#  Rules prepHifiCoverage & getHifiCoverage
+#    Same as above, but using only the graphs up until hifi resolution.
+#    Needed for getting hifi coverage for step 4b, where the above rules are unusable because step 5 hasn't been done yet
+#
+
+ruleorder: prepHifiCoverage > prepCoverage
+ruleorder: getHifiCoverage > getCoverage
 
 rule prepCoverage:
     input:
@@ -115,4 +122,93 @@ EOF
 chmod +x ./getCoverage.{wildcards.id}.sh
 
 ./getCoverage.{wildcards.id}.sh > ../{log.err} 2>&1
+        '''
+
+
+
+rule prepHifiCoverage:
+    input:
+        graph         = rules.verkko.input.graph
+    output:
+        edges         = "2-processGraph/combined-edges-hifigraph.gfa",
+        lens          = "2-processGraph/nodelens-hifigraph.txt",
+        nodes         = "2-processGraph/combined-nodemap-hifigraph.txt"
+    log:
+        err           = "2-processGraph/prepCoverage.err"
+    params:
+        maps          = getAllMappings(2),
+        graphs        = getAllGraphs(2),
+    threads:
+        1
+    resources:
+        job_id = 1,
+        n_cpus = 1,
+        mem_gb = 4,
+        time_h = 2
+    shell:
+        '''
+cd 2-processGraph
+
+cat > ./prepHifiCoverage.sh <<EOF
+#!/bin/sh
+set -e
+
+cat {params.maps} \\\\
+> ../{output.nodes}
+
+cat {params.graphs} \\\\
+| grep '^L' \\\\
+> ../{output.edges}
+
+cat {params.graphs} \\\\
+| awk 'BEGIN \\\\
+       {{ \\\\
+          FS="[ \\t]+"; OFS="\\t"; \\\\
+       }} \\\\
+       (\$1 == "S") && (\$3 != "*") \\\\
+       {{ \\\\
+          print \$2, length(\$3); \\\\
+       }}' \\\\
+> ../{output.lens}
+EOF
+
+chmod +x ./prepHifiCoverage.sh
+
+./prepHifiCoverage.sh > ../{log.err} 2>&1
+        '''
+
+
+
+rule getHifiCoverage:
+    input:
+        hifi_coverage = rules.buildGraph.output.hificov,
+        graph         = "2-processGraph/{id}.gfa",
+        edges         = rules.prepHifiCoverage.output.edges,
+        nodes         = rules.prepHifiCoverage.output.nodes,
+        lens          = rules.prepHifiCoverage.output.lens
+    output:
+        hifi_coverage = "2-processGraph/{id}.hifi-coverage.csv"
+    log:
+        err           = "2-processGraph/{id}.getCoverage.err"
+    threads:
+        1
+    resources:
+        job_id = 1,
+        n_cpus = 1,
+        mem_gb = 16,
+        time_h = 2
+    shell:
+        '''
+cd 5-untip
+
+cat > ./getHifiCoverage.{wildcards.id}.sh <<EOF
+#!/bin/sh
+#set -e
+
+{PYTHON} {VERKKO}/scripts/get_original_coverage.py ../{input.graph} ../{input.nodes} ../{input.edges} ../{input.lens} ../{input.hifi_coverage} > ../{output.hifi_coverage}
+EOF
+
+chmod +x ./getHifiCoverage.{wildcards.id}.sh
+
+./getHifiCoverage.{wildcards.id}.sh > ../{log.err} 2>&1
         '''

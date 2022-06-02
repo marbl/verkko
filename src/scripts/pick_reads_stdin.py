@@ -13,9 +13,9 @@ with open(readnamefile) as f:
 printing = False
 
 for l in sys.stdin:
-    if l[0] == '>':
-        name = l.strip()[1:].split(" ")[0]
-        valid_name = name in readnames
-        printing = valid_name
-    if printing:
-	print(l.strip())
+	if l[0] == '>':
+		name = l.strip()[1:].split(" ")[0]
+		valid_name = name in readnames
+		printing = valid_name
+	if printing:
+		print(l.strip())

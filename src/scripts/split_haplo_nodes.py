@@ -33,6 +33,7 @@ with open(in_gfa) as f:
 			max_edge_overlaps[fromtip] = max(max_edge_overlaps[fromtip], overlap)
 			max_edge_overlaps[totip] = max(max_edge_overlaps[totip], overlap)
 
+relevant_nodes = set()
 cuts = []
 with open(in_distance_cuts) as f:
 	for l in f:
@@ -42,6 +43,8 @@ with open(in_distance_cuts) as f:
 		cut_node = parts[1]
 		cut_pos = int(parts[2])
 		cuts.append((tip_node, tip_cut_pos, cut_node, cut_pos))
+		relevant_nodes.add(tip_node[1:])
+		relevant_nodes.add(cut_node[1:])
 
 cut_poses = {}
 for cut_triplet in cuts:

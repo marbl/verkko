@@ -25,7 +25,7 @@ rule splitHaploGaps:
        raw_graph        = {rules.processGraph.output.gfa},
        gapped_graph     = {rules.fillGapONT.output.graph},
        ont_paths        = {rules.combineONT.output.alignments},
-       hificov          = {rules.buildGraph.output.hificov}
+       hificov          = '2-processGraph/unitig-unrolled-hifi-resolved.hifi-coverage.csv'
     output:
        graph            = '4b-fixHaploGaps/split.gfa',
        relevant_reads   = '4b-fixHaploGaps/relevant_reads.txt',
@@ -48,7 +48,7 @@ cat > ./splitHaploGaps.sh <<EOF
 set -e
 
 {PYTHON} {VERKKO}/scripts/get_haplo_split_nodes.py ../{input.gapped_graph} ../{input.hificov} distancecuts.txt
-{PYTHON} {VERKKO}/scripts/split_haplo_nodes.py ../{input.raw_graph} ../{input.ont_paths} ../{input.hificov} distancecuts.txt ../{output.graph} ../{output.relevant_reads} ../{output.split_mapping}
+{PYTHON} {VERKKO}/scripts/split_haplo_nodes.py ../{input.raw_graph} ../{input.ont_paths} distancecuts.txt ../{output.graph} ../{output.relevant_reads} ../{output.split_mapping}
 
 EOF
 

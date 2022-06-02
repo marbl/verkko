@@ -115,8 +115,9 @@ with open(in_gfa) as f:
 		if parts[0] == "S":
 			nodelens[parts[1]] = len(parts[2])
 			if len(parts[2]) >= long_node_size:
-				longnode_sum += len(parts[2])
-				longnode_coverage += len(parts[2]) * coverage[parts[1]]
+				if parts[1] in coverage:
+					longnode_sum += len(parts[2])
+					longnode_coverage += len(parts[2]) * coverage[parts[1]]
 			if len(parts[2]) >= min_tipnode_size:
 				maybe_tip.add(">" + parts[1])
 				maybe_tip.add("<" + parts[1])
