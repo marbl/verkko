@@ -93,6 +93,9 @@ for cut_triplet in cuts:
 	sys.stderr.write("Cut " + cut_node[1:] + " " + str(cut_pos) + "\n")
 
 mappings = []
+cuts_per_node = {}
+for node in cut_poses:
+	cuts_per_node[node] = len(set(cut_poses[node]))
 with open(out_split_gfa, "w") as f2:
 	with open(in_gfa) as f:
 		for l in f:
@@ -101,6 +104,8 @@ with open(out_split_gfa, "w") as f2:
 				nodelen = len(parts[2])
 				cuts = list(set(cut_poses[parts[1]]))
 				cuts.sort()
+				assert parts[1] in cuts_per_node
+				assert len(cuts) == cuts_per_node[parts[1]]
 				assert len(cuts) >= 1
 				f2.write("S\t" + parts[1] + "_hapcut0\t" + parts[2][0:cuts[0]] + "\n")
 				mappings.append((parts[1] + "_hapcut0", parts[1], 0, nodelens[parts[1]] - cuts[0]))
@@ -113,14 +118,14 @@ with open(out_split_gfa, "w") as f2:
 			if parts[0] == "L" and (parts[1] in cut_poses or parts[3] in cut_poses):
 				if parts[1] in cut_poses:
 					if parts[2] == "+":
-						parts[1] = parts[1] + "_hapcutlast"
+						parts[1] = parts[1] + "_hapcut" + str(cuts_per_node[parts[1]])
 					else:
-						parts[1] = parts[1] + "_hapcutfirst"
+						parts[1] = parts[1] + "_hapcut0"
 				if parts[3] in cut_poses:
 					if parts[4] == "+":
-						parts[3] = parts[3] + "_hapcutfirst"
+						parts[3] = parts[3] + "_hapcut0"
 					else:
-						parts[3] = parts[3] + "_hapcutlast"
+						parts[3] = parts[3] + "_hapcut" + str(cuts_per_node[parts[3]])
 				f2.write("\t".join(parts) + "\n")
 				continue
 			else:

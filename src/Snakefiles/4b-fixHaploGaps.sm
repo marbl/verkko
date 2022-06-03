@@ -18,6 +18,9 @@
 #
 
 def extractONTI(wildcards):
+    return expand("3-align/split/ont{nnnn}.fasta.gz", nnnn = glob_wildcards("3-align/split/ont{xxxx}.fasta.gz").xxxx)
+
+def extractONTIRelative(wildcards):
     return expand("../3-align/split/ont{nnnn}.fasta.gz", nnnn = glob_wildcards("3-align/split/ont{xxxx}.fasta.gz").xxxx)
 
 rule splitHaploGaps:
@@ -63,6 +66,8 @@ rule extractHaplogapReads:
         ont_files        = extractONTI
     output:
         reads            = '4b-fixHaploGaps/ont_haplogap_subset.fa'
+    params:
+        ont_files_path   = extractONTIRelative
     log:
         err              = '4b-fixHaploGaps/extractHaplogapReads.err'
     threads:
@@ -80,7 +85,7 @@ cat > ./extractHaplogapReads.sh <<EOF
 #!/bin/sh
 set -e
 
-zcat {input.ont_files} | {PYTHON} {VERKKO}/scripts/pick_reads_stdin.py ../{input.relevant_reads} > ../{output.reads}
+zcat {params.ont_files_path} | {PYTHON} {VERKKO}/scripts/pick_reads_stdin.py ../{input.relevant_reads} > ../{output.reads}
 
 EOF
 
@@ -118,7 +123,7 @@ rule alignHaplogapONTs:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ali', 6.0)
     shell:
         '''
-cd 3-align
+cd 4b-fixHaploGaps
 
 cat > ./aligned.sh <<EOF
 #!/bin/sh
