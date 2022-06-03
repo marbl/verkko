@@ -38,6 +38,7 @@ def remove_graph_node(node, nodeseqs, edges):
 def get_base_name(name):
 	if "_" not in name: return name
 	parts = name.split("_")
+	if parts[-1][0:3] == "hapcut": return name
 	if parts[-1][0:3] == "cut": return name
 	return "_".join(parts[:-1])
 

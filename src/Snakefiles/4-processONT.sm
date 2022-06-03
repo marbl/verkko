@@ -59,7 +59,7 @@ set -e
 
 echo ""
 echo Step 2c
-{PYTHON} {VERKKO}/scripts/calculate_coverage.py gapped-unitig-unrolled-hifi-resolved.gfa \\\\
+{PYTHON} {VERKKO}/scripts/calculate_coverage.py ../{input.graph} \\\\
   < ../{input.ont_paths} \\\\
   > ../{output.ontcov}
 
@@ -96,12 +96,12 @@ cat {params.maps} \\\\
 # unitig-unrolled-hifi-resolved.gfa
 # gapped-unitig-unrolled-hifi-resolved.gfa
 
-grep -h '^L' {params.graphs} gapped-unitig-unrolled-hifi-resolved.gfa \\\\
+grep -h '^L' {params.graphs} ../{input.graph} \\\\
   > combined-edges-uniques.gfa
 
 # this used to have grep -v \*
 #
-cat {params.graphs} gapped-unitig-unrolled-hifi-resolved.gfa \\\\
+cat {params.graphs} ../{input.graph} \\\\
 | \\\\
 awk 'BEGIN \\\\
      {{ \\\\
@@ -114,7 +114,7 @@ awk 'BEGIN \\\\
   > nodelens-uniques.txt
 
 {PYTHON} {VERKKO}/scripts/get_original_coverage.py \\\\
-  gapped-unitig-unrolled-hifi-resolved.gfa \\\\
+  ../{input.graph} \\\\
   combined-nodemap-uniques.txt \\\\
   combined-edges-uniques.gfa \\\\
   nodelens-uniques.txt \\\\
@@ -122,7 +122,7 @@ awk 'BEGIN \\\\
 > hifi-nodecov-gapped-unitig-unrolled-hifi-resolved.csv
 
 {PYTHON} {VERKKO}/scripts/estimate_unique_local.py \\\\
-  gapped-unitig-unrolled-hifi-resolved.gfa \\\\
+  ../{input.graph} \\\\
   hifi-nodecov-gapped-unitig-unrolled-hifi-resolved.csv \\\\
   ../{input.ont_paths} 100000 30 0.8 \\\\
 > unique_nodes_ont_coverage.txt
@@ -134,12 +134,12 @@ awk 'BEGIN \\\\
 
 echo ""
 echo Step 4a
-{PYTHON} {VERKKO}/scripts/fix_diploid_unique_nodes.py unique_nodes_ont_coverage.txt ../{input.ont_paths} hifi-nodecov-gapped-unitig-unrolled-hifi-resolved.csv nodecovs-ont.csv gapped-unitig-unrolled-hifi-resolved.gfa \\\\
+{PYTHON} {VERKKO}/scripts/fix_diploid_unique_nodes.py unique_nodes_ont_coverage.txt ../{input.ont_paths} hifi-nodecov-gapped-unitig-unrolled-hifi-resolved.csv nodecovs-ont.csv ../{input.graph} \\\\
   > unique_nodes_diploidfix.txt
 
 echo ""
 echo Step 4b
-{PYTHON} {VERKKO}/scripts/add_hairpin_uniques.py unique_nodes_diploidfix.txt hifi-nodecov-gapped-unitig-unrolled-hifi-resolved.csv < gapped-unitig-unrolled-hifi-resolved.gfa \\\\
+{PYTHON} {VERKKO}/scripts/add_hairpin_uniques.py unique_nodes_diploidfix.txt hifi-nodecov-gapped-unitig-unrolled-hifi-resolved.csv < ../{input.graph} \\\\
   > unique_nodes_hairpinfix.txt
 
 echo ""
@@ -171,7 +171,7 @@ echo Step 7b
 echo ""
 echo Step 8
 {PYTHON} {VERKKO}/scripts/remove_crosslink_paths.py \\\\
-  gapped-unitig-unrolled-hifi-resolved.gfa \\\\
+  ../{input.graph} \\\\
   unique_nodes_ont.txt \\\\
   bridging_seq_picked_all.txt \\\\
   bridges.txt \\\\
@@ -182,7 +182,7 @@ echo ""
 echo Step 9
 {PYTHON} {VERKKO}/scripts/fix_diploid_paths.py \\\\
   unique_nodes_ont.txt \\\\
-  gapped-unitig-unrolled-hifi-resolved.gfa \\\\
+  ../{input.graph} \\\\
   bridges_fixcrosslink.txt \\\\
   bridges.txt \\\\
   3 \\\\
@@ -200,7 +200,7 @@ echo ""
 echo Step 11
 {PYTHON} {VERKKO}/scripts/forbid_unbridged_tangles.py \\\\
   unique_nodes_ont.txt \\\\
-  gapped-unitig-unrolled-hifi-resolved.gfa \\\\
+  ../{input.graph} \\\\
   bridging_seq_forbidden.txt \\\\
   bridging_seq_picked.txt \\\\
   paths.txt \\\\
@@ -212,7 +212,7 @@ echo Step 11
 
 echo ""
 echo Step 12
-{PYTHON} {VERKKO}/scripts/connect_uniques.py gapped-unitig-unrolled-hifi-resolved.gfa forbidden_ends.txt bridging_seq_picked.txt unique_nodes_ont.txt \\\\
+{PYTHON} {VERKKO}/scripts/connect_uniques.py ../{input.graph} forbidden_ends.txt bridging_seq_picked.txt unique_nodes_ont.txt \\\\
   > connected.gfa \\\\
  2> connected.gfa.err     #  It writes lots of chatter!
 
@@ -226,7 +226,7 @@ echo ""
 echo Step 14
 {PYTHON} {VERKKO}/scripts/get_bridge_mapping.py \\\\
   normal-connected.gfa \\\\
-  gapped-unitig-unrolled-hifi-resolved.gfa \\\\
+  ../{input.graph} \\\\
   > bridge_mapping.txt
 
 echo ""
