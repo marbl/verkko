@@ -742,6 +742,7 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/scripts/fix_diploid_unique_nodes.py \
      ../lib/verkko/scripts/forbid_unbridged_tangles.py \
      ../lib/verkko/scripts/get_bridge_mapping.py \
+     ../lib/verkko/scripts/get_haplo_split_nodes.py \
      ../lib/verkko/scripts/get_layout_from_mbg.py \
      ../lib/verkko/scripts/get_original_coverage.py \
      ../lib/verkko/scripts/get_unroll_mapping.py \
@@ -756,6 +757,7 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/scripts/remove_crosslink_paths.py \
      ../lib/verkko/scripts/remove_wrong_connections_2.py \
      ../lib/verkko/scripts/resolve_triplets_kmerify.py \
+     ../lib/verkko/scripts/split_haplo_nodes.py \
      ../lib/verkko/scripts/trim_dbg_alignment.py \
      ../lib/verkko/scripts/unitigify.py \
      ../lib/verkko/scripts/unroll_tip_loops.py \
