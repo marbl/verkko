@@ -883,12 +883,13 @@ def get_seq(base_seqs, edge_overlaps, nodeseq, left_clip, right_clip):
 (base_seqs, node_seqs, edges, edge_overlaps) = read_graph(input_gfa)
 
 node_lens = {}
+paths_crossing = {}
 for node in base_seqs:
 	node_lens[node] = len(base_seqs[node])
+	paths_crossing[node] = {}
 
 del base_seqs
 
-paths_crossing = {}
 initial_paths = []
 
 for l in sys.stdin:

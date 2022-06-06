@@ -148,8 +148,8 @@ def getAllMappings(type):
                 '../2-processGraph/unroll_mapping_1.txt ')
     if (type > 4) and config['withONT'] == "True":
         ret += ('../4b-fixHaploGaps/split_mapping.txt ' +
+                '../4b-fixHaploGaps/chop-mapping.txt ' +
                 '../4-processONT/bridge_mapping.txt ' +
-                '../4-processONT/chop-mapping.txt ' +
                 '../4-processONT/resolve-mapping.txt ' +
                 '../4-processONT/unroll_mapping_2.txt ' +
                 '../4-processONT/unitig-mapping-2.txt ')
