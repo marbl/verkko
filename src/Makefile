@@ -767,6 +767,8 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/Snakefiles/3-alignONT.sm \
      ../lib/verkko/Snakefiles/3-combineONT.sm \
      ../lib/verkko/Snakefiles/3-splitONT.sm \
+     ../lib/verkko/Snakefiles/4a-tipONT.sm \
+     ../lib/verkko/Snakefiles/4b-fixHaploGaps.sm \
      ../lib/verkko/Snakefiles/4-processONT.sm \
      ../lib/verkko/Snakefiles/5-untip.sm \
      ../lib/verkko/Snakefiles/6-rukki.sm \
