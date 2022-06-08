@@ -136,8 +136,8 @@ rule prepHifiCoverage:
     log:
         err           = "2-processGraph/prepCoverage.err"
     params:
-        maps          = getAllMappings(2),
-        graphs        = getAllGraphs(2),
+        maps          = getAllMappings(4),
+        graphs        = getAllGraphs(4),
     threads:
         1
     resources:
@@ -199,7 +199,7 @@ rule getHifiCoverage:
         time_h = 2
     shell:
         '''
-cd 5-untip
+cd 2-processGraph
 
 cat > ./getHifiCoverage.{wildcards.id}.sh <<EOF
 #!/bin/sh
