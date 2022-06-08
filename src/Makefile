@@ -751,6 +751,9 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/scripts/maybe_trim_alignment.py \
      ../lib/verkko/scripts/merge_unresolved_dbg_nodes.py \
      ../lib/verkko/scripts/pick_majority_bridge.py \
+     ../lib/verkko/scripts/merge_new_alignments.py \
+     ../lib/verkko/scripts/reinsert_haplocut_edges.py \
+     ../lib/verkko/scripts/pick_reads_stdin.py \
      ../lib/verkko/scripts/pop_bubbles_coverage_based.py \
      ../lib/verkko/scripts/pop_bubbles_keep_longest.py \
      ../lib/verkko/scripts/process_reads.py \
