@@ -128,7 +128,7 @@ chmod +x ./getCoverage.{wildcards.id}.sh
 
 rule prepHifiCoverage:
     input:
-        graph         = rules.verkko.input.graph
+        graph         = rules.processGraph.output.gfa
     output:
         edges         = "2-processGraph/combined-edges-hifigraph.gfa",
         lens          = "2-processGraph/nodelens-hifigraph.txt",
