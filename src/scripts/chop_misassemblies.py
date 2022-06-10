@@ -18,6 +18,7 @@ def revnode(n):
 	assert n[0] == '>' or n[0] == '<'
 	return ('>' if n[0] == '<' else '<') + n[1:]
 
+not_tip = set()
 nodelens = {}
 max_overlap = {}
 with open(in_graph_file) as f:
@@ -33,6 +34,8 @@ with open(in_graph_file) as f:
 			if revnode(tonode) not in max_overlap: max_overlap[revnode(tonode)] = 0
 			max_overlap[fromnode] = max(max_overlap[fromnode], overlap)
 			max_overlap[revnode(tonode)] = max(max_overlap[revnode(tonode)], overlap)
+			not_tip.add(fromnode)
+			not_tip.add(revnode(tonode))
 
 alns_per_read = {}
 with open(in_alns_file) as f:
@@ -71,6 +74,7 @@ for read in read_aln_positions:
 		if read_aln_positions[read][i][1] <= read_aln_positions[read][i-1][1]: continue
 		prev_node = read_aln_positions[read][i-1][4]
 		this_node = read_aln_positions[read][i][2]
+		if revnode(end_node) in not_tip and revnode(this_node) in not_tip: continue
 		prev_node_offset = read_aln_positions[read][i-1][5]
 		this_node_offset = read_aln_positions[read][i][3]
 		if prev_node > this_node or (prev_node == this_node and prev_node_offset > this_node_offset):
