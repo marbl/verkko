@@ -7,6 +7,7 @@ node_coverage_file = sys.argv[1]
 # gfa to stdout
 
 max_bubble_pop_size = 10
+max_poppable_node_size = 200000
 
 def iterate_deterministic(l):
 	tmp = list(l)
@@ -55,7 +56,7 @@ def remove_graph_node(node, edges):
 
 # Detecting Superbubbles in Assembly Graphs, Onodera et al 2013
 # fig. 5
-def find_bubble(s, edges, max_bubble_size):
+def find_bubble(s, edges, max_bubble_size, nodelens):
 	if s not in edges: return None
 	if len(edges[s]) < 2: return None
 	S = [s]
@@ -68,6 +69,7 @@ def find_bubble(s, edges, max_bubble_size):
 		seen.remove(v)
 		assert v not in visited
 		visited.add(v)
+		if v != s and nodelens[v[1:]] > max_poppable_node_size: return None
 		if len(visited) > max_bubble_size: return None
 		if v not in edges: return None
 		if len(edges[v]) == 0: return None
@@ -217,7 +219,7 @@ for node in nodelens:
 possible_merges = []
 
 for edge in edges:
-	bubble = find_bubble(edge, edges, len(nodelens))
+	bubble = find_bubble(edge, edges, len(nodelens), nodelens)
 	if not bubble: continue
 	if bubble[0][1:] not in coverage or bubble[1][1:] not in coverage: continue
 	possible_merges.append((bubble[0][1:], bubble[1][1:], max(coverage[bubble[0][1:]] / coverage[bubble[1][1:]], coverage[bubble[1][1:]] / coverage[bubble[0][1:]])))
@@ -256,13 +258,13 @@ for node in iterate_deterministic(nodelens):
 	key = find(parent, node)
 	if key not in unique_chains: continue
 	if node in removed_nodes: continue
-	bubble = find_bubble(">" + node, edges, max_bubble_pop_size)
+	bubble = find_bubble(">" + node, edges, max_bubble_pop_size, nodelens)
 	if bubble:
 		assert bubble[0] == ">" + node
 		assert bubble[1][1:] != node
 		if find(parent, bubble[1][1:]) != key: continue
 		pop_bubble(bubble[0], bubble[1], removed_nodes, removed_edges, edges, coverage)
-	bubble = find_bubble("<" + node, edges, max_bubble_pop_size)
+	bubble = find_bubble("<" + node, edges, max_bubble_pop_size, nodelens)
 	if bubble:
 		assert bubble[0] == "<" + node
 		assert bubble[1][1:] != node
@@ -273,10 +275,10 @@ for node in iterate_deterministic(nodelens):
 	key = find(parent, node)
 	if key not in unique_chains: continue
 	if node in removed_nodes: continue
-	bubble = find_bubble(">" + node, edges, max_bubble_pop_size)
+	bubble = find_bubble(">" + node, edges, max_bubble_pop_size, nodelens)
 	if not bubble:
 		try_pop_tip(">" + node, edges, coverage, removed_nodes, removed_edges, avg_coverage*.75, nodelens)
-	bubble = find_bubble("<" + node, edges, max_bubble_pop_size)
+	bubble = find_bubble("<" + node, edges, max_bubble_pop_size, nodelens)
 	if not bubble:
 		try_pop_tip("<" + node, edges, coverage, removed_nodes, removed_edges, avg_coverage*.75, nodelens)
 
