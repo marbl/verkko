@@ -859,6 +859,7 @@ rukki/target/release/rukki: rukki/Cargo.toml \
 	cargo build --release --manifest-path rukki/Cargo.toml
 
 ../lib/verkko/bin/rukki: rukki/target/release/rukki
+	@mkdir -p ../lib/verkko/bin
 	cp -p rukki/target/release/rukki $@
 
 
