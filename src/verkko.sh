@@ -550,6 +550,8 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --mbg <path>             Path to MBG.             Default for both is the"
     echo "    --graphaligner <path>    Path to GraphAligner.    one packaged with verkko."
     echo ""
+    echo "    --keep-intermediate      Do not remove intermediate results."
+    echo ""
     echo "    --local                  Run on the local machine (default)."
     echo "    --local-memory           Specify the upper limit on memory to use, in GB, default 64"
     echo "    --local-cpus             Specify the number of CPUs to use, default 'all'"
