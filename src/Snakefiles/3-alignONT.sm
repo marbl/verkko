@@ -43,13 +43,15 @@ cat > ./index.sh <<EOF
 #!/bin/sh
 set -e
 
-{params.GRAPHALIGNER} -t {threads} -g ../{input.gfa} -f empty -a empty.gaf \\\\
+touch empty.fasta
+
+{params.GRAPHALIGNER} -t {threads} -g ../{input.gfa} -f empty.fasta -a empty.gaf \\\\
   --seeds-mxm-cache-prefix ../3-align/graph \\\\
   --bandwidth {params.bandwidth} \\\\
   --seeds-mxm-length {params.mxm_length} \\\\
   --seeds-mem-count {params.mem_count} && touch ../{output.index}
 
-rm -f empty.gaf
+rm -f empty.gaf empty.fasta
 EOF
 
 chmod +x ./index.sh
