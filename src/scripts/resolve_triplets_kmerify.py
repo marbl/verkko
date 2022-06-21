@@ -162,7 +162,7 @@ def print_relevant_paths(node, paths_crossing):
 	for path in iterate_paths(paths_crossing, node):
 		sys.stderr.write(str(path) + "\n")
 
-def get_valid_triplets(node, edges, paths_crossing, min_edge_support):
+def get_valid_triplets(node, edges, paths_crossing, min_edge_support, min_coverage, removable_nodes, node_seqs):
 	if ">" + node not in edges and "<" not in edges: return []
 	if ">" + node not in edges: edges[">" + node] = set()
 	if "<" + node not in edges: edges["<" + node] = set()
@@ -207,45 +207,43 @@ def get_valid_triplets(node, edges, paths_crossing, min_edge_support):
 			if triplet not in triplets: triplets[triplet] = 0
 			triplets[triplet] += 1
 	if len(triplets) == 0: return []
-	edge_covered_in_neighbors = set()
 	triplet_covered_in_neighbors = set()
-	edge_covered_out_neighbors = set()
 	triplet_covered_out_neighbors = set()
-	for n in covered_in_neighbors:
-		cov = covered_in_neighbors[n]
-		if cov < min_edge_support: continue
-		edge_covered_in_neighbors.add(n)
-	for n in covered_out_neighbors:
-		cov = covered_out_neighbors[n]
-		if cov < min_edge_support: continue
-		edge_covered_out_neighbors.add(n)
+	solid_triplets = set()
 	for triplet in triplets:
 		(fromnode, middle, tonode) = triplet
 		cov = triplets[triplet]
 		assert middle == ">" + node
 		if cov < min_edge_support: continue
+		solid_triplets.add(triplet)
+	for triplet in solid_triplets:
+		(fromnode, middle, tonode) = triplet
 		if fromnode is not None: triplet_covered_in_neighbors.add(fromnode)
 		if tonode is not None: triplet_covered_out_neighbors.add(tonode)
-	assert len(triplet_covered_in_neighbors) <= len(edge_covered_in_neighbors)
-	assert len(triplet_covered_out_neighbors) <= len(edge_covered_out_neighbors)
-	# if len(edge_covered_in_neighbors) == 0: return []
-	# if len(edge_covered_out_neighbors) == 0: return []
-	if len(edge_covered_in_neighbors) < len(edges["<" + node]): return []
-	if len(edge_covered_out_neighbors) < len(edges[">" + node]): return []
-	if len(triplet_covered_in_neighbors) < len(edge_covered_in_neighbors): return []
-	if len(triplet_covered_out_neighbors) < len(edge_covered_out_neighbors): return []
-	allowed_triplets = []
-	for triplet in iterate_deterministic(triplets):
-		cov = triplets[triplet]
-		if cov < min_edge_support: continue
-		allowed_triplets.append(triplet)
+	for edge in edges[">" + node]:
+		cov = 0
+		if edge in covered_out_neighbors: cov = covered_out_neighbors[edge]
+		removable = True
+		for partnode in node_seqs[edge[1:]][0]:
+			if partnode[1:] not in removable_nodes: removable = False
+		if cov < min_coverage and removable: continue
+		if edge not in triplet_covered_out_neighbors: return []
+	for edge in edges["<" + node]:
+		cov = 0
+		if revnode(edge) in covered_in_neighbors: cov = covered_in_neighbors[revnode(edge)]
+		removable = True
+		for partnode in node_seqs[edge[1:]][0]:
+			if partnode[1:] not in removable_nodes: removable = False
+		if cov < min_coverage and removable: continue
+		if revnode(edge) not in triplet_covered_in_neighbors: return []
+	allowed_triplets = list(iterate_deterministic(solid_triplets))
 	return allowed_triplets
 
-def resolve_nodes(nodelength, nodes, paths_crossing, node_seqs, node_lens, edges, maybe_resolvable, min_edge_support):
+def resolve_nodes(nodelength, nodes, paths_crossing, node_seqs, node_lens, edges, maybe_resolvable, min_edge_support, min_coverage, removable_nodes):
 	resolvable = set()
 	triplets = []
 	for node in iterate_deterministic(nodes):
-		triplets_here = get_valid_triplets(node, edges, paths_crossing, min_edge_support)
+		triplets_here = get_valid_triplets(node, edges, paths_crossing, min_edge_support, min_coverage, removable_nodes, node_seqs)
 		if len(triplets_here) == 0:
 			maybe_resolvable.remove(node)
 			# print("no triplets at " + node)
@@ -267,7 +265,7 @@ def resolve_nodes(nodelength, nodes, paths_crossing, node_seqs, node_lens, edges
 	longest_extension_per_node = {}
 	for node in iterate_deterministic(nodes):
 		if node not in maybe_resolvable: continue
-		triplets_here = get_valid_triplets(node, edges, paths_crossing, min_edge_support)
+		triplets_here = get_valid_triplets(node, edges, paths_crossing, min_edge_support, min_coverage, removable_nodes, node_seqs)
 		if len(triplets_here) == 0:
 			maybe_resolvable.remove(node)
 		else:
@@ -495,7 +493,7 @@ def resolve_nodes(nodelength, nodes, paths_crossing, node_seqs, node_lens, edges
 	for path in new_paths:
 		last_split = 0
 		for i in range(1, len(path)):
-			if path[i] not in edges[path[i-1]]:
+			if path[i-1] not in edges or path[i] not in edges[path[i-1]]:
 				split_add_paths.append(path[last_split:i])
 				last_split = i
 			else:
@@ -612,7 +610,7 @@ def read_node_coverages(node_coverage_file):
 			node_coverage[parts[0]] = float(parts[2])
 	return node_coverage
 
-def resolve(node_lens, edge_overlaps, node_seqs, edges, paths_crossing, min_edge_support):
+def resolve(node_lens, edge_overlaps, node_seqs, edges, paths_crossing, min_edge_support, min_coverage, removable_nodes):
 	maybe_resolvable = set(node_seqs.keys())
 	nodes_by_len = [(get_unitig_len(node_lens, edge_overlaps, node_seqs, n), n) for n in maybe_resolvable]
 	heapq.heapify(nodes_by_len)
@@ -628,7 +626,7 @@ def resolve(node_lens, edge_overlaps, node_seqs, edges, paths_crossing, min_edge
 			nodelen = get_unitig_len(node_lens, edge_overlaps, node_seqs, node)
 			assert nodelen == priority
 		if len(current_nodes) == 0: continue
-		(new_nodes, resolved) = resolve_nodes(current_length, current_nodes, paths_crossing, node_seqs, node_lens, edges, maybe_resolvable, min_edge_support)
+		(new_nodes, resolved) = resolve_nodes(current_length, current_nodes, paths_crossing, node_seqs, node_lens, edges, maybe_resolvable, min_edge_support, min_coverage, removable_nodes)
 		if len(new_nodes) > 0:
 			assert len(resolved) > 0
 			sys.stderr.write("resolve k=" + str(current_length) + ", extended " + str(len(resolved)) + " nodes into " + str(len(new_nodes)) + " nodes" + "\n")
@@ -883,12 +881,13 @@ def get_seq(base_seqs, edge_overlaps, nodeseq, left_clip, right_clip):
 (base_seqs, node_seqs, edges, edge_overlaps) = read_graph(input_gfa)
 
 node_lens = {}
+paths_crossing = {}
 for node in base_seqs:
 	node_lens[node] = len(base_seqs[node])
+	paths_crossing[node] = {}
 
 del base_seqs
 
-paths_crossing = {}
 initial_paths = []
 
 for l in sys.stdin:
@@ -903,13 +902,17 @@ for l in sys.stdin:
 	initial_paths.append(path)
 
 node_coverage = read_node_coverages(node_coverage_file)
-remove_and_split_low_coverage(node_seqs, edges, initial_paths, paths_crossing, min_allowed_coverage, node_coverage)
+removable_nodes = set()
+for n in node_lens:
+	if n not in node_coverage or node_coverage[n] < min_allowed_coverage:
+		removable_nodes.add(n)
+remove_and_split_low_coverage(node_seqs, edges, initial_paths, paths_crossing, 0, node_coverage)
 del initial_paths
 unitigify_all(node_seqs, node_lens, edges, paths_crossing)
 
 for coverage in resolve_steps:
 	sys.stderr.write("resolve with edge support " + str(coverage) + "\n")
-	resolve(node_lens, edge_overlaps, node_seqs, edges, paths_crossing, coverage)
+	resolve(node_lens, edge_overlaps, node_seqs, edges, paths_crossing, coverage, min_allowed_coverage, removable_nodes)
 
 del node_lens
 
