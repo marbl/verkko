@@ -81,15 +81,21 @@ rule verkko:
         layout      = 'assembly.homopolymer-compressed.layout',
         hificov     = 'assembly.hifi-coverage.csv',
         ontcov      = 'assembly.ont-coverage.csv',
-        cns         = 'assembly.fasta',
-        cnshap1     = 'assembly.haplotype1.fasta',
+        cns         = 'assembly.fasta'
+    params:
+        cnshap1     = 'assembly.haplotype1.fasta',    #  Actually, these are optional outputs.
         cnshap2     = 'assembly.haplotype2.fasta',
         cnsunas     = 'assembly.unassigned.fasta'
     shell:
         '''
 cp -p {input.graph}     {output.graph}
+
+#  Copy the rukki results to the output directory if they exist.
 if [ -s {input.nseqgraph} ]; then
    cp -p {input.nseqgraph} {output.nseqgraph}
+   cp -p {input.cnshap1}   {params.cnshap1}
+   cp -p {input.cnshap2}   {params.cnshap2}
+   cp -p {input.cnsunas}   {params.cnsunas}
 else
    #
    #  Inject coverage into the graph.
@@ -113,9 +119,6 @@ else
 fi
 cp -p {input.layout}    {output.layout}
 cp -p {input.cns}       {output.cns}
-cp -p {input.cnshap1}   {output.cnshap1}
-cp -p {input.cnshap2}   {output.cnshap2}
-cp -p {input.cnsunas}   {output.cnsunas}
 cp -p {input.hifi5cov}  {output.hificov}
 cp -p {input.ont5cov}   {output.ontcov}
         '''
