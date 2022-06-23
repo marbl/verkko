@@ -293,7 +293,7 @@ for filename in filenames:
         outf.write(f">{sName}\n{sSeq}\n".encode())
 
     else:
-      print(f"Unrecognized line '{line.strip()}'")
+      print(f"Unrecognized line '{line.strip()}'", file=sys.stderr)
       line = inf.readline()
 
   inf.close()
@@ -312,10 +312,13 @@ if scfmap:
       elif piece in pieces:
         seq += pieces[piece]
       elif seq:
-        print(f"ERROR: piece {piece} missing from gapped contig.", file=sys.stderr)
+        print(f"ERROR: piece {piece} missing from gapped contig {clist}.", file=sys.stderr)
 
-    outf.write(f">{clist}\n".encode())
-    outf.write(f"{seq}\n".encode())
+    if seq:
+      outf.write(f">{clist}\n".encode())
+      outf.write(f"{seq}\n".encode())
+    else:
+      print(f"ERROR: contig {clist} is empty.", file=sys.stderr)
 
   print(f"")
   print(f"Finished.")
