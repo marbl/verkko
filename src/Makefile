@@ -753,6 +753,7 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/scripts/pop_bubbles_coverage_based.py \
      ../lib/verkko/scripts/pop_bubbles_keep_longest.py \
      ../lib/verkko/scripts/process_reads.py \
+     ../lib/verkko/scripts/remove_contained_spurious_uniques.py \
      ../lib/verkko/scripts/remove_crosslink_paths.py \
      ../lib/verkko/scripts/remove_wrong_connections_2.py \
      ../lib/verkko/scripts/resolve_triplets_kmerify.py \

@@ -160,6 +160,13 @@ awk 'BEGIN \\\\
   alns-ont-filter-trim.gaf 100000 30 0.8 \\\\
 > unique_nodes_ont_coverage.txt
 
+{PYTHON} {VERKKO}/scripts/remove_contained_spurious_uniques.py \\\\
+  gapped-unitig-unrolled-hifi-resolved.gfa \\\\
+  paths.txt \\\\
+  unique_nodes_ont_coverage.txt \\\\
+  5 0.4 20 \\\\
+> unique_nodes_ont_removecontained.txt
+
 #  COMMENTED OUT IN ORIGINAL
 # {PYTHON} {VERKKO}/scripts/translate_uniques.py normal-hifi_connected_twice.gfa < unique_nodes_hifi.txt > translated_uniques.txt
 # {PYTHON} {VERKKO}/scripts/translate_nodes_by_seq.py normal-hifi_connected_twice.gfa ../{input.graph} < translated_uniques.txt > unique_nodes_ont_translated.txt
@@ -167,7 +174,7 @@ awk 'BEGIN \\\\
 
 echo ""
 echo Step 4a
-{PYTHON} {VERKKO}/scripts/fix_diploid_unique_nodes.py unique_nodes_ont_coverage.txt alns-ont-filter-trim.gaf hifi-nodecov-gapped-unitig-unrolled-hifi-resolved.csv nodecovs-ont.csv gapped-unitig-unrolled-hifi-resolved.gfa \\\\
+{PYTHON} {VERKKO}/scripts/fix_diploid_unique_nodes.py unique_nodes_ont_removecontained.txt alns-ont-filter-trim.gaf hifi-nodecov-gapped-unitig-unrolled-hifi-resolved.csv nodecovs-ont.csv gapped-unitig-unrolled-hifi-resolved.gfa \\\\
   > unique_nodes_diploidfix.txt
 
 echo ""
