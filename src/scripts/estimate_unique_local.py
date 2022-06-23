@@ -94,7 +94,7 @@ parent = {}
 rank = {}
 
 existing_nodes = set()
-long_nodes = set()
+maybe_long_nodes = set()
 canon_edges = set()
 edges = {}
 nodelens = {}
@@ -106,7 +106,7 @@ with open(graph_file) as f:
 			existing_nodes.add(parts[1])
 			nodelens[parts[1]] = len(parts[2])
 			if len(parts[2]) > long_node_threshold:
-				long_nodes.add(parts[1])
+				maybe_long_nodes.add(parts[1])
 		elif parts[0] == 'L':
 			fromnode = (">" if parts[2] == "+" else "<") + parts[1]
 			tonode = ("<" if parts[4] == "+" else ">") + parts[3]
@@ -119,6 +119,42 @@ with open(graph_file) as f:
 			edges[fromnode].add(revnode(tonode))
 			edges[tonode].add(revnode(fromnode))
 			canon_edges.add(canontip(fromnode, tonode))
+
+node_coverage = {}
+with open(node_coverage_file) as f:
+	for l in f:
+		parts = l.strip().split('\t')
+		if parts[0] == "node" and parts[1] == "coverage": continue
+		assert parts[0] in nodelens
+		assert parts[0] not in node_coverage
+		node_coverage[parts[0]] = float(parts[1])
+
+for node in nodelens:
+	if node not in node_coverage: node_coverage[node] = 0.0
+
+coverage_sum = 0.0
+coverage_count = 0.0
+for node in maybe_long_nodes:
+	coverage_sum += node_coverage[node] * nodelens[node]
+	coverage_count += nodelens[node]
+global_average_coverage = float(coverage_sum) / float(coverage_count)
+
+sys.stderr.write("first unique coverage estimate: " + str(global_average_coverage) + "\n")
+
+coverage_sum = 0.0
+coverage_count = 0.0
+for node in maybe_long_nodes:
+	if node_coverage[node] < global_average_coverage * 0.5 or node_coverage[node] > global_average_coverage * 1.5: continue
+	coverage_sum += node_coverage[node] * nodelens[node]
+	coverage_count += nodelens[node]
+
+global_average_coverage = float(coverage_sum) / float(coverage_count)
+sys.stderr.write("refined unique coverage estimate: " + str(global_average_coverage) + "\n")
+
+long_nodes = set()
+for node in maybe_long_nodes:
+	if node_coverage[node] < global_average_coverage * 0.5 or node_coverage[node] > global_average_coverage * 1.5: continue
+	long_nodes.add(node)
 
 node_nonoverlap_lens = {}
 for node in nodelens:
@@ -165,18 +201,6 @@ for node in long_nodes:
 		chain_of_longnode.add(next_node[1:])
 		bubble_end = find_bubble_end(edges, next_node)
 
-node_coverage = {}
-with open(node_coverage_file) as f:
-	for l in f:
-		parts = l.strip().split('\t')
-		if parts[0] == "node" and parts[1] == "coverage": continue
-		assert parts[0] in nodelens
-		assert parts[0] not in node_coverage
-		node_coverage[parts[0]] = float(parts[1])
-
-for node in nodelens:
-	if node not in node_coverage: node_coverage[node] = 0.0
-
 out_paths = {}
 
 with open(alignment_file) as f:
@@ -199,13 +223,6 @@ with open(alignment_file) as f:
 				if revnode(part_path[i]) not in out_paths: out_paths[revnode(part_path[i])] = []
 				if i < len(part_path)-1: out_paths[part_path[i]].append(tuple(part_path[i+1:]))
 				if i > 0: out_paths[revnode(part_path[i])].append(tuple(revnode(n) for n in part_path[0:i][::-1]))
-
-coverage_sum = 0.0
-coverage_count = 0.0
-for node in long_nodes:
-	coverage_sum += node_coverage[node] * nodelens[node]
-	coverage_count += nodelens[node]
-global_average_coverage = float(coverage_sum) / float(coverage_count)
 
 normalized_node_coverage = {}
 for node in nodelens:
