@@ -83,8 +83,13 @@ jobs:
         echo >> ga.sh 'fi'
 
         echo  > lib/verkko/bin/utgcns '#!/bin/sh'
+        echo >> lib/verkko/bin/utgcns 'if [ ! -e part001.fasta ]; then'
         echo >> lib/verkko/bin/utgcns 'cp ../../cache/part001.fasta packages/part001.fasta'
-
+        echo >> lib/verkko/bin/utgcns 'fi'
+        echo >> lib/verkko/bin/utgcns 'if [ ! -e part002.fasta ]; then'
+        echo >> lib/verkko/bin/utgcns 'cp ../../cache/part002.fasta packages/part002.fasta'
+        echo >> lib/verkko/bin/utgcns 'fi'
+        
         chmod 755 mbg.sh
         chmod 755 ga.sh
         chmod 755 lib/verkko/bin/utgcns
