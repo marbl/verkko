@@ -67,5 +67,4 @@ To test your installation we have an E. coli K12 dataset available.
 The final assembly result is under `asm/assembly.fasta`. The final graph (in homopolymer-compressed space) is under `asm/assembly.homopolymer-compressed.gfa` along with coverage files in `asm/assembly*csv`. If you provided phasing information, you will also have `asm/assembly.haplotype[12].fasta`. You can find intermediate graphs and coverage files under `asm/*/unitig-*gfa` and `asm/*/unitig-*csv`.
 
 ## Citations:
- 
-(In Preparation)
+ - Rautiainen M, Nurk S, Walenz BP, Logsdon GA, Porubsky D, Rhie A, Eichler EE, Phillippy AM, Koren S. [Verkko: telomere-to-telomere assembly of diploid chromosomes](https://doi.org/10.1101/2022.06.24.497523). bioRxiv. (2022). `doi:10.1101/2022.06.24.497523`
