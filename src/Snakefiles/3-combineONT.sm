@@ -16,56 +16,22 @@
 #  Rule combineONT combines the alignment results into a single file
 #  then removes the individual alignment result files.
 #
-#  The partitioned reads are used later.
+#  No computation is performed, only I/O.  No parameters, either.
 #
-#  No computation is performed, only I/O.
+#  Note that even though we're now officially done with alignments, the
+#  splitONToutputs are used by consensus and cannot be removed here.
 #
-#  We differ a bit from the documented usage of a checkpoint rule (the second example at
-#  https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html#data-dependent-conditional-execution)
-#  in that we don't declare a directory as the output of the checkpoint.
-#  There are two problems with this:
-#   1)  the output product (the directory) is created before the rule runs
-#       and if the rule fails, that directory still exists, but incomplete.
-#
-#   2)  it seems you cannot write later outputs in that same directory,
-#       e.g., outputs in parallel with their input.  Doing so returns the
-#       rather cryptic error:
-#         Building DAG of jobs...
-#         ChildIOException:
-#         File/directory is a child to another output:
-#         ('/path/to/directory', checkpoint-stage)
-#         ('/path/to/directory/another-output', compute-stage)
-#
-#  So, our checkpoints make a 'finished' file to indicate completeness, and the
-#  helper functions below have hardcoded paths to inputs/outputs (compare against
-#  the second example in the link above).
-#
-#  The second helper function is just like the first, except it returns
-#  inputs relative to the 3-align/ directory, where the script runs.
-#
-#  Configuration Parameters:
-#    None.
-#
-
-
-def combineONTI(wildcards):
-    return expand("3-align/aligned{nnnn}.gaf", nnnn = glob_wildcards("3-align/split/ont{xxxx}.fasta.gz").xxxx)
-
-
-def combineONTP(wildcards):
-    return expand("aligned{nnnn}.gaf", nnnn = glob_wildcards("3-align/split/ont{xxxx}.fasta.gz").xxxx)
-
 
 rule combineONT:
     input:
-        split_finished = {rules.splitONT.output.finished},
-        alignments     = combineONTI
+        split_finished = rules.splitONT.output.split_finished,
+        alignments     = lambda wildcards: expand("3-align/aligned{nnnn}.gaf", nnnn = splitONToutputs(wildcards))
     output:
         alignments     = '3-align/alns-ont.gaf'
     log:
         err            = '3-align/combineONT.err'
     params:
-        alignments     = combineONTP,
+        alignments     = lambda wildcards: expand("aligned{nnnn}.gaf", nnnn = splitONToutputs(wildcards)),
         keepinter      = config['keep_intermediate']
     threads:
         1
@@ -91,9 +57,7 @@ if [ {params.keepinter} = False ] ; then
   rm -f ./aligned*.err
   rm -f ./aligned*.sh
 
-  rm -f ./graph
-  rm -f ./graph.aux
-  rm -f ./graph_index.*
+  rm -f ./graph.index
 fi
 
 EOF
@@ -102,4 +66,3 @@ chmod +x ./combineONT.sh
 
 ./combineONT.sh > ../{log.err} 2>&1
         '''
-
