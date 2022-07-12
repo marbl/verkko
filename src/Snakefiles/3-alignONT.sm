@@ -12,15 +12,20 @@
  #
  ##
 
+# 
+#  Rules indexGraph and alignONT map the (partitioned) ONT reads to the HiFi
+#  graph out of MBG.
 #
-#  Rule indexGraph indexes the unitig graph.
+#  There's no magic here, except that we compute the GraphAligner index
+#  prefix from the snamekmake output.index (or input.index) path name on the
+#  fly.
 #
 
 rule indexGraph:
     input:
         gfa               = rules.processGraph.output.gfa
     output:
-        index             = "3-align/graph.index",   #  Prefix hardcoded in command below!
+        index             = "3-align/graph.index"
     log:
         err               = "3-align/index.err"
     params:
@@ -43,9 +48,15 @@ cat > ./index.sh <<EOF
 #!/bin/sh
 set -e
 
-{params.GRAPHALIGNER} -t {threads} -g ../{input.gfa} -f empty -a empty.gaf \\\\
-  --seeds-mxm-cache-prefix ../3-align/graph \\\\
-  --bandwidth {params.bandwidth} \\\\
+prefix=\\$(echo ../{output.index} | sed s/.index//)
+echo "Saving index to prefix \\"\\$prefix\\""
+echo ""
+
+touch empty.fasta
+
+{params.GRAPHALIGNER} -t {threads} -g ../{input.gfa} -f empty.fasta -a empty.gaf \\\\
+  --seeds-mxm-cache-prefix \\$prefix \\\
+ --bandwidth {params.bandwidth} \\\\
   --seeds-mxm-length {params.mxm_length} \\\\
   --seeds-mem-count {params.mem_count} && touch ../{output.index}
 
@@ -58,16 +69,12 @@ chmod +x ./index.sh
         '''
 
 
-#
-#  Rule alignONT aligns the partitioned ONT reads to the unitig graph.
-#
 
 rule alignONT:
     input:
-        reads             = "3-align/split/ont{nnnn}.fasta.gz",
-        index             = rules.indexGraph.output.index,   #  Prefix hardcoded in command below!
-        gfa               = rules.processGraph.output.gfa,
-        finished          = rules.splitONT.output.finished
+        ont_reads         = '3-align/split/ont{nnnn}.fasta.gz',
+        index             = rules.indexGraph.output.index,
+        gfa               = rules.processGraph.output.gfa
     output:
         alignments        = '3-align/aligned{nnnn}.gaf'
     log:
@@ -100,8 +107,12 @@ cat > ./aligned{wildcards.nnnn}.sh <<EOF
 #!/bin/sh
 set -e
 
-{params.GRAPHALIGNER} -t {threads} -g ../{input.gfa} -f ../{input.reads} -a ../{params.alignmentstmp} \\\\
-  --seeds-mxm-cache-prefix ../3-align/graph \\\\
+prefix=\\$(echo ../{input.index} | sed s/.index//)
+echo "Using index from prefix \\"\\$prefix\\""
+echo ""
+
+{params.GRAPHALIGNER} -t {threads} -g ../{input.gfa} -f ../{input.ont_reads} -a ../{params.alignmentstmp} \\\\
+  --seeds-mxm-cache-prefix \\$prefix \\\\
   --seeds-mxm-length {params.mxm_length} \\\\
   --seeds-mem-count {params.mem_count} \\\\
   --bandwidth {params.bandwidth} \\\\
