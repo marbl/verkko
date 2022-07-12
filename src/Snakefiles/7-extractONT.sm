@@ -16,24 +16,11 @@
 #  Rule extractONT extracts the ONT reads used for gap filling from
 #  the input sequences.  These are passed to consensus.
 #
-#  See comments in 3-combineONT for details on the functions.
-#
-#  Configuration Parameters:
-#    ...
-#
-
-
-def extractONTI(wildcards):
-    return expand("3-align/split/ont{nnnn}.fasta.gz", nnnn = glob_wildcards("3-align/split/ont{xxxx}.fasta.gz").xxxx)
-
-def extractONTP(wildcards):
-    return expand("ont{nnnn}.fasta.gz", nnnn = glob_wildcards("3-align/split/ont{xxxx}.fasta.gz").xxxx)
 
 rule extractONT:
     input:
-        split_finished = {rules.splitONT.output.finished},
-        ont_files      = extractONTI,
-        ont_gap_align  = {rules.refillGapONTs.output.ont_gap_align}
+        ont_gap_align  = rules.processONT.output.ont_gap_align,
+        split_finished = rules.splitONT.output.split_finished
     output:
         ont_subset_id  = '7-consensus/ont_subset.id',
         ont_subset_ex  = '7-consensus/ont_subset.extract',
@@ -41,7 +28,7 @@ rule extractONT:
     log:
         err            = '7-consensus/extractONT.err'
     params:
-        ont_files      = extractONTP,
+        ext_files      = lambda wildcards: expand("ont{nnnn}.fasta.gz", nnnn = splitONToutputs(wildcards)),  #glob_wildcards("3-align/split/ont{xxxx}.fasta.gz").xxxx),
         keepinter      = config['keep_intermediate']
     threads:
         int(config['sub_n_cpus'])
@@ -58,36 +45,37 @@ cat > ./extractONT.sh << EOF
 #!/bin/sh
 set -e
 
-#  Extract IDs of the reads used for gap filling.  Sorting and unique-ifying
-#  isn't required for the algorithm but might be helpful for searching the
-#  file.
+#  1) Extract IDs of the reads used for gap filling.  Sorting and
+#  unique-ifying isn't required for the algorithm but might be helpful for
+#  searching the file.
 #
+#  2) Build a list of command lines for extracting those reads from all the
+#  partitioned input files.  The location of these input files is hardcoded;
+#  snakemake is not used to generate it.  Snakemake knows only that
+#  split_finished exists.
+#
+#  3) Use xargs to extract reads in parallel.  xargs will call
+#  'process_reads.py <inputline>' for each line in its input.
+#
+#  4) Combine all the pieces, then remove the extracted pieces and full split
+#  files, leaving the .finished file so snakemake doesn't (erroneously) try
+#  to regenerate them.
+
 cut -f 1 ../{input.ont_gap_align} \\\\
 | \\\\
 sort -u > ../{output.ont_subset_id}
 
-#  Build command lines for extracting those reads from
-#  all the partitioned input files.
-#
-rm -f ../7-consensus/{output.ont_subset_ex}
+rm -f ../{output.ont_subset_ex}
 
-for fn in {params.ont_files} ; do
+for fn in {params.ext_files} ; do
   echo >> ../{output.ont_subset_ex} extract \\$fn ../{output.ont_subset_id} ../3-align/split/\\$fn
 done
 
-#  Extract reads in parallel for each input.
-#
-xargs -L 1 -P {threads} \\\\
-  {PYTHON} {VERKKO}/scripts/process_reads.py \\\\
-< ../{output.ont_subset_ex}
+xargs -L 1 -P {threads} < ../{output.ont_subset_ex} \\\\
+  {PYTHON} {VERKKO}/scripts/process_reads.py
 
-#  Combine all the pieces.
-#
-cat {params.ont_files} > ../{output.ont_subset}
-
-#  Cleanup.
-#
-rm -f {params.ont_files}
+cat {params.ext_files} > ../{output.ont_subset}
+rm -f {params.ext_files}
 
 if [ {params.keepinter} = "False" ] ; then
   rm -rf ../3-align/split

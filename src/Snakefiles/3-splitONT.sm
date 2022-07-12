@@ -16,22 +16,34 @@
 #  Rule splitONT rewrites the input ONT reads into partitioned FASTA files
 #  for mapping to the unitig graph in parallel.
 #
-#  Configuration Parameters:
-#    spl_bases
-#    spl_reads
+#  Configuration parameters limit the size of each split file so that
+#  the number of bases or reads in each file is no more than some limit:
+#    spl_bases - how many bases to put in each split file
+#    spl_reads - how many reads to put in each split file
 #
+#  This rule is used by both alignONT (to align reads to the unitig graph)
+#  and extractONT (to extract the reads needed for consensus).
+#
+
+
+#  A helper function to find the splitONT output and return their indices.
+#  It is used (via the magic lambda) in 3-combineONT.sm and 7-extractONT.sm.
+#
+def splitONToutputs(wildcards):
+    return glob_wildcards("3-align/split/ont{xxxx}.fasta.gz").xxxx
+
 
 checkpoint splitONT:
     input:
-        ont      = ONT_READS if config['withONT'] == "True" else {rules.emptyfile.output}
+        ont            = ONT_READS if config['withONT'] == "True" else {rules.emptyfile.output}
     output:
-        finished = '3-align/split/splitONT.finished'
+        split_finished = '3-align/splitONT.finished'
     log:
-        err      = '3-align/splitONT.err'
+        err            = '3-align/splitONT.err'
     params:
-        bases    = config['spl_bases'],
-        reads    = config['spl_reads'],
-        length   = config['spl_min_length']
+        bases          = config['spl_bases'],
+        reads          = config['spl_reads'],
+        length         = config['spl_min_length']
     threads:
         int(config['spl_n_cpus'])
     resources:
@@ -51,9 +63,9 @@ mkdir -p split
 
 {PYTHON} {VERKKO}/scripts/process_reads.py \\\\
   partition split/ont {params.bases} {params.reads} {params.length} \\\\
-  {input.ont}
-
-touch ../{output.finished}
+  {input.ont} \\\\
+&& \\\\
+touch ../{output.split_finished}
 EOF
 
 chmod +x ./splitONT.sh
