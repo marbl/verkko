@@ -57,6 +57,9 @@ ifeq ($(wildcard rukki/Cargo.toml), )
 endif
 
 #  Make symlinks to source directories if needed.
+ifeq ($(wildcard gfa/alignGFA.C), )
+   $(shell ln -s canu/src/gfa gfa)
+endif 
 ifeq ($(wildcard meryl/src), )
   $(shell ln -s canu/src/meryl meryl)
 endif
@@ -75,9 +78,6 @@ endif
 ifeq ($(wildcard utgcns/utgcns.C), )
   $(shell ln -s canu/src/utgcns utgcns)
 endif
-ifeq ($(wildcard gfa/alignGFA.C), )
-   $(shell  ln -s canu/src/gfa gfa)
-endif 
 ifeq ($(wildcard utility/src), )
   $(shell ln -s canu/src/utility utility)
 endif
@@ -793,6 +793,7 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/profiles/jobscript.sh \
      ../lib/verkko/profiles/slurm-sge-status.sh \
      ../lib/verkko/profiles/slurm-sge-submit.sh
+	@rm  -f gfa meryl overlapErrorAdjustment overlapInCore seqrequester stores utgcns utility
 	@echo ""
 	@echo "Success!"
 	@echo "${MODULE} installed in ${TARGET_DIR}/bin/${MODULE}"
@@ -820,7 +821,7 @@ $(foreach TGT,${ALL_TGTS},\
   $(eval $(call ADD_CLEAN_RULE,${TGT})))
 clean:
 	rm -rf rukki/target
-	rm  -f meryl overlapInCore seqrequester overlapErrorAdjustment stores utgcns alignGFA autility
+	rm  -f gfa meryl overlapErrorAdjustment overlapInCore seqrequester stores utgcns utility
 	find build -type d -print | sort -r | xargs -n 100 rmdir
 
 # Include generated rules that define additional (header) dependencies.
