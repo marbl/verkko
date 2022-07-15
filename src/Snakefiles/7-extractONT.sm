@@ -28,8 +28,7 @@ rule extractONT:
     log:
         err            = '7-consensus/extractONT.err'
     params:
-        ext_files      = lambda wildcards: expand("ont{nnnn}.fasta.gz", nnnn = splitONToutputs(wildcards)),  #glob_wildcards("3-align/split/ont{xxxx}.fasta.gz").xxxx),
-        keepinter      = config['keep_intermediate']
+        ext_files      = lambda wildcards: expand("ont{nnnn}.fasta.gz", nnnn = splitONToutputs(wildcards)),
     threads:
         int(config['sub_n_cpus'])
     resources:
@@ -76,10 +75,6 @@ xargs -L 1 -P {threads} < ../{output.ont_subset_ex} \\\\
 
 cat {params.ext_files} > ../{output.ont_subset}
 rm -f {params.ext_files}
-
-if [ {params.keepinter} = "False" ] ; then
-  rm -rf ../3-align/split
-fi
 EOF
 
 chmod +x ./extractONT.sh

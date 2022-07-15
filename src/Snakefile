@@ -81,6 +81,7 @@ rule verkko:
         ontcov      = 'assembly.ont-coverage.csv',
         cns         = 'assembly.fasta'
     params:
+        keepinter   = config['keep_intermediate'],
         cnshap1     = 'assembly.haplotype1.fasta',    #  Actually, these are optional outputs.
         cnshap2     = 'assembly.haplotype2.fasta',
         cnsunas     = 'assembly.unassigned.fasta'
@@ -88,16 +89,16 @@ rule verkko:
         '''
 cp -p {input.graph}     {output.graph}
 
-#  Copy the rukki results to the output directory if they exist.
+#  Copy the rukki results to the output directory if they exist;
+#  if not, inject coverage into the graph and make a noseq version.
+
 if [ -s {input.nseqgraph} ]; then
    cp -p {input.nseqgraph} {output.nseqgraph}
    cp -p {input.cnshap1}   {params.cnshap1}
    cp -p {input.cnshap2}   {params.cnshap2}
    cp -p {input.cnsunas}   {params.cnsunas}
+
 else
-   #
-   #  Inject coverage into the graph.
-   #
    awk < {input.graph} \\
      'BEGIN \\
       {{ \\
@@ -115,10 +116,19 @@ else
      {input.hifi5cov} \\
    > {output.nseqgraph}
 fi
+
+#  Copy the full assembly to the output directory.
+
 cp -p {input.layout}    {output.layout}
 cp -p {input.cns}       {output.cns}
 cp -p {input.hifi5cov}  {output.hificov}
 cp -p {input.ont5cov}   {output.ontcov}
+
+#  Clean up intermediate files.
+
+if [ {params.keepinter} = "False" ] ; then
+  rm -rf 3-align/split
+fi
         '''
 
 
