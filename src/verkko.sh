@@ -48,7 +48,7 @@ outd=""
 
 withont="False"
 
-keepinter="False"
+keepinter="True"
 
 cnspaths=""
 cnsdir=""
@@ -255,6 +255,8 @@ while [ $# -gt 0 ] ; do
 
     elif [ "$opt" = "-d" ] ;                   then outd=$arg;          shift
     elif [ "$opt" = "--keep-intermediate" ] ;  then keepinter="True";
+    elif [ "$opt" = "--no-cleanup" ] ;         then keepinter="True";
+    elif [ "$opt" = "--cleanup" ] ;            then keepinter="False";
     elif [ "$opt" = "--python" ] ;             then python=$arg;        shift
     elif [ "$opt" = "--mbg" ] ;                then mbg=$arg;           shift
     elif [ "$opt" = "--graphaligner" ] ;       then graphaligner=$arg;  shift
@@ -550,7 +552,8 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --mbg <path>             Path to MBG.             Default for both is the"
     echo "    --graphaligner <path>    Path to GraphAligner.    one packaged with verkko."
     echo ""
-    echo "    --keep-intermediate      Do not remove intermediate results."
+    echo "    --cleanup                Remove intermediate results."
+    echo "    --no-cleanup             Retain intermediate results (default)."
     echo ""
     echo "    --local                  Run on the local machine (default)."
     echo "    --local-memory           Specify the upper limit on memory to use, in GB, default 64"
