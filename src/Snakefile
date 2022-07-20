@@ -146,7 +146,6 @@ rule cnspath:
         '''
 cp -p {input.layout}    {output.layout}
 cp -p {input.consensus} {output.consensus}
-rm -f {rules.emptyfile.output}
         '''
         
 
