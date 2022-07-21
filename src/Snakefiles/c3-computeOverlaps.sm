@@ -58,7 +58,7 @@ mkdir -p overlap-jobs
 
 cat hifi.partition.ovljob \\\\
 | \\\\
-awk '{{ jobname="overlap-jobs/" \$1 ".params"; getline < "hifi.partition.ovlopt"; print > jobname }}'
+awk '{{ jobname="overlap-jobs/" \$1 ".params"; getline < "hifi.partition.ovlopt"; print > jobname; close(jobname); }}'
 
 rm hifi.partition.ovlbat
 rm hifi.partition.ovljob
