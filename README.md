@@ -16,9 +16,9 @@ an issue if you encounter any problems.**
 
 ## Install:
 
-* Do NOT download the .zip source code.  It is missing files and will not compile.  This is a [known flaw](https://github.com/dear-github/dear-github/issues/214) with git itself.
+* Do NOT download the .zip source code.  It is missing files and will not compile.  This is a [known flaw](https://github.com/dear-github/dear-github/issues/214) with git itself. Compilation from source requires GCC 7 or newer and Rust 1.58 or newer.
 
-* Verkko requires both [MBG](https://github.com/maickrau/MBG) and [GraphAligner](https://github.com/maickrau/GraphAligner) to be installed. Verkko also requires [Snakemake](https://snakemake.readthedocs.io/en/stable/) (v7.0+) and a recent [Python](https://www.python.org) (v3.5+).
+* Running verkko requires both [MBG](https://github.com/maickrau/MBG) and [GraphAligner](https://github.com/maickrau/GraphAligner) to be installed. Verkko also requires [Snakemake](https://snakemake.readthedocs.io/en/stable/) (v7.0+) and a recent [Python](https://www.python.org) (v3.5+). 
 
 Installing with a 'package manager' is encouraged:
   * `conda install -c conda-forge -c bioconda -c defaults verkko`
