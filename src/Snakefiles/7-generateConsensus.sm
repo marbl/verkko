@@ -53,14 +53,31 @@ set -e
     -V -V -V \\\\
     -threads {threads} \\\\
     -import ../{input.package} \\\\
-    -A ../{output.consensus} \\\\
+    -A ../{output.consensus}.WORKING \\\\
     -C 2 -norealign \\\\
     -maxcoverage 50 \\\\
     -e  0.05 \\\\
     -em 0.20 \\\\
     -EM {params.ont_ids} \\\\
     -l 3000 \\\\
-    -edlib
+    -edlib \\\\
+&& \\\\
+mv ../{output.consensus}.WORKING ../{output.consensus} \\\\
+&& \\\\
+exit 0
+
+echo ""
+echo "Consensus did not finish successfully, exit code \\$?."
+
+echo ""
+echo "Files in current directory:"
+ls -ltr
+
+echo ""
+echo "Files in packages/:"
+ls -ltr packages
+
+exit 1
 EOF
 
 chmod +x ./packages/part{wildcards.nnnn}.sh
