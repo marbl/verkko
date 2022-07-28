@@ -28,7 +28,7 @@ rule splitHaploGaps:
        raw_graph        = {rules.processGraph.output.gfa},
        gapped_graph     = {rules.fillGapONT.output.graph},
        ont_paths        = {rules.combineONT.output.alignments},
-       hificov          = '2-processGraph/unitig-unrolled-hifi-resolved.hifi-coverage.csv'
+       hificov          = '2-processGraph/unitig-unrolled-hifi-resolved.hapcut-hifi-coverage.csv'
     output:
        graph            = '4b-fixHaploGaps/split.gfa',
        relevant_reads   = '4b-fixHaploGaps/relevant_reads.txt',

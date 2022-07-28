@@ -77,7 +77,7 @@ cat {params.graphs} connected-tip.gfa unitig-normal-connected-tip.gfa \\\\
 # this used to have grep -v \*
 #
 echo Find lengths
-cat {params.graphs} connected-tip.gfa unitig-normal-connected-tip.gfa \\\\
+cat {params.graphs} ../4b-fixHaploGaps/split.gfa connected-tip.gfa unitig-normal-connected-tip.gfa \\\\
 | awk 'BEGIN \\\\
        {{ \\\\
           FS="[ \\t]+"; OFS="\\t"; \\\\

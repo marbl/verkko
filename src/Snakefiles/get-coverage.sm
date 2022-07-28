@@ -187,7 +187,7 @@ rule getHifiCoverage:
         nodes         = rules.prepHifiCoverage.output.nodes,
         lens          = rules.prepHifiCoverage.output.lens
     output:
-        hifi_coverage = "2-processGraph/{id}.hifi-coverage.csv"
+        hifi_coverage = "2-processGraph/{id}.hapcut-hifi-coverage.csv"
     log:
         err           = "2-processGraph/{id}.getCoverage.err"
     threads:
