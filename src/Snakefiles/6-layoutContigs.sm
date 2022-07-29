@@ -99,7 +99,7 @@ cat ../{input.graph} \\\\
        }}' \\\\
 > ../{output.paths}
 
-cat {params.graphs} \\\\
+cat {params.graphs}  ../4b-fixHaploGaps/split.gfa \\\\
 | awk 'BEGIN \\\\
        {{
           FS="[ \\t]+"; OFS="\\t"; \\\\
