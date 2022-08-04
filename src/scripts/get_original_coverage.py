@@ -133,7 +133,6 @@ node_occurrences = {}
 for contig in nodes_per_contig:
 	for i in range(0, len(nodes_per_contig[contig])):
 		node = nodes_per_contig[contig][i][0][1:]
-		if node not in node_occurrences: node_occurrences[node] = []
 		start_pos = nodes_per_contig[contig][i][1]
 		end_pos = nodes_per_contig[contig][i][2]
 		if end_pos <= start_pos: continue
@@ -142,6 +141,7 @@ for contig in nodes_per_contig:
 			end_pos = raw_node_lens[node] - end_pos
 			(start_pos, end_pos) = (end_pos, start_pos)
 		assert start_pos < end_pos
+		if node not in node_occurrences: node_occurrences[node] = []
 		node_occurrences[node].append((start_pos, end_pos, (contig, contig_node_offsets[contig][i], nodes_per_contig[contig][i][0][0])))
 
 split_forbidden_intervals = {}
