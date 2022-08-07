@@ -794,9 +794,17 @@ fi
 #  Generate a script to launch snakemake.
 #
 
+#  Detect if the '--rerun-triggers mtime' is valid, and enable it.  This fixes
+#  a serious incompatibility in snakemake 7.8.x.
+sv=$(snakemake --version)
+svmaj=$(echo $sv | cut -d. -f 1)
+svmin=$(echo $sv | cut -d. -f 2)
+svpat=$(echo $sv | cut -d. -f 3)
+
 echo  > ${outd}/snakemake.sh "#!/bin/sh"
 echo >> ${outd}/snakemake.sh ""
-echo >> ${outd}/snakemake.sh "echo \"Launching $version ...\""
+echo >> ${outd}/snakemake.sh "echo \"Launching $version\""
+echo >> ${outd}/snakemake.sh "echo \"Using snakemake $svmaj.$svmin.$svpat.\""
 echo >> ${outd}/snakemake.sh ""
 echo >> ${outd}/snakemake.sh "snakemake ${target} --nocolor \\"
 echo >> ${outd}/snakemake.sh "  --directory . \\"
@@ -805,6 +813,9 @@ echo >> ${outd}/snakemake.sh "  --configfile verkko.yml \\"
 echo >> ${outd}/snakemake.sh "  --reason \\"
 echo >> ${outd}/snakemake.sh "  --keep-going \\"
 echo >> ${outd}/snakemake.sh "  --rerun-incomplete \\"
+if [ $svmaj -ge 7 -a $svmin -ge 8 ] ; then
+    echo >> ${outd}/snakemake.sh "  --rerun-triggers mtime \\"
+fi
 if [ $grid = "local" ] ; then
     echo >> ${outd}/snakemake.sh "  --latency-wait 2 \\"
     echo >> ${outd}/snakemake.sh "  --cores ${local_cpus} \\"
