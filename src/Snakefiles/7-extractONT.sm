@@ -33,9 +33,9 @@ rule extractONT:
         int(config['sub_n_cpus'])
     resources:
         job_id = 1,
-        n_cpus = config['sub_n_cpus'],
+        n_cpus = int(config['sub_n_cpus']),
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'sub'),
-        time_h = config['sub_time_h']
+        time_h = int(config['sub_time_h'])
     shell:
         '''
 cd 7-consensus

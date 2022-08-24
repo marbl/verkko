@@ -34,7 +34,7 @@ rule processGraph:
         int(config['utg_n_cpus'])
     resources:
         job_id = 1,
-        n_cpus = config['utg_n_cpus'],
+        n_cpus = int(config['utg_n_cpus']),
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'utg'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'utg')
     shell:
