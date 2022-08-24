@@ -90,15 +90,21 @@ if [ "x$slurm" != "x" ] ; then
 #  Submit to SGE.  '-terse' reports just the job ID instead of the usual
 #  human-parsable text.
 #
+#  Sadly, the only way to get the output file to have the name we want is to
+#  submit the job with a hold, parse the jobid from that command stderr, then
+#  alter the job to use the correct output name and release the hold.
+#
 #  Note that SGE expects memory as "memory per thread" instead of
 #  "memory per task" that we're supplied.
 #
 elif [ "x$sge" != "x" ] ; then
   mem_per_thread=$(dc -e "3 k ${mem_gb} ${n_cpus} / p")
 
-  jobid=$(qsub -terse -cwd -V -pe thread ${n_cpus} -l memory=${mem_per_thread}g -j y -o batch-scripts/${jobid}.${rule_n}.${jobidx}.out "$@")
+  jobid=$(qsub -h -terse -cwd -V -pe thread ${n_cpus} -l memory=${mem_per_thread}g -j y -o batch-scripts/${jobidx}.${rule_n}.${jobidx}.out "$@")
 
-  echo > batch-scripts/${jobid}.${rule_n}.${jobidx}.submit \
+  qalter -h U -o batch-scripts/${jobid}.${rule_n}.${jobidx}.out ${jobid}
+
+  echo  > batch-scripts/${jobid}.${rule_n}.${jobidx}.submit \
           qsub -terse -cwd -V -pe thread ${n_cpus} -l memory=${mem_per_thread}g -j y -o batch-scripts/${jobid}.${rule_n}.${jobidx}.out "$@"
 
 
