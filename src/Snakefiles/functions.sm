@@ -23,6 +23,9 @@ def getNumLines(input):
       return 0
 
 def getFileBP(input):
+   if not os.path.exists(input):
+      return 0
+
    s = os.path.getsize(input)
    if re.match(r".*(fq|fastq).*", input):
       s /= 2.50                             #  We don't use quality values so decrease the file size by about half
