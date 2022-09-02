@@ -131,14 +131,15 @@ for node in cut_positions:
 		while start <= end and cut_positions[node][end] >= nodelens[node] - max_overlap[">" + node]:
 			sys.stderr.write("discarded cut site at node " + str(node) + " at position " + str(cut_positions[node][end]) + " due to overlap" + "\n")
 			end -= 1
+
 	if end < start:
 		cut_positions[node] = []
 	else:
 		chosen_positions = []
 		for i in range(start, end+1):
-			if len(chosen_positions) >= 1 and cut_positions[node][i] == chosen_positions[-1]:
+			if len(chosen_positions) >= 1 and cut_positions[node][i] - chosen_positions[-1] <= 1:
 				continue
-			assert len(chosen_positions) == 0 or cut_positions[node][i] > chosen_positions[-1]
+			assert len(chosen_positions) == 0 or cut_positions[node][i] > chosen_positions[-1] + 1
 			chosen_positions.append(cut_positions[node][i])
 		cut_positions[node] = chosen_positions
 		sys.stderr.write("cut sites for node " + node + " : " + " ".join(str(s) for s in cut_positions[node]) + "\n")
