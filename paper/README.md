@@ -57,5 +57,8 @@ The archived code is also available at [zenodo](https://doi.org/10.5281/zenodo.6
    * HG002 Mother:
       * https://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/AshkenazimTrio/HG004_NA24143_mother/NIST_Illumina_2x250bps/reads/
 
+   * HG002 pre-built parental hapmers (k=30, homopolymer compressed):
+      * https://s3-us-west-2.amazonaws.com/human-pangenomics/index.html?prefix=T2T/HG002/qc/
+
 ## Assemblies
 The archive of results is also available at [zenodo](https://doi.org/10.5281/zenodo.6618379)
