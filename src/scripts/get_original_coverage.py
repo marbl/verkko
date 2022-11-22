@@ -214,4 +214,4 @@ for contig in nodes_per_contig:
 		coverage_sum += original_coverages[node] * (end - start)
 	if length_sum == 0: continue
 	coverage = float(coverage_sum) / float(length_sum)
-	print(contig + "\t" + str(coverage))
+	print(contig + "\t" + "{:.2f}".format(coverage))
