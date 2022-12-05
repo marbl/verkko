@@ -13,78 +13,192 @@
  ##
 
 #
-#  Rule countKmers determines frequent kmers in the seqStore.
+#  Find hifi.ignoremers by counting k-mers in hifi.seqStore.
+#
+#  Runs meryl once (with -C option) to let it guess how many batches it will
+#  take to count k-mers in all reads with the supplied memory limit.  That
+#  many jobs are then executed, in parallel, each counting 1/max of the reads
+#  (via `segment=n/max`).  Once all counting jobs are complete, the results
+#  are combined into a single meryl database, then the common kmers are
+#  extracted into `hifi.ignoremers`.
 #
 
-rule countKmers:
+checkpoint configureKmers:
     input:
         seqstore  = {rules.buildStore.output.seqstore}
     output:
-        ignore    = '0-correction/hifi.ignoremers'
+        finished  = '0-correction/configureKmers.finished'
     log:
-        err       = '0-correction/countKmers.err'
+        err       = '0-correction/configureKmers.err'
     params:
         mersize   = config['mer_size'],
-        merthresh = config['mer_threshold']
+        memlim    = config['mer_mem_gb']
     threads:
-        int(config['mer_n_cpus'])
+        1
     resources:
         job_id = 1,
+        n_cpus = 1,
+        mem_gb = 4,
+        time_h = 1
+    shell:
+        '''
+cd 0-correction
+
+cat > ./configureKmers.sh <<EOF
+#!/bin/sh
+set -e
+
+#  Configure meryl.
+#
+{VERKKO}/bin/meryl -C k={params.mersize} threads={threads} memory={params.memlim} \\\\
+  count \\\\
+    ../{input.seqstore} \\\\
+    output none.meryl \\\\
+> meryl.configure.out 2>&1
+
+rm -rf none.meryl
+
+nsegs=\`cat meryl.configure.out | grep '^Configured.*batches.$' | awk '{{ print \$13 }}'\`
+
+#  Build script input for each meryl job.
+mkdir -p kmer-jobs
+
+echo \$nsegs > kmer-jobs/nSegments
+
+seq -f %03g 1 1 \$nsegs \\\\
+| \\\\
+awk -v segs=\$nsegs '{{ jobname="kmer-jobs/" \$1 ".params"; print \$1 > jobname; close(jobnme); }}'
+
+rm meryl.configure.out
+
+touch ../{output.finished}
+EOF
+
+chmod +x ./configureKmers.sh
+
+./configureKmers.sh > ../{log.err} 2>&1
+        '''
+
+
+
+rule computeKmers:
+    input:
+        seqstore  = {rules.buildStore.output.seqstore},
+        segm      = '0-correction/kmer-jobs/{nnnn}.params',
+        nseg      = '0-correction/kmer-jobs/nSegments',
+        finished  = {rules.configureKmers.output.finished}
+    output:
+        meryl     = '0-correction/kmer-jobs/{nnnn}.meryl/merylIndex',
+    log:
+        err       = '0-correction/kmer-jobs/{nnnn}.err'
+    params:
+        mersize   = config['mer_size'],
+        memlim    = config['mer_mem_gb']
+    threads:
+        int(config['mer_n_cpus']),
+    resources:
+        job_id = lambda wildcards, input, attempt: int(wildcards.nnnn),
         n_cpus = int(config['mer_n_cpus']),
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'mer'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'mer')
     shell:
         '''
-cd 0-correction
+cd 0-correction/kmer-jobs
 
-cat > ./countKmers.sh <<EOF
+segm=`cat ../../{input.segm}`
+nseg=`cat ../../{input.nseg}`
+
+cat > ./{wildcards.nnnn}.sh <<EOF
 #!/bin/sh
 set -e
 
-{VERKKO}/bin/meryl k={params.mersize} threads={threads} \\\\
-  count \\\\
-    segment=1/100 ../{input.seqstore} \\\\
-    output ../{output.ignore}.01.meryl
+#  Parameters from '{input.segm}' and
+#                  '{input.nseg}':
+#    segment '$segm' out of '$nseg'
 
-{VERKKO}/bin/meryl k={params.mersize} threads={threads} \\\\
+{VERKKO}/bin/meryl k={params.mersize} threads={threads} memory={resources.mem_gb} \\\\
   count \\\\
-    segment=33/100 ../{input.seqstore} \\\\
-    output ../{output.ignore}.33.meryl
+    segment=$segm/$nseg ../../{input.seqstore} \\\\
+    output $segm.meryl
+EOF
 
-{VERKKO}/bin/meryl k={params.mersize} threads={threads} \\\\
-  count \\\\
-    segment=66/100 ../{input.seqstore} \\\\
-    output ../{output.ignore}.66.meryl
+chmod +x ./{wildcards.nnnn}.sh
 
-{VERKKO}/bin/meryl k={params.mersize} threads={threads} \\\\
-  count \\\\
-    segment=99/100 ../{input.seqstore} \\\\
-    output ../{output.ignore}.99.meryl
+./{wildcards.nnnn}.sh > ../../{log.err} 2>&1
+        '''
+
+
+
+def combineKmersI(wildcards):
+    return expand("0-correction/kmer-jobs/{nnnn}.meryl/merylIndex", nnnn = glob_wildcards("0-correction/kmer-jobs/{xxxx}.params").xxxx)
+
+
+def combineKmersP(wildcards):
+    paths = expand("kmer-jobs/{nnnn}.meryl", nnnn = glob_wildcards("0-correction/kmer-jobs/{xxxx}.params").xxxx) 
+    if len(paths) == 0:
+       return paths
+
+    outf  = open("0-correction/kmer-databases", mode="wb")
+    for path in paths:
+        outf.write(f"{path}\n".encode())
+    outf.close()
+
+    return paths
+
+
+rule countKmers:
+    input:
+        finished  = {rules.configureKmers.output.finished},
+        dbs       = combineKmersI
+    output:
+        ignore    = '0-correction/hifi.ignoremers'
+    log:
+        err       = "0-correction/combineKmers.err"
+    params:
+        mersize   = config['mer_size'],
+        merthresh = config['mer_threshold'],
+        merfilter = config['mer_filter'],
+        memlim    = config['mer_mem_gb'],
+        paths     = combineKmersP
+    threads:
+        8
+    resources:
+        job_id = 1,
+        n_cpus = 8,
+        mem_gb = 16,
+        time_h = 2
+    shell:
+        '''
+cd 0-correction
+
+cat > ./combineKmers.sh <<EOF
+#!/bin/sh
+set -e
+
+#  Note!  Meryl v1 cannot do distinct= filtering with multiple
+#  database inputs.  They need to be merged first.
+#
+{VERKKO}/bin/meryl threads={threads} \\\\
+  union-sum {params.paths} \\\\
+  output all.meryl
 
 #  Note!  Meryl has a bug with 'print' outputs.  Printing to stdout
 #  does not work with a chain of operations, so we print to temporary
-#  files (but this also lets us run in parallel) and combine the results
+#  files (this also lets us run in parallel) and combine the results
 #  at the end.
 #
-{VERKKO}/bin/meryl k={params.mersize} threads={threads} \\\\
+#  (-V added so that the actual threshold is reported)
+#
+{VERKKO}/bin/meryl -V threads={threads} \\\\
   print ../{output.ignore}.##.tmp \\\\
-  greater-than {params.merthresh} \\\\
-  union-sum ../{output.ignore}.01.meryl \\\\
-            ../{output.ignore}.33.meryl \\\\
-            ../{output.ignore}.66.meryl \\\\
-            ../{output.ignore}.99.meryl
+  greater-than distinct={params.merfilter} \\\\
+  all.meryl
 
 cat ../{output.ignore}.??.tmp > ../{output.ignore}
 rm  ../{output.ignore}.??.tmp
-
-rm -rf ../{output.ignore}.01.meryl
-rm -rf ../{output.ignore}.33.meryl
-rm -rf ../{output.ignore}.66.meryl
-rm -rf ../{output.ignore}.99.meryl
 EOF
 
-chmod +x ./countKmers.sh
+chmod +x ./combineKmers.sh
 
-./countKmers.sh > ../{log.err} 2>&1
+./combineKmers.sh > ../{log.err} 2>&1
         '''
-

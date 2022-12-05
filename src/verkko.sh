@@ -113,6 +113,7 @@ correction_enabled=True
 
 mer_size=28
 mer_threshold=20
+mer_filter=0.975
 
 cor_min_read=4000
 cor_min_overlap=2000
@@ -333,6 +334,7 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--filter-kmer" ];                 then cor_filter_kmers=$arg; shift
     elif [ "$opt" = "--correct-k-mer-size" ] ;         then mer_size=$arg;        shift
     elif [ "$opt" = "--correct-mer-threshold" ] ;      then mer_threshold=$arg;   shift
+    elif [ "$opt" = "--correct-mer-filter" ] ;         then mer_filter=$arg;      shift
     elif [ "$opt" = "--correct-min-read-length" ] ;    then cor_min_read=$arg;    shift
     elif [ "$opt" = "--correct-min-overlap-length" ] ; then cor_min_overlap=$arg; shift
     elif [ "$opt" = "--correct-hash-bits" ] ;          then cor_hash_bits=$arg;   shift 
@@ -537,6 +539,7 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    "
     echo "    --correct-k-mer-size"
     echo "    --correct-mer-threshold"
+    echo "    --correct-mer-filter"
     echo "    --correct-min-read-length"
     echo "    --correct-min-overlap-length"
     echo "    --correct-hash-bits" 
@@ -630,6 +633,7 @@ echo >> ${outd}/verkko.yml "#  buildStore, countKmers and computeOverlaps"
 echo >> ${outd}/verkko.yml "correction_enabled:  '${correction_enabled}'"
 echo >> ${outd}/verkko.yml "mer_size:            '${mer_size}'"
 echo >> ${outd}/verkko.yml "mer_threshold:       '${mer_threshold}'"
+echo >> ${outd}/verkko.yml "mer_filter:          '${mer_filter}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "cor_min_read:        '${cor_min_read}'"
 echo >> ${outd}/verkko.yml "cor_min_overlap:     '${cor_min_overlap}'"
