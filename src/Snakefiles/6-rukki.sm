@@ -114,6 +114,55 @@ awk < ../{input.graph} \\\\
 > ../{output.graph}
 
 #
+#  Figure out haplotype labels from the meryl database names.
+#
+
+echo '{params.hap1mers}' \\\\
+| \\\\
+awk \\\\
+  'BEGIN \\\\
+  {{ \\\\
+    FS="/"; \\\\
+  }} \\\\
+  {{ \\\\
+    name=\$NF; \\\\
+    if      (sub("\\.k[0-9][0-9]\\.only.meryl", "", name))  {{                   }} \\\\
+    else if (name ~ /[pP][aA][tT]/)                         {{ name="pat";       }} \\\\
+    else if (name ~ /[mM][aA][tT]/)                         {{ name="mat";       }} \\\\
+    else if (sub("\\.meryl", "", name))                     {{                   }} \\\\
+    else                                                    {{ name="haplotype1" }} \\\\
+    print name; \\\\
+  }}' \\\\
+> label1
+
+echo '{params.hap2mers}' \\\\
+| \\\\
+awk \\\\
+  'BEGIN \\\\
+  {{ \\\\
+    FS="/"; \\\\
+  }} \\\\
+  {{ \\\\
+    name=\$NF; \\\\
+    if      (sub("\\.k[0-9][0-9]\\.only.meryl", "", name))  {{                   }} \\\\
+    else if (name ~ /[pP][aA][tT]/)                         {{ name="pat";       }} \\\\
+    else if (name ~ /[mM][aA][tT]/)                         {{ name="mat";       }} \\\\
+    else if (sub("\\.meryl", "", name))                     {{                   }} \\\\
+    else                                                    {{ name="haplotype2" }} \\\\
+    print name; \\\\
+  }}' \\\\
+> label2
+
+label1=\`cat label1\`
+label2=\`cat label2\`
+
+echo ""
+echo "Haplotype label 1 is '\$label1'."
+echo "Haplotype label 2 is '\$label2'."
+echo ""
+
+
+#
 #  Run Rukki.  Once for Bandage input, once for Consensus.
 #
 
@@ -125,6 +174,7 @@ params="\$params --marker-sparsity 5000"
 params="\$params --issue-sparsity 1000"
 params="\$params --try-fill-bubbles"
 params="\$params --fillable-bubble-diff 500"
+params="\$params --hap-names \$label1,\$label2"
 
 if [ x{params.haptype} = xtrio ]; then
    params="\$params --issue-len 200000  --marker-ratio 5. --issue-ratio 3. --issue-cnt 100"
@@ -132,8 +182,19 @@ else
    params="\$params --issue-len 2000000 --marker-ratio 3. --issue-ratio 2. --issue-cnt 1000"
 fi
 
+echo "Rukki parameters:"
+echo "  \$params"
+echo ""
+
+echo "Bandage run:"
+echo ""
 {VERKKO}/bin/rukki trio -g ../{output.graph} -m ../{output.colors}              -p ../{output.pathstsv} \$params
+echo ""
+
+echo "Consensus run:"
+echo ""
 {VERKKO}/bin/rukki trio -g ../{output.graph} -m ../{output.colors} --gaf-format -p ../{output.pathsgaf} \$params
+echo ""
 EOF
 
 chmod +x ./rukki.sh

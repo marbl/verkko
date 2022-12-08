@@ -62,13 +62,14 @@ rule emptyfile:
 rule verkko:
     input:
         graph       = '5-untip/unitig-popped-unitig-normal-connected-tip.gfa',
-        nseqgraph   = '6-rukki/unitig-popped-unitig-normal-connected-tip.noseq.gfa'        if config['ruk_enable'] == "True" else {rules.emptyfile.output},
+        nseqgraph   = '6-rukki/unitig-popped-unitig-normal-connected-tip.noseq.gfa'         if config['ruk_enable'] == "True" else {rules.emptyfile.output},
         layout      = '6-layoutContigs/unitig-popped.layout',
         scfmap      = '6-layoutContigs/unitig-popped.layout.scfmap',
         cns         = '7-consensus/unitig-popped.fasta',
         cnshap1     = '7-consensus/unitig-popped.haplotype1.fasta',
         cnshap2     = '7-consensus/unitig-popped.haplotype2.fasta',
         cnsunas     = '7-consensus/unitig-popped.unassigned.fasta',
+        pathstsv    = '6-rukki/unitig-popped-unitig-normal-connected-tip.paths.tsv'         if config['ruk_enable'] == "True" else {rules.emptyfile.output},
         hifi2cov    = '2-processGraph/unitig-unrolled-hifi-resolved.hifi-coverage.csv',
         ont2cov     = '2-processGraph/unitig-unrolled-hifi-resolved.ont-coverage.csv'       if config['withONT'] == "True" else {rules.emptyfile.output},
         hifi4cov    = '4-processONT/unitig-unrolled-ont-resolved.hifi-coverage.csv'         if config['withONT'] == "True" else {rules.emptyfile.output},
@@ -81,24 +82,33 @@ rule verkko:
         layout      = 'assembly.homopolymer-compressed.layout',
         hificov     = 'assembly.hifi-coverage.csv',
         ontcov      = 'assembly.ont-coverage.csv',
-        cns         = 'assembly.fasta'
+        cns         = 'assembly.fasta',
+        scfmap      = 'assembly.scfmap'
     params:
         keepinter   = config['keep_intermediate'],
         cnshap1     = 'assembly.haplotype1.fasta',    #  Actually, these are optional outputs.
         cnshap2     = 'assembly.haplotype2.fasta',
-        cnsunas     = 'assembly.unassigned.fasta'
+        cnsunas     = 'assembly.unassigned.fasta',
+        pathstsv    = 'assembly.paths.tsv'
     shell:
         '''
-cp -p {input.graph}     {output.graph}
-
-#  Copy the rukki results to the output directory if they exist;
-#  if not, inject coverage into the graph and make a noseq version.
+#  Copy the rukki results to the output directory if they exist, remove them
+#  if they are empty (no haplotypes walked).
+#
+#  If rukki is not enabled, inject coverage into the graph and make a noseq version.
 
 if [ -s {input.nseqgraph} ]; then
    cp -p {input.nseqgraph} {output.nseqgraph}
    cp -p {input.cnshap1}   {params.cnshap1}
    cp -p {input.cnshap2}   {params.cnshap2}
    cp -p {input.cnsunas}   {params.cnsunas}
+   cp -p {input.pathstsv}  {params.pathstsv}
+
+   if [ ! -s {params.cnshap1} -a ! -s {params.cnshap2} ]; then
+      rm -f {params.cnshap1}
+      rm -f {params.cnshap2}
+      rm -f {params.pathstsv}
+   fi
 
 else
    awk < {input.graph} \\
@@ -121,10 +131,12 @@ fi
 
 #  Copy the full assembly to the output directory.
 
+cp -p {input.graph}     {output.graph}
 cp -p {input.layout}    {output.layout}
 cp -p {input.cns}       {output.cns}
 cp -p {input.hifi5cov}  {output.hificov}
 cp -p {input.ont5cov}   {output.ontcov}
+cp -p {input.scfmap}    {output.scfmap}
 
 #  Clean up intermediate files.
 

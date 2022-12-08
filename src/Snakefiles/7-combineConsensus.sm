@@ -57,6 +57,12 @@ rule combineConsensus:
         '''
 cd 7-consensus
 
+label1=""
+label2=""
+
+if [ -e ../6-rukki/label1 ] ; then label1=`cat ../6-rukki/label1` ; fi
+if [ -e ../6-rukki/label2 ] ; then label2=`cat ../6-rukki/label2` ; fi
+
 cat > ./combineConsensus.sh <<EOF
 #!/bin/sh
 set -e
@@ -69,19 +75,47 @@ echo ""
   ../{input.scfmap} \\\\
   {params.packcns}
 
-echo "--------------------"
-echo "Finding haplotypes."
-echo ""
-grep ^path.haplotype1 < ../{input.scfmap} | cut -d \\  -f 2 > ./paths-haplotype1
-grep ^path.haplotype2 < ../{input.scfmap} | cut -d \\  -f 2 > ./paths-haplotype2
-grep ^path.unassigned < ../{input.scfmap} | cut -d \\  -f 2 > ./paths-unassigned
 
-echo "--------------------"
-echo "Extracting haplotypes."
-echo ""
-{PYTHON} {VERKKO}/scripts/process_reads.py extract ../{output.cnshap1} ./paths-haplotype1 ../{output.cns}
-{PYTHON} {VERKKO}/scripts/process_reads.py extract ../{output.cnshap2} ./paths-haplotype2 ../{output.cns}
-{PYTHON} {VERKKO}/scripts/process_reads.py extract ../{output.cnsunas} ./paths-unassigned ../{output.cns}
+if [ x$label1 = x -o x$label2 = x ] ; then
+  echo "--------------------"
+  echo "No haplotypes supplied, will not extract them from consensus results."
+  echo ""
+
+  touch ../{output.cnshap1}
+  touch ../{output.cnshap2}
+  touch ../{output.cnsunas}
+
+else
+  echo "--------------------"
+  echo "Finding haplotypes for label1='$label1' and label2='$label2'."
+  echo ""
+
+  touch ./paths-haplotype1    #  Because if we don't, the awk below isn't guaranteed
+  touch ./paths-haplotype2    #  to make them, and then the extract fails.
+  touch ./paths-unassigned
+
+  awk < ../{input.scfmap} \\\\
+    'BEGIN {{
+       FS="[ \\t]+"; OFS="\\t";
+     }}
+     (\$1 = "path") && (\$2 ~ /^$label1-[0-9]+$/)    {{ print \$2 > "./paths-haplotype1"; }}
+     (\$1 = "path") && (\$2 ~ /^$label2-[0-9]+$/)    {{ print \$2 > "./paths-haplotype2"; }}
+     (\$1 = "path") && (\$2 ~ /^unassigned-[0-9]+$/) {{ print \$2 > "./paths-unassigned"; }}'
+
+  echo "--------------------"
+  echo "Extracting haplotypes."
+  echo ""
+
+  if [ -e ./paths-haplotype1 ] ; then
+    {PYTHON} {VERKKO}/scripts/process_reads.py extract ../{output.cnshap1} ./paths-haplotype1 ../{output.cns}
+  fi
+  if [ -e ./paths-haplotype2 ] ; then
+    {PYTHON} {VERKKO}/scripts/process_reads.py extract ../{output.cnshap2} ./paths-haplotype2 ../{output.cns}
+  fi
+  if [ -e ./paths-unassigned ] ; then
+    {PYTHON} {VERKKO}/scripts/process_reads.py extract ../{output.cnsunas} ./paths-unassigned ../{output.cns}
+  fi
+fi
 
 if [ {params.keepinter} = False ] ; then
   echo "--------------------"

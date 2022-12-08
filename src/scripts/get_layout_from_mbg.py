@@ -439,14 +439,33 @@ for contig in sorted(contig_pieces.keys()):
 	if npieces > 0 and nempty > 0:
 		print(f"{contig} has empty pieces.  npieces {npieces} ngaps {ngaps} nempty {nempty}", file=nul_layout_file)
 	elif npieces > 0:
-		if   re.match(r"^mat_", contig):
-			outname = f"haplotype1-{nameid:07}"
-		elif re.match(r"^pat_", contig):
-			outname = f"haplotype2-{nameid:07}"
-		else:
+		#  Decode the rukki (or non-rukki) contig name into
+		#  something we'll present to the user.
+		#
+		#  Without rukki, contig names are:
+		#    utig4-0
+		#
+		#  With rukki, they are:
+		#    ladybug-hap1_from_utig4-1736
+		#    ladybug-hap2_unused_utig4-0
+		#    na_unused_utig4-1
+		#  (where ladybug-hap1/2 is supplied by the user)
+		#
+		isna     = re.search(r"^na_unused_(.*)$", contig)
+		isunused = re.search(r"^(.*)_unused_(.*)$", contig)
+		isfrom   = re.search(r"^(.*)_from_(.*)$", contig)
+
+		if   isna:
 			outname = f"unassigned-{nameid:07}"
+		elif isunused:
+			outname = f"{isunused.group(1)}-{nameid:07}"
+		elif isfrom:
+			outname = f"{isfrom.group(1)}-{nameid:07}"
+		else:
+			outname = f"contig-{nameid:07}"
 
 		print(f"path {outname} {contig}", file=scf_layout_file)
+
 		for line in contig_pieces[contig]:
 			print(line, file=scf_layout_file)
 
