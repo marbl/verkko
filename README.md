@@ -48,9 +48,9 @@ By default, verkko will run the snakemake workflow and all compute on the local 
 
 Verkko supports trio-based phasing using using [rukki](https://github.com/marbl/rukki). To run in this mode, you must first generate [merqury](https://github.com/marbl/merqury) hapmer databases and pass them to verkko. Please use git clone to pull the latest versions merqury (see the merqury documentation for details) and make sure that `/path/to/verkko/lib/verkko/bin` is in your path. Then, if you have a SLURM cluster you can run:
 
-    $MERQURY/build/_submit_build.sh -c 30 maternal.fofn maternal_compress
-    $MERQURY/build/_submit_build.sh -c 30 paternal.fofn paternal_compress
-    $MERQURY/build/_submit_build.sh -c 30 child.fofn    child_compress
+    $MERQURY/_submit_build.sh -c 30 maternal.fofn maternal_compress
+    $MERQURY/_submit_build.sh -c 30 paternal.fofn paternal_compress
+    $MERQURY/_submit_build.sh -c 30 child.fofn    child_compress
     
 if not, you can run
 
