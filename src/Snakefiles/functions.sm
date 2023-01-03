@@ -148,6 +148,7 @@ def getAllMappings(type):
     ret = ''
     if (type > 2):
         ret += ('../2-processGraph/unitig-mapping-1.txt ' +
+                '../2-processGraph/haplofix-mapping.txt ' +
                 '../2-processGraph/unroll_mapping_1.txt ')
     if (type > 4) and config['withONT'] == "True":
         ret += ('../4-processONT/bridge_mapping.txt ' +
@@ -169,6 +170,7 @@ def getAllGraphs(type):
         ret += ('../2-processGraph/gapped-once-hifi-resolved.gfa ' +
                 '../2-processGraph/gapped-twice-hifi-resolved.gfa ' +
                 '../2-processGraph/gapped-hifi-resolved.gfa ' +
+                '../2-processGraph/fixed-hifi-resolved.gfa ' +
                 '../2-processGraph/unrolled-hifi-resolved.gfa ' +
                 '../2-processGraph/unitig-unrolled-hifi-resolved.gfa ')
     if (type > 4) and config['withONT'] == "True":
