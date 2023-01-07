@@ -61,7 +61,7 @@ echo Gap insertion pass 3.
 
 echo ""
 echo Haplogap fixing.
-{PYTHON} {VERKKO}/scripts/fix_haplogaps.py gapped-hifi-resolved.gfa ../{input.paths} paths.gaf haplogap haplofix-mapping.txt \\\\
+{PYTHON} {VERKKO}/scripts/fix_haplogaps.py gapped-hifi-resolved.gfa ../{input.paths} haplogap haplofix-mapping.txt \\\\
   > fixed-hifi-resolved.gfa
 
 echo ""
