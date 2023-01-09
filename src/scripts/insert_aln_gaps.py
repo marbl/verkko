@@ -10,6 +10,7 @@ nongap_aln_file_out = sys.argv[5]
 gap_aln_file_out = sys.argv[6]
 prefix = sys.argv[7]
 allow_nontips = (True if sys.argv[8] == "y" else False)
+allow_onetip = (True if sys.argv[8] == "o" else False)
 # graph to stdout
 
 def revnode(n):
@@ -70,6 +71,7 @@ with open(input_aln_file) as f:
 		leftclip = int(parts[7])
 		rightclip = int(parts[6]) - int(parts[8])
 		assert rightclip >= 0
+		if leftclip > max_end_clip and rightclip > max_end_clip: continue
 		if readname not in alns_per_read: alns_per_read[readname] = []
 		alns_per_read[readname].append((readstart, readend, alnstart, alnend, leftclip, rightclip, readlen, path))
 
@@ -84,8 +86,9 @@ for name in alns_per_read:
 		assert alns[i][0] >= alns[i-1][0]
 		if alns[i][0] == alns[i-1][0]: continue
 		if alns[i][1] <= alns[i-1][1]: continue
-		if alns[i-1][3] in not_tips or alns[i][2] in not_tips: continue
-		if alns[i-1][5] > max_end_clip or alns[i][4] > max_end_clip: continue
+		if allow_onetip and alns[i-1][3] in not_tips and alns[i][2] in not_tips: continue
+		if not allow_onetip and (alns[i-1][3] in not_tips or alns[i][2] in not_tips): continue
+		if alns[i-1][5] > max_end_clip or alns[i][4] > max_end_clip: continue 
 		gap_len = (alns[i][0] - alns[i][4]) - (alns[i-1][1] + alns[i-1][5])
 		key = canontip(alns[i-1][3], alns[i][2])
 		if key not in gaps: gaps[key] = []
@@ -161,7 +164,8 @@ with open(gap_aln_file_out, "w") as f:
 			assert alns[i][0] >= alns[i-1][0]
 			if alns[i][0] == alns[i-1][0]: continue
 			if alns[i][1] <= alns[i-1][1]: continue
-			if alns[i-1][3] in not_tips or alns[i][2] in not_tips: continue
+			if allow_onetip and alns[i-1][3] in not_tips and alns[i][2] in not_tips: continue
+			if not allow_onetip and (alns[i-1][3] in not_tips or alns[i][2] in not_tips): continue
 			if alns[i-1][5] > max_end_clip or alns[i][4] > max_end_clip: continue
 			key = canontip(alns[i-1][3], alns[i][2])
 			if key not in allowed_gaps: continue
