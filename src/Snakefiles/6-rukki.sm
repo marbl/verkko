@@ -124,6 +124,7 @@ params="\$params --final-assign out_final_ann.csv"
 params="\$params --marker-sparsity 5000"
 params="\$params --issue-sparsity 1000"
 params="\$params --try-fill-bubbles"
+params="\$params --fillable-bubble-diff 500"
 
 if [ x{params.haptype} = xtrio ]; then
    params="\$params --issue-len 200000  --marker-ratio 5. --issue-ratio 3. --issue-cnt 100"
