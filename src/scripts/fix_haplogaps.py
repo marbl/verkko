@@ -111,15 +111,23 @@ for key in tip_support:
 			wanted_cut_pos = t[0]
 			wanted_gap_length = t[1]
 	assert wanted_cut_pos >= 0
+	if wanted_gap_length == len(node_seqs[key[0][1:]]) or wanted_gap_length == len(node_seqs[key[1][1:]]):
+		sys.stderr.write("can't fix " + key[0] + " " + key[1] + " due to overlap containing node (wanted " + str(wanted_gap_length) + ", node lengths " + len(node_seqs[key[0][1:]]) + ", " + len(node_seqs[key[1][1:]]) + ")")
+		continue
 	if wanted_cut_pos == 0:
 		sys.stderr.write("mend " + key[0] + " " + key[1] + "\n")
 		extra_nocut_edges.append((key[0], key[1], wanted_gap_length))
 		num_fixed += 1
 		continue
 	max_ov = 0
-	if key[1] in max_overlap: max_ov = max_overlap[key[1]]
+	if revnode(key[1]) in max_overlap: max_ov = max_overlap[revnode(key[1])]
+	max_rev_ov = 0
+	if key[1] in max_overlap: max_rev_ov = max_overlap[key[1]]
 	if wanted_cut_pos <= max_ov:
 		sys.stderr.write("can't fix " + key[0] + " " + key[1] + " due to overlap (wanted " + str(wanted_cut_pos) + ", overlap " + str(max_ov) + ")" + "\n")
+		continue
+	if wanted_cut_pos >= len(node_seqs[key[1][1:]]) - max_rev_ov:
+		sys.stderr.write("can't fix " + key[0] + " " + key[1] + " due to overlap (wanted " + str(len(node_seqs[key[1][1:]]) - wanted_cut_pos) + ", overlap " + str(max_rev_ov) + ")" + "\n")
 		continue
 	sys.stderr.write("mend " + key[0] + " " + key[1] + "\n")
 	assert key[1] not in node_cuts
