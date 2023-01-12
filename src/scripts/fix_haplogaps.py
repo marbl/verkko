@@ -101,6 +101,7 @@ parse_current_alns(tip_support, current_alns)
 node_cuts = {}
 num_fixed = 0
 extra_edges = []
+extra_nocut_edges = []
 for key in tip_support:
 	if len(tip_support[key]) < 1: continue
 	wanted_cut_pos = -1
@@ -109,7 +110,12 @@ for key in tip_support:
 		if t[0] > wanted_cut_pos:
 			wanted_cut_pos = t[0]
 			wanted_gap_length = t[1]
-	assert wanted_cut_pos > 0
+	assert wanted_cut_pos >= 0
+	if wanted_cut_pos == 0:
+		sys.stderr.write("mend " + key[0] + " " + key[1] + "\n")
+		extra_nocut_edges.append((key[0], key[1], wanted_gap_length))
+		num_fixed += 1
+		continue
 	max_ov = 0
 	if key[1] in max_overlap: max_ov = max_overlap[key[1]]
 	if wanted_cut_pos <= max_ov:
@@ -165,6 +171,21 @@ for edge in extra_edges:
 		print("L\t" + edge[0][1:] + "\t" + ("+" if edge[0][0] == ">" else "-") + "\t" + fake_node + "\t" + "+" + "\t" + "0M")
 		print("S\t" + fake_node + "\t" + "N"*gap_len)
 		print("L\t" + fake_node + "\t" + "+" + "\t" + edge[1][1:] + ("_end" if edge[1][0] == ">" else "_beg") + "\t" + ("+" if edge[1][0] == ">" else "-") + "\t" + "0M")
+
+for edge in extra_nocut_edges:
+	assert edge[0] not in node_cuts
+	assert revnode(edge[0]) not in node_cuts
+	assert edge[1] not in node_cuts
+	assert revnode(edge[1]) not in node_cuts
+	gap_len = edge[2]
+	if gap_len <= 0:
+		print("L\t" + edge[0][1:] + "\t" + ("+" if edge[0][0] == ">" else "-") + "\t" + edge[1][1:] + "\t" + ("+" if edge[1][0] == ">" else "-") + "\t" + str(-gap_len) + "M")
+	else:
+		fake_node = gapname + "_" + str(next_fake_node_id)
+		next_fake_node_id += 1
+		print("L\t" + edge[0][1:] + "\t" + ("+" if edge[0][0] == ">" else "-") + "\t" + fake_node + "\t" + "+" + "\t" + "0M")
+		print("S\t" + fake_node + "\t" + "N"*gap_len)
+		print("L\t" + fake_node + "\t" + "+" + "\t" + edge[1][1:] + "\t" + ("+" if edge[1][0] == ">" else "-") + "\t" + "0M")
 
 with open(out_mapping_file, "w") as f:
 	for cut in node_cuts:
