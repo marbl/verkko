@@ -21,10 +21,13 @@ def readFastA(inf, line):
   sQlt = ""
 
   line  = inf.readline()
+  seqlines = []
 
   while (line) and (line[0] != '>') and (line[0] != '@'):
-    sSeq += line.strip().upper()
+    seqlines.append(line.strip().upper())
     line  = inf.readline()
+
+  sSeq = "".join(seqlines)
 
   return(line, sName, sSeq, sQlt)
 
