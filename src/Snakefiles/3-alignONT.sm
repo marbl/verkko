@@ -34,7 +34,7 @@ rule indexGraph:
         mxm_length        = config['ali_mxm_length'],
         mem_count         = config['ali_mem_count'],
     threads:
-        int(config['ali_n_cpus'])
+        1
     resources:
         job_id = 1,
         n_cpus = 1,
