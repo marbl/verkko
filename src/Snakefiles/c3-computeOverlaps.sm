@@ -119,6 +119,7 @@ set -e
   --hashload 0.8 \\\\
   --maxerate  0.01 \\\\
   --minlength {params.minolap} \\\\
+  --minkmers \\\\
   $params \\\\
   -o ../../{output.ovb}.WORKING \\\\
   -s ../../{output.stats} \\\\

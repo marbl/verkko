@@ -34,10 +34,10 @@ rule indexGraph:
         mxm_length        = config['ali_mxm_length'],
         mem_count         = config['ali_mem_count'],
     threads:
-        int(config['ali_n_cpus'])
+        1
     resources:
         job_id = 1,
-        n_cpus = int(config['ali_n_cpus']),
+        n_cpus = 1,
         mem_gb = lambda wildcards, input, attempt: getAlignMemoryRequest(attempt, 15, [ input.gfa ]),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ali')
     shell:
