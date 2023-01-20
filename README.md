@@ -56,12 +56,21 @@ if not, you can run
 
     meryl count compress k=30 threads=XX memory=YY maternal.*fastq.gz output maternal_compress.k30.meryl
     meryl count compress k=30 threads=XX memory=YY paternal.*fastq.gz output paternal_compress.k30.meryl
-    meryl count compress k=30 threads=XX memory=YY child.*fastq.gz output paternal_compress.k30.meryl
+    meryl count compress k=30 threads=XX memory=YY    child.*fastq.gz output    child_compress.k30.meryl
 
 replacing XX and YY with the threads and memory you want meryl to use. Once you have the databases, run:
 
-    $MERQURY/trio/hapmers.sh maternal_compress.k30.meryl paternal_compress.k30.meryl child_compress.k30.meryl
-    verkko -d asm --hifi hifi/*.fastq.gz --nano ont/*.fastq.gz --hap-kmers maternal_compress.k30.hapmer.meryl paternal_compress.k30.hapmer.meryl trio
+    $MERQURY/trio/hapmers.sh \
+      maternal_compress.k30.meryl \
+      paternal_compress.k30.meryl \
+         child_compress.k30.meryl
+
+    verkko -d asm \
+      --hifi hifi/*.fastq.gz \
+      --nano  ont/*.fastq.gz \
+      --hap-kmers maternal_compress.k30.hapmer.meryl \
+                  paternal_compress.k30.hapmer.meryl \
+                  trio
 
 Make sure to count k-mers in compressed space. Child data is optional, in this case use `maternal_compress.k30.only.meryl` and  `paternal_compress.k30.only.meryl` in the verkko command above. Preliminary support is available for read sets binned by haplotype from another method, such as [PGAS](https://github.com/daewoooo/SaaRclust) and Strand-Seq or [DipAsm](https://github.com/shilpagarg/DipAsm) and Hi-C. In these cases, make sure the phase blocks are chromosome-scale and consistent within each chromosome. You can build merqury DBs as above and specify them along with either `hic` or `strandseq` instead of `trio` to verkko instead.
 
