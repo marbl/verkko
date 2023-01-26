@@ -655,6 +655,9 @@ echo >> ${outd}/verkko.yml "ali_min_score:       '${ali_min_score}'"
 echo >> ${outd}/verkko.yml "ali_end_clipping:    '${ali_end_clipping}'"
 echo >> ${outd}/verkko.yml "ali_incompat_cutoff: '${ali_incompat_cutoff}'"
 echo >> ${outd}/verkko.yml "ali_max_trace:       '${ali_max_trace}'"
+
+echo >> ${outd}/verkko.yml "cor_filter_kmers: '${cor_filter_kmers}'"
+
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  process_ont_paths"
 echo >> ${outd}/verkko.yml "pop_min_allowed_cov: '${pop_min_allowed_cov}'"
