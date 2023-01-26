@@ -90,6 +90,7 @@ rule computeOverlaps:
         mersize   = config['mer_size'],
         minread   = config['cor_min_read'],
         minolap   = config['cor_min_overlap'],
+        mkmers    = config['cor_filter_kmers'],
         hashbits  = config['cor_hash_bits']
     threads:
         int(config['ovb_n_cpus']),
@@ -111,6 +112,10 @@ set -e
 #  Parameters from '{input.params}':
 #    $params
 
+if [ {params.mkmers} -gt 0 ]; then
+   mkmers="--minkmers"
+fi
+
 {VERKKO}/bin/overlapInCore \\\\
   -t {threads} \\\\
   -k {params.mersize} \\\\
@@ -118,8 +123,7 @@ set -e
   --hashbits {params.hashbits} \\\\
   --hashload 0.8 \\\\
   --maxerate  0.01 \\\\
-  --minlength {params.minolap} \\\\
-  --minkmers \\\\
+  --minlength {params.minolap} \\$mkmers \\\\
   $params \\\\
   -o ../../{output.ovb}.WORKING \\\\
   -s ../../{output.stats} \\\\

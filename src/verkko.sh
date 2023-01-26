@@ -117,6 +117,7 @@ mer_threshold=20
 cor_min_read=4000
 cor_min_overlap=2000
 cor_hash_bits=25
+cor_filter_kmers=0
 
 #  buildGraph, parameters for MBG
 mbg_baseK=1001
@@ -328,6 +329,7 @@ while [ $# -gt 0 ] ; do
 
     elif [ "$opt" = "--no-correction" ] ;              then correction_enabled=False
 
+    elif [ "$opt" = "--filter-kmer" ];                 then cor_filter_kmers=$arg; shift
     elif [ "$opt" = "--correct-k-mer-size" ] ;         then mer_size=$arg;        shift
     elif [ "$opt" = "--correct-mer-threshold" ] ;      then mer_threshold=$arg;   shift
     elif [ "$opt" = "--correct-min-read-length" ] ;    then cor_min_read=$arg;    shift
