@@ -117,6 +117,7 @@ mer_threshold=20
 cor_min_read=4000
 cor_min_overlap=2000
 cor_hash_bits=25
+cor_filter_kmers=0
 
 #  buildGraph, parameters for MBG
 mbg_baseK=1001
@@ -328,6 +329,7 @@ while [ $# -gt 0 ] ; do
 
     elif [ "$opt" = "--no-correction" ] ;              then correction_enabled=False
 
+    elif [ "$opt" = "--filter-kmer" ];                 then cor_filter_kmers=$arg; shift
     elif [ "$opt" = "--correct-k-mer-size" ] ;         then mer_size=$arg;        shift
     elif [ "$opt" = "--correct-mer-threshold" ] ;      then mer_threshold=$arg;   shift
     elif [ "$opt" = "--correct-min-read-length" ] ;    then cor_min_read=$arg;    shift
@@ -653,6 +655,9 @@ echo >> ${outd}/verkko.yml "ali_min_score:       '${ali_min_score}'"
 echo >> ${outd}/verkko.yml "ali_end_clipping:    '${ali_end_clipping}'"
 echo >> ${outd}/verkko.yml "ali_incompat_cutoff: '${ali_incompat_cutoff}'"
 echo >> ${outd}/verkko.yml "ali_max_trace:       '${ali_max_trace}'"
+
+echo >> ${outd}/verkko.yml "cor_filter_kmers: '${cor_filter_kmers}'"
+
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  process_ont_paths"
 echo >> ${outd}/verkko.yml "pop_min_allowed_cov: '${pop_min_allowed_cov}'"
