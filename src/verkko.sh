@@ -165,8 +165,12 @@ sto_mem_gb=4
 sto_time_h=4
 
 mer_n_cpus=4
-mer_mem_gb=16
-mer_time_h=4
+mer_mem_gb=32
+mer_time_h=8
+
+meg_n_cpus=4     #  This is temporary, until meryl2 arrives.
+meg_mem_gb=32    #  It is used for merging kmer databases.
+meg_time_h=4
 
 ovb_n_cpus=8
 ovb_mem_gb=32
@@ -379,6 +383,7 @@ while [ $# -gt 0 ] ; do
 
     elif [ "$opt" = "--sto-run" ] ;  then sto_n_cpus=$1; sto_mem_gb=$2; sto_time_h=$3; shift; shift; shift;
     elif [ "$opt" = "--mer-run" ] ;  then mer_n_cpus=$1; mer_mem_gb=$2; mer_time_h=$3; shift; shift; shift;
+    elif [ "$opt" = "--meg-run" ] ;  then meg_n_cpus=$1; meg_mem_gb=$2; meg_time_h=$3; shift; shift; shift;
     elif [ "$opt" = "--ovb-run" ] ;  then ovb_n_cpus=$1; ovb_mem_gb=$2; ovb_time_h=$3; shift; shift; shift;
     elif [ "$opt" = "--ovs-run" ] ;  then ovs_n_cpus=$1; ovs_mem_gb=$2; ovs_time_h=$3; shift; shift; shift;
     elif [ "$opt" = "--red-run" ] ;  then red_n_cpus=$1; red_mem_gb=$2; red_time_h=$3; shift; shift; shift;
@@ -689,6 +694,10 @@ echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "mer_n_cpus:          '${mer_n_cpus}'"
 echo >> ${outd}/verkko.yml "mer_mem_gb:          '${mer_mem_gb}'"
 echo >> ${outd}/verkko.yml "mer_time_h:          '${mer_time_h}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "meg_n_cpus:          '${meg_n_cpus}'"
+echo >> ${outd}/verkko.yml "meg_mem_gb:          '${meg_mem_gb}'"
+echo >> ${outd}/verkko.yml "meg_time_h:          '${meg_time_h}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "ovb_n_cpus:          '${ovb_n_cpus}'"
 echo >> ${outd}/verkko.yml "ovb_mem_gb:          '${ovb_mem_gb}'"

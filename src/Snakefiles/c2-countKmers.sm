@@ -22,6 +22,32 @@
 #  are combined into a single meryl database, then the common kmers are
 #  extracted into `hifi.ignoremers`.
 #
+#  The rather convoluted method used here - batching four kmer jobs per
+#  snakemake job - is used to get around two different meryl problems:
+#
+#   - The parameters used to encode kmers in a database are chosen poorly for
+#     the output of a counting operation, resulting in very large compressed
+#     blocks which then require lots of memory to decompress.  With lots of
+#     batches, the 'merge' step exhausts memory.
+#
+#  A solution to that problem is to just make batches bigger and let
+#  meryl compute multiple batches per run and automatically merge them (the
+#  encode parameters are chosen a bit better for the merge operation).
+#
+#   - At the start of each batch, it asks the OS how much memory is currently
+#     in use and sizes the batch so as to not exceed the limit.  On Linux,
+#     the OS seems to lag behind actual memory usage so it reports that meryl
+#     is currently using (e.g.,) 50% of it's requested size at the start of
+#     the second batch.  The third gets worse, the fourth worse still, etc.
+#     This cannot be reproduced on FreeBSD.
+#
+#     (This behavior seems to only get triggered with large batches and large
+#      kmer sizes, which is why Canu is immune.)
+#
+#  So, the below manually computes 'large batches' by merging four meryl jobs
+#  into one snakemake job, then merging the results of the snakemake jobs to
+#  get the final full set of kmers.
+#
 
 checkpoint configureKmers:
     input:
@@ -65,7 +91,7 @@ mkdir -p kmer-jobs
 
 echo \$nsegs > kmer-jobs/nSegments
 
-seq -f %03g 1 1 \$nsegs \\\\
+seq -f %03g 1 4 \$nsegs \\\\
 | \\\\
 awk -v segs=\$nsegs '{{ jobname="kmer-jobs/" \$1 ".params"; print \$1 > jobname; close(jobnme); }}'
 
@@ -112,14 +138,67 @@ cat > ./{wildcards.nnnn}.sh <<EOF
 #!/bin/sh
 set -e
 
+seg1=\$( expr $segm + 0 )
+seg2=\$( expr $segm + 1 )
+seg3=\$( expr $segm + 2 )
+seg4=\$( expr $segm + 3 )
+
+seg1=\$( printf %03d \$seg1 )
+seg2=\$( printf %03d \$seg2 )
+seg3=\$( printf %03d \$seg3 )
+seg4=\$( printf %03d \$seg4 )
+
+seg1o=""
+seg2o=""
+seg3o=""
+seg4o=""
+
 #  Parameters from '{input.segm}' and
 #                  '{input.nseg}':
 #    segment '$segm' out of '$nseg'
 
+if [ \$seg1 -le $nseg ] ; then
+  seg1o="\$seg1.part.meryl"
+  {VERKKO}/bin/meryl k={params.mersize} threads={threads} memory={resources.mem_gb} \\\\
+    count \\\\
+      segment=\$seg1/$nseg ../../{input.seqstore} \\\\
+      output \$seg1o
+fi
+
+if [ \$seg2 -le $nseg ] ; then
+  seg2o="\$seg2.part.meryl"
+  {VERKKO}/bin/meryl k={params.mersize} threads={threads} memory={resources.mem_gb} \\\\
+    count \\\\
+      segment=\$seg2/$nseg ../../{input.seqstore} \\\\
+      output \$seg2o
+fi
+
+if [ \$seg3 -le $nseg ] ; then
+  seg3o="\$seg3.part.meryl"
+  {VERKKO}/bin/meryl k={params.mersize} threads={threads} memory={resources.mem_gb} \\\\
+    count \\\\
+      segment=\$seg3/$nseg ../../{input.seqstore} \\\\
+      output \$seg3o
+fi
+
+if [ \$seg4 -le $nseg ] ; then
+  seg4o="\$seg4.part.meryl"
+  {VERKKO}/bin/meryl k={params.mersize} threads={threads} memory={resources.mem_gb} \\\\
+    count \\\\
+      segment=\$seg4/$nseg ../../{input.seqstore} \\\\
+      output \$seg4o
+fi
+
 {VERKKO}/bin/meryl k={params.mersize} threads={threads} memory={resources.mem_gb} \\\\
-  count \\\\
-    segment=$segm/$nseg ../../{input.seqstore} \\\\
+  union-sum \\\\
+    \$seg1o \$seg2o \$seg3o \$seg4o \\\\
     output $segm.meryl
+
+if [ -n "\$seg1o" ] ; then  rm -rf ./\$seg1o ; fi
+if [ -n "\$seg2o" ] ; then  rm -rf ./\$seg2o ; fi
+if [ -n "\$seg3o" ] ; then  rm -rf ./\$seg3o ; fi
+if [ -n "\$seg4o" ] ; then  rm -rf ./\$seg4o ; fi
+
 EOF
 
 chmod +x ./{wildcards.nnnn}.sh
@@ -158,15 +237,15 @@ rule countKmers:
         mersize   = config['mer_size'],
         merthresh = config['mer_threshold'],
         merfilter = config['mer_filter'],
-        memlim    = config['mer_mem_gb'],
+        memlim    = config['meg_mem_gb'],
         paths     = combineKmersP
     threads:
         8
     resources:
         job_id = 1,
-        n_cpus = 8,
-        mem_gb = 16,
-        time_h = 2
+        n_cpus = int(config['meg_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'meg'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'meg')
     shell:
         '''
 cd 0-correction
