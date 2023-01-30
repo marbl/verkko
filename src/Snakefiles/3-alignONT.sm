@@ -58,6 +58,7 @@ touch empty.fasta
   --seeds-mxm-cache-prefix \\$prefix \\\
   --bandwidth {params.bandwidth} \\\\
   --seeds-mxm-length {params.mxm_length} \\\\
+  --mem-index-no-wavelet-tree \\\\
   --seeds-mem-count {params.mem_count} && touch ../{output.index}
 
 rm -f empty.gaf empty.fasta
@@ -124,6 +125,7 @@ echo ""
   --clip-ambiguous-ends {params.end_clipping} \\\\
   --overlap-incompatible-cutoff {params.incompat_cutoff} \\\\
   --max-trace-count {params.max_trace} \\\\
+  --mem-index-no-wavelet-tree \\\\
 && \\\\
 mv -f ../{params.alignmentstmp} ../{output.alignments}
 EOF
