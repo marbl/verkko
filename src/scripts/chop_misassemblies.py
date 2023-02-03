@@ -74,7 +74,7 @@ for read in read_aln_positions:
 		if read_aln_positions[read][i][1] <= read_aln_positions[read][i-1][1]: continue
 		prev_node = read_aln_positions[read][i-1][4]
 		this_node = read_aln_positions[read][i][2]
-		if revnode(end_node) in not_tip and revnode(this_node) in not_tip: continue
+		if revnode(prev_node) in not_tip and revnode(this_node) in not_tip: continue
 		prev_node_offset = read_aln_positions[read][i-1][5]
 		this_node_offset = read_aln_positions[read][i][3]
 		if prev_node > this_node or (prev_node == this_node and prev_node_offset > this_node_offset):
