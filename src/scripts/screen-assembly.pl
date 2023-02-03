@@ -6,6 +6,9 @@ my $assembly   = "";
 my %contigLength;
 my $graph      = "";
 my $graphmap   = "";
+my %gtoc;
+my $hificov    = "";
+my %hifiCoverage;
 my $minLength  = 100000;
 my %contaminantSeq;
 
@@ -24,6 +27,9 @@ while (scalar(@ARGV) > 0) {
     }
     elsif ($opt eq "--graphmap") {
         $graphmap = shift @ARGV;
+    }
+    elsif ($opt eq "--hifi-coverage") {
+        $hificov = shift @ARGV;
     }
     elsif ($opt eq "--minlength") {
         $minLength = int(shift @ARGV);
@@ -86,26 +92,38 @@ sub loadSequenceLengths ($) {
 }
 
 
-#  Map in 6-layoutContigs/unitig-popped.layout.scfmap
-#  path haplotype1-0000002 mat_from_utig4-117
+
+#  Read hifi coverage for the contigs.
+#
+sub loadHifiCoverage ($) {
+    my $c = shift @_;
+
+    print STDERR "Loading contig coverage from '$c'.\n";
+
+    open(F, "< $c") or die "Failed to open '$c' for reading: $!.\n";
+    while (<F>) {
+        my ($ident, $cov) = split '\s+', $_;
+
+        if (exists($gtoc{$ident})) {
+            #print STDERR "$ident -> $gtoc{$ident} -> $cov\n";
+
+            $hifiCoverage{$gtoc{$ident}} = $cov;
+        }
+        else {
+        }
+    }
+    close(F);
+
+    print STDERR "  Found ", scalar(keys %hifiCoverage), " contig coverage values.\n";
+    print STDERR "\n";
+}
 
 
-#  Find disconnected nodes in the graph.  Returns an array of node names.
+
+#  Load a map from graph-contig-names to assembly-contig-names.
 #
-#  cat ../{input.graph} | grep ^L |                 awk '{{ print \$2"\n"\$4 }}' | sort | uniq > ./nodes-with-links
-#  cat ../{input.graph} | grep ^S | sed s/LN:i:// | awk '{{ print \$2        }}' | sort | uniq > ./nodes
-#
-#  diff --side-by-side --suppress-common-lines ./nodes ./nodes-with-links | awk '{{ print \$1 }}' > ./nodes-isolated
-#
-sub findDisconnected ($$$) {
-    my $g = shift @_;
+sub loadGtoC ($) {
     my $m = shift @_;
-    my $minl = shift @_;
-    my %gtoc;
-    my %nodes;
-    my %edges;
-    my @discShort;
-    my @discLong;
 
     print STDERR "Loading graph to contig name map from '$m'.\n";
 
@@ -123,6 +141,27 @@ sub findDisconnected ($$$) {
         }
     }
     close(M);
+
+    print STDERR "  Found ", scalar(keys %gtoc), " contig names.\n";
+    print STDERR "\n";
+}
+
+
+
+#  Find disconnected nodes in the graph.  Returns an array of node names.
+#
+#  cat ../{input.graph} | grep ^L |                 awk '{{ print \$2"\n"\$4 }}' | sort | uniq > ./nodes-with-links
+#  cat ../{input.graph} | grep ^S | sed s/LN:i:// | awk '{{ print \$2        }}' | sort | uniq > ./nodes
+#
+#  diff --side-by-side --suppress-common-lines ./nodes ./nodes-with-links | awk '{{ print \$1 }}' > ./nodes-isolated
+#
+sub findDisconnected ($$) {
+    my $g = shift @_;
+    my $minl = shift @_;
+    my %nodes;
+    my %edges;
+    my @discShort;
+    my @discLong;
 
     print STDERR "Finding disconnected nodes in '$g' shorter than $minl.\n";
 
@@ -177,6 +216,7 @@ sub findDisconnected ($$$) {
 }
 
 
+
 sub mashMap ($$$$) {
     my $a      = shift @_;
     my $output = shift @_;
@@ -206,9 +246,16 @@ sub mashMap ($$$$) {
 }
 
 
+
 #
 #  Filters mashmap output to remove low-quality and spurious matches.
 #  Remembers the best match.
+#
+#    pick node that contains most reference
+#    and has highest depth
+#      pick the five/ten highest coverage contigs
+#      then pick the highest depth
+#
 #
 #  MashMap output columns:
 #     1 query
@@ -224,39 +271,82 @@ sub mashMap ($$$$) {
 #
 #  awk '{{if (\$NF > 99 && ((\$9-\$8)/\$7 > 0.50 || (\$9-\$8)/\$7 > 0.25 && \$7 < 50000)) print \$6}}' | sort | uniq > contaminant.list
 #
+sub filterMashGoodHit ($$$) {
+}
+
 sub filterMash ($) {
     my  $cp = shift @_;
+
+    #
+    #  Pass 1: find the highest reference contig coverage.  The 'reference contig' is
+    #  the first sequence...called 'query' above.
+    #
+
+    my $qcovBest = 0;   #  Best qcov encountered.
+    my $qcovMax  = 0;   #  Number of times we've seen > 99% qcov.
+
+    open(F, "< $output.$cp.mashmap.out") or die "Failed to open mashmap output '$output.$cp.mashmap.out' for reading: $!\n";
+    while (<F>) {
+        my ($q, $qlen, $qbgn, $qend, $s, $r, $rlen, $rbgn, $rend, $ident) = split '\s+', $_;
+
+        my $qcov = int(0.5 + 100.0 * ($qend - $qbgn) / $qlen);
+        my $rcov = int(0.5 + 100.0 * ($rend - $rbgn) / $rlen);
+
+        my $gi   = ($ident >= 99.0);
+        my $g1   = ($rcov  >= 50);
+        my $g2   = ($rcov  >= 25) && ($rlen < 50000);
+
+        if (($gi) && ($g1 || $g2)) {                      #  If ident is good and the contig
+            $qcovBest = $qcov   if ($qcovBest <  $qcov);  #  is primarily the contaminant,
+            $qcovMax += 1       if ($qcov     >= 100);    #  save the best contaminant coverage.
+        }
+    }
+
+    #  Pick a minimum acceptable qcov for filtering.  If there is anything with full coverage,
+    #  only use full coverage, otherwise, take the best found and anything close to it.
+    my $qcovMin = ($qcovMax > 0) ? (100) : ($qcovMax - 5);
+
+    #print "qcovMin=$qcovMin  qcovBest=$qcovBest  qcovMax=$qcovMax\n";
+
+    #
+    #  Pass 2: find the exemplar.
+    #
 
     my $nHits;
     my $nSaveI;
     my $nSave1;
     my $nSave2;
 
-    my  %hits;
-    my ($best, $bestI, $bestC) = ("", 0, 0);
+    my %hits;
+
+    my $bestIdent = "";
+    my $bestDepth = 0;
 
     open(F, "< $output.$cp.mashmap.out") or die "Failed to open mashmap output '$output.$cp.mashmap.out' for reading: $!\n";
     while (<F>) {
-        my ($q, $qlen, $qbgn, $qend, $s, $ref, $rlen, $rbgn, $rend, $ident) = split '\s+', $_;
+        my ($q, $qlen, $qbgn, $qend, $s, $r, $rlen, $rbgn, $rend, $ident) = split '\s+', $_;
 
-        my $rcov = ($rend - $rbgn) / $rlen;
+        my $qcov = int(0.5 + 100.0 * ($qend - $qbgn) / $qlen);
+        my $rcov = int(0.5 + 100.0 * ($rend - $rbgn) / $rlen);
 
-        my $gi = ($ident >= 99.0);
-        my $g1 = ($rcov >= 0.50);
-        my $g2 = ($rcov >= 0.25) && ($rlen < 50000);
+        my $gi   = ($ident >= 99.0);
+        my $g1   = ($rcov  >= 50);
+        my $g2   = ($rcov  >= 25) && ($rlen < 50000);
+        my $g3   = ($qcov  >= $qcovMin);
 
         $nHits++;
         $nSaveI += 1   if ($gi);
         $nSave1 += 1   if ($g1) && (!$gi);
         $nSave2 += 1   if ($g2) && (!$gi);
 
-        if (($gi) && ($g1 || $g2)) {   #  If ident is good and the contig is mostly
-            $hits{$ref}++;             #  covered, save the contig as a contaminant.
+        if (($gi) && ($g1 || $g2)) {            #  If ident is good and the contig is primarily
+            $hits{$r}++;                        #  contaminant, save the id for filtering.
+ 
+            #print STDERR "bestDepth='$bestDepth'  r='$r'  hc='$hifiCoverage{$r}'\n";
 
-            if ($ident > $bestI) {
-                $best  = $ref;         #  Save this contig if it is the best we've seen.
-                $bestI = $ident;
-                $bestC = $rcov;
+            if (($g3) && ($bestDepth < $hifiCoverage{$r})) {
+                $bestIdent = $r;
+                $bestDepth = $hifiCoverage{$r};
             }
         }
     }
@@ -267,10 +357,10 @@ sub filterMash ($) {
     printf "  Found %5d       hits with good coverage but bad identity.\n", $nSave1;
     printf "  Found %5d short hits with good coverage but bad identity.\n", $nSave2;
     printf "  Found %5d       contaminant contigs.\n", scalar(keys %hits);
-    printf "  Best hit is %6.2f%% identity and %6.2f%% coverage ('$best').\n", $bestI, 100.0 * $bestC;
+    printf "  Best hit has %6.2fx read coverage. ('%s').\n", $bestDepth, $bestIdent;
     printf "\n";
 
-    return($best, keys %hits);
+    return($bestIdent, keys %hits);
 }
 
 
@@ -337,12 +427,15 @@ sub filterSequences ($$$$$@) {
 #  Main
 #
 
-my %contigLengths = loadSequenceLengths($assembly);
-my @disconnected  = findDisconnected($graph, $graphmap, $minLength);
+loadSequenceLengths($assembly);
+loadGtoC($graphmap);
 
+my @disconnected  = findDisconnected($graph, $minLength);
 filterSequences($assembly, 1, "disconnected", $output, undef, @disconnected);
 
 my @crud = @disconnected;
+
+loadHifiCoverage($hificov);
 
 foreach my $cp (keys %contaminantSeq) {
     mashMap($assembly, $output, $cp, $contaminantSeq{$cp});
