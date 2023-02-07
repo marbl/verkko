@@ -99,7 +99,7 @@ rule alignONT:
     resources:
         job_id = lambda wildcards, input, attempt: int(wildcards.nnnn),
         n_cpus = int(config['ali_n_cpus']),
-        mem_gb = lambda wildcards, input, attempt: getAlignMemoryRequest(attempt, 10, [ input.index ]),
+        mem_gb = lambda wildcards, input, attempt: getAlignMemoryRequest(attempt, 3, [ input.index ]),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ali', 6.0)
     shell:
         '''
