@@ -740,6 +740,7 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/scripts/find_bridges.py \
      ../lib/verkko/scripts/fix_diploid_paths.py \
      ../lib/verkko/scripts/fix_diploid_unique_nodes.py \
+     ../lib/verkko/scripts/fix_haplogaps.py \
      ../lib/verkko/scripts/forbid_unbridged_tangles.py \
      ../lib/verkko/scripts/get_bridge_mapping.py \
      ../lib/verkko/scripts/get_layout_from_mbg.py \
