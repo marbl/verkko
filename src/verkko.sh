@@ -141,6 +141,7 @@ ali_min_score=5000
 ali_end_clipping=100
 ali_incompat_cutoff=0.15
 ali_max_trace=5
+ali_seed_window=5000
 
 #  process_ont_paths
 pop_min_allowed_cov=5
@@ -359,6 +360,7 @@ while [ $# -gt 0 ] ; do
     #  alignONT options
     #
 
+    elif [ "$opt" = "--seed-windows" ];         then ali_seed_window=$arg; shift
     elif [ "$opt" = "--seed-min-length" ] ;     then ali_mxm_length=$arg;      shift
     elif [ "$opt" = "--seed-max-length" ] ;     then ali_mem_count=$arg;       shift
     elif [ "$opt" = "--align-bandwidth" ] ;     then ali_bandwidth=$arg;       shift
@@ -656,6 +658,7 @@ echo >> ${outd}/verkko.yml "ali_end_clipping:    '${ali_end_clipping}'"
 echo >> ${outd}/verkko.yml "ali_incompat_cutoff: '${ali_incompat_cutoff}'"
 echo >> ${outd}/verkko.yml "ali_max_trace:       '${ali_max_trace}'"
 
+echo >> ${outd}/verkko.yml "ali_seed_window: '${ali_seed_window}'"
 echo >> ${outd}/verkko.yml "cor_filter_kmers: '${cor_filter_kmers}'"
 
 echo >> ${outd}/verkko.yml ""

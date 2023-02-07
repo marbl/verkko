@@ -92,7 +92,8 @@ rule alignONT:
         min_score         = config['ali_min_score'],
         end_clipping      = config['ali_end_clipping'],
         incompat_cutoff   = config['ali_incompat_cutoff'],
-        max_trace         = config['ali_max_trace']
+        max_trace         = config['ali_max_trace'],
+        mem_window        = config['ali_seed_window'],
     threads:
         int(config['ali_n_cpus'])
     resources:
@@ -112,9 +113,13 @@ prefix=\\$(echo ../{input.index} | sed s/.index//)
 echo "Using index from prefix \\"\\$prefix\\""
 echo ""
 
+if [ {params.mem_window} -gt 0 ]; then
+   memwindow="--seeds-mxm-windowsize {params.mem_window}"
+fi
+
 {params.GRAPHALIGNER} -t {threads} -g ../{input.gfa} -f ../{input.ont_reads} -a ../{params.alignmentstmp} \\\\
   --seeds-mxm-cache-prefix \\$prefix \\\\
-  --seeds-mxm-length {params.mxm_length} \\\\
+  \\$memwindow --seeds-mxm-length {params.mxm_length} \\\\
   --seeds-mem-count {params.mem_count} \\\\
   --bandwidth {params.bandwidth} \\\\
   --multimap-score-fraction {params.multi_score_f} \\\\
