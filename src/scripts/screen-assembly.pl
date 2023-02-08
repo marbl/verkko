@@ -2,19 +2,25 @@
 
 use strict;
 
-my $assembly   = "";
-my %contigLength;
-my $graph      = "";
-my $graphmap   = "";
-my %gtoc;
-my $hificov    = "";
-my %hifiCoverage;
-my $minLength  = 100000;
-my %contaminantSeq;
+my $assembly   = "";       #  Input file: the contigs after consensus; 7-consensus/unitig-popped.fasta
+my %contigLength;          #  Map from contig name to actual length
+my $graph      = "";       #  Input file: the graph; 6-rukki/unitig-popped-unitig-normal-connected-tip.noseq.gfa
+my $graphmap   = "";       #  Input file: contig layout map; 6-layoutContigs/unitig-popped.layout.scfmap
+my %gtoc;                  #  Map from graph name to contig name (from the above file)
+my %ctog;                  #  Map from contig name to graph name.
+my $hificov    = "";       #  Input file: hifi coverage; 5-untip/unitig-popped-unitig-normal-connected-tip.hifi-coverage.csv
+my %hifiCoverage;          #  Map from contig name to coverage (from above file)
 
-my $threads    = 4;
+my %contaminantSeq;        #  Input contaminant files: map from 'prefix' to 'sequence file'.
 
-my $output;
+my $minLength  = 100000;   #  Parameter: cutoff for being a 'short' contig.
+my $threads    = 4;        #  Parameter: number of threads to use when mapping.
+my $mashmap    = "mashmap";
+
+my $output;                #  Parameter: output file name prefix
+
+my $fastmode   = 0;
+
 
 while (scalar(@ARGV) > 0) {
     my $opt = shift @ARGV;
@@ -35,16 +41,30 @@ while (scalar(@ARGV) > 0) {
         $minLength = int(shift @ARGV);
     }
     elsif ($opt eq "--contaminant") {
-        my $prefix   = shift @ARGV;
-        my $sequence = shift @ARGV;
+        my $prefix   = $ARGV[0];
+        my $sequence = $ARGV[1];
 
-        $contaminantSeq{$prefix} = $sequence;
+        while (($prefix !~ m/^--/) && (-e $sequence)) {
+            $contaminantSeq{$prefix} = $sequence;
+
+            shift @ARGV;
+            shift @ARGV;
+
+            $prefix   = $ARGV[0];
+            $sequence = $ARGV[1];
+        }
     }
     elsif ($opt eq "--threads") {
         $threads = int(shift @ARGV);
     }
     elsif ($opt eq "--output") {
         $output = shift @ARGV;
+    }
+    elsif ($opt eq "--mashmap") {
+        $mashmap = shift @ARGV;
+    }
+    elsif ($opt eq "--fast") {    #  For debugging the contaminant filtering;
+        $fastmode =    1;         #  doesn't write filtered sequence outputs.
     }
     else {
         die "Unknown option '$opt'.\n";
@@ -53,9 +73,38 @@ while (scalar(@ARGV) > 0) {
 
 if (($assembly eq "") ||
     ($graph    eq "") ||
-    (scalar(keys %contaminantSeq) eq 0)) {
-    die "usage: $0 ...\n";
+    ($output   eq "")) {
+    print "usage: $0 --assembly X.fasta --graph X.gfa ...\n";
+    print "  --assembly X.fasta           sequences to screen for crud\n";
+    print "  --graph X.gfa                graph to decide if a short contig is disconnected\n";
+    print "  --graphmap X.scfmap          layoutContigs scfmap to rename graph nodes to contig names\n";
+    print "  --hifi-coverage X.csv        contig read coverage\n";
+    print "  --minlength L                contigs shorter than L bp are deemed 'short' (default: 100000)\n";
+    print "  --contaminant N F [N F ...]  label N and contaminant fasta F to screen; example:\n";
+    print "                                  --contaminant ebv  ebv.fasta.gz \\\n";
+    print "                                                mito mito.fasta   \\\n";
+    print "                                                rdna r.fasta.gz\n";
+    print "  --threads T                  number of mashmap compute threads to use\n";
+    print "  --fast                       run faster; DOES NOT CREATE FASTA OUTPUTS!\n";
+    print "  --output X                   write outputs to prefix X\n";
+    print "                                  X.disconnected.fasta\n";
+    print "                                  X.ebv.exemplar.fasta\n";
+    print "                                  X.ebv.fasta\n";
+    print "                                  X.ebv.mashmap.err\n";
+    print "                                  X.ebv.mashmap.out\n";
+    print "                                  X.fasta\n";
+    print "                                  X.mito.exemplar.fasta\n";
+    print "                                  X.mito.fasta\n";
+    print "                                  X.mito.mashmap.err\n";
+    print "                                  X.mito.mashmap.out\n";
+    print "                                  X.rdna.exemplar.fasta\n";
+    print "                                  X.rdna.fasta\n";
+    print "                                  X.rdna.mashmap.err\n";
+    print "                                  X.rdna.mashmap.out\n";
+    exit(1);
 }
+
+
 
 
 
@@ -66,29 +115,50 @@ sub loadSequenceLengths ($) {
     my $n = 0;
     my $t = 0;
 
-    print STDERR "Loading sequence lengths from '$a'.\n";
+    print "Loading sequence lengths from '$a'.\n";
 
-    open(F, "< $a") or die "Failed to open '$a' for reading: $!\n";
-    while (!eof(F)) {
-        my $h = <F>;
-        my $s = <F>;
-
-        $h =~ s/^\s+//;   $s =~ s/^\s+//;
-        $h =~ s/\s+$//;   $s =~ s/\s+$//;
-
-        if ($h =~ m/^>(\S+)\s*/) {
-            $contigLength{$1}  = length($s);
+    if (-s "$a.lengths") {
+        open(F, "< $a.lengths");
+        while (<F>) {
+            my ($n, $l) = split '\s+', $_;
+            $contigLength{$n} = $l;
             $n                += 1;
-            $t                += length($s);
+            $t                += $l;
         }
-        else {
-            die "Failed to find ident line in input line '", substr($h, 0, 40), "'.\n";
-        }
+        close(F);
     }
-    close(F);
 
-    print STDERR "  Found $n sequences with total length $t bp.\n";
-    print STDERR "\n";
+    else {
+        open(F, "< $a") or die "Failed to open '$a' for reading: $!\n";
+        open(L, "> $a.lengths");
+
+        while (!eof(F)) {
+            my $h = <F>;
+            my $s = <F>;
+
+            $h =~ s/^\s+//;   $s =~ s/^\s+//;
+            $h =~ s/\s+$//;   $s =~ s/\s+$//;
+
+            if ($h =~ m/^>(\S+)\s*/) {
+                my $ctg = $1;
+                my $len = length($s);
+
+                $contigLength{$ctg}  = $len;
+                $n                  +=  1;
+                $t                  += $len;
+
+                print L "$ctg\t$len\n"
+            }
+            else {
+                die "Failed to find ident line in input line '", substr($h, 0, 40), "'.\n";
+            }
+        }
+        close(L);
+        close(F);
+    }
+
+    print "  Found $n sequences with total length $t bp.\n";
+    print "\n";
 }
 
 
@@ -98,14 +168,14 @@ sub loadSequenceLengths ($) {
 sub loadHifiCoverage ($) {
     my $c = shift @_;
 
-    print STDERR "Loading contig coverage from '$c'.\n";
+    print "Loading contig coverage from '$c'.\n";
 
     open(F, "< $c") or die "Failed to open '$c' for reading: $!.\n";
     while (<F>) {
         my ($ident, $cov) = split '\s+', $_;
 
         if (exists($gtoc{$ident})) {
-            #print STDERR "$ident -> $gtoc{$ident} -> $cov\n";
+            #print "$ident -> $gtoc{$ident} -> $cov\n";
 
             $hifiCoverage{$gtoc{$ident}} = $cov;
         }
@@ -114,8 +184,8 @@ sub loadHifiCoverage ($) {
     }
     close(F);
 
-    print STDERR "  Found ", scalar(keys %hifiCoverage), " contig coverage values.\n";
-    print STDERR "\n";
+    print "  Found ", scalar(keys %hifiCoverage), " contig coverage values.\n";
+    print "\n";
 }
 
 
@@ -125,7 +195,7 @@ sub loadHifiCoverage ($) {
 sub loadGtoC ($) {
     my $m = shift @_;
 
-    print STDERR "Loading graph to contig name map from '$m'.\n";
+    print "Loading graph to contig name map from '$m'.\n";
 
     open(M, "< $m") or die "Failed to open graph-to-contig name map '$m' for reading: $!\n";
     while (<M>) {
@@ -136,14 +206,15 @@ sub loadGtoC ($) {
             my $cn = $1;
             my $gn = $3;
             $gtoc{$gn} = $cn;
+            $ctog{$cn} = $gn;
         } elsif (m/path/) {
             die "Failed to parse path '$_'\n";
         }
     }
     close(M);
 
-    print STDERR "  Found ", scalar(keys %gtoc), " contig names.\n";
-    print STDERR "\n";
+    print "  Found ", scalar(keys %gtoc), " contig names.\n";
+    print "\n";
 }
 
 
@@ -163,7 +234,7 @@ sub findDisconnected ($$) {
     my @discShort;
     my @discLong;
 
-    print STDERR "Finding disconnected nodes in '$g' shorter than $minl.\n";
+    print "Finding disconnected nodes in '$g' shorter than $minl.\n";
 
     open(G, "< $g") or die "Failed to open graph '$g' for reading: $!\n";
     while (<G>) {
@@ -179,7 +250,7 @@ sub findDisconnected ($$) {
         if    ($t eq "S") {
             my $c1 = $gtoc{$n1};
 
-            #print STDERR "WARNING1: graph name '$n1' not found.\n"   if (!defined($c1));
+            #print "WARNING1: graph name '$n1' not found.\n"   if (!defined($c1));
 
             $nodes{$c1}++;
         }
@@ -187,8 +258,8 @@ sub findDisconnected ($$) {
             my $c1 = $gtoc{$n1};
             my $c2 = $gtoc{$n2};
 
-            #print STDERR "WARNING2: graph name '$n1' not found.\n"   if (!defined($c1));
-            #print STDERR "WARNING2: graph name '$n2' not found.\n"   if (!defined($c2));
+            #print "WARNING2: graph name '$n1' not found.\n"   if (!defined($c1));
+            #print "WARNING2: graph name '$n2' not found.\n"   if (!defined($c2));
 
             $edges{$c1}++;
             $edges{$c2}++;
@@ -197,7 +268,7 @@ sub findDisconnected ($$) {
     close(G);
 
     foreach my $c (keys %nodes) {
-        next   if (! exists($edges{$c}));
+        next   if (exists($edges{$c}));
 
         if ($contigLength{$c} <  $minl) {
             push @discShort, $c;
@@ -206,13 +277,13 @@ sub findDisconnected ($$) {
         }
     }
 
-    printf STDERR " Scanned %7d nodes.\n", scalar(keys %nodes);
-    printf STDERR " Scanned %7d edges.\n", scalar(keys %edges);
-    printf STDERR " Found %5d short disconnected nodes.\n", scalar(@discShort);
-    printf STDERR " Found %5d long  disconnected nodes.\n", scalar(@discLong);
-    printf STDERR "\n";
+    printf " Scanned %7d nodes.\n", scalar(keys %nodes);
+    printf " Scanned %7d edges.\n", scalar(keys %edges);
+    printf " Found %5d short disconnected nodes.\n", scalar(@discShort);
+    printf " Found %5d long  disconnected nodes.\n", scalar(@discLong);
+    printf "\n";
 
-    return @discShort;
+    return(@discShort);
 }
 
 
@@ -225,13 +296,13 @@ sub mashMap ($$$$) {
 
     my $map;
 
-    if (-e "$output.$cp.mashmap.out") {
-        print STDERR "Using pre-computed mashmap results for '$cp' ('$cs').\n";
+    if (-s "$output.$cp.mashmap.out") {
+        print "Using pre-computed mashmap results for '$cp' ('$cs').\n";
     }
     else {
-        print STDERR "Running mashmap against '$cp' ('$cs').\n";
+        print "Running mashmap against '$cp' ('$cs').\n";
 
-        $map  = "mashmap";
+        $map  = "$mashmap";
         $map .= " --ref '$a'";
         $map .= " --query '$cs'";
         $map .= " --perc_identity 95";
@@ -240,6 +311,10 @@ sub mashMap ($$$$) {
         $map .= " --threads $threads";
         $map .= " --output '$output.$cp.mashmap.out'";
         $map .= " > $output.$cp.mashmap.err 2>&1";
+
+        print "\n";
+        print "$map\n";
+        print "\n";
 
         system($map);
     }
@@ -258,12 +333,12 @@ sub mashMap ($$$$) {
 #
 #
 #  MashMap output columns:
-#     1 query
+#     1 contaminant contig
 #     2 len
 #     3 bgn
 #     4 end
 #     5 strand
-#     6 ref
+#     6 assembled contig
 #     7 len
 #     8 bgn
 #     9 end
@@ -271,122 +346,228 @@ sub mashMap ($$$$) {
 #
 #  awk '{{if (\$NF > 99 && ((\$9-\$8)/\$7 > 0.50 || (\$9-\$8)/\$7 > 0.25 && \$7 < 50000)) print \$6}}' | sort | uniq > contaminant.list
 #
-sub filterMashGoodHit ($$$) {
-}
-
-sub filterMash ($) {
-    my  $cp = shift @_;
+sub filterMash ($$) {
+    my $cp = shift @_;
+    my $g  = shift @_;
 
     #
-    #  Pass 1: find the highest reference contig coverage.  The 'reference contig' is
-    #  the first sequence...called 'query' above.
+    #  Pass 1: find good alignments.
+    #
+    #    KY962518.1  44838  0     44837 - haplotype1-0000052  80185  4701  50137  99.8464
+    #    KY962518.1  44838  10000 44837 - haplotype1-0000052  80185  49651 79582  98.8657
+    #
+    #  We'll save a hit if it is > 98% identity and covering a significant
+    #  chunk of the assembled contig.  With a 10 Kbp minimum match out of
+    #  mashmap, this will ignore:
+    #    spurious hits in contigs larger than 100 Kbp
+    #    full length hits to contigs with more than 10 copies of the contaminant
     #
 
-    my $qcovBest = 0;   #  Best qcov encountered.
-    my $qcovMax  = 0;   #  Number of times we've seen > 99% qcov.
+    my %rawhits;
+    my $maxConLen = 0;   #  Max length of a contaminant sequence.
 
     open(F, "< $output.$cp.mashmap.out") or die "Failed to open mashmap output '$output.$cp.mashmap.out' for reading: $!\n";
     while (<F>) {
-        my ($q, $qlen, $qbgn, $qend, $s, $r, $rlen, $rbgn, $rend, $ident) = split '\s+', $_;
+        my ($con, $conlen, $conbgn, $conend, $s, $ctg, $ctglen, $ctgbgn, $ctgend, $ident) = split '\s+', $_;
 
-        my $qcov = int(0.5 + 100.0 * ($qend - $qbgn) / $qlen);
-        my $rcov = int(0.5 + 100.0 * ($rend - $rbgn) / $rlen);
+        $maxConLen = $conlen   if ($maxConLen < $conlen);
 
-        my $gi   = ($ident >= 99.0);
-        my $g1   = ($rcov  >= 50);
-        my $g2   = ($rcov  >= 25) && ($rlen < 50000);
+        my $concov = int(0.5 + 100.0 * ($conend - $conbgn) / $conlen);
+        my $ctgcov = int(0.5 + 100.0 * ($ctgend - $ctgbgn) / $ctglen);
 
-        if (($gi) && ($g1 || $g2)) {                      #  If ident is good and the contig
-            $qcovBest = $qcov   if ($qcovBest <  $qcov);  #  is primarily the contaminant,
-            $qcovMax += 1       if ($qcov     >= 100);    #  save the best contaminant coverage.
+        my $gi   = ($ident  >= 97.5);   #  Good identity.
+        my $g1   = ($ctgcov >= 10);     #  Covers a goodly chunk of the contig.
+        my $g2   = ($concov >= 25);     #  Covers a goodly chunk of the contaminant.
+
+        #print "$ctgbgn $ctgend $ctglen $con $conbgn $conend $conlen $ident\n";
+
+        next  if (!$gi);   #  Ignore bad identity.
+        next  if (!$g1);   #  Ignore bad coverage.
+
+        #$rawhits{$ctg} = ()   if (!exists($rawhits{$ctg}));
+
+        #print "$ctgbgn $ctgend $ctglen $con $conbgn $conend $conlen $ident - SAVED\n";
+        push @{$rawhits{$ctg}}, "$ctgbgn\0$ctgend\0$ctglen\0$con\0$conbgn\0$conend\0$conlen\0$ident";
+    }
+
+    #
+    #  Pass 2: compute how much of the contig is covered by hits, and if a
+    #  large fraction of the contig is covered, flag it as a contaminant.
+    #  Then remember the contig with the most read coverage to report as the
+    #  exemplar.
+    #
+
+    my %hits;
+    my $exemplar        = "";
+    my $exemplarDepth   = 0;
+    my $exemplarBreadth = 0.;
+
+    foreach my $ctg (keys %rawhits) {
+        my @rh = sort { $a <=> $b } @{$rawhits{$ctg}};   #  Sort by contig begin position.
+
+        my $covlen = 0;   #  Number of bp we cover in the assembled contig.
+        my $covend = 0;   #  Highest position on the contig we've covered.
+        my $breadth = 0.;
+
+        foreach my $h (@rh) {
+            my ($ctgbgn, $ctgend, $ctglen, $con, $conbgn, $conend, $conlen, $ident) = split '\0', $h;
+
+            if ($covend <= $ctgbgn) {
+                $covlen += $ctgend - $ctgbgn;   #  No overlap with an existing hit.
+                $covend  = $ctgend;
+            }
+            elsif ($ctgend <= $covend) {        #  Completely contained in existing hits.
+                #covlen += 0;
+                #covend  = $covend;
+            }
+            else {                              #  An extension to what we've covered already.
+                $covlen += $ctgend - $covend;
+                $covend  = $ctgend;
+            }
+            $breadth = $covlen / $conlen;
+        }
+        next   if ($covlen < 0.5 * $contigLength{$ctg});    #  Not covering enough of the contig.
+
+        $hits{$ctg}++;
+
+        #printf "Checking contig %s with dreadth %f and coverage %f and current best is %f and %f\n", $ctg, $breadth,  $hifiCoverage{$ctg}, $exemplarBreadth, $exemplarDepth;
+        if (($exemplarBreadth < 0.90 && $breadth > $exemplarBreadth) || ($breadth > 0.90 && $hifiCoverage{$ctg} > $exemplarDepth) || ($breadth == $exemplarBreadth &&  $hifiCoverage{$ctg} > $exemplarDepth)) {
+            #  lower breadth of coverage of the reference than the existing exemplar
+            #  or covers the full reference and has more coverage
+            #  or same breadth but lower depth
+
+            $exemplar        = $ctg;
+            $exemplarDepth   = $hifiCoverage{$ctg};
+            $exemplarBreadth = $breadth;
         }
     }
 
-    #  Pick a minimum acceptable qcov for filtering.  If there is anything with full coverage,
-    #  only use full coverage, otherwise, take the best found and anything close to it.
-    my $qcovMin = ($qcovMax > 0) ? (100) : ($qcovMax - 5);
+    sub sumLen (@) {
+        my $sum = 0;
+        foreach (@_) {
+            $sum += $contigLength{$_};
+        }
+        return $sum;
+    }
 
-    #print "qcovMin=$qcovMin  qcovBest=$qcovBest  qcovMax=$qcovMax\n";
+    #printf "  Found %5d       hits.\n", $nHits;
+    #printf "  Found %5d       hits with good identity.\n", $nSaveI;
+    #printf "  Found %5d       hits with good coverage but bad identity.\n", $nSave1;
+    #printf "  Found %5d short hits with good coverage but bad identity.\n", $nSave2;
+    printf "  Found %5d contaminant contigs of total length %d.\n", scalar(keys %hits), sumLen(keys %hits);
 
-    #
-    #  Pass 2: find the exemplar.
-    #
 
-    my $nHits;
-    my $nSaveI;
-    my $nSave1;
-    my $nSave2;
+    #  Load graph edges, ignoring orientation.
+    #  See comments in findDisconnected() about missing contig name warnings.
 
-    my %hits;
+    my %edges;
+    my %lost;
 
-    my $bestIdent = "";
-    my $bestDepth = 0;
+    open(G, "< $g") or die "Failed to open graph '$g' for reading: $!\n";
+    while (<G>) {
+        my ($t, $n1, undef, $n2) = split '\t', $_;
 
-    open(F, "< $output.$cp.mashmap.out") or die "Failed to open mashmap output '$output.$cp.mashmap.out' for reading: $!\n";
-    while (<F>) {
-        my ($q, $qlen, $qbgn, $qend, $s, $r, $rlen, $rbgn, $rend, $ident) = split '\s+', $_;
+        if ($t eq "L") {
+            my $c1 = $gtoc{$n1};
+            my $c2 = $gtoc{$n2};
 
-        my $qcov = int(0.5 + 100.0 * ($qend - $qbgn) / $qlen);
-        my $rcov = int(0.5 + 100.0 * ($rend - $rbgn) / $rlen);
-
-        my $gi   = ($ident >= 99.0);
-        my $g1   = ($rcov  >= 50);
-        my $g2   = ($rcov  >= 25) && ($rlen < 50000);
-        my $g3   = ($qcov  >= $qcovMin);
-
-        $nHits++;
-        $nSaveI += 1   if ($gi);
-        $nSave1 += 1   if ($g1) && (!$gi);
-        $nSave2 += 1   if ($g2) && (!$gi);
-
-        if (($gi) && ($g1 || $g2)) {            #  If ident is good and the contig is primarily
-            $hits{$r}++;                        #  contaminant, save the id for filtering.
- 
-            #print STDERR "bestDepth='$bestDepth'  r='$r'  hc='$hifiCoverage{$r}'\n";
-
-            if (($g3) && ($bestDepth < $hifiCoverage{$r})) {
-                $bestIdent = $r;
-                $bestDepth = $hifiCoverage{$r};
+            if (defined($c1) && defined($c2)) {
+                push @{$edges{$c1}}, $c2;
+                push @{$edges{$c2}}, $c1;
+            } else {
+                $lost{$n1} = 1   if (!defined($c1));
+                $lost{$n2} = 1   if (!defined($c2));
             }
         }
     }
-    close(F);
+    close(G);
 
-    printf "  Found %5d       hits.\n", $nHits;
-    printf "  Found %5d       hits with good identity.\n", $nSaveI;
-    printf "  Found %5d       hits with good coverage but bad identity.\n", $nSave1;
-    printf "  Found %5d short hits with good coverage but bad identity.\n", $nSave2;
-    printf "  Found %5d       contaminant contigs.\n", scalar(keys %hits);
-    printf "  Best hit has %6.2fx read coverage. ('%s').\n", $bestDepth, $bestIdent;
+    #  get_layout_from_mbg.py discards graph contigs from consensus if they
+    #  have no reads assigned.  This will warn about those.
+    #
+    #foreach my $c (sort keys %lost) {
+    #    print "No contig found for '$c'.\n";
+    #}
+
+    #  Reset %hits to make it represent the number of hops from an original contig hit.
+
+    foreach my $ctg (keys %hits) {
+        $hits{$ctg} = 0;
+    }
+
+    #  Iterate over the hits, adding anything adjacent (up to four hops from
+    #  an origianlly identified contaminant contig) if it is of comparable
+    #  size.
+
+    for (my $d=1; $d <= 4; $d++) {
+        my %extended;
+
+        print "    extension pass $d:\n";
+
+        foreach my $ctg (keys %hits) {
+            foreach my $adj (@{$edges{$ctg}}) {
+                next   if (exists($hits{$adj}));                    #  Skip if we're already in the set.
+                next   if ($contigLength{$adj} > 4 * $maxConLen);   #  Skip if the adj contig is much bigger.
+                next   if (exists($extended{$adj}));                #  Skip if we've already got it.
+
+                printf "      %20s / %-20s --> %20s / %s\n", $ctg, $ctog{$ctg}, $adj, $ctog{$adj};
+
+                $extended{$adj} = $hits{$ctg} + 1;
+            }
+        }
+
+        foreach my $ctg (keys %extended) {
+            if (!exists($hits{$ctg})) {
+                $hits{$ctg} = $extended{$ctg};
+            }
+        }
+    }
+
+    printf "  Found %5d contaminant contigs of total length %d (after extending).\n", scalar(keys %hits), sumLen(keys %hits);
+    printf "  Best hit has %6.2fx read coverage. ('%s').\n", $exemplarDepth, $exemplar;
     printf "\n";
 
-    return($bestIdent, keys %hits);
+    return($exemplar, keys %hits);
 }
+
 
 
 
 #  Extract '@filter' sequences from $a.
-#    If $savehits == 1, save the sequences     in '@filter' to the output.
-#    If $savehits == 0, save the sequences NOT in '@filter' to the output.
 #
-sub filterSequences ($$$$$@) {
+#   - Sequences in @filter are copied to the output file.
+#   - If $exemplar is defined, that specific sequence is saved, too.
+#
+sub filterSequences ($$$$@) {
     my $a           = shift @_;
-    my $savehits    = shift @_;
-    my $cp          = shift @_;
     my $output      = shift @_;
+    my $cp          = shift @_;
     my $exemplar    = shift @_;
     my @filter      =       @_;
     my %filter;
 
+    #  Make lookups of sequences we want to filter easier.
+    open(O, "> $output.ids") or die "Failed to open '$output.ids' for output: $!\n";
     foreach my $f (@filter) {
+        print O "$f\t$ctog{$f}\n";
         $filter{$f}++;
     }
+    close(O);
 
-    print STDERR "Filtering '$cp' from '$a'.\n";
+    return   if ($fastmode);
 
-    open(O, "> $output.$cp.fasta")          or die "Failed to open '$output.$cp.fasta' for output: $!\n";
-    open(E, "> $output.$cp.exemplar.fasta") or die "Failed to open '$output.$cp.exemplar.fasta' for output: $!\n";
+    #  Open some output files.
+    if (defined($exemplar)) {
+        print "Filtering '$cp' from '$a'.\n";
+        open(O, "> $output.fasta")          or die "Failed to open '$output.fasta' for output: $!\n";
+        open(E, "> $output.exemplar.fasta") or die "Failed to open '$output.exemplar.fasta' for output: $!\n";
+    }
+    else {
+        print "Extracting sequences from '$a'.\n";
+        open(O, "> $output.fasta")          or die "Failed to open '$output.fasta' for output: $!\n";
+    }
 
+    #  Scan the input, copying desired sequences to the output.
     open(F, "< $a") or die "Failed to open '$a' for reading: $!\n";
     while (!eof(F)) {
         my $h = <F>;
@@ -397,12 +578,9 @@ sub filterSequences ($$$$$@) {
 
         if ($h =~ m/^>(\S+)\s*/) {
             my $n = $1;
-            my $e = exists($filter{$n});
 
-            print O "$h\n$s\n"  if ( $savehits &&  $e);
-            print O "$h\n$s\n"  if (!$savehits && !$e);
-
-            print E "$h\n$s\n"  if ($n eq $exemplar);
+            print O "$h\n$s\n"  if (exists($filter{$n}));
+            print E "$h\n$s\n"  if ($n eq $exemplar) && (defined($exemplar));
         }
         else {
             die "Failed to find ident line in input line '", substr($h, 0, 40), "'.\n";
@@ -410,12 +588,12 @@ sub filterSequences ($$$$$@) {
     }
     close(F);
 
-    close(E);
+    close(E)   if (defined($exemplar));
     close(O);
 
-    unlink "$output.$cp.exemplar.fasta" if (!defined($exemplar));
+    unlink "$output.exemplar.fasta" if (!defined($exemplar));
 
-    print STDERR "\n";
+    print "\n";
 }
 
 
@@ -431,21 +609,31 @@ loadSequenceLengths($assembly);
 loadGtoC($graphmap);
 
 my @disconnected  = findDisconnected($graph, $minLength);
-filterSequences($assembly, 1, "disconnected", $output, undef, @disconnected);
+filterSequences($assembly, "$output.disconnected", "disconnected", undef, @disconnected);
 
 my @crud = @disconnected;
 
 loadHifiCoverage($hificov);
 
-foreach my $cp (keys %contaminantSeq) {
+foreach my $cp (sort keys %contaminantSeq) {
     mashMap($assembly, $output, $cp, $contaminantSeq{$cp});
 
-    my ($exemplar, @contaminants) = filterMash($cp);
+    my ($exemplar, @contaminants) = filterMash($cp, $graph);
 
-    filterSequences($assembly, 1, $cp, $output, $exemplar, @contaminants);
-
+    filterSequences($assembly, "$output.$cp", $cp, $exemplar, @contaminants);
     push @crud, @contaminants;
 }
 
+my %gold = %contigLength;
+my @gold;
 
-filterSequences($assembly, 0, "filtered", $output, undef, @crud);
+foreach my $k (@crud) {         #  Remove the crud from the gold.
+    delete $gold{$k};
+}
+foreach my $k (keys %gold) {    #  Copy gold to a list.
+    push @gold, $k;
+}
+
+filterSequences($assembly, $output, undef, undef, @gold);
+
+exit(0);

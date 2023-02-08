@@ -54,7 +54,7 @@ set -e
 #  split_finished exists.
 #
 #  3) Use xargs to extract reads in parallel.  xargs will call
-#  'process_reads.py <inputline>' for each line in its input.
+#  'fasta_extract.py <inputline>' for each line in its input.
 #
 #  4) Combine all the pieces, then remove the extracted pieces and full split
 #  files, leaving the .finished file so snakemake doesn't (erroneously) try
@@ -71,7 +71,7 @@ for fn in {params.ext_files} ; do
 done
 
 xargs -L 1 -P {threads} < ../{output.ont_subset_ex} \\\\
-  {PYTHON} {VERKKO}/scripts/process_reads.py
+  {PYTHON} {VERKKO}/scripts/fasta_extract.py
 
 cat {params.ext_files} > ../{output.ont_subset}
 rm -f {params.ext_files}

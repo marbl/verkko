@@ -729,6 +729,10 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      \
      ../lib/verkko/bin/rukki \
      \
+     ../lib/verkko/data/human-ebv-AJ507799.2.fasta.gz \
+     ../lib/verkko/data/human-mito-NC_012920.1.fasta.gz \
+     ../lib/verkko/data/human-rdna-KY962518.1.fasta.gz \
+     \
      ../lib/verkko/scripts/add_fake_alignments.py \
      ../lib/verkko/scripts/add_fake_bridging_paths.py \
      ../lib/verkko/scripts/add_hairpin_uniques.py \
@@ -737,6 +741,11 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/scripts/chop_misassemblies.py \
      ../lib/verkko/scripts/connect_uniques.py \
      ../lib/verkko/scripts/estimate_unique_local.py \
+     ../lib/verkko/scripts/fasta_combine.py \
+     ../lib/verkko/scripts/fasta_extract.py \
+     ../lib/verkko/scripts/fasta_filter.py \
+     ../lib/verkko/scripts/fasta_partition.py \
+     ../lib/verkko/scripts/fasta_util.py \
      ../lib/verkko/scripts/find_bridges.py \
      ../lib/verkko/scripts/fix_diploid_paths.py \
      ../lib/verkko/scripts/fix_diploid_unique_nodes.py \
@@ -753,11 +762,11 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/scripts/pick_majority_bridge.py \
      ../lib/verkko/scripts/pop_bubbles_coverage_based.py \
      ../lib/verkko/scripts/pop_bubbles_keep_longest.py \
-     ../lib/verkko/scripts/process_reads.py \
      ../lib/verkko/scripts/remove_contained_spurious_uniques.py \
      ../lib/verkko/scripts/remove_crosslink_paths.py \
      ../lib/verkko/scripts/remove_wrong_connections_2.py \
      ../lib/verkko/scripts/resolve_triplets_kmerify.py \
+     ../lib/verkko/scripts/screen-assembly.pl \
      ../lib/verkko/scripts/trim_dbg_alignment.py \
      ../lib/verkko/scripts/unitigify.py \
      ../lib/verkko/scripts/unroll_tip_loops.py \
@@ -829,7 +838,11 @@ $(foreach TGT,${ALL_TGTS},\
 	cat verkko.sh |sed s/'version=""'/'version="$(VERSION)"'/g >  ../bin/verkko
 	chmod +x ../bin/verkko
 
-../lib/verkko/scripts/%.py: scripts/%.py
+../lib/verkko/data/%: data/%
+	@mkdir -p ../lib/verkko/data
+	cp -pf $< $@
+
+../lib/verkko/scripts/%: scripts/%
 	@mkdir -p ../lib/verkko/scripts
 	cp -pf $< $@
 

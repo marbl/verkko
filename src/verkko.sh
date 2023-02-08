@@ -58,7 +58,9 @@ verkko=""
 
 mbg=""
 graphaligner=""
+mashmap=""
 python=
+perl=
 
 grid="local"
 local_cpus=all
@@ -143,6 +145,10 @@ ali_end_clipping=100
 ali_incompat_cutoff=0.15
 ali_max_trace=5
 ali_seed_window=5000
+
+#  post-processing
+short_contig_length=100000
+screen=""
 
 #  process_ont_paths
 pop_min_allowed_cov=5
@@ -244,10 +250,11 @@ cns_time_h=24
 #
 
 while [ $# -gt 0 ] ; do
-    opt=$1
-    arg=$2
+    opt=$1   #  Copy 1st word to the 'option' we're testing against.
+    arg=$2   #  Copy 2nd word to the (potential) 'argument' for that option.
+    arh=$3   #  Copy 3rd word to the (potential) second arg for that option.
 
-    shift
+    shift    #  Shift out the 'option' word; we're processing it now.
 
     #
     #  Handle --help and --version special.
@@ -265,8 +272,10 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--no-cleanup" ] ;         then keepinter="True";
     elif [ "$opt" = "--cleanup" ] ;            then keepinter="False";
     elif [ "$opt" = "--python" ] ;             then python=$arg;        shift
+    elif [ "$opt" = "--perl" ] ;               then perl=$arg;          shift
     elif [ "$opt" = "--mbg" ] ;                then mbg=$arg;           shift
     elif [ "$opt" = "--graphaligner" ] ;       then graphaligner=$arg;  shift
+    elif [ "$opt" = "--mashmap" ] ;            then mashmap=$arg;       shift
     elif [ "$opt" = "--local" ] ;              then grid="local";
     elif [ "$opt" = "--sge" ] ;                then grid="slurm-sge";
     elif [ "$opt" = "--slurm" ] ;              then grid="slurm-sge";
@@ -347,11 +356,11 @@ while [ $# -gt 0 ] ; do
     #  MBG options
     #
 
-    elif [ "$opt" = "--base-k" ] ;   then mbg_baseK=$arg;   shift
-    elif [ "$opt" = "--max-k" ] ;    then mbg_maxK=$arg;    shift
-    elif [ "$opt" = "--window" ] ;   then mbg_window=$arg;  shift
-    elif [ "$opt" = "--threads" ] ;  then mbg_threads=$arg; shift
-    elif [ "$opt" = "--max-r" ]   ;  then mbg_max_resolution=$arg; shift
+    elif [ "$opt" = "--base-k" ] ;        then mbg_baseK=$arg;   shift
+    elif [ "$opt" = "--max-k" ] ;         then mbg_maxK=$arg;    shift
+    elif [ "$opt" = "--window" ] ;        then mbg_window=$arg;  shift
+    elif [ "$opt" = "--threads" ] ;       then mbg_threads=$arg; shift
+    elif [ "$opt" = "--max-r" ]   ;       then mbg_max_resolution=$arg; shift
     elif [ "$opt" = "--hifi-coverage" ] ; then mbg_hifi_coverage=$arg; shift
 
     #
@@ -376,6 +385,23 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--end-clipping" ] ;        then ali_end_clipping=$arg;    shift
     elif [ "$opt" = "--incompatible-cutoff" ] ; then ali_incompat_cutoff=$arg; shift
     elif [ "$opt" = "--max-traces" ] ;          then ali_max_trace=$arg;       shift
+
+    #
+    #  Post-processing options
+    #
+
+    elif [ "$opt" = "--discard-short" ] ;       then short_contig_length=$arg;   shift
+    elif [ "$opt" = "--screen" ] ; then
+      if [ "x$arg" = "xhuman" ] ; then
+          screen="$screen ebv  human-ebv-AJ507799.2.fasta.gz"
+          screen="$screen mito human-mito-NC_012920.1.fasta.gz"
+          screen="$screen rdna human-rdna-KY962518.1.fasta.gz"
+          shift
+      else
+          screen="$screen $arg $arh"
+          shift   #  Both arg and arh are processed.
+          shift
+      fi
 
     #
     #  run-time options
@@ -432,6 +458,16 @@ if [ "x$graphaligner" != "x" ]; then
   graphaligner=$(fullpath $graphaligner)
 fi
 
+if [ "x$mashmap" = "x" ] ; then
+  mashmap=${verkko}/bin/mashmap
+fi
+if [ ! -e $mashmap ] ; then
+  mashmap=$(which mashmap)
+fi
+if [ "x$mashmap" != "x" ]; then
+  mashmap=$(fullpath $mashmap)
+fi
+
 #
 #  Fix stuff.
 #
@@ -483,6 +519,37 @@ if [ "x$ruk_enable" = "xTrue" -a -e "$verkko/bin/meryl" ] ; then
     fi
 fi
 
+#
+#  Check that screen files are present as supplied or in the verkko data directory.
+#
+
+if [ ! -z "$screen" ] ; then
+    sctest=$screen
+    screen=""
+
+    while [ ! -z "$sctest" ]
+    do 
+        sident=$( echo $sctest | cut -s -d ' ' -f 1  )
+        sfpath=$( echo $sctest | cut -s -d ' ' -f 2  )
+        dtpath="$verkko/data/$sfpath"
+        sctest=$( echo $sctest | cut -s -d ' ' -f 3- )
+
+        if   [ -e "$sfpath" ] ; then
+            screen="$screen $sident $sfpath"
+        elif [ -e "$dtpath" ] ; then
+            screen="$screen $sident $dtpath"
+        else
+            echo "ERROR: Can't find screen '$sident' data file.  Looked for:"
+            echo "  user-supplied:   '$sfpath' and"
+            echo "  verkko-supplied: '$dtpath'"
+        fi
+    done
+fi
+
+#
+#  Check that binaries are present.
+#
+
 for exe in bin/findErrors \
            bin/fixErrors \
            bin/layoutToPackage \
@@ -512,6 +579,16 @@ if   [ "x$graphaligner" = "x" ] ; then
 elif [ ! -e "$graphaligner" ] ; then
     errors="${errors}Can't find GraphAligner executable at '$graphaligner'.\n"
 fi
+
+if   [ "x$mashmap" = "x" ] ; then
+    errors="${errors}Can't find mashmap executable in \$PATH or \$VERKKO/bin/mashmap.\n"
+elif [ ! -e "$mashmap" ] ; then
+    errors="${errors}Can't find mashmap executable at '$mashmap'.\n"
+fi
+
+#
+#  Complain!
+#
 
 if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "usage: $0 -d <output-directory> --hifi <hifi-reads ...> --nano <nanopore-reads ...>"
@@ -561,8 +638,10 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo ""
     echo "  COMPUTATIONAL PARAMETERS:"
     echo "    --python <interpreter>   Path or name of a python interpreter.  Default: 'python'."
-    echo "    --mbg <path>             Path to MBG.             Default for both is the"
+    echo "    --perl <interpreter>     Path of name of a perl interpreter.  Default: 'perl'."
+    echo "    --mbg <path>             Path to MBG.             Default for all three"
     echo "    --graphaligner <path>    Path to GraphAligner.    one packaged with verkko."
+    echo "    --mashmap <path>         Path to mashmap."
     echo ""
     echo "    --cleanup                Remove intermediate results."
     echo "    --no-cleanup             Retain intermediate results (default)."
@@ -618,8 +697,10 @@ echo >> ${outd}/verkko.yml "VERKKO:              '${verkko}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "MBG:                 '${mbg}'"
 echo >> ${outd}/verkko.yml "GRAPHALIGNER:        '${graphaligner}'"
+echo >> ${outd}/verkko.yml "MASHMAP:             '${mashmap}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "PYTHON:              '${python}'"
+echo >> ${outd}/verkko.yml "PERL:                '${perl}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "HIFI_READS:"
 for h in ${hifi} ; do
@@ -644,6 +725,8 @@ echo >> ${outd}/verkko.yml "cor_min_read:        '${cor_min_read}'"
 echo >> ${outd}/verkko.yml "cor_min_overlap:     '${cor_min_overlap}'"
 echo >> ${outd}/verkko.yml "cor_hash_bits:       '${cor_hash_bits}'"
 echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "cor_filter_kmers:    '${cor_filter_kmers}'"
+echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  build-graph, MBG"
 echo >> ${outd}/verkko.yml "mbg_baseK:           '${mbg_baseK}'"
 echo >> ${outd}/verkko.yml "mbg_maxK:            '${mbg_maxK}'"
@@ -666,10 +749,12 @@ echo >> ${outd}/verkko.yml "ali_min_score:       '${ali_min_score}'"
 echo >> ${outd}/verkko.yml "ali_end_clipping:    '${ali_end_clipping}'"
 echo >> ${outd}/verkko.yml "ali_incompat_cutoff: '${ali_incompat_cutoff}'"
 echo >> ${outd}/verkko.yml "ali_max_trace:       '${ali_max_trace}'"
-
-echo >> ${outd}/verkko.yml "ali_seed_window: '${ali_seed_window}'"
-echo >> ${outd}/verkko.yml "cor_filter_kmers: '${cor_filter_kmers}'"
-
+echo >> ${outd}/verkko.yml "ali_seed_window:     '${ali_seed_window}'"
+echo >> ${outd}/verkko.yml "cor_filter_kmers:    '${cor_filter_kmers}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  post-processing"
+echo >> ${outd}/verkko.yml "short_contig_length: '${short_contig_length}'"
+echo >> ${outd}/verkko.yml "screen:              '${screen}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  process_ont_paths"
 echo >> ${outd}/verkko.yml "pop_min_allowed_cov: '${pop_min_allowed_cov}'"

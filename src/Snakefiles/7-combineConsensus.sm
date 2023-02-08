@@ -33,8 +33,10 @@ rule combineConsensus:
         packcns   = combineConsensusI,
         tigmap    = rules.buildPackages.output.tigmap,
         scfmap    = rules.layoutContigs.output.scfmap,
+        hificov   = rules.verkko.input.hifi5cov,
         finished  = rules.buildPackages.output.finished,
-        pathstsv  = rules.rukki.output.pathstsv if config['ruk_enable'] == "True" else rules.emptyfile.output
+        pathstsv  = rules.rukki.output.pathstsv if config['ruk_enable'] == "True" else rules.emptyfile.output,
+        graph     = rules.verkko.input.graph
     output:
         cns       = rules.verkko.input.cns,
         cnshap1   = rules.verkko.input.cnshap1,
@@ -44,8 +46,11 @@ rule combineConsensus:
         out       = '7-consensus/combineConsensus.out',
         err       = '7-consensus/combineConsensus.err'
     params:
+        MASHMAP   = config.get('MASHMAP', "{VERKKO}/bin/mashmap"),
         packcns   = combineConsensusP,
-        keepinter = config['keep_intermediate']
+        keepinter = config['keep_intermediate'],
+        short_len = config['short_contig_length'],
+        screens   = config['screen']
     threads:
         1
     resources:
@@ -67,13 +72,43 @@ cat > ./combineConsensus.sh <<EOF
 #!/bin/sh
 set -e
 
+
 echo "--------------------"
 echo "Combining consensus results."
 echo ""
-{PYTHON} {VERKKO}/scripts/process_reads.py combine ../{output.cns} \\\\
+
+{PYTHON} {VERKKO}/scripts/fasta_combine.py combine combined.fasta \\\\
   ../{input.tigmap} \\\\
   ../{input.scfmap} \\\\
   {params.packcns}
+
+
+echo "--------------------"
+echo "Filtering short/disconnected and contaminants."
+echo ""
+
+{PERL} {VERKKO}/scripts/screen-assembly.pl \\\\
+ --assembly      combined.fasta \\\\
+ --graph         ../{input.graph} \\\\
+ --graphmap      ../{input.scfmap} \\\\
+ --hifi-coverage ../{input.hificov} \\\\
+ --minlength     {params.short_len} \\\\
+ --contaminant   {params.screens} \\\\
+ --output        assembly \\\\
+ --mashmap       {params.MASHMAP} \\\\
+ --threads       {threads} \\\\
+> ./screen-assembly.out 2> ./screen-assembly.err
+
+#  Copy the screened assembly to the output.
+cp -p assembly.fasta ../{output.cns}
+
+#  Jump through hoops to not fail when there are no contaminant outputs.
+for xx in assembly.*.fasta ; do
+  if [ -e \$xx ] ; then
+    cp -p \$xx ../\$xx
+  fi
+done
+
 
 
 if [ x$label1 = x -o x$label2 = x ] ; then

@@ -24,7 +24,6 @@ rule rukki:
         pathsgaf   = '6-rukki/unitig-popped-unitig-normal-connected-tip.paths.gaf',   #  For consensus
     log:        
         err        = '6-rukki/rukki.err'
-
     params:
         hap1mers   = config['ruk_hap1'],
         hap2mers   = config['ruk_hap2'],
