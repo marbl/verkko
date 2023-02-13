@@ -113,7 +113,7 @@ correction_enabled=True
 
 mer_size=28
 mer_threshold=20
-mer_filter=0.975
+mer_filter=0.995
 
 cor_min_read=4000
 cor_min_overlap=2000
