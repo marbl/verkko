@@ -52,6 +52,16 @@ echo "Building seqStore."
 
 {VERKKO}/bin/sqStoreDumpMetaData -stats -S ../{output.seqstore}
 
+# check that the store has no duplicate read names, correction only keeps the read name up to the first space
+count=\`wc -l ../{output.seqstore}/readNames.txt |awk '{{print \$1}}'\`
+count_unique=\`cat ../{output.seqstore}/readNames.txt|awk '{{print \$2}}' |sort |uniq |wc -l\`
+
+if [ \$count -ne \$count_unique ]; then
+   echo "Error, the input has duplicate IDs:"
+   cat ../{output.seqstore}/readNames.txt| awk '{{print \$2}}' | sort |uniq -c |awk '{{if (\$1 > 1) print "\t"\$0}}'
+   exit -1
+fi
+
 EOF
 
 chmod +x ./buildStore.sh
