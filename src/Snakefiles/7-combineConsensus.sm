@@ -102,6 +102,14 @@ echo ""
 #  Copy the screened assembly to the output.
 cp -p assembly.fasta ../{output.cns}
 
+#  Try to circularize, the script will output to the same file as input since it caches the sequences
+#  if it fails to circularize it will output sequence unchanged
+for xx in assembly.*.exemplar.fasta ; do
+  if [ -e \$xx ]; then
+    {PYTHON} {VERKKO}/scripts/circularize_ctgs.py -p 100 -o \$xx --min-ovl 2500 \$xx
+  fi
+done
+
 #  Jump through hoops to not fail when there are no contaminant outputs.
 for xx in assembly.*.fasta ; do
   if [ -e \$xx ] ; then
