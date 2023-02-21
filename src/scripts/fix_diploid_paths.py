@@ -132,17 +132,18 @@ for node in check_nodes:
 		while len(paths_and_covs) > 2 and paths_and_covs[-1][1] < paths_and_covs[1][1]: paths_and_covs.pop()
 		valid_options = []
 		assert len(paths_and_covs) >= 2
-		if len(paths_and_covs) == 2 or paths_and_covs[0][1] > paths_and_covs[1][1]:
-			for i in range(1, len(paths_and_covs)):
-				path1 = paths_and_covs[0][0].replace('>', '\t').replace('<', '\t').strip().split('\t')
-				path2 = paths_and_covs[i][0].replace('>', '\t').replace('<', '\t').strip().split('\t')
+		for i in range(0, len(paths_and_covs)):
+			if paths_and_covs[i][1] < paths_and_covs[0][1]: break
+			for j in range(i+1, len(paths_and_covs)):
+				path1 = paths_and_covs[i][0].replace('>', '\t').replace('<', '\t').strip().split('\t')
+				path2 = paths_and_covs[j][0].replace('>', '\t').replace('<', '\t').strip().split('\t')
 				assert len(path1) == 3
 				assert len(path2) == 3
 				used_nodes = set()
 				for used in path1: used_nodes.add(used)
 				for used in path2: used_nodes.add(used)
 				assert len(used_nodes) <= 5
-				if len(used_nodes) == 5: valid_options.append((paths_and_covs[0][0], paths_and_covs[i][0]))
+				if len(used_nodes) == 5: valid_options.append((paths_and_covs[i][0], paths_and_covs[j][0]))
 		if len(valid_options) == 1:
 			print(valid_options[0][0])
 			print(valid_options[0][1])
