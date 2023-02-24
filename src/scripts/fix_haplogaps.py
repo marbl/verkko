@@ -99,6 +99,7 @@ with open(in_paths_file) as f:
 parse_current_alns(tip_support, current_alns)
 
 node_cuts = {}
+node_trims = {}
 num_fixed = 0
 extra_edges = []
 extra_nocut_edges = []
@@ -129,6 +130,18 @@ for key in tip_support:
 	if wanted_cut_pos >= len(node_seqs[key[1][1:]]) - max_rev_ov:
 		sys.stderr.write("can't fix " + key[0] + " " + key[1] + " due to overlap (wanted " + str(len(node_seqs[key[1][1:]]) - wanted_cut_pos) + ", overlap " + str(max_rev_ov) + ")" + "\n")
 		continue
+	if wanted_gap_length < 0:
+		if -wanted_gap_length >= len(node_seqs[key[1][1:]]) - wanted_cut_pos:
+			wanted_trim = -wanted_gap_length - (len(node_seqs[key[1][1:]]) - wanted_cut_pos) + 1
+			assert wanted_trim >= 1
+			sys.stderr.write("trim back " + str(key[0]) + " by " + str(wanted_trim) + "\n")
+			assert revnode(key[0]) in max_overlap
+			assert wanted_trim < len(node_seqs[key[0][1:]])
+			if len(node_seqs[key[0][1:]]) - wanted_trim <= max_overlap[revnode(key[0])]:
+				sys.stderr.write("can't trim due to overlap, skipping")
+				continue
+			node_trims[key[0]] = wanted_trim
+			wanted_gap_length += wanted_trim
 	sys.stderr.write("mend " + key[0] + " " + key[1] + "\n")
 	assert key[1] not in node_cuts
 	assert revnode(key[1]) not in node_cuts
@@ -137,14 +150,30 @@ for key in tip_support:
 	num_fixed += 1
 
 for node in node_seqs:
-	if ">" + node not in node_cuts and "<" + node not in node_cuts:
+	if ">" + node not in node_cuts and "<" + node not in node_cuts and ">" + node not in node_trims and "<" + node not in node_trims:
 		print("S\t" + node + "\t" + node_seqs[node])
+	if (">" + node) in node_trims:
+		assert ">" + node not in node_cuts
+		assert "<" + node not in node_cuts
+		assert "<" + node not in node_trims
+		print("S\t" + node + "_trim" + "\t" + node_seqs[node][:-node_trims[">" + node]])
+	if ("<" + node) in node_trims:
+		assert ">" + node not in node_cuts
+		assert "<" + node not in node_cuts
+		assert ">" + node not in node_trims
+		print("S\t" + node + "_trim" + "\t" + node_seqs[node][node_trims[">" + node]:])
 	if (">" + node) in node_cuts:
+		assert ">" + node not in node_trims
+		assert "<" + node not in node_trims
+		assert "<" + node not in node_cuts
 		cut_pos = node_cuts[">" + node]
 		print("S\t" + node + "_beg" + "\t" + node_seqs[node][:cut_pos])
 		print("L\t" + node + "_beg" + "\t" + "+" + "\t" + node + "_end" + "\t" + "+" + "\t" + "0M")
 		print("S\t" + node + "_end" + "\t" + node_seqs[node][cut_pos:])
 	if ("<" + node) in node_cuts:
+		assert ">" + node not in node_trims
+		assert "<" + node not in node_trims
+		assert ">" + node not in node_cuts
 		cut_pos = len(node_seqs[node]) - node_cuts["<" + node]
 		print("S\t" + node + "_beg" + "\t" + node_seqs[node][:cut_pos])
 		print("L\t" + node + "_beg" + "\t" + "+" + "\t" + node + "_end" + "\t" + "+" + "\t" + "0M")
@@ -154,6 +183,10 @@ for edge in edges:
 	for edge2 in edges[edge]:
 		fromnode = edge
 		tonode = edge2
+		if ">" + fromnode[1:] in node_trims or "<" + fromnode[1:] in node_trims:
+			fromnode = fromnode + "_trim" 
+		if ">" + tonode[1:] in node_trims or "<" + tonode[1:] in node_trims:
+			tonode = tonode + "_trim" 
 		if fromnode[0] == ">" and (edge in node_cuts or revnode(edge) in node_cuts):
 			fromnode = fromnode + "_end"
 		elif fromnode[0] == "<" and (edge in node_cuts or revnode(edge) in node_cuts):
@@ -166,14 +199,19 @@ for edge in edges:
 
 next_fake_node_id = 0
 for edge in extra_edges:
+	assert revnode(edge[0]) not in node_trims
 	assert edge[0] not in node_cuts
 	assert revnode(edge[0]) not in node_cuts
 	assert edge[1] in node_cuts
 	assert revnode(edge[1]) not in node_cuts
 	gap_len = edge[2]
+	trimprint = ""
+	if edge[0] in node_trims: trimprint = "_trim"
 	if gap_len <= 0:
-		print("L\t" + edge[0][1:] + "\t" + ("+" if edge[0][0] == ">" else "-") + "\t" + edge[1][1:] + ("_end" if edge[1][0] == ">" else "_beg") + "\t" + ("+" if edge[1][0] == ">" else "-") + "\t" + str(-gap_len) + "M")
+		print("L\t" + edge[0][1:] + trimprint + "\t" + ("+" if edge[0][0] == ">" else "-") + "\t" + edge[1][1:] + ("_end" if edge[1][0] == ">" else "_beg") + "\t" + ("+" if edge[1][0] == ">" else "-") + "\t" + str(-gap_len) + "M")
 	else:
+		assert trimprint == ""
+		assert edge[0] not in node_trims
 		fake_node = gapname + "_" + str(next_fake_node_id)
 		next_fake_node_id += 1
 		print("L\t" + edge[0][1:] + "\t" + ("+" if edge[0][0] == ">" else "-") + "\t" + fake_node + "\t" + "+" + "\t" + "0M")
@@ -186,8 +224,10 @@ for edge in extra_nocut_edges:
 	assert edge[1] not in node_cuts
 	assert revnode(edge[1]) not in node_cuts
 	gap_len = edge[2]
+	trimprint = ""
+	if edge[0] in node_trims: trimprint = "_trim"
 	if gap_len <= 0:
-		print("L\t" + edge[0][1:] + "\t" + ("+" if edge[0][0] == ">" else "-") + "\t" + edge[1][1:] + "\t" + ("+" if edge[1][0] == ">" else "-") + "\t" + str(-gap_len) + "M")
+		print("L\t" + edge[0][1:] + trimprint + "\t" + ("+" if edge[0][0] == ">" else "-") + "\t" + edge[1][1:] + "\t" + ("+" if edge[1][0] == ">" else "-") + "\t" + str(-gap_len) + "M")
 	else:
 		fake_node = gapname + "_" + str(next_fake_node_id)
 		next_fake_node_id += 1
@@ -205,4 +245,10 @@ with open(out_mapping_file, "w") as f:
 			cut_pos = len(node_seqs[node]) - node_cuts["<" + node]
 		f.write(node + "_beg" + "\t" + ">" + node + ":0:" + str(len(node_seqs[node]) - cut_pos) + "\n")
 		f.write(node + "_end" + "\t" + ">" + node + ":" + str(cut_pos) + ":0" + "\n")
+	for trim in node_trims:
+		node = trim[1:]
+		if trim[0] == ">":
+			f.write(node + "_trim" + "\t" + ">" + node + ":0:" + str(len(node_seqs[node]) - node_trims[trim]) + "\n")
+		else:
+			f.write(node + "_trim" + "\t" + ">" + node + ":" + str(node_trims[trim]) + ":0" + "\n")
 
