@@ -10,10 +10,6 @@ graph using GraphAligner, progressively resolves loops and tangles first with
 the HiFi reads then with the aligned Oxford Nanopore reads, and finally
 creates contig consensus sequences using Canu's consensus module.
 
-**Note: Verkko is a work in progress and currently available as a beta
-release. Expect to encounter instability, but please feel free to submit
-an issue if you encounter any problems.**
-
 ## Install:
 
 * Do NOT download the .zip source code.  It is missing files and will not compile.  This is a [known flaw](https://github.com/dear-github/dear-github/issues/214) with git itself. Compilation from source requires GCC 7 or newer and Rust 1.58 or newer.
@@ -85,4 +81,4 @@ To test your installation we have an E. coli K12 dataset available.
 The final assembly result is under `asm/assembly.fasta`. The final graph (in homopolymer-compressed space) is under `asm/assembly.homopolymer-compressed.gfa` along with coverage files in `asm/assembly*csv`. If you provided phasing information, you will also have `asm/assembly.haplotype[12].fasta`. You can find intermediate graphs and coverage files under `asm/*/unitig-*gfa` and `asm/*/unitig-*csv`.
 
 ## Citations:
- - Rautiainen M, Nurk S, Walenz BP, Logsdon GA, Porubsky D, Rhie A, Eichler EE, Phillippy AM, Koren S. [Verkko: telomere-to-telomere assembly of diploid chromosomes](https://doi.org/10.1101/2022.06.24.497523). bioRxiv. (2022). `doi:10.1101/2022.06.24.497523`
+ - Rautiainen M, Nurk S, Walenz BP, Logsdon GA, Porubsky D, Rhie A, Eichler EE, Phillippy AM, Koren S. [Telomere-to-telomere assembly of diploid chromosomes with Verkko](https://doi.org/10.1038/s41587-023-01662-6). Nat Biotech. (2023). `doi:10.1038/s41587-023-01662-6`
