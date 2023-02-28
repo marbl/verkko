@@ -432,10 +432,12 @@ for contig in sorted(contig_pieces.keys()):
 	npieces = ngaps = nempty = 0
 	ngaps   = 0
 	nempty  = 0
+
 	for line in contig_pieces[contig]:
 		if re.match(r"\[N\d+N\]", line):  ngaps   += 1   #  Actual gap.
 		elif line in contig_actual_lines: npieces += 1   #  Piece with reads assigned.
 		elif line != "end":               nempty  += 1   #  Piece with no reads assigned.
+
 	if npieces > 0 and nempty > 0:
 		print(f"{contig} has empty pieces.  npieces {npieces} ngaps {ngaps} nempty {nempty}", file=nul_layout_file)
 	elif npieces > 0:
@@ -470,6 +472,9 @@ for contig in sorted(contig_pieces.keys()):
 			print(line, file=scf_layout_file)
 
 		nameid += 1
+	else:
+		print(f"{contig} has no reads assigned and is not output.", file=nul_layout_file)
+
 del nameid
 
 
