@@ -248,7 +248,7 @@ with open(out_mapping_file, "w") as f:
 	for trim in node_trims:
 		node = trim[1:]
 		if trim[0] == ">":
-			f.write(node + "_trim" + "\t" + ">" + node + ":0:" + str(len(node_seqs[node]) - node_trims[trim]) + "\n")
+			f.write(node + "_trim" + "\t" + ">" + node + ":0:" + str(node_trims[trim]) + "\n")
 		else:
 			f.write(node + "_trim" + "\t" + ">" + node + ":" + str(node_trims[trim]) + ":0" + "\n")
 
