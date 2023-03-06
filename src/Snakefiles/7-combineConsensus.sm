@@ -150,13 +150,13 @@ else
   echo ""
 
   if [ -e ./paths-haplotype1 ] ; then
-    {PYTHON} {VERKKO}/scripts/process_reads.py extract ../{output.cnshap1} ./paths-haplotype1 ../{output.cns}
+    {PYTHON} {VERKKO}/scripts/fasta_extract.py extract ../{output.cnshap1} ./paths-haplotype1 ../{output.cns}
   fi
   if [ -e ./paths-haplotype2 ] ; then
-    {PYTHON} {VERKKO}/scripts/process_reads.py extract ../{output.cnshap2} ./paths-haplotype2 ../{output.cns}
+    {PYTHON} {VERKKO}/scripts/fasta_extract.py extract ../{output.cnshap2} ./paths-haplotype2 ../{output.cns}
   fi
   if [ -e ./paths-unassigned ] ; then
-    {PYTHON} {VERKKO}/scripts/process_reads.py extract ../{output.cnsunas} ./paths-unassigned ../{output.cns}
+    {PYTHON} {VERKKO}/scripts/fasta_extract.py extract ../{output.cnsunas} ./paths-unassigned ../{output.cns}
   fi
 fi
 
