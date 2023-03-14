@@ -167,6 +167,8 @@ def get_valid_triplets(node, edges, paths_crossing, min_edge_support, min_covera
 	if ">" + node not in edges: edges[">" + node] = set()
 	if "<" + node not in edges: edges["<" + node] = set()
 	if len(edges[">" + node]) <= 1 and len(edges["<" + node]) <= 1: return []
+	if len(edges[">" + node]) == 1 and getone(edges[">" + node]) == "<" + node: return []
+	if len(edges["<" + node]) == 1 and getone(edges["<" + node]) == ">" + node: return []
 	triplets = {}
 	covered_in_neighbors = {}
 	covered_out_neighbors = {}
@@ -239,6 +241,104 @@ def get_valid_triplets(node, edges, paths_crossing, min_edge_support, min_covera
 	allowed_triplets = list(iterate_deterministic(solid_triplets))
 	return allowed_triplets
 
+def resolve_hairpins(nodelength, nodes, paths_crossing, node_seqs, node_lens, edges, maybe_resolvable, min_edge_support, min_coverage, removable_nodes):
+	hairpins = set()
+	for node in iterate_deterministic(nodes):
+		if ">" + node not in edges: continue
+		if "<" + node not in edges: continue
+		if len(edges[">" + node]) == 1 and getone(edges[">" + node]) == "<" + node:
+			hairpins.add(">" + node)
+		if len(edges["<" + node]) == 1 and getone(edges["<" + node]) == ">" + node:
+			hairpins.add("<" + node)
+	remove_paths = []
+	add_paths = []
+	new_node_names = set()
+	resolved = set()
+	for node in hairpins:
+		assert revnode(node) not in hairpins # double hairpin resolution hard to implement, so just hope it never happens
+		resolutions = {}
+		for path in iterate_paths(paths_crossing, node[1:]):
+			if len(path) < 4: continue
+			for i in range(1, len(path)-2):
+				if path[i] == node and path[i+1] == revnode(node):
+					key = canon(path[i-1], path[i+2])
+					if key not in resolutions: resolutions[key] = 0
+					resolutions[key] += 1
+				if path[i] == revnode(node) and path[i+1] == node:
+					assert False # this should never happen?
+		covered_edges = set()
+		solid_resolutions = set()
+		for resolution in resolutions:
+			if resolutions[resolution] < min_edge_support: continue
+			solid_resolutions.add(resolution)
+			covered_edges.add(revnode(resolution[0]))
+			covered_edges.add(resolution[1])
+		if len(covered_edges) < len(edges[revnode(node)]): continue
+		sys.stderr.write("resolve hairpin " + node + "\n")
+		resolved.add(node[1:])
+		nextnum = 0
+		resolution_number = {}
+		for key in solid_resolutions:
+			fwname = node[1:] + "hairpin" + str(nextnum) + "fw"
+			bwname = node[1:] + "hairpin" + str(nextnum) + "bw"
+			new_node_names.add(fwname)
+			new_node_names.add(bwname)
+			resolution_number[key] = nextnum
+			nextnum += 1
+			if node[0] == ">":
+				node_seqs[fwname] = node_seqs[node[1:]]
+				node_seqs[bwname] = ([revnode(n) for n in node_seqs[node[1:]][0][::-1]], node_seqs[node[1:]][2], node_seqs[node[1:]][1])
+			else:
+				node_seqs[fwname] = ([revnode(n) for n in node_seqs[node[1:]][0][::-1]], node_seqs[node[1:]][2], node_seqs[node[1:]][1])
+				node_seqs[bwname] = node_seqs[node[1:]]
+			edges["<" + fwname] = set()
+			edges[">" + fwname] = set()
+			edges["<" + bwname] = set()
+			edges[">" + bwname] = set()
+			edges[">" + fwname].add(">" + bwname)
+			edges["<" + bwname].add("<" + fwname)
+			edges["<" + fwname].add(revnode(key[0]))
+			edges[">" + bwname].add(key[1])
+			edges[key[0]].add(">" + fwname)
+			edges[revnode(key[1])].add("<" + bwname)
+			edge_overlaps[canon(">" + fwname, ">" + bwname)] = edge_overlaps[canon(node, revnode(node))]
+			edge_overlaps[canon(key[0], ">" + fwname)] = edge_overlaps[canon(key[0], node)]
+			edge_overlaps[canon(">" + bwname, key[1])] = edge_overlaps[canon(revnode(node), key[1])]
+		remove_graph_node(node[1:], node_seqs, edges)
+		for path in iterate_paths(paths_crossing, node[1:]):
+			remove_paths.append(path)
+			if len(path) < 4: continue
+			add_this = []
+			add_this.append(path[0])
+			for i in range(1, len(path)-2):
+				if path[i] == node and path[i+1] == revnode(node):
+					key = (path[i-1], path[i+2])
+					canonkey = canon(key[0], key[1])
+					if canonkey not in resolution_number:
+						add_paths.append(add_this)
+						add_this = []
+						continue
+					if key == canonkey:
+						add_this.append(">" + node[1:] + "hairpin" + str(resolution_number[canonkey]) + "fw")
+						add_this.append(">" + node[1:] + "hairpin" + str(resolution_number[canonkey]) + "bw")
+					else:
+						add_this.append("<" + node[1:] + "hairpin" + str(resolution_number[canonkey]) + "bw")
+						add_this.append("<" + node[1:] + "hairpin" + str(resolution_number[canonkey]) + "fw")
+				elif path[i] == revnode(node) and path[i+1] == node:
+					assert False # this should never happen?
+				elif path[i][1:] == node[1:]:
+					continue
+				else:
+					add_this.append(path[i])
+			if path[-2][1:] != node[1:]: add_this.append(path[-2])
+			if path[-1][1:] != node[1:]: add_this.append(path[-1])
+			add_paths.append(add_this)
+	for path in remove_paths:
+		remove_path(paths_crossing, path)
+	for path in add_paths:
+		add_path(paths_crossing, path)
+	return (new_node_names, resolved)
+
 def resolve_nodes(nodelength, nodes, paths_crossing, node_seqs, node_lens, edges, maybe_resolvable, min_edge_support, min_coverage, removable_nodes):
 	resolvable = set()
 	triplets = []
@@ -277,11 +377,13 @@ def resolve_nodes(nodelength, nodes, paths_crossing, node_seqs, node_lens, edges
 			for triplet in triplets_here:
 				if triplet[0] is not None:
 					left_node_length = get_unitig_len(node_lens, edge_overlaps, node_seqs, triplet[0][1:]) - edge_overlaps[canon(triplet[0], triplet[1])]
+					assert left_node_length >= 1
 					if not (triplet[0][1:] not in maybe_resolvable and left_node_length == 1):
 						if left_node_length > 1: left_node_length -= 1
 						if left_node_length < longest_extension_per_node["<" + node]: longest_extension_per_node["<" + node] = left_node_length
 				if triplet[2] is not None:
 					right_node_length = get_unitig_len(node_lens, edge_overlaps, node_seqs, triplet[2][1:]) - edge_overlaps[canon(triplet[1], triplet[2])]
+					assert right_node_length >= 1
 					if not (triplet[2][1:] not in maybe_resolvable and right_node_length == 1):
 						if right_node_length > 1: right_node_length -= 1
 						if right_node_length < longest_extension_per_node[">" + node]: longest_extension_per_node[">" + node] = right_node_length
@@ -626,6 +728,20 @@ def resolve(node_lens, edge_overlaps, node_seqs, edges, paths_crossing, min_edge
 			nodelen = get_unitig_len(node_lens, edge_overlaps, node_seqs, node)
 			assert nodelen == priority
 		if len(current_nodes) == 0: continue
+		(new_nodes, resolved) = resolve_hairpins(current_length, current_nodes, paths_crossing, node_seqs, node_lens, edges, maybe_resolvable, min_edge_support, min_coverage, removable_nodes)
+		if len(new_nodes) > 0:
+			assert len(resolved) > 0
+			sys.stderr.write("resolve k=" + str(current_length) + ", extended " + str(len(resolved)) + " nodes into " + str(len(new_nodes)) + " nodes" + "\n")
+			assert current_length > last_resolved
+			last_resolved = current_length
+			for n in iterate_deterministic(new_nodes):
+				if n not in node_seqs: continue # already unitigified
+				new_unitig = unitigify_one(node_seqs, node_lens, edges, paths_crossing, n)
+				heapq.heappush(nodes_by_len, (get_unitig_len(node_lens, edge_overlaps, node_seqs, new_unitig), new_unitig))
+				maybe_resolvable.add(new_unitig)
+			continue;
+		else:
+			assert len(resolved) == 0
 		(new_nodes, resolved) = resolve_nodes(current_length, current_nodes, paths_crossing, node_seqs, node_lens, edges, maybe_resolvable, min_edge_support, min_coverage, removable_nodes)
 		if len(new_nodes) > 0:
 			assert len(resolved) > 0
