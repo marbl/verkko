@@ -202,6 +202,7 @@ for node in long_nodes:
 		bubble_end = find_bubble_end(edges, next_node)
 
 out_paths = {}
+num_inconsistent_paths = {}
 
 with open(alignment_file) as f:
 	for l in f:
@@ -217,8 +218,16 @@ with open(alignment_file) as f:
 				last_break = i+1
 		if last_break < len(path): part_paths.append(path[last_break:])
 		for part_path in part_paths:
+			node_counts = {}
+			for node in part_path:
+				if node[1:] not in node_counts: node_counts[node[1:]] = 0
+				node_counts[node[1:]] += 1
+				if node_counts[node[1:]] == 2:
+					if node[1:] not in num_inconsistent_paths: num_inconsistent_paths[node[1:]] = 0
+					num_inconsistent_paths[node[1:]] += 1
 			assert len(part_path) >= 1
 			for i in range(0, len(part_path)):
+				if node_counts[part_path[i][1:]] != 1: continue
 				if part_path[i] not in out_paths: out_paths[part_path[i]] = []
 				if revnode(part_path[i]) not in out_paths: out_paths[revnode(part_path[i])] = []
 				if i < len(part_path)-1: out_paths[part_path[i]].append(tuple(part_path[i+1:]))
@@ -262,6 +271,10 @@ for n in nodelens:
 	bw_paths = []
 	if ">" + n in out_paths: fw_paths = list(out_paths[">" + n])
 	if "<" + n in out_paths: bw_paths = list(out_paths["<" + n])
+	extra_inconsistent = 0
+	if n in num_inconsistent_paths:
+		extra_inconsistent = num_inconsistent_paths[n]
+		if float(len(fw_paths) + len(bw_paths)) / float(len(fw_paths) + len(bw_paths) + extra_inconsistent) < path_consistency_threshold: continue
 	fw_paths.sort(key=lambda x: len(x))
 	bw_paths.sort(key=lambda x: len(x))
 	# if len(fw_paths) == 0: continue
@@ -278,7 +291,7 @@ for n in nodelens:
 				continue
 			consistents += 1
 		if consistents > most_fw_consistent: most_fw_consistent = consistents
-	if float(most_fw_consistent + len(bw_paths)) / float(len(fw_paths) + len(bw_paths)) < path_consistency_threshold: continue
+	if float(most_fw_consistent + len(bw_paths)) / float(len(fw_paths) + len(bw_paths) + extra_inconsistent) < path_consistency_threshold: continue
 	most_bw_consistent = 0
 	for i in range(len(bw_paths)-1, -1, -1):
 		consistents = 0
@@ -290,7 +303,7 @@ for n in nodelens:
 				continue
 			consistents += 1
 		if consistents > most_bw_consistent: most_bw_consistent = consistents
-	if float(most_fw_consistent + most_bw_consistent) / float(len(fw_paths) + len(bw_paths)) < path_consistency_threshold: continue
+	if float(most_fw_consistent + most_bw_consistent) / float(len(fw_paths) + len(bw_paths) + extra_inconsistent) < path_consistency_threshold: continue
 	path_consistent_nodes.add(n)
 
 path_unique_nodes = set()
