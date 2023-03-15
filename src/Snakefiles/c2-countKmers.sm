@@ -91,9 +91,9 @@ mkdir -p kmer-jobs
 
 echo \$nsegs > kmer-jobs/nSegments
 
-seq -f %03g 1 4 \$nsegs \\\\
+seq 1 4 \$nsegs \\\\
 | \\\\
-awk -v segs=\$nsegs '{{ jobname="kmer-jobs/" \$1 ".params"; print \$1 > jobname; close(jobnme); }}'
+awk '{{ printf("%03g", \$1) }}' |  awk -v segs=\$nsegs '{{ jobname="kmer-jobs/" \$1 ".params"; print \$1 > jobname; close(jobnme); }}'
 
 rm meryl.configure.out
 
