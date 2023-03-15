@@ -141,7 +141,7 @@ def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage):
 
 def try_pop_tip(start, edges, coverage, removed_nodes, removed_edges, max_removable, nodelens):
 	if start not in edges: return
-	if len(edges[start]) != 2: return
+	if len(edges[start]) < 2 or len(edges[start]) > 4: return
 	max_coverage = 0
 	for node in iterate_deterministic(edges[start]):
 		assert revnode(node) in edges
@@ -149,22 +149,21 @@ def try_pop_tip(start, edges, coverage, removed_nodes, removed_edges, max_remova
 		if node in edges and len(edges[node]) > 0: return
 		coverage_here = 0
 		if node[1:] in coverage: coverage_here = coverage[node[1:]]
-		if coverage_here >= max_removable: return
 		if coverage_here > max_coverage:
 			max_coverage = coverage_here
-	remove_this = None
+	remove_this = []
 	for node in iterate_deterministic(edges[start]):
 		coverage_here = 0
 		if node[1:] in coverage: coverage_here = coverage[node[1:]]
-		if coverage_here < max_coverage:
-			assert remove_this is None
-			remove_this = node
-	if remove_this is None: return
-	assert remove_this[1:] in nodelens
-	if nodelens[remove_this[1:]] > 100000: return
-	removed_nodes.add(remove_this[1:])
-	removed_edges.add((start, remove_this))
-	sys.stderr.write("pop tip " + str(start) + " remove " + str(remove_this) + "\n")
+		if coverage_here < max_removable and coverage_here < max_coverage:
+			remove_this.append(node)
+	if len(remove_this) == 0: return
+	for remove_node in remove_this:
+		assert remove_node[1:] in nodelens
+		if nodelens[remove_node[1:]] > 100000: continue
+		removed_nodes.add(remove_node[1:])
+		removed_edges.add((start, remove_node))
+		sys.stderr.write("pop tip " + str(start) + " remove " + str(remove_node) + "\n")
 
 coverage = {}
 with open(node_coverage_file) as f:
