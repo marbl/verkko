@@ -433,14 +433,21 @@ for contig in sorted(contig_pieces.keys()):
 	ngaps   = 0
 	nempty  = 0
 
-	for line in contig_pieces[contig]:
-		if re.match(r"\[N\d+N\]", line):  ngaps   += 1   #  Actual gap.
-		elif line in contig_actual_lines: npieces += 1   #  Piece with reads assigned.
-		elif line != "end":               nempty  += 1   #  Piece with no reads assigned.
+	for i in range(len(contig_pieces[contig])):
+		line = contig_pieces[contig][i]
+		if re.match(r"\[N\d+N\]", line):
+			ngaps   += 1   #  Actual gap.
+		elif line in contig_actual_lines:
+			npieces += 1   #  Piece with reads assigned.
+		elif line != "end":
+			nempty  += 1   #  Piece with no reads assigned.
+			contig_pieces[contig][i] = "[N%dN]"%(contig_lens[line])
+			if npieces > 0:
+				print(f"Warning: empty entry for piece {line} in scaffold {contig} of expected length {contig_lens[line]}, using Ns {contig_pieces[contig][i]} instead", file=nul_layout_file)
 
-	if npieces > 0 and nempty > 0:
-		print(f"{contig} has empty pieces.  npieces {npieces} ngaps {ngaps} nempty {nempty}", file=nul_layout_file)
-	elif npieces > 0:
+	if npieces > 0:
+		if nempty > 0:
+			print(f"{contig} has empty pieces.  npieces {npieces} ngaps {ngaps} nempty {nempty}", file=nul_layout_file)
 		#  Decode the rukki (or non-rukki) contig name into
 		#  something we'll present to the user.
 		#
