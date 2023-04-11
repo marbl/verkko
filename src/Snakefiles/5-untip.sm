@@ -104,10 +104,21 @@ echo Pop bubbles based on coverage
 > popped-unitig-normal-connected-tip.gfa \\\\
 2> popinfo.err
 
+echo Unitigify pregap
+{PYTHON} {VERKKO}/scripts/unitigify.py utigpop- unitig-mapping-pop.txt \\\\
+< popped-unitig-normal-connected-tip.gfa \\\\
+> pregap-popped-unitig-normal-connected-tip.gfa
+
+echo Add homozygous node scaffold edges
+cat combined-nodemap-1.txt unitig-mapping-pop.txt > combined-nodemap-2.txt
+{PYTHON} {VERKKO}/scripts/add_hom_node_scaffold_edges.py pregap-popped-unitig-normal-connected-tip.gfa combined-nodemap-2.txt homgap > homgapped-popped-unitig-normal-connected-tip.gfa
+
 echo Unitigify 4
 {PYTHON} {VERKKO}/scripts/unitigify.py utig4- unitig-mapping-4.txt \\\\
-< popped-unitig-normal-connected-tip.gfa \\\\
+< homgapped-popped-unitig-normal-connected-tip.gfa \\\\
 > ../{output.graph}
+
+
 EOF
 
 chmod +x ./untip.sh
