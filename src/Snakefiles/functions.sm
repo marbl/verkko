@@ -186,7 +186,7 @@ def getAllGraphs(type):
                 '../5-untip/unitig-normal-connected-tip.gfa ' +
                 '../5-untip/popped-unitig-normal-connected-tip.gfa ' +
                 '../5-untip/pregap-unitig-normal-connected-tip.gfa ' +
-                '../5-untip/homgap-unitig-normal-connected-tip.gfa ' +
+                '../5-untip/homgapped-unitig-normal-connected-tip.gfa ' +
                 '../' + rules.verkko.input.graph + ' ')
     return ret
 
