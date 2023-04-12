@@ -736,7 +736,7 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/scripts/add_fake_alignments.py \
      ../lib/verkko/scripts/add_fake_bridging_paths.py \
      ../lib/verkko/scripts/add_hairpin_uniques.py \
-     ../lib/verkko/scripts/add_hom_node_scaffold.py \
+     ../lib/verkko/scripts/add_hom_node_scaffold_edges.py \
      ../lib/verkko/scripts/calculate_coverage.py \
      ../lib/verkko/scripts/check_layout_gaps.py \
      ../lib/verkko/scripts/chop_misassemblies.py \
