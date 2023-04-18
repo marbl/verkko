@@ -59,6 +59,7 @@ verkko=""
 mbg=""
 graphaligner=""
 mashmap=""
+winnowmap=""
 python=
 perl=
 
@@ -212,7 +213,7 @@ ali_mem_gb=64
 ali_time_h=24
 
 #  process_ont_paths
-pop_n_cpus=1
+pop_n_cpus=8
 pop_mem_gb=64
 pop_time_h=24
 
@@ -277,6 +278,7 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--mbg" ] ;                then mbg=$arg;           shift
     elif [ "$opt" = "--graphaligner" ] ;       then graphaligner=$arg;  shift
     elif [ "$opt" = "--mashmap" ] ;            then mashmap=$arg;       shift
+    elif [ "$opt" = "--winnowmap" ] ;          then winnowmap$arg;      shift  
     elif [ "$opt" = "--local" ] ;              then grid="local";
     elif [ "$opt" = "--sge" ] ;                then grid="slurm-sge";
     elif [ "$opt" = "--slurm" ] ;              then grid="slurm-sge";
@@ -470,6 +472,15 @@ if [ "x$mashmap" != "x" ]; then
   mashmap=$(fullpath $mashmap)
 fi
 
+if [ "x$winnowmap" = "x" ] ; then
+  winnowmap=${verkko}/bin/winnowmap
+fi
+if [ ! -e $winnowmap ] ; then
+  winnowmap=$(which winnowmap)
+fi
+if [ "x$winnowmap" != "x" ]; then
+  winnowmap=$(fullpath $winnowmap)
+fi
 #
 #  Fix stuff.
 #
@@ -588,6 +599,12 @@ elif [ ! -e "$mashmap" ] ; then
     errors="${errors}Can't find mashmap executable at '$mashmap'.\n"
 fi
 
+if   [ "x$winnowmap" = "x" ] ; then
+    errors="${errors}Can't find winnowmap executable in \$PATH or \$VERKKO/bin/winnowmap.\n"
+elif [ ! -e "$winnowmap" ] ; then
+    errors="${errors}Can't find winnowmap executable at '$winnowmap'.\n"
+fi
+
 #
 #  Complain!
 #
@@ -644,6 +661,7 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --mbg <path>             Path to MBG.             Default for all three"
     echo "    --graphaligner <path>    Path to GraphAligner.    one packaged with verkko."
     echo "    --mashmap <path>         Path to mashmap."
+    echo "    --winnowmap <path>       Path to winnowmap."
     echo ""
     echo "    --cleanup                Remove intermediate results."
     echo "    --no-cleanup             Retain intermediate results (default)."
@@ -700,6 +718,7 @@ echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "MBG:                 '${mbg}'"
 echo >> ${outd}/verkko.yml "GRAPHALIGNER:        '${graphaligner}'"
 echo >> ${outd}/verkko.yml "MASHMAP:             '${mashmap}'"
+echo >> ${outd}/verkko.yml "WINNOWMAP:           '${winnowmap}'" 
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "PYTHON:              '${python}'"
 echo >> ${outd}/verkko.yml "PERL:                '${perl}'"

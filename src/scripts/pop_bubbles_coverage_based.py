@@ -8,6 +8,7 @@ node_coverage_file = sys.argv[1]
 
 max_bubble_pop_size = 10
 max_poppable_node_size = 200000
+max_poppable_coverage = 0 
 
 def iterate_deterministic(l):
 	tmp = list(l)
@@ -126,11 +127,16 @@ def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage):
 	assert len(kept_edges) < len(bubble_edges) or len(bubble_edges) == 1
 	for node in bubble_nodes:
 		if node in kept_nodes: continue
+		c = (coverage[node] if node in coverage else 0)
+		if c > max_poppable_coverage:
+			kept_nodes.add(node)
+			continue
 		remove_graph_node(node, edges)
 		removed_nodes.add(node)
 	for edge in bubble_edges:
 		if edge in kept_edges: continue
 		if (revnode(edge[1]), revnode(edge[0])) in kept_edges: continue
+		if edge[0][1:] in kept_nodes or edge[1][1:] in kept_nodes: continue
 		removed_edges.add(edge)
 		if edge[0] in edges:
 			if edge[1] in edges[edge[0]]:
@@ -205,6 +211,7 @@ avg_coverage = 0
 if long_coverage_len_sum != 0:
 	avg_coverage = long_coverage_cov_sum / long_coverage_len_sum
 sys.stderr.write("average coverage " + str(avg_coverage) + "\n")
+max_poppable_coverage=int(0.5*avg_coverage)
 
 chain_coverage_sum = {}
 chain_length_sum = {}
