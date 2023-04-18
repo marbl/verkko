@@ -52,7 +52,7 @@ rule buildGraph:
         maxR              = config['mbg_max_resolution'],
         hifi_coverage     = config['mbg_hifi_coverage'],
         kmer_abundance    = 1,                   #  MBG default = 1
-        unitig_abundance  = 2                    #  MBG default = 2
+        unitig_abundance  = config['mbg_unitig_abundance']
     threads:
         int(config['mbg_n_cpus'])
     resources:
