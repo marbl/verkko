@@ -12,6 +12,9 @@ min_ont_solid_coverage = int(sys.argv[7])
 hificoveragefile = sys.argv[8]
 min_hifi_solid_coverage = int(sys.argv[9])
 
+
+length_solid_node_threshold = 200000
+
 def find(s, parent):
 	while parent[s] != parent[parent[s]]:
 		parent[s] = parent[parent[s]]
@@ -56,19 +59,22 @@ with open(hificoveragefile) as f:
 		if parts[0] in unique_nodes: continue
 		hifi_solid_nodes.add(parts[0])
 
+length_solid_nodes = set()
 ont_solid_nodes = set()
 with open(ontcoveragefile) as f:
 	for l in f:
 		parts = l.strip().split('\t')
 		if parts[2] == "coverage": continue
-		if float(parts[2]) < min_ont_solid_coverage: continue
 		if parts[0] in unique_nodes: continue
-		ont_solid_nodes.add(parts[0])
+		if float(parts[2]) >= min_ont_solid_coverage: ont_solid_nodes.add(parts[0])
+		if int(parts[1]) >= length_solid_node_threshold: length_solid_nodes.add(parts[0])
 
 solid_nodes = set()
 for node in hifi_solid_nodes:
 	if node in ont_solid_nodes:
 		solid_nodes.add(node)
+for node in length_solid_nodes:
+	solid_nodes.add(node)
 
 solid_edges = set()
 for key in edge_coverage:
