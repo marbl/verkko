@@ -78,18 +78,18 @@ xargs -L 1 -P {threads} < tip_reads.extract \\\\
 cat {params.ext_files} > tip_reads.fasta.gz
 rm -f {params.ext_files}
 
+cat ../{input.graph} |awk '{{ if (match(\$1, "^S")) {{ print ">"\$2; print \$3 }} }}' |fold -c > tips.fasta
 zcat tip_reads.fasta.gz  |awk -v SEQ="" '{{ if (match(\$1, ">") && \$1 != NAME) {{ if (SEQ != "") {{ print NAME; print SEQ; }} SEQ=""; NAME=\$1; }} else {{ SEQ=SEQ""\$1;}} }} END {{ print NAME; print SEQ}}' | sed -r s/'A{{1,}}+'/A/g |sed -r s/'C{{1,}}+'/C/g |sed -r s/'G{{1,}}+'/G/g |sed -r s/'T{{1,}}+'/T/g > tip_reads_compressed.fasta
 {params.WINNOWMAP} -t {threads} -cx map-ont tips.fasta tip_reads_compressed.fasta |sed s/de:f://g |awk -F "\\t" '{{ if (match(\$5, "-")) print \$1"\\t"\$2"\\t"\$3"\\t"\$4"\\t+\\t<"\$6"\\t"\$7"\\t"\$7-\$9"\\t"\$7-\$8"\\t"\$10"\\t"\$11"\\t"\$12"\\t"\$13"\\t"\$15"\\tdv:f:"\$21"\\tid:f:"1-\$21; else print \$1"\\t"\$2"\\t"\$3"\\t"\$4"\\t"\$5"\\t>"\$6"\\t"\$7"\\t"\$8"\\t"\$9"\\t"\$10"\\t"\$11"\\t"\$12"\\t"\$13"\\t"\$15"\\tdv:f:"\$21"\\tid:f:"1-\$21 }}' |awk -F "\\t" '{{ if (\$12 >= 20) print; }}' > tips.gaf
 
 echo Step 1a
-{PYTHON} {VERKKO}/scripts/filter_alignments_by_reads.py tips.gaf 20 < ../{input.ont_paths} > alns-ont-mapqfilter.gaf
-cat tips.gaf >> alns-ont-mapqfilter.gaf
+{PYTHON} {VERKKO}/scripts/filter_alignments_by_reads.py tips.gaf ../{input.ont_paths} 20 > alns-ont-mapqfilter.gaf
 
 {PYTHON} {VERKKO}/scripts/chop_misassemblies.py ../{input.graph} alns-ont-mapqfilter.gaf chop-mapping.txt alns-cut.gaf 10 20 > chopped-unitig-unrolled-hifi-resolved.gfa 2> chop-info.txt
 
 echo ""
 echo Step 2a
-{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py chopped-unitig-unrolled-hifi-resolved.gfa alns-cut.gaf 3 50 alns-ont-nogap-1.gaf alns-ont-gap1.gaf gapont1 n \\\\
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py chopped-unitig-unrolled-hifi-resolved.gfa alns-cut.gaf 3 50 alns-ont-nogap-1.gaf alns-ont-gap1.gaf gapont1 o \\\\
   > gapped-once-unitig-unrolled-hifi-resolved.gfa
 
 {PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-once-unitig-unrolled-hifi-resolved.gfa alns-ont-nogap-1.gaf 5 1500 alns-ont-nogap-2.gaf alns-ont-gap2.gaf gapont2 n \\\\

@@ -36,9 +36,6 @@ with open(graph_file) as f:
 			if fromnode not in edge_overlaps:
 				edge_overlaps[fromnode] = set() 
 			edge_overlaps[fromnode].add(tonode)
-			if tonode not in edge_overlaps:
-				edge_overlaps[tonode] = set()
-			edge_overlaps[tonode].add(fromnode)
 			not_tips.add(fromnode)
 			not_tips.add(tonode)
 

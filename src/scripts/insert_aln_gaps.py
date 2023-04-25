@@ -91,6 +91,7 @@ for name in alns_per_read:
 		if alns[i-1][5] > max_end_clip or alns[i][4] > max_end_clip: continue 
 		gap_len = (alns[i][0] - alns[i][4]) - (alns[i-1][1] + alns[i-1][5])
 		key = canontip(alns[i-1][3], alns[i][2])
+		if key in edge_overlaps: continue
 		if key not in gaps: gaps[key] = []
 		gaps[key].append(gap_len)
 		readlen = alns[i][6]
