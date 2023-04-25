@@ -167,6 +167,4 @@ for edge in possible_edges:
 	gap_name = gap_prefix + str(next_gap_num)
 	next_gap_num += 1
 	sys.stderr.write("add edge from " + edge + " to " + other_side + "\n")
-	print("S\t" + gap_name + "\t" + gap_sequence)
-	print("L\t" + edge[1:] + "\t" + ("+" if edge[0] == ">" else "-") + "\t" + gap_name + "\t" + "+" + "\t" + "0M")
-	print("L\t" + gap_name + "\t" + "+" + "\t" + other_side[1:] + "\t" + ("+" if other_side[0] == ">" else "-") + "\t0M")
+	print("L\t" + edge[1:] + "\t" + ("+" if edge[0] == ">" else "-") + "\t" + other_side[1:] + "\t" + ("+" if other_side[0] == ">" else "-") + "\t0M")
