@@ -36,8 +36,9 @@ todel = set()
 for r in winnowmap_alns:
 	if r not in alns:
 		continue
-	sys.stderr.write("For read %s comparing winnowmap %s to graphaligner %s shared is %s subset is %s\n"%(r, winnowmap_alns[r], alns[r], winnowmap_alns[r].intersection(alns[r]),winnowmap_alns[r].issubset(alns[r])))
-	if alns[r] == winnowmap_alns[r] or not alns[r].issubset(winnowmap_alns[r]):
+	sys.stderr.write("For read %s comparing winnowmap %s to graphaligner %s shared is %s subset is %s equal is %s\n"%(r, winnowmap_alns[r], alns[r], winnowmap_alns[r].intersection(alns[r]),winnowmap_alns[r].issubset(alns[r]),winnowmap_alns[r] == alns[r] ))
+	if alns[r] == winnowmap_alns[r] or winnowmap_alns[r].issubset(alns[r]) == False:
+		sys.stderr.write("Here keeping read %s because the if is %s\n"%(r, alns[r] == winnowmap_alns[r] or winnowmap_alns[r].issubset(alns[r]) == False))
 		continue
 	sys.stderr.write("Removing read %s\n"%(r))
 	todel.add(r)

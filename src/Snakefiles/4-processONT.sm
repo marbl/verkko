@@ -66,7 +66,7 @@ echo Step 0a
 # we re-map tip reads w/winnowmap
 {PYTHON} {VERKKO}/scripts/find_tips.py ../{input.graph} > tips.fasta 2> find_tips.err
 grep ">" tips.fasta |awk '{{ print substr(\$1, 2, length(\$1)) }}' > tips.ids
-cat ../{input.ont_paths} | {PYTHON} {VERKKO}/scripts/filter_alignments_by_node.py tips.ids | awk -F "\\t" '{{ if (\$8 <= 1500 || \$9 + 1500 >= \$7) print \$1; }}'|sort |uniq > tip_reads.ids
+cat ../{input.ont_paths} | {PYTHON} {VERKKO}/scripts/filter_alignments_by_node.py tips.ids | cut -f 1 | sort |uniq > tip_reads.ids
 
 for fn in {params.ext_files} ; do
   echo >> tip_reads.extract extract \\$fn tip_reads.ids ../3-align/split/\\$fn

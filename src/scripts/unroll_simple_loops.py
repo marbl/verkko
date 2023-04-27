@@ -7,6 +7,12 @@ graph_file = sys.argv[1]
 cov_file = sys.argv[2]
 # graph to stdout
 
+def canontip(left, right):
+	fwstr = left + right
+	bwstr = right + left
+	if bwstr < fwstr: return (right, left)
+	return (left, right)
+
 def revnode(n):
 	assert len(n) >= 2
 	assert n[0] == ">" or n[0] == "<"
@@ -17,6 +23,7 @@ coverage = {}
 long_coverage_len_sum = 0.0
 long_coverage_cov_sum = 0.0
 edge_overlaps = {}
+edges = {}
 
 with open(cov_file) as f:
 	for l in f:
@@ -31,17 +38,21 @@ with open(cov_file) as f:
 with open(graph_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
+		if parts[0] == 'S':
+			nodelens[parts[1]] = len(parts[2])
 		if parts[0] == 'L':
 			fromnode = (">" if parts[2] == "+" else "<") + parts[1]
 			tonode = ("<" if parts[4] == "+" else ">") + parts[3]
 			if fromnode not in edge_overlaps:
 				edge_overlaps[fromnode] = set() 
 			edge_overlaps[fromnode].add(tonode)
+			edges[canontip(fromnode, tonode)] = int(parts[5][:-1])
 
 avg_coverage = long_coverage_cov_sum / long_coverage_len_sum
 
 tounroll = set()
 copy2edges = set()
+removed = set()
 with open(graph_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
@@ -50,14 +61,21 @@ with open(graph_file) as f:
 			if len(edge_overlaps[">" + parts[1]]) > 1 or len(edge_overlaps["<" + parts[1]]) > 1: continue
 			tonodeFwd = next(iter(edge_overlaps[">" + parts[1]]))
 			tonodeRev = next(iter(edge_overlaps["<" + parts[1]]))
+			#sys.stderr.write("Found neighbors %s and %s and selected %s and %s with set %s\n"%(edge_overlaps[">" + parts[1]], edge_overlaps[">" + parts[1]], tonodeFwd, tonodeRev, set([tonodeFwd[:1], tonodeRev[:1]])))
 			if tonodeFwd[1:] == parts[1] or tonodeFwd[1:] != tonodeRev[1:] or len(set([tonodeFwd[:1], tonodeRev[:1]])) < 2: continue
-			#sys.stderr.write("Checking loop at %s with node %s with coverage of %s and %s and theshold 1.5 is %s and 2.5 is %s\n"%(tonodeFwd, parts[1], (coverage[parts[1]] if parts[1] in coverage else "NA"), (coverage[tonodeFwd[1:]] if tonodeFwd[1:] in coverage else"NA"), 1.5*avg_coverage, 2.5*avg_coverage)) 
-			if parts[1] not in coverage or tonodeFwd[1:] not in coverage or coverage[parts[1]] > 1.5 * avg_coverage or coverage[tonodeFwd[1:]] <= 0.5 * avg_coverage or coverage[tonodeFwd[1:]] >= 2.5 * avg_coverage: continue
+			#sys.stderr.write("Checking loop at %s with node %s with coverage of %s and %s and theshold 0.5 is %s and 2.5 is %s\n"%(tonodeFwd, parts[1], (coverage[parts[1]] if parts[1] in coverage else "NA"), (coverage[tonodeFwd[1:]] if tonodeFwd[1:] in coverage else"NA"), 0.5*avg_coverage, 2.5*avg_coverage)) 
+			if parts[1] not in coverage or tonodeFwd[1:] not in coverage or coverage[parts[1]] > 1.5 * avg_coverage or coverage[tonodeFwd[1:]] <= 0.5 * avg_coverage or coverage[tonodeFwd[1:]] >= 2.5 * avg_coverage:
+				# if the loop has no coverage and is contained within its overlap and the doubly traversed node has single copy coverage has single copy count, we remove the loop by removing a node not unrolling
+				if parts[1] not in coverage and tonodeFwd[1:] in coverage and coverage[tonodeFwd[1:]] <= 1.5 * avg_coverage and nodelens[parts[1]] - edges[canontip(">"+parts[1], tonodeFwd)] < 10:
+					removed.add(parts[1])
+					continue
+				else:
+ 					continue
 			neighbors = edge_overlaps[">" + tonodeFwd[1:]].union(edge_overlaps["<" + tonodeFwd[1:]])
 			neighbors.remove(">" + parts[1])
 			neighbors.remove("<" + parts[1])
 			skip=False
-			# check if the neighbors are acceptable, if the coverage is too high (we use 2 in case of nested loop which we can resolve in the next round) or if the nodes are very short, don't resolve
+			# check if the neighbors are acceptable, if the coverage is too high (we use 2 in case of nested loop) or if the nodes are very short, don't resolve
 			if len(neighbors) <= 2:
 				for n in neighbors:
 					#sys.stderr.write("Checking neighbors for node %s which is %s and it has coverage %s and length %s vs min %s\n"%(parts[1], n[1:], coverage[n[1:]], nodelens[n[1:]], min_len))
@@ -90,9 +108,13 @@ with open(graph_file) as f:
 			if parts[1] in tounroll:
 				print(parts[0] + "\t" + parts[1] + "_copy1" + "\t" + "\t".join(parts[2:]))
 				print(parts[0] + "\t" + parts[1] + "_copy2" + "\t" + "\t".join(parts[2:]))
+			elif parts[1] in removed:
+				continue
 			else:
 				print(l.strip())
 		if parts[0] == 'L':
+			if parts[1] in removed or parts[3] in removed: continue
+
 			fromnode = (">" if parts[2] == "+" else "<") + parts[1]
 			tonode = ("<" if parts[4] == "+" else ">") + parts[3]
 			if (fromnode in copy2edges and parts[3] in tounroll) or (tonode in copy2edges and parts[3] in tounroll):
