@@ -117,9 +117,9 @@ with open(graph_file) as f:
 
 			fromnode = (">" if parts[2] == "+" else "<") + parts[1]
 			tonode = ("<" if parts[4] == "+" else ">") + parts[3]
-			if (fromnode in copy2edges and parts[3] in tounroll) or (tonode in copy2edges and parts[3] in tounroll):
+			if (fromnode in copy2edges and parts[3] in tounroll):
 				print("\t".join(parts[0:4]) + "_copy2" + "\t" + "\t".join(parts[4:]))
-			elif (tonode in copy2edges and parts[1] in tounroll) or (fromnode in copy2edges and parts[1] in tounroll):
+			elif (tonode in copy2edges and parts[1] in tounroll):
 				print("\t".join(parts[0:2]) + "_copy2" + "\t" + "\t".join(parts[2:]))
 			elif parts[1] in tounroll:
 				print("\t".join(parts[0:2]) + "_copy1" + "\t" + "\t".join(parts[2:]))
