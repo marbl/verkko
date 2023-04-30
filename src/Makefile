@@ -793,6 +793,7 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/Snakefiles/7-combineConsensus.sm \
      ../lib/verkko/Snakefiles/7-extractONT.sm \
      ../lib/verkko/Snakefiles/7-generateConsensus.sm \
+     ../lib/verkko/Snakefiles/8-hicPipeline.sm \
      ../lib/verkko/Snakefiles/c1-buildStore.sm \
      ../lib/verkko/Snakefiles/c2-countKmers.sm \
      ../lib/verkko/Snakefiles/c3-computeOverlaps.sm \
