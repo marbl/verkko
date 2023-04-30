@@ -1,0 +1,195 @@
+#############################################################################
+ #
+ #  This file is part of Verkko, a software program that assembles
+ #  whole-genome sequencing reads into telomere-to-telomere
+ #  haplotype-resolved chromosomes.
+ #
+ #  Except as indicated otherwise, this is a 'United States Government
+ #  Work', and is released in the public domain.
+ #
+ #  File 'README.licenses' in the root directory of this distribution
+ #  contains full conditions and disclaimers.
+ #
+ ##
+
+
+HIFI_READS = config.get('HIFI_READS')
+ONT_READS  = config.get('ONT_READS')
+HIC_READS1  = config.get('HIC_READS1')
+HIC_READS2  = config.get('HIC_READS2')
+
+
+#runtime opt string like slurm or mem limits
+VERKKO_OPTS = config.get('VERKKO_OPTS')
+if VERKKO_OPTS == "None":
+    VERKKO_OPTS = ""
+
+PREVIOUS_VERKKO_RUN = config.get('PREVIOUS_VERKKO_RUN')
+VERKKO = config.get('VERKKO')
+PSTOOLS = config.get('PSTOOLS')
+
+#TODO remove after merging in verkko
+HICVERKKO = config.get('HICVERKKO')
+
+#TODO slurm option verkko from config?
+
+rule all:
+    input:
+        '8-hicPipeline/final_consensus/assembly.fasta'
+
+        
+rule copyFiles:
+    input:
+        unitig_scfmap = '6-layoutContigs/unitig-popped.layout.scfmap',
+        unitig_assembly = '7-consensus/unitig-popped.fasta',
+        unitig_graph = '5-untip/unitig-popped-unitig-normal-connected-tip.gfa',
+        hifi5cov    = '5-untip/unitig-popped-unitig-normal-connected-tip.hifi-coverage.csv'
+    output:
+        rename_map = '8-hicPipeline/contigs_rename.map',
+        unitig_fasta = '8-hicPipeline/unitigs.fasta',
+        unitig_hpc = '8-hicPipeline/unitigs.hpc.fasta' ,
+        unitig_graph = '8-hicPipeline/unitigs.hpc.noseq.gfa'
+    shell:
+        '''
+cat {input.unitig_scfmap} | awk '{{if (match($1, "path")) print $2"\\t"$3}}' > {output.rename_map}
+{PYTHON} {VERKKO}/scripts/process_reads.py rename {output.unitig_fasta}  {output.rename_map} {input.unitig_assembly}
+
+awk '/^S/{{print ">"$2"\\n"$3}}' {input.unitig_graph} | fold > {output.unitig_hpc}
+#cp {input.unitig_graph} {output.unitig_graph}
+   awk < {input.unitig_graph} \\
+     'BEGIN \\
+      {{ \\
+        FS="[ \\t]+"; OFS="\\t"; \\
+      }} \\
+      {{ \\
+        if ($1 == "S") {{ \\
+          print "S", $2, "*", "LN:i:"length($3); \\
+        }} else {{ \\
+          print $0; \\
+        }} \\
+      }}' \\
+   | \\
+   {PYTHON} {VERKKO}/scripts/inject_coverage.py --allow-absent \\
+     {input.hifi5cov} \\
+   > {output.unitig_graph}\\
+        '''
+       
+rule runMashMap:
+    input:
+        unitigs_hpc = '8-hicPipeline/unitigs.hpc.fasta'
+    output:
+        unitigs_matches = '8-hicPipeline/unitigs.matches'
+    threads:
+        16
+    shell:
+        '''
+echo "---Running mashmap"
+mashmap -r {input.unitigs_hpc} -q {input.unitigs_hpc} -t {threads} -f none --pi 95 -s 10000 -o mashmap.out
+cat mashmap.out |awk '{{if ($NF > 99 && $4-$3 > 500000 && $1 != $6) print $1"\\t"$6}}'|sort |uniq > {output.unitigs_matches}
+        '''
+
+
+rule alignBWA:
+    input:
+        unitigs = '8-hicPipeline/unitigs.fasta'
+    output:
+        bwa_mapping = '8-hicPipeline/hic_to_assembly.sorted_by_read.bam'
+    threads:
+#as much as allowed
+        100
+    shell:
+        '''
+echo "---Mapping {HIC_READS1} and {HIC_READS2} to {input.unitigs} with BWA"
+bwa index {input.unitigs} && bwa mem -t {threads} -5 -S -P {input.unitigs} <(cat $HIC_READS1) <(cat $HIC_READS2) | samtools view -bh -@ {threads} -q 1 - | samtools sort -n -@ {threads} - -o {output.bwa_mapping} 
+
+        '''
+rule transformBWA:
+    input:
+        bwa_mapping = '8-hicPipeline/hic_to_assembly.sorted_by_read.bam'
+    output:
+        byread_mapping = '8-hicPipeline/hic_mapping.byread.output'
+    shell:
+        '''
+samtools view -F 0x800 -q 1 {input.bwa_mapping} | {PYTHON} {VERKKO}/scripts/parse_sam_pairs.py  > {output.byread_mapping}
+        '''
+
+rule hicPhasing:
+    input:
+        mashmap_matches = '8-hicPipeline/unitigs.matches',
+        hicmapping_byread = '8-hicPipeline/hic_mapping.byread.output',
+        graph='8-hicPipeline/unitigs.hpc.noseq.gfa'
+    output:
+        hic_compressed = '8-hicPipeline/hic.byread.compressed',
+        hic_binned_unitigs = '8-hicPipeline/hicverkko.colors.tsv'
+    shell: '{PYTHON} {VERKKO}/scripts/hicverkko.py 8-hicPipeline'
+#TODO check!
+
+        
+rule runRukkiHIC:
+    input:
+        graph = '8-hicPipeline/unitigs.hpc.noseq.gfa',
+        binning = '8-hicPipeline/hicverkko.colors.tsv'
+    output:
+        tsv_path = '8-hicPipeline/rukki.paths.tsv',
+        gaf_path = '8-hicPipeline/rukki.paths.gaf'
+    shell:
+#params taken from 6-rukki.sm
+        '''
+
+echo "---Running rukki on the resulting clustering"
+params=" --init-assign 8-hicPipeline/out_init_ann.csv --refined-assign 8-hicPipeline/out_refined_ann.csv --final-assign 8-hicPipeline/out_final_ann.csv"
+params="$params --marker-sparsity 5000"
+params="$params --issue-sparsity 1000"
+params="$params --try-fill-bubbles"
+params="$params --fillable-bubble-diff 1000"
+params="$params --fillable-bubble-len 500000"
+params="$params --assign-tangles --tangle-allow-deadend"
+params="$params --issue-ratio 1."
+params="$params --solid-homozygous-cov-coeff 1.1"
+params="$params --solid-ratio 1.5"
+params="$params --hap-names haplotype1,haplotype2"
+
+{VERKKO}/bin/rukki trio -g {input.graph} -m {input.binning}              -p {output.tsv_path} $params
+{VERKKO}/bin/rukki trio -g {input.graph} -m {input.binning} --gaf-format -p {output.gaf_path} $params
+        '''
+
+rule cnspathafterhic:
+    input:
+        layout      = '8-hicPipeline/final_contigs/6-layoutContigs/unitig-popped.layout',
+        scfmap      = '8-hicPipeline/final_contigs/6-layoutContigs/unitig-popped.layout.scfmap',
+        consensus   = '8-hicPipeline/final_contigs/7-consensus/unitig-popped.fasta',
+    output: 
+        layout      = '8-hicPipeline/final_contigs/assembly.homopolymer-compressed.layout',
+        consensus   = '8-hicPipeline/final_contigs/assembly.fasta',
+        cnshap1   = rules.verkko.input.cnshap1,
+        cnshap2   = rules.verkko.input.cnshap2,
+        cnsunas   = rules.verkko.input.cnsunas
+    shell:
+        '''
+cp -p {input.layout}    {output.layout}
+cp -p {input.consensus} {output.consensus}
+        '''
+
+
+
+
+rule getFinalContigs:
+    input:
+        rukki_paths = '8-hicPipeline/rukki.paths.gaf'
+    output:
+        fin = '8-hicPipeline/phased',
+        cns       = rules.verkko.input.cns,
+        cnshap1   = rules.verkko.input.cnshap1,
+        cnshap2   = rules.verkko.input.cnshap2,
+        cnsunas   = rules.verkko.input.cnsunas
+    threads:
+        100   
+#no need for vekkoopts here
+    shell:
+        '''
+sh {VERKKO}/../../bin/verkko   --threads {threads} --paths {input.rukki_paths} --assembly /gpfs/gsfs11/users/antipovd2/res/ecoli_pipeline1/  -d 8-hicPipeline/final_contigs --hifi {HIFI_READS} --nano {ONT_READS}
+ls 8-hicPipeline/final_contigs ; ls 8-hicPipeline/final_contigs/7-consensus/ ; 
+#touch {output.fin}
+
+        '''
+#TODO: check whether --assembly works    

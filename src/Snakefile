@@ -44,6 +44,8 @@ PERL   = config.get('PERL', '')
 #
 HIFI_READS = config.get('HIFI_READS')
 ONT_READS  = config.get('ONT_READS')
+HIC_READS1  = config.get('HIC_READS1')
+HIC_READS2  = config.get('HIC_READS2')
 
 
 ##########
@@ -220,3 +222,5 @@ include: 'Snakefiles/7-extractONT.sm'
 include: 'Snakefiles/7-buildPackage.sm'
 include: 'Snakefiles/7-generateConsensus.sm'
 include: 'Snakefiles/7-combineConsensus.sm'
+if config['withHIC'] == "True":
+    include: 'Snakefiles/8-hicPipeline.sm'
