@@ -12,9 +12,14 @@ creates contig consensus sequences using Canu's consensus module.
 
 ## Install:
 
-* Do NOT download the .zip source code.  It is missing files and will not compile.  This is a [known flaw](https://github.com/dear-github/dear-github/issues/214) with git itself. Compilation from source requires GCC 7 or newer and Rust 1.58 or newer.
+* Compilation from source requires [GCC 9](https://gcc.gnu.org/) or newer and [Rust 1.66.1](https://www.rust-lang.org/) or newer.  (Do NOT download the .zip source code.  It is missing files and will not compile.  This is a [known flaw](https://github.com/dear-github/dear-github/issues/214) with git itself.)
 
-* Running verkko requires both [MBG](https://github.com/maickrau/MBG) and [GraphAligner](https://github.com/maickrau/GraphAligner) to be installed. Verkko also requires [Snakemake](https://snakemake.readthedocs.io/en/stable/) (v7.0+) and a recent [Python](https://www.python.org) (v3.5+). 
+* Running verkko requires:
+  * [Python](https://www.python.org) (v3.5+) 
+  * [Snakemake](https://snakemake.readthedocs.io/en/stable/) (v7.0+)
+  * [MBG](https://github.com/maickrau/MBG)
+  * [GraphAligner](https://github.com/maickrau/GraphAligner)
+  * [MashMap](https://github.com/marbl/MashMap)
 
 Installing with a 'package manager' is encouraged:
   * `conda install -c conda-forge -c bioconda -c defaults verkko`
