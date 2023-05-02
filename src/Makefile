@@ -829,6 +829,18 @@ clean:
 	rm  -f gfa meryl overlapErrorAdjustment overlapInCore seqrequester stores utgcns utility
 	find build -type d -print | sort -r | xargs -n 100 rmdir
 
+deinstall:
+	rm  -f ../bin/verkko
+	rm  -f ../lib/verkko/Snakefile
+	rm -rf ../lib/verkko/Snakefiles
+	rm -rf ../lib/verkko/bin
+	rm -rf ../lib/verkko/data
+	rm -rf ../lib/verkko/profiles
+	rm -rf ../lib/verkko/scripts
+	rmdir ../bin
+	rmdir ../lib/verkko
+	rmdir ../lib
+
 # Include generated rules that define additional (header) dependencies.
 $(foreach TGT,${ALL_TGTS},\
   $(eval -include ${${TGT}_DEPS}))
