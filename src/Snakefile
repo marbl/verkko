@@ -222,5 +222,4 @@ include: 'Snakefiles/7-extractONT.sm'
 include: 'Snakefiles/7-buildPackage.sm'
 include: 'Snakefiles/7-generateConsensus.sm'
 include: 'Snakefiles/7-combineConsensus.sm'
-if config['withHIC'] == "True":
-    include: 'Snakefiles/8-hicPipeline.sm'
+include: 'Snakefiles/8-hicPipeline.sm'

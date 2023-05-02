@@ -899,7 +899,7 @@ echo >> ${outd}/verkko.yml "#  This is the end."
 
 target="verkko"
 
-if [ "x$withhic" != "x" ] ; then
+if [ "x$withhic" = "xTrue" ] ; then
     target="runRukkiHIC"
 fi
 
@@ -1002,9 +1002,14 @@ cd ${outd}
 
 
 #Failed to do it with snakemake
-if [ "x$withhic" != "x" ] ; then
+if [ "x$withhic" = "xTrue" ] ; then
+    if [ ! -e "8-hicPipeline/rukki.paths.gaf" ]; then
+        echo "ERROR!"
+        echo "Not running final consensus since no rukki paths provided!"
+        exit 
+    fi
     newoutd=8-hicPipeline/final_contigs/
-    mkdir $newoutd
+    mkdir -p $newoutd
     cp verkko.yml $newoutd
     cp snakemake.sh $newoutd
     if [ ! -e "${newoutd}/5-untip" ]; then

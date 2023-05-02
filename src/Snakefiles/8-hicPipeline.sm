@@ -19,23 +19,7 @@ HIC_READS1  = config.get('HIC_READS1')
 HIC_READS2  = config.get('HIC_READS2')
 
 
-#runtime opt string like slurm or mem limits
-VERKKO_OPTS = config.get('VERKKO_OPTS')
-if VERKKO_OPTS == "None":
-    VERKKO_OPTS = ""
-
-PREVIOUS_VERKKO_RUN = config.get('PREVIOUS_VERKKO_RUN')
 VERKKO = config.get('VERKKO')
-PSTOOLS = config.get('PSTOOLS')
-
-#TODO remove after merging in verkko
-HICVERKKO = config.get('HICVERKKO')
-
-#TODO slurm option verkko from config?
-
-rule all:
-    input:
-        '8-hicPipeline/final_consensus/assembly.fasta'
 
         
 rule copyFiles:
@@ -44,6 +28,8 @@ rule copyFiles:
         unitig_assembly = '7-consensus/unitig-popped.fasta',
         unitig_graph = '5-untip/unitig-popped-unitig-normal-connected-tip.gfa',
         hifi5cov    = '5-untip/unitig-popped-unitig-normal-connected-tip.hifi-coverage.csv'
+    log:
+        err    = '8-hicPipeline/prepare_hic.err'
     output:
         rename_map = '8-hicPipeline/contigs_rename.map',
         unitig_fasta = '8-hicPipeline/unitigs.fasta',
@@ -51,27 +37,35 @@ rule copyFiles:
         unitig_graph = '8-hicPipeline/unitigs.hpc.noseq.gfa'
     shell:
         '''
-cat {input.unitig_scfmap} | awk '{{if (match($1, "path")) print $2"\\t"$3}}' > {output.rename_map}
-{PYTHON} {VERKKO}/scripts/process_reads.py rename {output.unitig_fasta}  {output.rename_map} {input.unitig_assembly}
+cd 8-hicPipeline
+cat > ./prepare_hic.sh <<EOF
+#!/bin/sh
+set -e
+cat ../{input.unitig_scfmap} | awk '{{if (match(\$1, "path")) print \$2"\\t"\$3}}' > ../{output.rename_map}
+{PYTHON} {VERKKO}/scripts/process_reads.py rename ../{output.unitig_fasta}  ../{output.rename_map} ../{input.unitig_assembly}
 
-awk '/^S/{{print ">"$2"\\n"$3}}' {input.unitig_graph} | fold > {output.unitig_hpc}
-#cp {input.unitig_graph} {output.unitig_graph}
-   awk < {input.unitig_graph} \\
-     'BEGIN \\
-      {{ \\
-        FS="[ \\t]+"; OFS="\\t"; \\
-      }} \\
-      {{ \\
-        if ($1 == "S") {{ \\
-          print "S", $2, "*", "LN:i:"length($3); \\
-        }} else {{ \\
-          print $0; \\
-        }} \\
-      }}' \\
-   | \\
-   {PYTHON} {VERKKO}/scripts/inject_coverage.py --allow-absent \\
-     {input.hifi5cov} \\
-   > {output.unitig_graph}\\
+awk '/^S/{{print ">"\$2"\\n"\$3}}' ../{input.unitig_graph} | fold > ../{output.unitig_hpc}
+awk < ../{input.unitig_graph} \\\\
+  'BEGIN \\\\
+   {{ \\\\
+     FS="[ \\t]+"; OFS="\\t"; \\\\
+   }} \\\\
+   {{ \\\\
+     if (\$1 == "S") {{ \\\\
+       print "S", \$2, "*", "LN:i:"length(\$3); \\\\
+     }} else {{ \\\\
+       print \$0; \\\\
+     }} \\\\
+   }}' \\\\
+| \\\\
+{PYTHON} {VERKKO}/scripts/inject_coverage.py --allow-absent \\\\
+  ../{input.hifi5cov} \\\\
+> ../{output.unitig_graph}
+EOF
+
+chmod +x ./prepare_hic.sh
+
+./prepare_hic.sh > ../{log.err} 2>&1
         '''
        
 rule runMashMap:
@@ -79,13 +73,25 @@ rule runMashMap:
         unitigs_hpc = '8-hicPipeline/unitigs.hpc.fasta'
     output:
         unitigs_matches = '8-hicPipeline/unitigs.matches'
+    log:
+        err    = '8-hicPipeline/run_mashmap.err'
     threads:
         16
     shell:
         '''
+cd 8-hicPipeline
+
+cat > ./run_mashmap.sh <<EOF
+#!/bin/sh
+set -e
 echo "---Running mashmap"
-mashmap -r {input.unitigs_hpc} -q {input.unitigs_hpc} -t {threads} -f none --pi 95 -s 10000 -o mashmap.out
-cat mashmap.out |awk '{{if ($NF > 99 && $4-$3 > 500000 && $1 != $6) print $1"\\t"$6}}'|sort |uniq > {output.unitigs_matches}
+mashmap -r ../{input.unitigs_hpc} -q ../{input.unitigs_hpc} -t {threads} -f none --pi 95 -s 10000 -o mashmap.out
+cat mashmap.out |awk '{{if (\$NF > 99 && \$4-\$3 > 500000 && \$1 != \$6) print \$1"\\t"\$6}}'|sort |uniq > ../{output.unitigs_matches}
+EOF
+
+chmod +x ./run_mashmap.sh
+
+./run_mashmap.sh > ../{log.err} 2>&1
         '''
 
 
@@ -94,23 +100,50 @@ rule alignBWA:
         unitigs = '8-hicPipeline/unitigs.fasta'
     output:
         bwa_mapping = '8-hicPipeline/hic_to_assembly.sorted_by_read.bam'
+    log:
+        err    = '8-hicPipeline/align_bwa.err'
     threads:
 #as much as allowed
         100
     shell:
         '''
-echo "---Mapping {HIC_READS1} and {HIC_READS2} to {input.unitigs} with BWA"
-bwa index {input.unitigs} && bwa mem -t {threads} -5 -S -P {input.unitigs} <(cat $HIC_READS1) <(cat $HIC_READS2) | samtools view -bh -@ {threads} -q 1 - | samtools sort -n -@ {threads} - -o {output.bwa_mapping} 
+cd 8-hicPipeline
 
+cat > ./align_bwa.sh <<EOF
+#!/bin/sh
+set -e
+echo "---Mapping {HIC_READS1} and {HIC_READS2} to {input.unitigs} with BWA"
+mkfifo pipe1 pipe2
+bwa index ../{input.unitigs} 
+cat {HIC_READS1} > pipe1 & cat {HIC_READS2} > pipe2 & bwa mem -t {threads} -5 -S -P ../{input.unitigs} pipe1 pipe2 | samtools view -bh -@ {threads} -q 1 - | samtools sort -n -@ {threads} - -o ../{output.bwa_mapping} 
+rm -f pipe1 pipe2
+EOF
+
+chmod +x ./align_bwa.sh
+
+./align_bwa.sh > ../{log.err} 2>&1 
         '''
+
 rule transformBWA:
     input:
         bwa_mapping = '8-hicPipeline/hic_to_assembly.sorted_by_read.bam'
     output:
         byread_mapping = '8-hicPipeline/hic_mapping.byread.output'
+    log:
+        err    = '8-hicPipeline/transform_bwa.err'
     shell:
         '''
-samtools view -F 0x800 -q 1 {input.bwa_mapping} | {PYTHON} {VERKKO}/scripts/parse_sam_pairs.py  > {output.byread_mapping}
+cd 8-hicPipeline
+
+cat > ./transform_bwa.sh <<EOF
+#!/bin/sh
+set -e
+samtools view -F 0x800 -q 1 ../{input.bwa_mapping} | {PYTHON} {VERKKO}/scripts/parse_sam_pairs.py  > ../{output.byread_mapping}
+EOF
+
+chmod +x ./transform_bwa.sh
+
+./transform_bwa.sh > ../{log.err} 2>&1
         '''
 
 rule hicPhasing:
@@ -121,9 +154,22 @@ rule hicPhasing:
     output:
         hic_compressed = '8-hicPipeline/hic.byread.compressed',
         hic_binned_unitigs = '8-hicPipeline/hicverkko.colors.tsv'
-    shell: '{PYTHON} {VERKKO}/scripts/hicverkko.py 8-hicPipeline'
-#TODO check!
+    log:
+        err    = '8-hicPipeline/hic_phasing.err'
+    shell: 
+        '''
+cd 8-hicPipeline
 
+cat > ./hic_phasing.sh <<EOF
+#!/bin/sh
+set -e
+{PYTHON} {VERKKO}/scripts/hicverkko.py .
+EOF
+
+chmod +x ./hic_phasing.sh
+
+./hic_phasing.sh > ../{log.err} 2>&1
+        '''
         
 rule runRukkiHIC:
     input:
@@ -132,64 +178,36 @@ rule runRukkiHIC:
     output:
         tsv_path = '8-hicPipeline/rukki.paths.tsv',
         gaf_path = '8-hicPipeline/rukki.paths.gaf'
+    log:                                                                                                                                                                                                                                                     
+        err    = '8-hicPipeline/rukki_hic.err'
     shell:
-#params taken from 6-rukki.sm
         '''
+cd 8-hicPipeline
 
+cat > ./rukki_hic.sh <<EOF                                                                                                                                                                                                                                 
+#!/bin/sh
+set -e
 echo "---Running rukki on the resulting clustering"
-params=" --init-assign 8-hicPipeline/out_init_ann.csv --refined-assign 8-hicPipeline/out_refined_ann.csv --final-assign 8-hicPipeline/out_final_ann.csv"
-params="$params --marker-sparsity 5000"
-params="$params --issue-sparsity 1000"
-params="$params --try-fill-bubbles"
-params="$params --fillable-bubble-diff 1000"
-params="$params --fillable-bubble-len 500000"
-params="$params --assign-tangles --tangle-allow-deadend"
-params="$params --issue-ratio 1."
-params="$params --solid-homozygous-cov-coeff 1.1"
-params="$params --solid-ratio 1.5"
-params="$params --hap-names haplotype1,haplotype2"
+params=" --init-assign out_init_ann.csv --refined-assign out_refined_ann.csv --final-assign out_final_ann.csv"
+params="\$params --marker-sparsity 5000"
+params="\$params --issue-sparsity 1000"
+params="\$params --try-fill-bubbles"
+params="\$params --fillable-bubble-diff 1000"
+params="\$params --fillable-bubble-len 500000"
+params="\$params --assign-tangles --tangle-allow-deadend"
+params="\$params --issue-ratio 1."
+params="\$params --solid-homozygous-cov-coeff 1.1"
+params="\$params --solid-ratio 1.5"
+params="\$params --hap-names haplotype1,haplotype2"
 
-{VERKKO}/bin/rukki trio -g {input.graph} -m {input.binning}              -p {output.tsv_path} $params
-{VERKKO}/bin/rukki trio -g {input.graph} -m {input.binning} --gaf-format -p {output.gaf_path} $params
-        '''
+{VERKKO}/bin/rukki trio -g ../{input.graph} -m ../{input.binning}              -p ../{output.tsv_path} \$params
+{VERKKO}/bin/rukki trio -g ../{input.graph} -m ../{input.binning} --gaf-format -p ../{output.gaf_path} \$params
+EOF
 
-rule cnspathafterhic:
-    input:
-        layout      = '8-hicPipeline/final_contigs/6-layoutContigs/unitig-popped.layout',
-        scfmap      = '8-hicPipeline/final_contigs/6-layoutContigs/unitig-popped.layout.scfmap',
-        consensus   = '8-hicPipeline/final_contigs/7-consensus/unitig-popped.fasta',
-    output: 
-        layout      = '8-hicPipeline/final_contigs/assembly.homopolymer-compressed.layout',
-        consensus   = '8-hicPipeline/final_contigs/assembly.fasta',
-        cnshap1   = rules.verkko.input.cnshap1,
-        cnshap2   = rules.verkko.input.cnshap2,
-        cnsunas   = rules.verkko.input.cnsunas
-    shell:
-        '''
-cp -p {input.layout}    {output.layout}
-cp -p {input.consensus} {output.consensus}
+chmod +x ./rukki_hic.sh
+
+./rukki_hic.sh > ../{log.err} 2>&1
         '''
 
 
 
-
-rule getFinalContigs:
-    input:
-        rukki_paths = '8-hicPipeline/rukki.paths.gaf'
-    output:
-        fin = '8-hicPipeline/phased',
-        cns       = rules.verkko.input.cns,
-        cnshap1   = rules.verkko.input.cnshap1,
-        cnshap2   = rules.verkko.input.cnshap2,
-        cnsunas   = rules.verkko.input.cnsunas
-    threads:
-        100   
-#no need for vekkoopts here
-    shell:
-        '''
-sh {VERKKO}/../../bin/verkko   --threads {threads} --paths {input.rukki_paths} --assembly /gpfs/gsfs11/users/antipovd2/res/ecoli_pipeline1/  -d 8-hicPipeline/final_contigs --hifi {HIFI_READS} --nano {ONT_READS}
-ls 8-hicPipeline/final_contigs ; ls 8-hicPipeline/final_contigs/7-consensus/ ; 
-#touch {output.fin}
-
-        '''
-#TODO: check whether --assembly works    

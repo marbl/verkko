@@ -772,6 +772,10 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/scripts/unroll_tip_loops.py \
      ../lib/verkko/scripts/untip_relative.py \
      ../lib/verkko/scripts/circularize_ctgs.py \
+     ../lib/verkko/scripts/cluster.py \
+     ../lib/verkko/scripts/graph_functions.py \
+     ../lib/verkko/scripts/hicverkko.py \
+     ../lib/verkko/scripts/parse_sam_pairs.py \
      \
      ../lib/verkko/Snakefile \
      ../lib/verkko/Snakefiles/1-buildGraph.sm \
