@@ -136,7 +136,9 @@ def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage):
 	for edge in bubble_edges:
 		if edge in kept_edges: continue
 		if (revnode(edge[1]), revnode(edge[0])) in kept_edges: continue
-		if edge[0][1:] in kept_nodes or edge[1][1:] in kept_nodes: continue
+		# if we have a bubble where there is a connection between the start and end and we decided to keep a node in between them, remove the edge skipping that node then
+		if set([start,end]) == kept_nodes or edge[0] != start or edge[1] != end:
+			if edge[0][1:] in kept_nodes or edge[1][1:] in kept_nodes: continue
 		removed_edges.add(edge)
 		if edge[0] in edges:
 			if edge[1] in edges[edge[0]]:
