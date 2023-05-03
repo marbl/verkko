@@ -4,12 +4,20 @@ import sys
 
 graph_file = sys.argv[1]
 edge_trim = 0
+ignore_file = ""
 if len(sys.argv) >= 3: edge_trim = int(sys.argv[2])
+if len(sys.argv) >= 4: ignore_file = sys.argv[3] 
 # gaf from stdin
 # gaf to stdout
 
 def revnode(n):
 	return (">" if n[0] == "<" else "<") + n[1:]
+
+ignore_reads = set()
+if ignore_file != "":
+	with open(ignore_file) as f:
+		for l in f:
+			ignore_reads.add(l.strip().split('\t')[0])
 
 edge_overlaps = {}
 node_lens = {}
@@ -26,6 +34,7 @@ with open(graph_file) as f:
 
 for l in sys.stdin:
 	parts = l.strip().split('\t')
+	if parts[0] in ignore_reads: continue
 	path = parts[5].replace("<", "\t<").replace(">", "\t>").strip().split("\t")
 	assert len(path) >= 1
 	while len(path) >= 2 and int(parts[7]) >= node_lens[path[0][1:]] - edge_overlaps[(path[0], path[1])]:
