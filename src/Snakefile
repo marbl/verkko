@@ -62,21 +62,22 @@ rule emptyfile:
 
 rule verkko:
     input:
-        graph       = '5-untip/unitig-popped-unitig-normal-connected-tip.gfa',
-        nseqgraph   = '6-rukki/unitig-popped-unitig-normal-connected-tip.noseq.gfa'         if config['ruk_enable'] == "True" else {rules.emptyfile.output},
+        graph       = '5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.gfa',
+        nseqgraph   = '6-rukki/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.noseq.gfa'  if config['ruk_enable'] == "True" else {rules.emptyfile.output},
         layout      = '6-layoutContigs/unitig-popped.layout',
         scfmap      = '6-layoutContigs/unitig-popped.layout.scfmap',
         cns         = '7-consensus/unitig-popped.fasta',
         cnshap1     = '7-consensus/unitig-popped.haplotype1.fasta',
         cnshap2     = '7-consensus/unitig-popped.haplotype2.fasta',
         cnsunas     = '7-consensus/unitig-popped.unassigned.fasta',
-        pathstsv    = '6-rukki/unitig-popped-unitig-normal-connected-tip.paths.tsv'         if config['ruk_enable'] == "True" else {rules.emptyfile.output},
+        pathstsv    = '6-rukki/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.paths.tsv'   if config['ruk_enable'] == "True" else {rules.emptyfile.output},
+        colorscsv   = '6-rukki/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.colors.csv'  if config['ruk_enable'] == "True" else {rules.emptyfile.output},
         hifi2cov    = '2-processGraph/unitig-unrolled-hifi-resolved.hifi-coverage.csv',
         ont2cov     = '2-processGraph/unitig-unrolled-hifi-resolved.ont-coverage.csv'       if config['withONT'] == "True" else {rules.emptyfile.output},
         hifi4cov    = '4-processONT/unitig-unrolled-ont-resolved.hifi-coverage.csv'         if config['withONT'] == "True" else {rules.emptyfile.output},
         ont4cov     = '4-processONT/unitig-unrolled-ont-resolved.ont-coverage.csv'          if config['withONT'] == "True" else {rules.emptyfile.output},
-        hifi5cov    = '5-untip/unitig-popped-unitig-normal-connected-tip.hifi-coverage.csv',
-        ont5cov     = '5-untip/unitig-popped-unitig-normal-connected-tip.ont-coverage.csv'  if config['withONT'] == "True" else {rules.emptyfile.output},
+        hifi5cov    = '5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.hifi-coverage.csv',
+        ont5cov     = '5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.ont-coverage.csv'  if config['withONT'] == "True" else {rules.emptyfile.output},
     output:
         graph       = 'assembly.homopolymer-compressed.gfa',
         nseqgraph   = 'assembly.homopolymer-compressed.noseq.gfa',
@@ -90,7 +91,8 @@ rule verkko:
         cnshap1     = 'assembly.haplotype1.fasta',    #  Actually, these are optional outputs.
         cnshap2     = 'assembly.haplotype2.fasta',
         cnsunas     = 'assembly.unassigned.fasta',
-        pathstsv    = 'assembly.paths.tsv'
+        pathstsv    = 'assembly.paths.tsv',
+	colorscsv   = 'assembly.colors.csv'
     shell:
         '''
 #  Copy the rukki results to the output directory if they exist, remove them
@@ -104,6 +106,7 @@ if [ -s {input.nseqgraph} ]; then
    cp -p {input.cnshap2}   {params.cnshap2}
    cp -p {input.cnsunas}   {params.cnsunas}
    cp -p {input.pathstsv}  {params.pathstsv}
+   cp -p {input.colorscsv} {params.colorscsv}
 
    if [ ! -s {params.cnshap1} -a ! -s {params.cnshap2} ]; then
       rm -f {params.cnshap1}
