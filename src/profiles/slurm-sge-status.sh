@@ -32,7 +32,7 @@ if [ "x$slurm" != "x" ] ; then
     sleep 2
     sacct="/usr/local/bin/dashboard_cli jobs --fields state"
   else
-    sacct="sacct --format State"
+    sacct="sacct --allclusters --format State"
   fi
 
   jobstatus=$($sacct -j "$jobid" --noheader)
