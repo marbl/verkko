@@ -25,8 +25,8 @@ for l in sys.stdin:
 		aln_nodes=set(parts[filter_offset].replace(">", ",").replace("<", ",")[1:].split(","))
 	else:
 		aln_nodes=set(parts[filter_offset].split(","))
-	
+
 	if invert == False and nodes.isdisjoint(aln_nodes) == False:
-		print(l.strip()) 
+		print(l.strip())
 	elif invert == True and nodes.isdisjoint(aln_nodes) == True:
 		print(l.strip())

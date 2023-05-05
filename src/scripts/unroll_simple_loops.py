@@ -44,7 +44,7 @@ with open(graph_file) as f:
 			fromnode = (">" if parts[2] == "+" else "<") + parts[1]
 			tonode = ("<" if parts[4] == "+" else ">") + parts[3]
 			if fromnode not in edge_overlaps:
-				edge_overlaps[fromnode] = set() 
+				edge_overlaps[fromnode] = set()
 			edge_overlaps[fromnode].add(tonode)
 			edges[canontip(fromnode, tonode)] = int(parts[5][:-1])
 
