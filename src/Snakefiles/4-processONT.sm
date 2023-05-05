@@ -86,8 +86,12 @@ zcat tip_reads.fasta.gz  |awk -v SEQ="" '{{ if (match(\$1, ">") && \$1 != NAME) 
 echo Step 1a
 # select best alignment from winnowmap and graphaligner
 # we first trim up to 5kb from the graphaligner hits (to avoid extending past haplotype end point) then compare these alignments to winnowmap
-cat ../{input.ont_paths} |  {PYTHON} {VERKKO}/scripts/maybe_trim_alignment.py ../{input.graph} {params.min_aln_len} > alns-trimmed.gaf
-{PYTHON} {VERKKO}/scripts/select_best_alignment.py tips.gaf alns-trimmed.gaf ../{input.ont_paths} 20 {params.min_aln_len} > alns-ont-mapqfilter.gaf 2> selected-winnowmap.ids
+trim_len=\`expr 2 \*  {params.min_aln_len}\`
+echo \$trim_len
+cat ../{input.ont_paths} | {PYTHON} {VERKKO}/scripts/maybe_trim_alignment.py ../{input.graph} \$trim_len > alns-trimmed.gaf
+cat ../{input.ont_paths} | awk -F "\\t" '{{if (\$4-\$3 >= \$2*0.8 && \$12 >= 20) print;}}' |  {PYTHON} {VERKKO}/scripts/trim_dbg_alignment.py ../2-processGraph/unitig-unrolled-hifi-resolved.gfa 1500 |cut -f 6 > previous_paths
+
+{PYTHON} {VERKKO}/scripts/select_best_alignment.py previous_paths tips.gaf alns-trimmed.gaf ../{input.ont_paths} 20 {params.min_aln_len} > alns-ont-mapqfilter.gaf 2> selected-winnowmap.ids
 {PYTHON} {VERKKO}/scripts/chop_misassemblies.py ../{input.graph} alns-ont-mapqfilter.gaf chop-mapping.txt alns-cut.gaf 10 20 > chopped-unitig-unrolled-hifi-resolved.gfa 2> chop-info.txt
 
 echo ""
