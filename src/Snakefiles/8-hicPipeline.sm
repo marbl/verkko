@@ -30,6 +30,13 @@ rule copyFiles:
         hifi5cov    = '5-untip/unitig-popped-unitig-normal-connected-tip.hifi-coverage.csv'
     log:
         err    = '8-hicPipeline/prepare_hic.err'
+    threads:
+        int(config['fhc_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = int(config['fhc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
     output:
         rename_map = '8-hicPipeline/contigs_rename.map',
         unitig_fasta = '8-hicPipeline/unitigs.fasta',
@@ -76,7 +83,12 @@ rule runMashMap:
     log:
         err    = '8-hicPipeline/run_mashmap.err'
     threads:
-        16
+        int(config['fhc_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = int(config['fhc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
     shell:
         '''
 cd 8-hicPipeline
@@ -95,33 +107,161 @@ chmod +x ./run_mashmap.sh
         '''
 
 
-rule alignBWA:
+
+
+#a lot of code duplication with 3-alignONT stages
+def splitHICoutputs(wildcards):
+#here we need only wildcards, right?
+    return glob_wildcards("8-hicPipeline/split/hic1{xxxx}.fasta.gz").xxxx
+
+# there is no use of base quality in bwa, so it's OK to use fasta_partition.py
+
+checkpoint splitHIC:
     input:
-        unitigs = '8-hicPipeline/unitigs.fasta'
+        hic1           = HIC_READS1,
+        hic2           = HIC_READS2 
     output:
-        bwa_mapping = '8-hicPipeline/hic_to_assembly.sorted_by_read.bam'
+        split_finished = '8-hicPipeline/splitHIC.finished'
     log:
-        err    = '8-hicPipeline/align_bwa.err'
+        err            = '8-hicPipeline/splitHIC.err'
+    params:
+        bases          = config['shc_bases'],
+        reads          = config['shc_reads'],
+        length         = config['shc_min_length']
     threads:
-#as much as allowed
-        100
+        int(config['fhc_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = int(config['fhc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
     shell:
         '''
 cd 8-hicPipeline
 
-cat > ./align_bwa.sh <<EOF
+cat > ./splitHIC.sh <<EOF
 #!/bin/sh
 set -e
-echo "---Mapping {HIC_READS1} and {HIC_READS2} to {input.unitigs} with BWA"
-mkfifo pipe1 pipe2
-bwa index ../{input.unitigs} 
-cat {HIC_READS1} > pipe1 & cat {HIC_READS2} > pipe2 & bwa mem -t {threads} -5 -S -P ../{input.unitigs} pipe1 pipe2 | samtools view -bh -@ {threads} -q 1 - | samtools sort -n -@ {threads} - -o ../{output.bwa_mapping} 
-rm -f pipe1 pipe2
+
+mkdir -p split
+
+{PYTHON} {VERKKO}/scripts/fasta_partition.py \\\\
+  partition split/hic1 {params.bases} {params.reads} {params.length} \\\\
+  {input.hic1} \\\\
+&& \\\\
+{PYTHON} {VERKKO}/scripts/fasta_partition.py \\\\
+  partition split/hic2 {params.bases} {params.reads} {params.length} \\\\
+  {input.hic2} \\\\
+&& \\\\
+touch ../{output.split_finished}
 EOF
 
-chmod +x ./align_bwa.sh
+chmod +x ./splitHIC.sh
 
-./align_bwa.sh > ../{log.err} 2>&1 
+./splitHIC.sh > ../{log.err} 2>&1
+        '''
+
+rule indexBWA:
+    input:
+        unitigs = '8-hicPipeline/unitigs.fasta'
+    output:
+        index = '8-hicPipeline/unitigs.fasta.bwt'
+    log:
+        err    = '8-hicPipeline/index_bwa.err'
+    shell:
+        '''
+cd 8-hicPipeline
+
+cat > ./index_bwa.sh <<EOF
+#!/bin/sh
+set -e
+echo "---Creating BWA index for {input.unitigs}"
+bwa index ../{input.unitigs}
+EOF
+
+chmod +x ./index_bwa.sh
+./index_bwa.sh > ../{log.err} 2>&1
+
+        '''
+            
+rule alignBWA:
+    input:
+        unitigs = '8-hicPipeline/unitigs.fasta',
+        hic1    = '8-hicPipeline/split/hic1{nnnn}.fasta.gz',
+        hic2    = '8-hicPipeline/split/hic2{nnnn}.fasta.gz',
+        index   = '8-hicPipeline/unitigs.fasta.bwt'
+    output:
+        bwa_mapping = '8-hicPipeline/mapped{nnnn}.bam'
+    log:
+        err    = '8-hicPipeline/align_bwa{nnnn}.err'
+    threads:
+        int(config['fhc_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = int(config['fhc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
+    shell:
+        '''
+cd 8-hicPipeline
+
+cat > ./align_bwa{wildcards.nnnn}.sh <<EOF
+#!/bin/sh
+set -e
+echo "---Mapping {input.hic1} and {input.hic2} to {input.unitigs} with BWA"
+bwa mem -t {threads} -5 -S -P ../{input.unitigs} ../{input.hic1} ../{input.hic2} | samtools view -bh -@ {threads} -q 1 -F 0x800 - | samtools sort -n -@ {threads} - -o ../{output.bwa_mapping} 
+EOF
+
+chmod +x ./align_bwa{wildcards.nnnn}.sh
+
+./align_bwa{wildcards.nnnn}.sh > ../{log.err} 2>&1 
+        '''
+
+#TODO: bwa and mashmap and samtools bins
+rule mergeBWA:
+    input:
+        split_finished = rules.splitHIC.output.split_finished,
+        index          = '8-hicPipeline/unitigs.fasta.bwt',
+        alignments     = lambda wildcards: expand("8-hicPipeline/mapped{nnnn}.bam", nnnn = splitHICoutputs(wildcards))
+        
+    output:
+        alignments     = '8-hicPipeline/hic_to_assembly.sorted_by_read.bam'
+    log:
+        err            = '8-hicPipeline/mergeBWA.err'
+    params:
+        alignments     = lambda wildcards: expand("mapped{nnnn}.bam", nnnn = splitHICoutputs(wildcards)),
+        keepinter      = config['keep_intermediate']
+    threads:
+        int(config['ahc_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = int(config['ahc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'ahc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ahc', 10.0)
+    shell:    
+        '''
+cd 8-hicPipeline
+
+cat > ./mergeBWA.sh <<EOF
+#!/bin/sh
+set -e
+
+samtools merge -@ {threads} -o ../{output.alignments} {params.alignments}
+
+if [ {params.keepinter} = False ] ; then
+  rm -f {params.alignments}
+
+  rm -f ./align_bwa*.err
+  rm -f ./align_bwa*.sh
+
+  rm -f ./unitigs.fasta.*
+fi
+
+EOF
+
+chmod +x ./mergeBWA.sh
+
+./mergeBWA.sh > ../{log.err} 2>&1
         '''
 
 rule transformBWA:
@@ -131,6 +271,13 @@ rule transformBWA:
         byread_mapping = '8-hicPipeline/hic_mapping.byread.output'
     log:
         err    = '8-hicPipeline/transform_bwa.err'
+    threads:
+        int(config['fhc_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = int(config['fhc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
     shell:
         '''
 cd 8-hicPipeline
@@ -156,6 +303,13 @@ rule hicPhasing:
         hic_binned_unitigs = '8-hicPipeline/hicverkko.colors.tsv'
     log:
         err    = '8-hicPipeline/hic_phasing.err'
+    threads:
+        int(config['fhc_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = int(config['fhc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
     shell: 
         '''
 cd 8-hicPipeline
@@ -180,6 +334,13 @@ rule runRukkiHIC:
         gaf_path = '8-hicPipeline/rukki.paths.gaf'
     log:                                                                                                                                                                                                                                                     
         err    = '8-hicPipeline/rukki_hic.err'
+    threads:
+        int(config['fhc_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = int(config['fhc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
     shell:
         '''
 cd 8-hicPipeline

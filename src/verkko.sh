@@ -167,6 +167,16 @@ ruk_hap2=""
 ruk_type=""
 ruk_fract="0.9"
 
+#  split_hic, partitioning illumina hic reads for alignment
+#Do not want to use shc_bases at all because of synchronization between left and right that will be broken in case of some precorrecion or trimming 
+#relying on shc_reads only
+
+shc_bases=30000000000000
+shc_reads=10000000
+shc_min_length=0
+
+
+
 #
 #  Run parameters.
 #
@@ -250,6 +260,18 @@ par_time_h=24
 cns_n_cpus=8
 cns_mem_gb=0
 cns_time_h=24
+
+# align_hic stuff
+ahc_n_cpus=24
+ahc_mem_gb=64
+ahc_time_h=240
+
+# fast things in hic pipeline
+fhc_n_cpus=8
+fhc_mem_gb=16
+fhc_time_h=24
+
+
 
 #
 #  If an empty command, give usage.
@@ -827,6 +849,11 @@ echo >> ${outd}/verkko.yml "ruk_hap2:            '${ruk_hap2}'"
 echo >> ${outd}/verkko.yml "ruk_type:            '${ruk_type}'"
 echo >> ${outd}/verkko.yml "ruk_fract:           '${ruk_fract}'"
 echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  Aligning hic reads"
+echo >> ${outd}/verkko.yml "shc_bases:           '${shc_bases}'"
+echo >> ${outd}/verkko.yml "shc_reads:           '${shc_reads}'"
+echo >> ${outd}/verkko.yml "shc_min_length:      '${shc_min_length}'"
+echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  Run parameters."
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "keep_intermediate:   '${keepinter}'"
@@ -911,6 +938,16 @@ echo >> ${outd}/verkko.yml "cns_n_cpus:          '${cns_n_cpus}'"
 echo >> ${outd}/verkko.yml "cns_mem_gb:          '${cns_mem_gb}'"
 echo >> ${outd}/verkko.yml "cns_time_h:          '${cns_time_h}'"
 echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  align hic stuff"
+echo >> ${outd}/verkko.yml "ahc_n_cpus:          '${ahc_n_cpus}'"
+echo >> ${outd}/verkko.yml "ahc_mem_gb:          '${ahc_mem_gb}'"
+echo >> ${outd}/verkko.yml "ahc_time_h:          '${ahc_time_h}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  fast hic stuff"
+echo >> ${outd}/verkko.yml "fhc_n_cpus:          '${fhc_n_cpus}'"
+echo >> ${outd}/verkko.yml "fhc_mem_gb:          '${fhc_mem_gb}'"
+echo >> ${outd}/verkko.yml "fhc_time_h:          '${fhc_time_h}'"
+
 echo >> ${outd}/verkko.yml "#  This is the end."
 
 #
