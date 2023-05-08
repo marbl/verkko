@@ -172,7 +172,7 @@ ruk_fract="0.9"
 #relying on shc_reads only
 
 shc_bases=30000000000000
-shc_reads=10000000
+shc_reads=20000000
 shc_min_length=0
 
 

@@ -168,6 +168,11 @@ rule indexBWA:
         index = '8-hicPipeline/unitigs.fasta.bwt'
     log:
         err    = '8-hicPipeline/index_bwa.err'
+    resources:
+        job_id = 1,
+        n_cpus = int(config['fhc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
     shell:
         '''
 cd 8-hicPipeline
@@ -195,12 +200,12 @@ rule alignBWA:
     log:
         err    = '8-hicPipeline/align_bwa{nnnn}.err'
     threads:
-        int(config['fhc_n_cpus'])
+        int(config['ahc_n_cpus'])
     resources:
-        job_id = 1,
-        n_cpus = int(config['fhc_n_cpus']),
-        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
-        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
+        job_id = lambda wildcards, input, attempt: int(wildcards.nnnn),
+        n_cpus = int(config['ahc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'ahc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ahc', 10.0)
     shell:
         '''
 cd 8-hicPipeline
@@ -232,12 +237,12 @@ rule mergeBWA:
         alignments     = lambda wildcards: expand("mapped{nnnn}.bam", nnnn = splitHICoutputs(wildcards)),
         keepinter      = config['keep_intermediate']
     threads:
-        int(config['ahc_n_cpus'])
+        int(config['fhc_n_cpus'])
     resources:
         job_id = 1,
-        n_cpus = int(config['ahc_n_cpus']),
-        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'ahc'),
-        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ahc', 10.0)
+        n_cpus = int(config['fhc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
     shell:    
         '''
 cd 8-hicPipeline
