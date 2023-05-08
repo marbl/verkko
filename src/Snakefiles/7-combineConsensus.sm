@@ -68,6 +68,10 @@ label2=""
 if [ -e ../6-rukki/label1 ] ; then label1=`cat ../6-rukki/label1` ; fi
 if [ -e ../6-rukki/label2 ] ; then label2=`cat ../6-rukki/label2` ; fi
 
+if [ -e ../../label1 ] ; then label1=`cat ../../label1` ; fi
+if [ -e ../../label2 ] ; then label2=`cat ../../label2` ; fi
+
+
 cat > ./combineConsensus.sh <<EOF
 #!/bin/sh
 set -e

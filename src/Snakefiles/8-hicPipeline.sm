@@ -41,7 +41,8 @@ rule copyFiles:
         rename_map = '8-hicPipeline/contigs_rename.map',
         unitig_fasta = '8-hicPipeline/unitigs.fasta',
         unitig_hpc = '8-hicPipeline/unitigs.hpc.fasta' ,
-        unitig_graph = '8-hicPipeline/unitigs.hpc.noseq.gfa'
+        unitig_graph = '8-hicPipeline/unitigs.hpc.noseq.gfa',
+        finalnseqgraph = 'assembly.homopolymer-compressed.noseq.gfa'
     shell:
         '''
 cd 8-hicPipeline
@@ -68,6 +69,7 @@ awk < ../{input.unitig_graph} \\\\
 {PYTHON} {VERKKO}/scripts/inject_coverage.py --allow-absent \\\\
   ../{input.hifi5cov} \\\\
 > ../{output.unitig_graph}
+cp -p ../{output.unitig_graph} ../{output.finalnseqgraph}
 EOF
 
 chmod +x ./prepare_hic.sh
@@ -336,7 +338,8 @@ rule runRukkiHIC:
         binning = '8-hicPipeline/hicverkko.colors.tsv'
     output:
         tsv_path = '8-hicPipeline/rukki.paths.tsv',
-        gaf_path = '8-hicPipeline/rukki.paths.gaf'
+        gaf_path = '8-hicPipeline/rukki.paths.gaf',
+        final_paths_tsv = 'assembly.paths.tsv'
     log:                                                                                                                                                                                                                                                     
         err    = '8-hicPipeline/rukki_hic.err'
     threads:
@@ -368,6 +371,10 @@ params="\$params --hap-names haplotype1,haplotype2"
 
 {VERKKO}/bin/rukki trio -g ../{input.graph} -m ../{input.binning}              -p ../{output.tsv_path} \$params
 {VERKKO}/bin/rukki trio -g ../{input.graph} -m ../{input.binning} --gaf-format -p ../{output.gaf_path} \$params
+cp -p ../{output.tsv_path} ../{output.final_paths_tsv}
+echo "haplotype1" > label1
+echo "haplotype2" > label2
+
 EOF
 
 chmod +x ./rukki_hic.sh
