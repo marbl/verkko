@@ -60,13 +60,13 @@ echo UntipRelative
 
 
 echo Unitigify 3
-{PYTHON} {VERKKO}/scripts/unitigify.py utig3- unitig-mapping-3.txt \\\\
+{PYTHON} {VERKKO}/scripts/unitigify.py utig3- unitig-mapping-3a.txt \\\\
 < connected-tip.gfa \\\\
 > unitig-normal-connected-tip.gfa
 
 
 echo Combine mappings
-cat {params.maps} unitig-mapping-3.txt \\\\
+cat {params.maps} unitig-mapping-3a.txt \\\\
 > combined-nodemap-1.txt
 
 echo Combine edges
@@ -107,7 +107,7 @@ echo Pop bubbles based on coverage
 
 # consider doing this in a loop to avoid code redundancy
 echo Unroll simple loops
-{PYTHON} {VERKKO}/scripts/unroll_simple_loops.py popped-unitig-normal-connected-tip.gfa ../{output.hificov} > unrolled-popped-unitig-normal-connected-tip.gfa 2>> unitig-mapping-3.txt
+{PYTHON} {VERKKO}/scripts/unroll_simple_loops.py popped-unitig-normal-connected-tip.gfa ../{output.hificov} > unrolled-popped-unitig-normal-connected-tip.gfa 2>> unitig-mapping-3a.txt
 
 echo Unitigify 3b
 {PYTHON} {VERKKO}/scripts/unitigify.py utig3b- unitig-mapping-3b.txt \\\\
@@ -115,7 +115,7 @@ echo Unitigify 3b
 > unitig-unrolled-popped-unitig-normal-connected-tip.gfa
 
 echo Combine mappings
-cat {params.maps} unitig-mapping-3.txt unitig-mapping-3b.txt \\\\
+cat {params.maps} unitig-mapping-3a.txt unitig-mapping-3b.txt \\\\
 > combined-nodemap-1.txt
 
 echo Combine edges
@@ -156,7 +156,7 @@ echo Unitigify 4
 > pregap-popped-unitig-normal-connected-tip.gfa
 
 echo Add homozygous node scaffold edges
-cat combined-nodemap-1.txt unitig-mapping-3.txt unitig-mapping-3b.txt unitig-mapping-4.txt > combined-nodemap-2.txt
+cat combined-nodemap-1.txt unitig-mapping-3a.txt unitig-mapping-3b.txt unitig-mapping-4.txt > combined-nodemap-2.txt
 {PYTHON} {VERKKO}/scripts/add_hom_node_scaffold_edges.py pregap-popped-unitig-normal-connected-tip.gfa combined-nodemap-2.txt homgap > ../{output.graph}
 
 EOF
