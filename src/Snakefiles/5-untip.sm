@@ -36,7 +36,8 @@ rule untip:
     params:
         maps   = getAllMappings(5),
         graphs = getAllGraphs(5),
-        aligns = getAllAlignments(5)
+        aligns = getAllAlignments(5),
+        haploid = config['haploid']
     threads:
         int(config['utp_n_cpus'])
     resources:
@@ -99,7 +100,7 @@ echo Fix coverage
 
 echo Pop bubbles based on coverage
 {PYTHON} {VERKKO}/scripts/pop_bubbles_coverage_based.py \\\\
-  ../{output.hificov} \\\\
+  ../{output.hificov} {params.haploid} \\\\
 < ../5-untip/unitig-normal-connected-tip.gfa \\\\
 > popped-unitig-normal-connected-tip.gfa \\\\
 2> popinfo.err

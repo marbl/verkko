@@ -2,13 +2,18 @@
 
 import sys
 
+def str2bool(v):
+  return v.lower() in ("yes", "true", "t", "1")
+
 node_coverage_file = sys.argv[1]
+haploid = str2bool(sys.argv[2])
+
 # gfa from stdin
 # gfa to stdout
 
 max_bubble_pop_size = 10
 max_poppable_node_size = 200000
-max_poppable_coverage = 0 
+max_poppable_coverage = 0
 
 def iterate_deterministic(l):
 	tmp = list(l)
@@ -212,8 +217,8 @@ for node in nodelens:
 avg_coverage = 0
 if long_coverage_len_sum != 0:
 	avg_coverage = long_coverage_cov_sum / long_coverage_len_sum
-sys.stderr.write("average coverage " + str(avg_coverage) + "\n")
-max_poppable_coverage=int(0.5*avg_coverage)
+max_poppable_coverage=int(avg_coverage) if haploid else int(0.5*avg_coverage)
+sys.stderr.write("average coverage " + str(avg_coverage) + " haploid: " + str(haploid) + " and threshold is " + str(max_poppable_coverage) + "\n")
 
 chain_coverage_sum = {}
 chain_length_sum = {}
