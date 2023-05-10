@@ -183,6 +183,7 @@ params="\$params --hap-names \$label1,\$label2"
 
 if [ x{params.haptype} = xtrio ]; then
    params="\$params --marker-ratio 5."
+   params="\$params --tangle-prevent-reassign"
 else
    params="\$params --marker-ratio 3."
 fi
