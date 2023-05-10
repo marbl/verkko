@@ -53,8 +53,6 @@ with open(graph_file) as f:
 				for i in edge_overlaps[tonode]:
 					i=revnode(i)
 					if i not in edge_overlaps: continue
-					sys.stderr.write("Checking one more hop from %s which is %s\n"%(i, edge_overlaps[i]))
-					tips.update(edge_overlaps[i])
 				tips.update(edge_overlaps[tonode])
 			elif tonode in tips:
 				fromnode = revnode(fromnode)
@@ -62,8 +60,6 @@ with open(graph_file) as f:
 				for i in edge_overlaps[fromnode]:
 					i=revnode(i)
 					if i not in edge_overlaps: continue
-					sys.stderr.write("Checking one more hop from %s which is %s\n"%(i, edge_overlaps[i]))
-					tips.update(edge_overlaps[i])
 				tips.update(edge_overlaps[fromnode])
 
 with open(graph_file) as f:
