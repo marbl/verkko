@@ -984,10 +984,9 @@ if [ "x$cnspaths" != "x" ] ; then
 
     if [ ! -e "${outd}/5-untip" ]; then
        mkdir ${outd}/5-untip
-       cp -p ${cnsassembly}/5-untip/unitig-popped-unitig-normal-connected-tip.hifi-coverage.csv     ${outd}/5-untip/unitig-popped-unitig-normal-connected-tip.hifi-coverage.csv
-       cp -p ${cnsassembly}/5-untip/unitig-popped-unitig-normal-connected-tip.ont-coverage.csv      ${outd}/5-untip/unitig-popped-unitig-normal-connected-tip.ont-coverage.csv
-       cp -p ${cnsassembly}/5-untip/unitig-popped-unitig-normal-connected-tip.gfa                   ${outd}/5-untip/unitig-popped-unitig-normal-connected-tip.gfa
-       cp -p ${cnsassembly}/5-untip/unitig-popped-unitig-normal-connected-tip.ont-coverage.csv      ${outd}/5-untip/unitig-popped-unitig-normal-connected-tip.ont-coverage.csv
+       cp -p ${cnsassembly}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.hifi-coverage.csv     ${outd}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.hifi-coverage.csv
+       cp -p ${cnsassembly}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.ont-coverage.csv      ${outd}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.ont-coverage.csv
+       cp -p ${cnsassembly}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.gfa                   ${outd}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.gfa
        cp -p ${cnsassembly}/5-untip/combined-edges-final.gfa                                        ${outd}/5-untip/combined-edges-final.gfa
        cp -p ${cnsassembly}/5-untip/combined-nodemap-final.txt                                      ${outd}/5-untip/combined-nodemap-final.txt
        cp -p ${cnsassembly}/5-untip/nodelens-final.txt                                              ${outd}/5-untip/nodelens-final.txt
@@ -1073,10 +1072,9 @@ if [ "x$withhic" = "xTrue" ] ; then
     cp snakemake.sh $newoutd
     if [ ! -e "${newoutd}/5-untip" ]; then
        mkdir ${newoutd}/5-untip
-       cp -p 5-untip/unitig-popped-unitig-normal-connected-tip.hifi-coverage.csv     ${newoutd}/5-untip/unitig-popped-unitig-normal-connected-tip.hifi-coverage.csv
-       cp -p 5-untip/unitig-popped-unitig-normal-connected-tip.ont-coverage.csv      ${newoutd}/5-untip/unitig-popped-unitig-normal-connected-tip.ont-coverage.csv
-       cp -p 5-untip/unitig-popped-unitig-normal-connected-tip.gfa                   ${newoutd}/5-untip/unitig-popped-unitig-normal-connected-tip.gfa
-       cp -p 5-untip/unitig-popped-unitig-normal-connected-tip.ont-coverage.csv      ${newoutd}/5-untip/unitig-popped-unitig-normal-connected-tip.ont-coverage.csv
+       cp -p 5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.hifi-coverage.csv     ${newoutd}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.hifi-coverage.csv
+       cp -p 5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.ont-coverage.csv      ${newoutd}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.ont-coverage.csv
+       cp -p 5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.gfa                   ${newoutd}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.gfa
        cp -p 5-untip/combined-edges-final.gfa                                        ${newoutd}/5-untip/combined-edges-final.gfa
        cp -p 5-untip/combined-nodemap-final.txt                                      ${newoutd}/5-untip/combined-nodemap-final.txt
        cp -p 5-untip/nodelens-final.txt                                              ${newoutd}/5-untip/nodelens-final.txt
