@@ -126,15 +126,21 @@ chmod +x ./createLayoutInputs.sh
 
 rule layoutContigs:
     input:
-        nodemap    = rules.generateLayoutContigsInputs.output.nodemap,
-        edges      = rules.generateLayoutContigsInputs.output.edges,
-        alignments = rules.generateLayoutContigsInputs.output.alignments,
-        paths      = rules.generateLayoutContigsInputs.output.paths if config['ruk_enable'] == "False" else rules.rukki.output.pathsgaf,
-        lengths    = rules.generateLayoutContigsInputs.output.lengths
+        nodemap       = rules.generateLayoutContigsInputs.output.nodemap,
+        edges         = rules.generateLayoutContigsInputs.output.edges,
+        alignments    = rules.generateLayoutContigsInputs.output.alignments,
+        paths         = rules.generateLayoutContigsInputs.output.paths if config['ruk_enable'] == "False" else rules.rukki.output.pathsgaf,
+        lengths       = rules.generateLayoutContigsInputs.output.lengths
+        ONTalignments = rules.combineONT.output.alignments
+        unitigmap     = rules.processGraph.output.map
     output:
-        layout     = rules.verkko.input.layout,
-        scfmap     = rules.verkko.input.scfmap,
-        gaps       = '6-layoutContigs/gaps.txt'
+        layout       = rules.verkko.input.layout,
+        scfmap       = rules.verkko.input.scfmap,
+        gaps         = '6-layoutContigs/gaps.txt'
+        ONTlayout    = rules.verkko.input.ONTlayout,
+        ONTscfmap    = rules.verkko.input.ONTscfmap,
+        ONTgaps      = '6-layoutContigs/gaps.ONT.txt'
+        mergedlayout = rules.verkko.input.mergedlayout,
     log:
         err        = '6-layoutContigs/createLayout.err'
     threads:
@@ -164,6 +170,28 @@ set -e
   ../{output.scfmap}
 
 {PYTHON} {VERKKO}/scripts/check_layout_gaps.py < ../{output.layout} > ../{output.gaps}
+
+{PYTHON} {VERKKO}/scripts/replace_path_nodes.py \\\\
+    ../{input.ONTalignments} \\\\
+    ../{input.unitigmap} \\\\
+    > ../3-align/alns-ont-nodeIDs.gaf
+
+{PYTHON} {VERKKO}/scripts/get_layout_from_mbg.py \\\\
+  ../{input.nodemap} \\\\
+  ../{input.edges} \\\\
+  ../3-align/alns-ont-nodeIDs.gaf \\\\
+  ../{input.paths} \\\\
+  ../{input.lengths} \\\\
+  ../{output.ONTlayout} \\\\
+  ../{output.ONTscfmap}
+
+{PYTHON} {VERKKO}/scripts/check_layout_gaps.py < ../{output.ONTlayout} > ../{output.ONTgaps}
+
+python {VERKKO}/scripts/merge_layouts.py \\\\
+    ../{output.layout} \\\\
+    ../{output.ONTlayout} \\\\
+    > ../{output.mergedlayout}
+
 EOF
 
 chmod +x ./createLayout.sh

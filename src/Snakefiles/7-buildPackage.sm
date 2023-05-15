@@ -19,7 +19,8 @@
 checkpoint buildPackages:
     input:
         hifi       = HIFI_READS,
-        layout     = {rules.layoutContigs.output.layout},
+        ont        = ONT_READS,
+        layout     = {rules.layoutContigs.output.mergedlayout},
         ont_subset = {rules.extractONT.output.ont_subset} if config['withONT'] == "True" else {rules.emptyfile.output}
     output:
         tigmap     = "7-consensus/packages.tigName_to_ID.map",
@@ -49,7 +50,7 @@ mkdir -p packages
     -output packages/part###.cnspack \\\\
     -idmap  packages \\\\
     -partition 0.8 1.5 0.1 \\\\
-    -reads ../{input.ont_subset} {input.hifi} \\\\
+    -reads ../{input.ont_subset} {input.ont} {input.hifi} \\\\
   > ../{output.packreport} \\\\
 && \\\\
 touch ../{output.finished}
