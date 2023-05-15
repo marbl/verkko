@@ -60,7 +60,7 @@ echo UntipRelative
 
 
 echo Unitigify 3
-{PYTHON} {VERKKO}/scripts/unitigify.py utig3- unitig-mapping-3a.txt \\\\
+{PYTHON} {VERKKO}/scripts/unitigify.py utig3a- unitig-mapping-3a.txt \\\\
 < connected-tip.gfa \\\\
 > unitig-normal-connected-tip.gfa
 
