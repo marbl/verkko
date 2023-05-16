@@ -15,13 +15,13 @@
 rule rukki:
     input:
         graph      = rules.verkko.input.graph,       #  5-untip/unitig-popped-unitig-normal-connected-tip.gfa
-        hificov    = rules.verkko.input.hifi5cov     #  5-untip/unitig-popped-unitig-normal-connected-tip.hifi-coverage.csv 
+        hificov    = rules.verkko.input.hifi5cov     #  5-untip/unitig-popped-unitig-normal-connected-tip.hifi-coverage.csv
     output:
-        fasta      = '6-rukki/unitig-popped-unitig-normal-connected-tip.fasta',       #  For bandage
-        graph      = '6-rukki/unitig-popped-unitig-normal-connected-tip.noseq.gfa',   #  For bandage
-        colors     = '6-rukki/unitig-popped-unitig-normal-connected-tip.colors.csv',  #  For bandage
-        pathstsv   = '6-rukki/unitig-popped-unitig-normal-connected-tip.paths.tsv',   #  For bandage
-        pathsgaf   = '6-rukki/unitig-popped-unitig-normal-connected-tip.paths.gaf',   #  For consensus
+        fasta      = '6-rukki/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.fasta',       #  For bandage
+        graph      = '6-rukki/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.noseq.gfa',   #  For bandage
+        colors     = '6-rukki/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.colors.csv',   #  For bandage
+        pathstsv   = '6-rukki/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.paths.tsv',   #  For bandage
+        pathsgaf   = '6-rukki/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.paths.gaf'    #  For consensus
     log:        
         err        = '6-rukki/rukki.err'
     params:
@@ -169,7 +169,8 @@ params=""
 params="\$params --init-assign out_init_ann.csv"
 params="\$params --refined-assign out_refined_ann.csv"
 params="\$params --final-assign out_final_ann.csv"
-params="\$params --marker-sparsity 5000"
+params="\$params --marker-sparsity 15000"
+params="\$params --marker-cnt 20"
 params="\$params --issue-sparsity 1000"
 params="\$params --try-fill-bubbles"
 params="\$params --fillable-bubble-diff 1000"
@@ -177,11 +178,12 @@ params="\$params --fillable-bubble-len 500000"
 params="\$params --assign-tangles --tangle-allow-deadend"
 params="\$params --issue-ratio 1."
 params="\$params --solid-homozygous-cov-coeff 1.1"
-params="\$params --solid-ratio 1.5"
+params="\$params --solid-ratio 1.01"
 params="\$params --hap-names \$label1,\$label2"
 
 if [ x{params.haptype} = xtrio ]; then
    params="\$params --marker-ratio 5."
+   params="\$params --tangle-prevent-reassign"
 else
    params="\$params --marker-ratio 3."
 fi

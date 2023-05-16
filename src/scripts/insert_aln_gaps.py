@@ -11,6 +11,7 @@ gap_aln_file_out = sys.argv[6]
 prefix = sys.argv[7]
 allow_nontips = (True if sys.argv[8] == "y" else False)
 allow_onetip = (True if sys.argv[8] == "o" else False)
+max_read_clip = 0.05
 # graph to stdout
 
 def revnode(n):
@@ -71,6 +72,9 @@ with open(input_aln_file) as f:
 		leftclip = int(parts[7])
 		rightclip = int(parts[6]) - int(parts[8])
 		assert rightclip >= 0
+		# skip an alignment if it's in the middle of a read and not spanning a contig
+		if (readstart > int(max_read_clip*readlen) and readlen - readend > int(max_read_clip*readlen) and (leftclip > max_end_clip or rightclip > max_end_clip)): continue
+		# skip an alignment if the ends are too far from the end of a contig
 		if leftclip > max_end_clip and rightclip > max_end_clip: continue
 		if readname not in alns_per_read: alns_per_read[readname] = []
 		alns_per_read[readname].append((readstart, readend, alnstart, alnend, leftclip, rightclip, readlen, path))
@@ -91,6 +95,8 @@ for name in alns_per_read:
 		if alns[i-1][5] > max_end_clip or alns[i][4] > max_end_clip: continue 
 		gap_len = (alns[i][0] - alns[i][4]) - (alns[i-1][1] + alns[i-1][5])
 		key = canontip(alns[i-1][3], alns[i][2])
+		# skip inserting gaps between contigs that already have edges or to ourselves
+		if alns[i-1][3] == revnode(alns[i][2]) or key in edge_overlaps: continue
 		if key not in gaps: gaps[key] = []
 		gaps[key].append(gap_len)
 		readlen = alns[i][6]

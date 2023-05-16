@@ -2,12 +2,18 @@
 
 import sys
 
+def str2bool(v):
+  return v.lower() in ("yes", "true", "t", "1")
+
 node_coverage_file = sys.argv[1]
+haploid = str2bool(sys.argv[2])
+
 # gfa from stdin
 # gfa to stdout
 
 max_bubble_pop_size = 10
 max_poppable_node_size = 200000
+max_poppable_coverage = 0
 
 def iterate_deterministic(l):
 	tmp = list(l)
@@ -126,11 +132,18 @@ def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage):
 	assert len(kept_edges) < len(bubble_edges) or len(bubble_edges) == 1
 	for node in bubble_nodes:
 		if node in kept_nodes: continue
+		c = (coverage[node] if node in coverage else 0)
+		if c > max_poppable_coverage:
+			kept_nodes.add(node)
+			continue
 		remove_graph_node(node, edges)
 		removed_nodes.add(node)
 	for edge in bubble_edges:
 		if edge in kept_edges: continue
 		if (revnode(edge[1]), revnode(edge[0])) in kept_edges: continue
+		# if we have a bubble where there is a connection between the start and end and we decided to keep a node in between them, remove the edge skipping that node then
+		if set([start,end]) == kept_nodes or edge[0] != start or edge[1] != end:
+			if edge[0][1:] in kept_nodes or edge[1][1:] in kept_nodes: continue
 		removed_edges.add(edge)
 		if edge[0] in edges:
 			if edge[1] in edges[edge[0]]:
@@ -204,7 +217,8 @@ for node in nodelens:
 avg_coverage = 0
 if long_coverage_len_sum != 0:
 	avg_coverage = long_coverage_cov_sum / long_coverage_len_sum
-sys.stderr.write("average coverage " + str(avg_coverage) + "\n")
+max_poppable_coverage=int(avg_coverage) if haploid else int(0.5*avg_coverage)
+sys.stderr.write("average coverage " + str(avg_coverage) + " haploid: " + str(haploid) + " and threshold is " + str(max_poppable_coverage) + "\n")
 
 chain_coverage_sum = {}
 chain_length_sum = {}

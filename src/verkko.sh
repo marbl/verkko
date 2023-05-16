@@ -59,6 +59,7 @@ verkko=""
 mbg=""
 graphaligner=""
 mashmap=""
+winnowmap=""
 python=
 perl=
 
@@ -154,6 +155,7 @@ screen=""
 #  process_ont_paths
 pop_min_allowed_cov=5
 pop_resolve_steps="20 10 5"
+is_haploid="False"
 
 #  Rukki.
 ruk_enable="False"
@@ -212,9 +214,9 @@ ali_mem_gb=64
 ali_time_h=24
 
 #  process_ont_paths
-pop_n_cpus=1
+pop_n_cpus=16
 pop_mem_gb=64
-pop_time_h=24
+pop_time_h=48
 
 #  untip
 utp_n_cpus=1
@@ -277,6 +279,7 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--mbg" ] ;                then mbg=$arg;           shift
     elif [ "$opt" = "--graphaligner" ] ;       then graphaligner=$arg;  shift
     elif [ "$opt" = "--mashmap" ] ;            then mashmap=$arg;       shift
+    elif [ "$opt" = "--winnowmap" ] ;          then winnowmap$arg;      shift
     elif [ "$opt" = "--local" ] ;              then grid="local";
     elif [ "$opt" = "--sge" ] ;                then grid="slurm-sge";
     elif [ "$opt" = "--slurm" ] ;              then grid="slurm-sge";
@@ -351,7 +354,7 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--correct-mer-filter" ] ;         then mer_filter=$arg;      shift
     elif [ "$opt" = "--correct-min-read-length" ] ;    then cor_min_read=$arg;    shift
     elif [ "$opt" = "--correct-min-overlap-length" ] ; then cor_min_overlap=$arg; shift
-    elif [ "$opt" = "--correct-hash-bits" ] ;          then cor_hash_bits=$arg;   shift 
+    elif [ "$opt" = "--correct-hash-bits" ] ;          then cor_hash_bits=$arg;   shift
 
     #
     #  MBG options
@@ -363,7 +366,7 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--threads" ] ;       then mbg_threads=$arg; shift
     elif [ "$opt" = "--max-r" ]   ;       then mbg_max_resolution=$arg; shift
     elif [ "$opt" = "--hifi-coverage" ] ; then mbg_hifi_coverage=$arg; shift
-    elif [ "$opt" = "--unitig-abundance" ]; then mbg_unitig_abundance=$arg; shift 
+    elif [ "$opt" = "--unitig-abundance" ]; then mbg_unitig_abundance=$arg; shift
 
     #
     #  splitONT options
@@ -387,6 +390,7 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--end-clipping" ] ;        then ali_end_clipping=$arg;    shift
     elif [ "$opt" = "--incompatible-cutoff" ] ; then ali_incompat_cutoff=$arg; shift
     elif [ "$opt" = "--max-traces" ] ;          then ali_max_trace=$arg;       shift
+    elif [ "$opt" = "--haploid" ];              then is_haploid="True";
 
     #
     #  Post-processing options
@@ -470,6 +474,15 @@ if [ "x$mashmap" != "x" ]; then
   mashmap=$(fullpath $mashmap)
 fi
 
+if [ "x$winnowmap" = "x" ] ; then
+  winnowmap=${verkko}/bin/winnowmap
+fi
+if [ ! -e $winnowmap ] ; then
+  winnowmap=$(which winnowmap)
+fi
+if [ "x$winnowmap" != "x" ]; then
+  winnowmap=$(fullpath $winnowmap)
+fi
 #
 #  Fix stuff.
 #
@@ -530,7 +543,7 @@ if [ ! -z "$screen" ] ; then
     screen=""
 
     while [ ! -z "$sctest" ]
-    do 
+    do
         sident=$( echo $sctest | cut -s -d ' ' -f 1  )
         sfpath=$( echo $sctest | cut -s -d ' ' -f 2  )
         dtpath="$verkko/data/$sfpath"
@@ -588,6 +601,12 @@ elif [ ! -e "$mashmap" ] ; then
     errors="${errors}Can't find mashmap executable at '$mashmap'.\n"
 fi
 
+if   [ "x$winnowmap" = "x" ] ; then
+    errors="${errors}Can't find winnowmap executable in \$PATH or \$VERKKO/bin/winnowmap.\n"
+elif [ ! -e "$winnowmap" ] ; then
+    errors="${errors}Can't find winnowmap executable at '$winnowmap'.\n"
+fi
+
 #
 #  Complain!
 #
@@ -626,7 +645,7 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --correct-mer-filter"
     echo "    --correct-min-read-length"
     echo "    --correct-min-overlap-length"
-    echo "    --correct-hash-bits" 
+    echo "    --correct-hash-bits"
     echo "    "
     echo "    --seed-min-length"
     echo "    --seed-max-length"
@@ -644,6 +663,7 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --mbg <path>             Path to MBG.             Default for all three"
     echo "    --graphaligner <path>    Path to GraphAligner.    one packaged with verkko."
     echo "    --mashmap <path>         Path to mashmap."
+    echo "    --winnowmap <path>       Path to winnowmap."
     echo ""
     echo "    --cleanup                Remove intermediate results."
     echo "    --no-cleanup             Retain intermediate results (default)."
@@ -700,6 +720,7 @@ echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "MBG:                 '${mbg}'"
 echo >> ${outd}/verkko.yml "GRAPHALIGNER:        '${graphaligner}'"
 echo >> ${outd}/verkko.yml "MASHMAP:             '${mashmap}'"
+echo >> ${outd}/verkko.yml "WINNOWMAP:           '${winnowmap}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "PYTHON:              '${python}'"
 echo >> ${outd}/verkko.yml "PERL:                '${perl}'"
@@ -762,6 +783,7 @@ echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  process_ont_paths"
 echo >> ${outd}/verkko.yml "pop_min_allowed_cov: '${pop_min_allowed_cov}'"
 echo >> ${outd}/verkko.yml "pop_resolve_steps:   '${pop_resolve_steps}'"
+echo >> ${outd}/verkko.yml "haploid:             '${is_haploid}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  Rukki"
 echo >> ${outd}/verkko.yml "ruk_enable:          '${ruk_enable}'"

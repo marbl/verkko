@@ -157,7 +157,8 @@ def getAllMappings(type):
                 '../4-processONT/unroll_mapping_2.txt ' +
                 '../4-processONT/unitig-mapping-2.txt ')
     if (type > 5):   # and config['withONT'] == "True":
-         ret += ('../5-untip/unitig-mapping-3.txt ' +
+         ret += ('../5-untip/unitig-mapping-3a.txt ' +
+                 '../5-untip/unitig-mapping-3b.txt ' +
                  '../5-untip/unitig-mapping-4.txt ')
     return ret
 
@@ -184,6 +185,9 @@ def getAllGraphs(type):
         ret += ('../5-untip/connected-tip.gfa ' +
                 '../5-untip/unitig-normal-connected-tip.gfa ' +
                 '../5-untip/popped-unitig-normal-connected-tip.gfa ' +
+                '../5-untip/unrolled-popped-unitig-normal-connected-tip.gfa ' +
+                '../5-untip/unitig-unrolled-popped-unitig-normal-connected-tip.gfa ' +
+                '../5-untip/unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.gfa ' +
                 '../' + rules.verkko.input.graph + ' ')
     return ret
 

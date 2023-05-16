@@ -736,6 +736,11 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/scripts/add_fake_alignments.py \
      ../lib/verkko/scripts/add_fake_bridging_paths.py \
      ../lib/verkko/scripts/add_hairpin_uniques.py \
+     ../lib/verkko/scripts/add_hom_node_scaffold_edges.py \
+     ../lib/verkko/scripts/find_tips.py \
+     ../lib/verkko/scripts/unroll_simple_loops.py \
+     ../lib/verkko/scripts/select_best_alignment.py \
+     ../lib/verkko/scripts/filter_alignments_by_column.py \
      ../lib/verkko/scripts/calculate_coverage.py \
      ../lib/verkko/scripts/check_layout_gaps.py \
      ../lib/verkko/scripts/chop_misassemblies.py \

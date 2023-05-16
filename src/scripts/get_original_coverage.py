@@ -188,7 +188,7 @@ for node in split_forbidden_intervals:
 		if node not in forbidden_intervals: forbidden_intervals[node] = []
 		forbidden_intervals[node].append((start, end))
 
-print("node\tcoverage")
+print("node\tcoverage\tlength")
 for contig in nodes_per_contig:
 	length_sum = 0
 	coverage_sum = 0
@@ -214,4 +214,4 @@ for contig in nodes_per_contig:
 		coverage_sum += original_coverages[node] * (end - start)
 	if length_sum == 0: continue
 	coverage = float(coverage_sum) / float(length_sum)
-	print(contig + "\t" + "{:.2f}".format(coverage))
+	print(contig + "\t" + "{:.2f}".format(coverage) + "\t%d"%(length_sum))
