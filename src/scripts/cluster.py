@@ -4,6 +4,7 @@ import networkx as nx
 import math
 import os
 import graph_functions
+import copy
 from networkx.algorithms import community
 
 def check_non_empty(part, G):
@@ -65,8 +66,51 @@ def collapseOrientedNode (edges, node):
             edges.pop(ornode)
 
 #returns pair of nodes near PAR that should be connected via fake homology, currently placeholder
-def checkXYcomponent(current_component):
+#TODO: this is likely subject for reconsidering when we'll move to other species
+
+def checkXYcomponent(current_component, matchgraph, G, edges):
+#minimal comp size. XY is vulnerable to gaps, so not 150M
+    MIN_COMP_SIZE = 80000000
+#maximal homozygous, PAR region
+    MAX_HOM_LEN = 5000000     
+#cutoff for additional fake homozygocity
+    MIN_NEAR_PAR = 3000000
+#TODO these constants are ABSOLUTELY human focused, and even if we'll save the function should be reconsidered.
+
+    total_l = 0
+    total_hom_len = 0
+    for node in current_component:
+        if node in G.nodes:
+            total_l += G.nodes[node]['length']
+            if node in matchgraph:
+                total_hom_len += G.nodes[node]['length']
+
+    if total_hom_len == 0 or total_hom_len > MAX_HOM_LEN or total_l < MIN_COMP_SIZE:
+        return [0, 0]
+    fake_hom = []
+    for f_node in current_component:
+        for s_node in current_component:
+            if f_node < s_node and G.nodes[f_node]['length'] > MIN_NEAR_PAR and G.nodes[s_node]['length'] > MIN_NEAR_PAR:
+                for fp in ['<', '>']:
+                    for sp in ['<', '>']:
+                        f_or = fp + f_node
+                        s_or = sp + s_node
+                        if not (f_or in edges) or not (s_or in edges):
+                            continue
+                        for nxt in edges[f_or]:
+                            if nxt in edges[s_or]:
+                                if len(fake_hom) == 0 or fake_hom[-1][0] != f_node or fake_hom[-1][1] != s_node:
+                                    fake_hom.append([f_node, s_node])
+    if len(fake_hom) > 1:
+        sys.stderr.write("MULTIPLE CANDIDATES FOR FAKE HOMOLOGY IN XY\n")
+        for pair in fake_hom:
+            sys.stderr.write(f"{pair[0]} --- {pair[1]}\n")
+        return [0, 0]
+    elif len(fake_hom) == 1:
+        sys.stderr.write(f"Adding FAKE HOMOLOGY between {fake_hom[0][0]} --- {fake_hom[0][1]}\n")   
+        return [fake_hom[0][0], fake_hom[0][1]]
     return [0, 0]
+        
 def fixUnbalanced(part, C, G):
     auxs = [0, 0]
     lens = [0, 0]
@@ -187,6 +231,9 @@ def run_clustering (graph_gfa, homologous_nodes, hic_byread, output_dir):
             edges[fromnode].add(tonode)
             edges[revnode(tonode)].add(revnode(fromnode))
 
+#let's save original graph somewhere
+    edges_save = copy.deepcopy(edges)
+
 #let's find that nodes that have multiple extension
     multiple_ext = set()
     for node in edges:
@@ -210,7 +257,6 @@ def run_clustering (graph_gfa, homologous_nodes, hic_byread, output_dir):
     # no reason for this to be a grpah but meh, why not
     # load pairs of matching nodes based on self-similarity
     matchGraph = nx.Graph()
-    translate = open(homologous_nodes, 'r')
 
     component_colors = {}
     next_comps = {}
@@ -220,6 +266,8 @@ def run_clustering (graph_gfa, homologous_nodes, hic_byread, output_dir):
         for e in current_component:
             component_colors[e] = current_color
         current_color += 1
+
+    translate = open(homologous_nodes, 'r')
     for line in translate:
         if "#" in line:
             continue
@@ -387,8 +435,7 @@ def run_clustering (graph_gfa, homologous_nodes, hic_byread, output_dir):
         # neighboring edges are encouraged to belong to the same component
         #Currently not in use
         for e in C.nodes:
-            for pref in ['>', '<']:
-
+            for pref in ['>', '<']:                
                 ornode = pref + e
                 if not (ornode in edges.keys()):
                     continue
@@ -397,12 +444,14 @@ def run_clustering (graph_gfa, homologous_nodes, hic_byread, output_dir):
                     if suff in C and matchGraph.get_edge_data(e, suff) == None:
 #dirty hack to kill erroneous z-connections issues
                         connection_bonus = FIXED_WEIGHT // 2
+#                        sys.stderr.write(f"{e}  {suff}  cheeeking connection bonus \n")
                         if len (matchGraph.edges(e)) > 0 and len (matchGraph.edges(suff)) > 0:
                             connection_bonus = 0
 #connections with more than one extension are ambiguous and do not deserve bonus
                         if ornode in multiple_ext or revnode(suff) in multiple_ext:
                             connection_bonus = 0
-
+                        if connection_bonus != 0:
+                            sys.stderr.write(f"{pref}  {suff}  having connection bonus \n")
                         w = hicGraph.get_edge_data(e, suff, 0)
                         add_w = 0
                         if w != 0:
@@ -427,16 +476,25 @@ def run_clustering (graph_gfa, homologous_nodes, hic_byread, output_dir):
             for n in C.nodes():
                 if n in matchGraph:
                     for ec in matchGraph.edges(n):
-                        # while we build the initial partition give a big bonus edge for putting the homologous nodes into different partitions
+                        neighbours = False
+                        for p0 in ['<', '>']:
+                            for p1 in ['<', '>']:
+                                if (p0 + ec[0] in edges_save) and (p1 + ec[1]) in edges_save[p0 + ec[0]]:
+                                    neighbours = True
+#tandem near repeats in consequtive edges
+                        if neighbours:
+                            sys.stderr.write(f"Not adding homology information between {ec[0]} and {ec[1]} - neighbouring looplike something\n")
+                            continue
+                        # while we build the initial partition give a big bonus edge for putting the homologous nodes into different partitions                       
                         if ec[0] in C and ec[1] in C and ec[0] < ec[1]:
                             C.add_edge(ec[0], ec[1], weight=-10 * FIXED_WEIGHT)
                             C.add_edge(ec[1], ec[0], weight=-10 * FIXED_WEIGHT)
             for edge in C.edges:
                 logging_f.write(f'HIC edge: {edge} {C.edges[edge]}\n')
 #placeholder for XY special processing
-            res = checkXYcomponent(current_component)
+            res = checkXYcomponent(current_component, matchGraph, G, edges)
             if res != [0, 0]:
-                sys.stderr.write(f"XY found, {res[0]} {res[1]}, adding fake links")
+                sys.stderr.write(f"XY found, {res[0]} {res[1]}, adding fake links\n")
                 if res[0] in C and res[1] in C:
                     C.add_edge(res[0], res[1], weight=-10 * FIXED_WEIGHT)
                     C.add_edge(res[1], res[0], weight=-10 * FIXED_WEIGHT)
@@ -447,10 +505,10 @@ def run_clustering (graph_gfa, homologous_nodes, hic_byread, output_dir):
                 p1 = []
                 p2 = []
                 #debug code
-                if False: #"utig4-1014" in C.nodes():
-                    shastas_set = {'utig4-1448', 'utig4-2694', 'utig4-1015', 'utig4-1111', 'utig4-631', 'utig4-341', 'utig4-1444', 'utig4-1449', 'utig4-872', 'utig4-1558', 'utig4-1607', 'utig4-342', 'utig4-1850', 'utig4-1113', 'utig4-1531', 'utig4-1076', 'utig4-1684', 'utig4-371', 'utig4-874', 'utig4-1062'}
+                if False: #"debug_node" in C.nodes():
+                    debug_set = {}
                     for n in C.nodes():
-                        if n in shastas_set:
+                        if n in debug_set:
                             p1.append(n)
                         else:
                             p2.append(n)
