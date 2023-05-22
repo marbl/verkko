@@ -228,6 +228,7 @@ def combineKmersP(wildcards):
 rule countKmers:
     input:
         finished  = {rules.configureKmers.output.finished},
+        illumina  = ILLUMINA_READS,
         dbs       = combineKmersI
     output:
         ignore    = '0-correction/hifi.ignoremers'
@@ -275,6 +276,11 @@ set -e
 
 cat ../{output.ignore}.??.tmp > ../{output.ignore}
 rm  ../{output.ignore}.??.tmp
+
+if [[ -v {input.illumina} ]]; then
+    {VERKKO}/bin/meryl print count k=21 {input.illumina} output ecoli.k21.db
+fi
+
 EOF
 
 chmod +x ./combineKmers.sh

@@ -44,6 +44,7 @@ PERL   = config.get('PERL', '')
 #
 HIFI_READS = config.get('HIFI_READS')
 ONT_READS  = config.get('ONT_READS')
+ILLUMINA_READS = config.get('ILLUMINA_READS')
 
 
 ##########

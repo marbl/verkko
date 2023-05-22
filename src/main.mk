@@ -101,6 +101,10 @@ SOURCES      := utility/src/utility/runtime.C \
                 \
                 gfa/gfa.C \
                 gfa/bed.C \
+                \
+                merlin/merlin-globals.C \
+                merlin/merlin-graph.C \
+                merlin/graph.C
 
 
 ifeq (${BUILDSTACKTRACE}, 1)

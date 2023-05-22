@@ -30,7 +30,6 @@ for hifi_line in hifi_layout:
                 print(hifi_len_line)
                 print('rds\t' + str(hifi_num_reads + ont_num_reads))
                 printed_header_and_hifi = True
-                hifi_lines = list()
             if keep_lines and re.match('^[a-zA-Z0-9-_\/]+\t\d+\t\d+$', ont_line):
                 ont_line_split = ont_line.split('\t')
                 ont_pos = min(int(ont_line_split[1]), int(ont_line_split[2]))
@@ -40,4 +39,8 @@ for hifi_line in hifi_layout:
                 for k,v in sorted_lines.items():
                     print(k)
                 print('end')
+                hifi_num_reads = -1
+                lines = dict()
                 break
+
+

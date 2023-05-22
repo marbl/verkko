@@ -4,3 +4,6 @@
 [submodule "src/rukki"]
 	path = src/rukki
 	url = https://github.com/marbl/rukki
+[submodule "src/utgcns/htslib"]
+       path = src/utgcns/htslib
+       url = https://github.com/samtools/htslib.git
