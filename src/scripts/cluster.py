@@ -110,7 +110,7 @@ def fixUnbalanced(part, C, G):
     if curswap > 0:
         print (f"Fixing uneven component, moved {curswap} bases and {edge_swapped} nodes")
 
-def run_clustering (graph_gfa, homologous_nodes, hic_byread, output_dir):
+def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir):
     #TODO: move constants to some more relevant place
     MIN_LEN = 200000  # best result so far with 200000
 
@@ -128,7 +128,9 @@ def run_clustering (graph_gfa, homologous_nodes, hic_byread, output_dir):
     HIC_COMPRESSED_FILENAME = "hic.byread.compressed"
     LOGGING_FILENAME = "hicverkko.log"
 
-    MAX_COV = 100  # temporary coverage cutoff, currently replaced by median coverage from gfa
+    CLEAR_HOMOLOGY = 500000
+
+    MAX_COV = 100  # tempora# ry coverage cutoff, currently replaced by median coverage from gfa
     FIXED_WEIGHT = 100000  # best result so far with 100000 #currently replaced with max pairwise weight among datasets
 
 
@@ -210,36 +212,64 @@ def run_clustering (graph_gfa, homologous_nodes, hic_byread, output_dir):
     # no reason for this to be a grpah but meh, why not
     # load pairs of matching nodes based on self-similarity
     matchGraph = nx.Graph()
-    translate = open(homologous_nodes, 'r')
 
     component_colors = {}
     next_comps = {}
     current_color = 0
     match_links = []
+
+    phased_nodes = set()
     for current_component in sorted(nx.connected_components(G), key=len, reverse=True):
         for e in current_component:
             component_colors[e] = current_color
         current_color += 1
-    for line in translate:
+
+    for line in open(mashmap_sim, 'r'):
         if "#" in line:
             continue
         line = line.strip().split()
-        if len(line) < 2:
+        if len(line) < 3:
             continue
         if line[0] == line[1]:
             continue
-        matchGraph.add_edge(line[0], line[1])
-        match_links.append([line[0], line[1]])
-        for id in range(0, 2):
-            cur_comp = component_colors[line[id]]
-            next_comp = component_colors[line[1 - id]]
-            if cur_comp == next_comp:
-                continue
-            if (not (cur_comp in next_comps)):
-                next_comps[cur_comp] = set()
-            next_comps[cur_comp].add(next_comp)
+        if line[2] > CLEAR_HOMOLOGY:
+            matchGraph.add_edge(line[0], line[1])
+            match_links.append([line[0], line[1]])
+            for id in range(0, 2):
+                phased_nodes.add(line[id])
+#Adding info about potential gaps in graph, only large homology taken in account.
+            for id in range(0, 2):
+                cur_comp = component_colors[line[id]]
+                next_comp = component_colors[line[1 - id]]
+                if cur_comp == next_comp:
+                    continue
+                if (not (cur_comp in next_comps)):
+                    next_comps[cur_comp] = set()
+                next_comps[cur_comp].add(next_comp)
+
+    #Now let's add links for shorter nodes
+    for line in open(mashmap_sim, 'r'):
+        if "#" in line:
+            continue
+        line = line.strip().split()
+        if len(line) < 3:
+            continue
+        neighbours = [set(), set()]
+        for id in range (0, 2):
+        for edge in G.edges(line[id]):
+            neighbours[id].add(edge[0])
+            neighbours[id].add(edge[1])
+        common = neighbours[0].intersection(neighbours[1])
+        if len(common) > 0:
+            #we are in somethiing bulge-like
+            len_cutoff = min(G.nodes[line[0]]['length'], G.nodes[line[1]]['length']) / 2
+        #possibly check whether we have something already phased nearby?
+            if line[2] > len_cutoff:
+                matchGraph.add_edge(line[0], line[1])
+                match_links.append([line[0], line[1]])
 
         #Adding link between matched edges to include separated sequence to main component
+
     for line in match_links:
         if line[0] in G.nodes and line[1] in G.nodes:
             if component_colors[line[0]] != component_colors[line[1]]:
@@ -247,13 +277,15 @@ def run_clustering (graph_gfa, homologous_nodes, hic_byread, output_dir):
                     logging_f.write(f"Attempt to restore removed link in former rDNA component between {line[0]} {line[1]} forbidden\n")
                 else:
                     for id in range(0, 2):
-                        if len (next_comps[component_colors[line[id]]]) > 1:
+                        if len(next_comps[component_colors[line[id]]]) > 1:
                             logging_f.write(f"Connected component of node {line[id]} color {component_colors[line[id]]} connected to:\n")
                             for j in next_comps[component_colors[line[id]]]:
                                 logging_f.write(f"connection {j}\n")
                     logging_f.write(f"Adding graph link between homologous {line[0]} {line[1]}, components {component_colors[line[0]]} "
                           f" and {component_colors[line[1]]}\n")
                     G.add_edge(line[0], line[1])
+
+
 
     sys.stderr.write("Loaded match info with %d nodes and %d edges\n" % (matchGraph.number_of_nodes(), matchGraph.number_of_edges()))
     translate.close()
@@ -433,7 +465,6 @@ def run_clustering (graph_gfa, homologous_nodes, hic_byread, output_dir):
                             C.add_edge(ec[1], ec[0], weight=-10 * FIXED_WEIGHT)
             for edge in C.edges:
                 logging_f.write(f'HIC edge: {edge} {C.edges[edge]}\n')
-#placeholder for XY special processing
             res = checkXYcomponent(current_component)
             if res != [0, 0]:
                 sys.stderr.write(f"XY found, {res[0]} {res[1]}, adding fake links")
@@ -446,41 +477,31 @@ def run_clustering (graph_gfa, homologous_nodes, hic_byread, output_dir):
                 random.seed(seed)
                 p1 = []
                 p2 = []
-                #debug code
-                if False: #"utig4-1014" in C.nodes():
-                    shastas_set = {'utig4-1448', 'utig4-2694', 'utig4-1015', 'utig4-1111', 'utig4-631', 'utig4-341', 'utig4-1444', 'utig4-1449', 'utig4-872', 'utig4-1558', 'utig4-1607', 'utig4-342', 'utig4-1850', 'utig4-1113', 'utig4-1531', 'utig4-1076', 'utig4-1684', 'utig4-371', 'utig4-874', 'utig4-1062'}
-                    for n in C.nodes():
-                        if n in shastas_set:
+                for n in C.nodes():
+                    if n in matchGraph:
+                        for ec in matchGraph.edges(n):
+                            if ec[0] == n and ec[1] in p1:
+                                if n not in p1:
+                                    p2.append(n)
+                            elif ec[0] == n and ec[1] in p2:
+                                if n not in p2:
+                                    p1.append(n)
+                            elif ec[1] == n and ec[0] in p1:
+                                if n not in p1:
+                                    p2.append(n)
+                            elif ec[1] == n and ec[0] in p2:
+                                if n not in p2:
+                                    p1.append(n)
+                            elif n not in p1 and n not in p2:
+                                if random.random() <= 0.5:
+                                    p1.append(n)
+                                else:
+                                    p2.append(n)
+                    else:
+                        if random.random() <= 0.5:
                             p1.append(n)
                         else:
                             p2.append(n)
-                # make an initail guess at partitioning by putting homologous nodes into opposite clusters
-                else:
-                    for n in C.nodes():
-                        if n in matchGraph:
-                            for ec in matchGraph.edges(n):
-                                if ec[0] == n and ec[1] in p1:
-                                    if n not in p1:
-                                        p2.append(n)
-                                elif ec[0] == n and ec[1] in p2:
-                                    if n not in p2:
-                                        p1.append(n)
-                                elif ec[1] == n and ec[0] in p1:
-                                    if n not in p1:
-                                        p2.append(n)
-                                elif ec[1] == n and ec[0] in p2:
-                                    if n not in p2:
-                                        p1.append(n)
-                                elif n not in p1 and n not in p2:
-                                    if random.random() <= 0.5:
-                                        p1.append(n)
-                                    else:
-                                        p2.append(n)
-                        else:
-                            if random.random() <= 0.5:
-                                p1.append(n)
-                            else:
-                                p2.append(n)
     #            print("Initial partitions are %s and %s" % (set(p1), set(p2)))
                 if len(p1) * len(p2) > 0:
                     part = community.kernighan_lin.kernighan_lin_bisection(C, partition=[set(p1), set(p2)], max_iter=KLIN_ITER,

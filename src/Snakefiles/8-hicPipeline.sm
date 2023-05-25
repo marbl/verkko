@@ -100,7 +100,7 @@ cat > ./run_mashmap.sh <<EOF
 set -e
 echo "---Running mashmap"
 mashmap -r ../{input.unitigs_hpc} -q ../{input.unitigs_hpc} -t {threads} -f none --pi 95 -s 10000 -o mashmap.out
-cat mashmap.out |awk '{{if (\$NF > 99 && \$4-\$3 > 500000 && \$1 != \$6) print \$1"\\t"\$6}}'|sort |uniq > ../{output.unitigs_matches}
+cat mashmap.out |awk '{{if (\$NF > 99 && \$4-\$3 > 100000 && \$1 != \$6) print \$1"\\t"\$6"\\t"\$4-\$3}}'|sort |uniq > ../{output.unitigs_matches}
 EOF
 
 chmod +x ./run_mashmap.sh
