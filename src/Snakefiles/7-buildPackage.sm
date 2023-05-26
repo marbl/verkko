@@ -19,7 +19,8 @@
 checkpoint buildPackages:
     input:
         hifi       = HIFI_READS,
-        layout     = {rules.layoutContigs.output.layout},
+        layout     = {rules.layoutContigs.output.mergedlayout},
+        ont        = ONT_READS if config['withONT'] == "True" and config['consensus_bams'] == 'True' else {rules.emptyfile.output},
         ont_subset = {rules.extractONT.output.ont_subset} if config['withONT'] == "True" else {rules.emptyfile.output}
     output:
         tigmap     = "7-consensus/packages.tigName_to_ID.map",
@@ -27,6 +28,8 @@ checkpoint buildPackages:
         packreport = "7-consensus/packages.report"
     log:
         err        = '7-consensus/buildPackages.err'
+    params:
+        consensus_bams = config['consensus_bams'] == 'True'
     threads:
         int(config['par_n_cpus'])
     resources:
@@ -44,15 +47,28 @@ set -e
 
 mkdir -p packages
 
-{VERKKO}/bin/layoutToPackage \\\\
-    -layout ../{input.layout} \\\\
-    -output packages/part###.cnspack \\\\
-    -idmap  packages \\\\
-    -partition 0.8 1.5 0.1 \\\\
-    -reads ../{input.ont_subset} {input.hifi} \\\\
-  > ../{output.packreport} \\\\
-&& \\\\
-touch ../{output.finished}
+if [ {params.consensus_bams} ]; then
+    {VERKKO}/bin/layoutToPackage \\\\
+        -layout ../{input.layout} \\\\
+        -output packages/part###.cnspack \\\\
+        -idmap  packages \\\\
+        -partition 0.8 1.5 0.1 \\\\
+        -reads {input.ont} {input.hifi} \\\\
+    > ../{output.packreport} \\\\
+    && \\\\
+    touch ../{output.finished}
+else
+    {VERKKO}/bin/layoutToPackage \\\\
+        -layout ../{input.layout} \\\\
+        -output packages/part###.cnspack \\\\
+        -idmap  packages \\\\
+        -partition 0.8 1.5 0.1 \\\\
+        -reads ../{input.ont_subset} {input.hifi} \\\\
+    > ../{output.packreport} \\\\
+    && \\\\
+    touch ../{output.finished}
+fi
+
 EOF
 
 chmod +x ./buildPackages.sh

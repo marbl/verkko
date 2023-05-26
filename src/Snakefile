@@ -44,6 +44,7 @@ PERL   = config.get('PERL', '')
 #
 HIFI_READS = config.get('HIFI_READS')
 ONT_READS  = config.get('ONT_READS')
+ILLUMINA_READS = config.get('ILLUMINA_READS')
 
 
 ##########
@@ -66,6 +67,9 @@ rule verkko:
         nseqgraph   = '6-rukki/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.noseq.gfa'  if config['ruk_enable'] == "True" else {rules.emptyfile.output},
         layout      = '6-layoutContigs/unitig-popped.layout',
         scfmap      = '6-layoutContigs/unitig-popped.layout.scfmap',
+        ONTlayout   = '6-layoutContigs/unitig-popped.ONT.layout',
+        ONTscfmap   = '6-layoutContigs/unitig-popped.ONT.layout.scfmap',
+        mergedlayout= '6-layoutContigs/unitig-popped.merged.layout',
         cns         = '7-consensus/unitig-popped.fasta',
         cnshap1     = '7-consensus/unitig-popped.haplotype1.fasta',
         cnshap2     = '7-consensus/unitig-popped.haplotype2.fasta',

@@ -228,9 +228,11 @@ def combineKmersP(wildcards):
 rule countKmers:
     input:
         finished  = {rules.configureKmers.output.finished},
+        illumina  = ILLUMINA_READS if config['withIllumina'] == "True" else {rules.emptyfile.output},
         dbs       = combineKmersI
     output:
-        ignore    = '0-correction/hifi.ignoremers'
+        ignore    = '0-correction/hifi.ignoremers',
+        meryldb   = directory('0-correction/meryl.k21.db')
     log:
         err       = "0-correction/combineKmers.err"
     params:
@@ -238,7 +240,9 @@ rule countKmers:
         merthresh = config['mer_threshold'],
         merfilter = config['mer_filter'],
         memlim    = config['meg_mem_gb'],
-        paths     = combineKmersP
+        paths     = combineKmersP,
+        consensus_bams = config['consensus_bams'] == 'True',
+        withillumina = config['withIllumina'] == 'True'
     threads:
         8
     resources:
@@ -275,6 +279,10 @@ set -e
 
 cat ../{output.ignore}.??.tmp > ../{output.ignore}
 rm  ../{output.ignore}.??.tmp
+
+if [ {params.withillumina} ] && [ {params.consensus_bams} ] && [ -e {input.illumina} ]; then
+    {VERKKO}/bin/meryl print count k=21 {input.illumina} output ../{output.meryldb}
+fi
 EOF
 
 chmod +x ./combineKmers.sh

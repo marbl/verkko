@@ -133,7 +133,11 @@ SOURCES      := utility/src/align/align-ksw2-driver.C \
                 utgcns/libpbutgcns/AlnGraphBoost.C  \
                 \
                 gfa/gfa.C \
-                gfa/bed.C
+                gfa/bed.C \
+                \
+                merlin/merlin-globals.C \
+                merlin/merlin-graph.C \
+                merlin/graph.C
 
 
 ifeq (${BUILDSTACKTRACE}, 1)

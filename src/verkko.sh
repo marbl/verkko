@@ -47,6 +47,7 @@ nano=""
 outd=""
 
 withont="False"
+withillumina="False"
 
 keepinter="True"
 
@@ -163,6 +164,9 @@ ruk_hap1=""
 ruk_hap2=""
 ruk_type=""
 ruk_fract="0.9"
+
+# consensus_bams
+consensus_bams="False"
 
 #
 #  Run parameters.
@@ -341,6 +345,18 @@ while [ $# -gt 0 ] ; do
 
     elif [ "$opt" = "--no-nano" ] ; then
         withont="False"
+    
+    elif [ "$opt" = "--illumina" ] ; then
+        withillumina="True"
+        while [ -e "$arg" ] ; do
+            if   [ -e "/$arg" ] ; then
+                illumina="$illumina $arg"
+            else
+                illumina="$illumina `pwd`/$arg"
+            fi
+            shift
+            arg=$1
+        done
 
     #
     #  Canu correction options
@@ -391,6 +407,12 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--incompatible-cutoff" ] ; then ali_incompat_cutoff=$arg; shift
     elif [ "$opt" = "--max-traces" ] ;          then ali_max_trace=$arg;       shift
     elif [ "$opt" = "--haploid" ];              then is_haploid="True";
+
+    #
+    #  Canu correction options
+    #
+
+    elif [ "$opt" = "--consensus-bams" ] ;              then consensus_bams="True"
 
     #
     #  Post-processing options
@@ -736,6 +758,12 @@ for o in ${nano} ; do
   echo >> ${outd}/verkko.yml " - '$o'"
 done
 echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "withIllumina:             '${withillumina}'"
+echo >> ${outd}/verkko.yml "ILLUMINA_READS:"
+for o in ${illumina} ; do
+  echo >> ${outd}/verkko.yml " - '$o'"
+done
+echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  Algorithm parameters."
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  buildStore, countKmers and computeOverlaps"
@@ -791,6 +819,9 @@ echo >> ${outd}/verkko.yml "ruk_hap1:            '${ruk_hap1}'"
 echo >> ${outd}/verkko.yml "ruk_hap2:            '${ruk_hap2}'"
 echo >> ${outd}/verkko.yml "ruk_type:            '${ruk_type}'"
 echo >> ${outd}/verkko.yml "ruk_fract:           '${ruk_fract}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  Consensus"
+echo >> ${outd}/verkko.yml "consensus_bams:          '${consensus_bams}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  Run parameters."
 echo >> ${outd}/verkko.yml ""

@@ -54,13 +54,14 @@ set -e
     -threads {threads} \\\\
     -import ../{input.package} \\\\
     -A ../{output.consensus}.WORKING \\\\
-    -C 2 -norealign \\\\
+    -C 2 -pbdagcon \\\\
     -maxcoverage 50 \\\\
     -e  0.05 \\\\
     -em 0.20 \\\\
     -EM {params.ont_ids} \\\\
     -l 3000 \\\\
     -edlib \\\\
+    -markers ../{rules.countKmers.output.meryldb} \\\\
 && \\\\
 mv ../{output.consensus}.WORKING ../{output.consensus} \\\\
 && \\\\

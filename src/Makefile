@@ -81,6 +81,9 @@ endif
 ifeq ($(wildcard utility/src), )
   $(shell ln -s canu/src/utility utility)
 endif
+ifeq ($(wildcard merlin/merlin.C), )
+  $(shell ln -s canu/src/...
+endif
 
 # ADD_CLEAN_RULE - Parameterized "function" that adds a new rule and phony
 #   target for cleaning the specified target (removing its build-generated
