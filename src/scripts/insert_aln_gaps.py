@@ -42,8 +42,9 @@ with open(graph_file) as f:
 			fromnode = (">" if parts[2] == "+" else "<") + parts[1]
 			tonode = ("<" if parts[4] == "+" else ">") + parts[3]
 			edge_overlaps[canontip(fromnode, tonode)] = int(parts[5][:-1])
-			not_tips.add(fromnode)
-			not_tips.add(tonode)
+			if parts[1] != parts[3]: # we will skip self-edges for this consideration, if you have a loop at a gap, try to patch it anyway
+				not_tips.add(fromnode)
+				not_tips.add(tonode)
 		print(l.strip())
 
 if allow_nontips: not_tips = set()
@@ -96,7 +97,7 @@ for name in alns_per_read:
 		gap_len = (alns[i][0] - alns[i][4]) - (alns[i-1][1] + alns[i-1][5])
 		key = canontip(alns[i-1][3], alns[i][2])
 		# skip inserting gaps between contigs that already have edges or to ourselves
-		if alns[i-1][3] == revnode(alns[i][2]) or key in edge_overlaps: continue
+		if alns[i-1][3][1:] == alns[i][2][1:] or key in edge_overlaps: continue
 		if key not in gaps: gaps[key] = []
 		gaps[key].append(gap_len)
 		readlen = alns[i][6]

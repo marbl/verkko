@@ -15,9 +15,13 @@ max_bubble_pop_size = 10
 max_poppable_node_size = 200000
 max_poppable_coverage = 0
 
-def iterate_deterministic(l):
+def iterate_deterministic(l, end = ""):
 	tmp = list(l)
 	tmp.sort()
+
+	if end != "" and end in tmp:
+		tmp.remove(end)
+		tmp.insert(0, end)
 	for x in tmp:
 		yield x
 
@@ -100,7 +104,7 @@ def find_bubble(s, edges, max_bubble_size, nodelens):
 			return (s, t)
 	return None
 
-def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage):
+def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage, nodelens):
 	bubble_nodes = set()
 	bubble_edges = set()
 	predecessor = {}
@@ -113,7 +117,7 @@ def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage):
 		bubble_nodes.add(top[1:])
 		bubble_edges.add((before, top))
 		if top == end: continue
-		for edge in iterate_deterministic(edges[top]):
+		for edge in iterate_deterministic(edges[top], end):
 			stack.append((edge, top, min(pathwidth, coverage.get(edge[1:], 0))))
 	assert end in predecessor
 	path = [end]
@@ -130,6 +134,14 @@ def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage):
 	assert len(kept_edges) == len(path)-1
 	assert len(kept_nodes) <= len(bubble_nodes)
 	assert len(kept_edges) < len(bubble_edges) or len(bubble_edges) == 1
+
+	if start[1:] in coverage and end[1:] in coverage and nodelens[start[1:]] > max_poppable_node_size and nodelens[end[1:]] > max_poppable_node_size and coverage[start[1:]] <= 1.5*avg_coverage and coverage[start[1:]] >= 0.5 * avg_coverage and coverage[end[1:]] <= 1.5*avg_coverage and coverage[end[1:]] >= 0.5*avg_coverage:
+		max_poppable_coverage = avg_coverage
+	elif haploid:
+		max_poppable_coverage = avg_coverage
+	else:
+		max_poppable_coverage = 0.5*avg_coverage
+
 	for node in bubble_nodes:
 		if node in kept_nodes: continue
 		c = (coverage[node] if node in coverage else 0)
@@ -156,6 +168,7 @@ def try_pop_tip(start, edges, coverage, removed_nodes, removed_edges, max_remova
 	if start not in edges: return
 	if len(edges[start]) < 2 or len(edges[start]) > 4: return
 	max_coverage = 0
+	max_len = 0
 	for node in iterate_deterministic(edges[start]):
 		assert revnode(node) in edges
 		if len(edges[revnode(node)]) != 1: return
@@ -164,11 +177,14 @@ def try_pop_tip(start, edges, coverage, removed_nodes, removed_edges, max_remova
 		if node[1:] in coverage: coverage_here = coverage[node[1:]]
 		if coverage_here > max_coverage:
 			max_coverage = coverage_here
+		if nodelens[node[1:]] > max_len:
+			max_len = nodelens[node[1:]]
 	remove_this = []
 	for node in iterate_deterministic(edges[start]):
 		coverage_here = 0
 		if node[1:] in coverage: coverage_here = coverage[node[1:]]
-		if coverage_here < max_removable and coverage_here < max_coverage:
+		# if we have a node w/better coverage, remove this one. Ties are broken by length
+		if coverage_here < max_removable and (coverage_here < max_coverage or (coverage_here == max_coverage and nodelens[node[1:]] < max_len and len(remove_this)+1 < len(edges[start]))):
 			remove_this.append(node)
 	if len(remove_this) == 0: return
 	for remove_node in remove_this:
@@ -217,8 +233,6 @@ for node in nodelens:
 avg_coverage = 0
 if long_coverage_len_sum != 0:
 	avg_coverage = long_coverage_cov_sum / long_coverage_len_sum
-max_poppable_coverage=int(avg_coverage) if haploid else int(0.5*avg_coverage)
-sys.stderr.write("average coverage " + str(avg_coverage) + " haploid: " + str(haploid) + " and threshold is " + str(max_poppable_coverage) + "\n")
 
 chain_coverage_sum = {}
 chain_length_sum = {}
@@ -276,13 +290,13 @@ for node in iterate_deterministic(nodelens):
 		assert bubble[0] == ">" + node
 		assert bubble[1][1:] != node
 		if find(parent, bubble[1][1:]) != key: continue
-		pop_bubble(bubble[0], bubble[1], removed_nodes, removed_edges, edges, coverage)
+		pop_bubble(bubble[0], bubble[1], removed_nodes, removed_edges, edges, coverage, nodelens)
 	bubble = find_bubble("<" + node, edges, max_bubble_pop_size, nodelens)
 	if bubble:
 		assert bubble[0] == "<" + node
 		assert bubble[1][1:] != node
 		if find(parent, bubble[1][1:]) != key: continue
-		pop_bubble(bubble[0], bubble[1], removed_nodes, removed_edges, edges, coverage)
+		pop_bubble(bubble[0], bubble[1], removed_nodes, removed_edges, edges, coverage, nodelens)
 
 for node in iterate_deterministic(nodelens):
 	key = find(parent, node)
