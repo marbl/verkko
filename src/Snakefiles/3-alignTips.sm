@@ -1,0 +1,168 @@
+#############################################################################
+ #
+ #  This file is part of Verkko, a software program that assembles
+ #  whole-genome sequencing reads into telomere-to-telomere
+ #  haplotype-resolved chromosomes.
+ #
+ #  Except as indicated otherwise, this is a 'United States Government
+ #  Work', and is released in the public domain.
+ #
+ #  File 'README.licenses' in the root directory of this distribution
+ #  contains full conditions and disclaimers.
+ #
+ ##
+
+#
+#  Rule splitONT rewrites the input ONT reads into partitioned FASTA files
+#  for mapping to the unitig graph in parallel.
+#
+#  Configuration parameters limit the size of each split file so that
+#  the number of bases or reads in each file is no more than some limit:
+#    spl_bases - how many bases to put in each split file
+#    spl_reads - how many reads to put in each split file
+#
+#  This rule is used by both alignONT (to align reads to the unitig graph)
+#  and extractONT (to extract the reads needed for consensus).
+#
+
+
+#  A helper function to find the splitONT output and return their indices.
+#  It is used (via the magic lambda) in 3-combineONT.sm and 7-extractONT.sm.
+#
+def splitTipsONToutputs(wildcards):
+    return glob_wildcards("3-alignTips/split/ont{xxxx}.fasta.gz").xxxx
+
+
+checkpoint splitTipsONT:
+    input:
+        ont              = ONT_READS if config['withONT'] == "True" else {rules.emptyfile.output},
+        graph            = {rules.processGraph.output.gfa},
+        ont_paths        = {rules.combineONT.output.alignments},
+        split_finished   = {rules.splitONT.output.split_finished}
+    output:
+        split_finished = '3-alignTips/splitONT.finished'
+    log:
+        err            = '3-alignTips/splitONT.err'
+    params:
+        bases          = config['spl_bases'],
+        reads          = config['spl_reads'],
+        length         = config['spl_min_length'],
+        ext_files       = lambda wildcards: expand("ont{nnnn}.fasta.gz", nnnn = splitONToutputs(wildcards))
+    threads:
+        int(config['spl_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = int(config['spl_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'spl'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'spl')
+    shell:
+        '''
+cd 3-alignTips
+
+cat > ./splitONT.sh <<EOF
+#!/bin/sh
+set -e
+
+mkdir -p split
+
+{PYTHON} {VERKKO}/scripts/find_tips.py ../{input.graph} > tips.fasta 2> find_tips.err
+grep ">" tips.fasta |awk '{{ print substr(\$1, 2, length(\$1)) }}' > tips.ids
+cat ../{input.ont_paths} | {PYTHON} {VERKKO}/scripts/filter_alignments_by_column.py tips.ids 5 false | awk -F "\\t" '{{ if (\$12 >= 20) print \$1;}}' | sort |uniq > tip_reads.ids
+
+for fn in {params.ext_files} ; do
+  echo >> tip_reads.extract extract \\$fn tip_reads.ids ../3-align/split/\\$fn
+done
+
+xargs -L 1 -P {threads} < tip_reads.extract \\\\
+  {PYTHON} {VERKKO}/scripts/fasta_extract.py
+
+zcat {params.ext_files} |awk -v SEQ="" '{{ if (match(\$1, ">") && \$1 != NAME) {{ if (SEQ != "") {{ print NAME; print SEQ; }} SEQ=""; NAME=\$1; }} else {{ SEQ=SEQ""\$1;}} }} END {{ print NAME; print SEQ}}' | sed -r s/'A{{1,}}+'/A/g |sed -r s/'C{{1,}}+'/C/g |sed -r s/'G{{1,}}+'/G/g |sed -r s/'T{{1,}}+'/T/g > tip_reads_compressed.fasta
+rm -f {params.ext_files}
+
+cat ../{input.graph} |awk '{{ if (match(\$1, "^S")) {{ print ">"\$2; print \$3 }} }}' |fold -c > tips.fasta
+
+bases=\`expr {params.bases} / 2 \`
+{PYTHON} {VERKKO}/scripts/fasta_partition.py \\\\
+  partition split/ont \$bases {params.reads} {params.length} \\\\
+  tip_reads_compressed.fasta \\\\
+&& \\\\
+touch ../{output.split_finished}
+EOF
+
+chmod +x ./splitONT.sh
+
+./splitONT.sh > ../{log.err} 2>&1
+        '''
+
+rule combineTipsONT:
+    input:
+        split_finished = rules.splitTipsONT.output.split_finished,
+        alignments     = lambda wildcards: expand("3-alignTips/aligned{nnnn}.gaf", nnnn = splitTipsONToutputs(wildcards))
+    output:
+        alignments     = '3-alignTips/alns-ont.gaf'
+    log:
+        err            = '3-alignTips/combineONT.err'
+    params:
+        alignments     = lambda wildcards: expand("aligned{nnnn}.gaf", nnnn = splitTipsONToutputs(wildcards)),
+        keepinter      = config['keep_intermediate']
+    threads:
+        1
+    resources:
+        job_id = 1,
+        n_cpus = 1,
+        mem_gb = 4,
+        time_h = 2
+    shell:
+        '''
+cd 3-alignTips
+
+cat > ./combineONT.sh <<EOF
+#!/bin/sh
+set -e
+
+cat {params.alignments} \\\\
+> ../{output.alignments}
+
+EOF
+
+chmod +x ./combineONT.sh
+
+./combineONT.sh > ../{log.err} 2>&1
+        '''
+
+rule alignTipsONT:
+    input:
+        ont_reads         = '3-alignTips/split/ont{nnnn}.fasta.gz',
+    output:
+        alignments        = '3-alignTips/aligned{nnnn}.gaf'
+    log:
+        err               = '3-alignTips/aligned{nnnn}.err'
+    params:
+        WINNOWMAP         = config['WINNOWMAP'],
+        alignmentstmp     = '3-align/aligned{nnnn}.WORKING.gaf',
+        min_aln_len       = 5000,
+        min_aln_idy       = 0.90
+    threads:
+        int(config['ali_n_cpus'])
+    resources:
+        job_id = lambda wildcards, input, attempt: int(wildcards.nnnn),
+        n_cpus = int(config['ali_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'ali'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ali', 6.0)
+    shell:
+        '''
+cd 3-alignTips
+
+cat > ./aligned{wildcards.nnnn}.sh <<EOF
+#!/bin/sh
+set -e
+
+{params.WINNOWMAP} -t {threads} -cx map-ont tips.fasta ../{input.ont_reads} |sed s/de:f://g |awk -F "\\t" '{{ if (\$12 >= 20 && \$4-\$3 > {params.min_aln_len} && 1-\$21 >= {params.min_aln_idy}) {{ if (match(\$5, "-")) print \$1"\\t"\$2"\\t"\$3"\\t"\$4"\\t+\\t<"\$6"\\t"\$7"\\t"\$7-\$9"\\t"\$7-\$8"\\t"\$10"\\t"\$11"\\t"\$12"\\t"\$13"\\t"\$15"\\tdv:f:"\$21"\\tid:f:"1-\$21; else print \$1"\\t"\$2"\\t"\$3"\\t"\$4"\\t"\$5"\\t>"\$6"\\t"\$7"\\t"\$8"\\t"\$9"\\t"\$10"\\t"\$11"\\t"\$12"\\t"\$13"\\t"\$15"\\tdv:f:"\$21"\\tid:f:"1-\$21 }}}}' > ../{params.alignmentstmp}
+
+mv -f ../{params.alignmentstmp} ../{output.alignments}
+EOF
+
+chmod +x ./aligned{wildcards.nnnn}.sh
+
+./aligned{wildcards.nnnn}.sh > ../{log.err} 2>&1
+        '''

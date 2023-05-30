@@ -32,7 +32,7 @@ rule processONT:
        graph            = {rules.processGraph.output.gfa},
        hificov          = {rules.buildGraph.output.hificov},
        ont_paths        = {rules.combineONT.output.alignments},
-       split_finished   = {rules.splitONT.output.split_finished}
+       tip_paths        = {rules.combineTipsONT.output.alignments}
     output:
        graph            = '4-processONT/unitig-unrolled-ont-resolved.gfa',
        ont_gap_align    = '4-processONT/gaps-ont.gaf',
@@ -44,10 +44,8 @@ rule processONT:
         graphs          = getAllGraphs(4),
         min_allowed_cov = config['pop_min_allowed_cov'],
         resolve_steps   = config['pop_resolve_steps'],
-        ext_files       = lambda wildcards: expand("ont{nnnn}.fasta.gz", nnnn = splitONToutputs(wildcards)),
         cov_fraction    = 0.5,
 	min_aln_len	= 5000,
-	WINNOWMAP	= config['WINNOWMAP']
     threads:
         int(config['pop_n_cpus'])
     resources:
@@ -63,26 +61,6 @@ cat > ./processONT.sh <<EOF
 #!/bin/sh
 set -e
 
-echo Step 0a
-# we re-map tip reads w/winnowmap
-{PYTHON} {VERKKO}/scripts/find_tips.py ../{input.graph} > tips.fasta 2> find_tips.err
-grep ">" tips.fasta |awk '{{ print substr(\$1, 2, length(\$1)) }}' > tips.ids
-cat ../{input.ont_paths} | {PYTHON} {VERKKO}/scripts/filter_alignments_by_column.py tips.ids 5 false | awk -F "\\t" '{{ if (\$12 >= 20) print \$1;}}' | sort |uniq > tip_reads.ids
-
-for fn in {params.ext_files} ; do
-  echo >> tip_reads.extract extract \\$fn tip_reads.ids ../3-align/split/\\$fn
-done
-
-xargs -L 1 -P {threads} < tip_reads.extract \\\\
-  {PYTHON} {VERKKO}/scripts/fasta_extract.py
-
-cat {params.ext_files} > tip_reads.fasta.gz
-rm -f {params.ext_files}
-
-cat ../{input.graph} |awk '{{ if (match(\$1, "^S")) {{ print ">"\$2; print \$3 }} }}' |fold -c > tips.fasta
-zcat tip_reads.fasta.gz  |awk -v SEQ="" '{{ if (match(\$1, ">") && \$1 != NAME) {{ if (SEQ != "") {{ print NAME; print SEQ; }} SEQ=""; NAME=\$1; }} else {{ SEQ=SEQ""\$1;}} }} END {{ print NAME; print SEQ}}' | sed -r s/'A{{1,}}+'/A/g |sed -r s/'C{{1,}}+'/C/g |sed -r s/'G{{1,}}+'/G/g |sed -r s/'T{{1,}}+'/T/g > tip_reads_compressed.fasta
-{params.WINNOWMAP} -t {threads} -cx map-ont tips.fasta tip_reads_compressed.fasta |sed s/de:f://g |awk -F "\\t" '{{ if (match(\$5, "-")) print \$1"\\t"\$2"\\t"\$3"\\t"\$4"\\t+\\t<"\$6"\\t"\$7"\\t"\$7-\$9"\\t"\$7-\$8"\\t"\$10"\\t"\$11"\\t"\$12"\\t"\$13"\\t"\$15"\\tdv:f:"\$21"\\tid:f:"1-\$21; else print \$1"\\t"\$2"\\t"\$3"\\t"\$4"\\t"\$5"\\t>"\$6"\\t"\$7"\\t"\$8"\\t"\$9"\\t"\$10"\\t"\$11"\\t"\$12"\\t"\$13"\\t"\$15"\\tdv:f:"\$21"\\tid:f:"1-\$21 }}' |awk -F "\\t" '{{ if (\$12 >= 20 && \$4-\$3 > {params.min_aln_len}) print; }}' > tips.gaf
-
 echo Step 1a
 # select best alignment from winnowmap and graphaligner
 # we first trim up to 5kb from the graphaligner hits (to avoid extending past haplotype end point) then compare these alignments to winnowmap
@@ -91,7 +69,7 @@ echo \$trim_len
 cat ../{input.ont_paths} | {PYTHON} {VERKKO}/scripts/maybe_trim_alignment.py ../{input.graph} \$trim_len > alns-trimmed.gaf
 cat ../{input.ont_paths} | awk -F "\\t" '{{if (\$4-\$3 >= \$2*0.8 && \$12 >= 20) print;}}' |  {PYTHON} {VERKKO}/scripts/trim_dbg_alignment.py ../2-processGraph/unitig-unrolled-hifi-resolved.gfa 1500 |cut -f 6 > previous_paths
 
-{PYTHON} {VERKKO}/scripts/select_best_alignment.py previous_paths tips.gaf alns-trimmed.gaf ../{input.ont_paths} 20 {params.min_aln_len} > alns-ont-mapqfilter.gaf 2> selected-winnowmap.ids
+{PYTHON} {VERKKO}/scripts/select_best_alignment.py previous_paths ../{input.tip_paths} alns-trimmed.gaf ../{input.ont_paths} 20 {params.min_aln_len} > alns-ont-mapqfilter.gaf 2> selected-winnowmap.ids
 {PYTHON} {VERKKO}/scripts/chop_misassemblies.py ../{input.graph} alns-ont-mapqfilter.gaf chop-mapping.txt alns-cut.gaf 10 20 > chopped-unitig-unrolled-hifi-resolved.gfa 2> chop-info.txt
 
 echo ""

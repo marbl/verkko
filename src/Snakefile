@@ -210,6 +210,8 @@ include: 'Snakefiles/3-splitONT.sm'
 include: 'Snakefiles/3-alignONT.sm'
 include: 'Snakefiles/3-combineONT.sm'
 
+include: 'Snakefiles/3-alignTips.sm'
+
 include: 'Snakefiles/4-processONT.sm'
 
 include: 'Snakefiles/get-coverage.sm'
