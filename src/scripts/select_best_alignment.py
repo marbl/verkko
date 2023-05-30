@@ -8,6 +8,7 @@ trimmed_alignment_file = sys.argv[3]
 alignment_file = sys.argv[4]
 min_mapq = int(sys.argv[5])
 min_aln = int(sys.argv[6])
+max_end_clip = 1500
 
 # alignments to stdout
 
@@ -26,7 +27,12 @@ winnowmap_alns={}
 with open(winnowmap_alignment_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
-		if (int(parts[3]) - int(parts[2]) < min_aln): continue
+		readend = int(parts[3])
+		readstart = int(parts[2])
+		leftclip = int(parts[7])
+		rightclip = int(parts[6]) - int(parts[8])
+		if (readend - readstart < min_aln): continue
+		if (leftclip > max_end_clip and rightclip > max_end_clip): continue
 		if parts[0] not in winnowmap_alns:
 			winnowmap_alns[parts[0]] = set()
 
@@ -49,7 +55,7 @@ for r in winnowmap_alns:
 	if r not in alns: continue
 	path = paths["\t".join(winnowmap_alns[r])] if "\t".join(winnowmap_alns[r]) in paths else set()
 
-	#sys.stderr.write("Checking winnowmap aln for read %s which covers nodes %s and is equal %s and subset %s and path is %s\n"%(r, winnowmap_alns[r], alns[r] == winnowmap_alns[r], winnowmap_alns[r].issubset(alns[r]), path))
+	# sys.stderr.write("Checking winnowmap aln for read %s which covers nodes %s and is equal %s and subset %s and path is %s\n"%(r, winnowmap_alns[r], alns[r] == winnowmap_alns[r], winnowmap_alns[r].issubset(alns[r]), path))
 	# we keep a winnowmap read when it's not reproducing a known path and it either matches the same nodes as graph aligner (post triming) or it's it is not a subset of the graphaligner alignment nodes
 	if path == set() and (alns[r] == winnowmap_alns[r] or winnowmap_alns[r].issubset(alns[r]) == False): continue
 	todel.add(r)

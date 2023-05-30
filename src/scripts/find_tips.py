@@ -36,10 +36,13 @@ with open(graph_file) as f:
 			if fromnode not in edge_overlaps:
 				edge_overlaps[fromnode] = set() 
 			edge_overlaps[fromnode].add(tonode)
+			if parts[1] == parts[3]: # we will skip self-edges for this consideration, if you have a loop at a gap, try to patch it anyway
+				continue
 			not_tips.add(fromnode)
 			not_tips.add(tonode)
 
 tips=node_seqs.difference(not_tips)
+toadd=set()
 
 with open(graph_file) as f:
 	for l in f:
@@ -53,15 +56,16 @@ with open(graph_file) as f:
 				for i in edge_overlaps[tonode]:
 					i=revnode(i)
 					if i not in edge_overlaps: continue
-				tips.update(edge_overlaps[tonode])
+				toadd.update(edge_overlaps[tonode])
 			elif tonode in tips:
 				fromnode = revnode(fromnode)
 				sys.stderr.write("The node %s is a tip and the list of nodes matching %s is %s\n"%(tonode, fromnode, edge_overlaps[fromnode]))
 				for i in edge_overlaps[fromnode]:
 					i=revnode(i)
 					if i not in edge_overlaps: continue
-				tips.update(edge_overlaps[fromnode])
+				toadd.update(edge_overlaps[fromnode])
 
+tips.update(toadd)
 with open(graph_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
