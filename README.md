@@ -20,6 +20,9 @@ creates contig consensus sequences using Canu's consensus module.
   * [MBG](https://github.com/maickrau/MBG)
   * [GraphAligner](https://github.com/maickrau/GraphAligner)
   * [MashMap](https://github.com/marbl/MashMap)
+* Running verkko with hi-c data also requires 
+  * [samtools](http://www.htslib.org/)
+  * [bwa](https://bio-bwa.sourceforge.net/)
 
 Installing with a 'package manager' is encouraged:
   * `conda install -c conda-forge -c bioconda -c defaults verkko`
@@ -74,6 +77,8 @@ replacing XX and YY with the threads and memory you want meryl to use. Once you 
                   trio
 
 Make sure to count k-mers in compressed space. Child data is optional, in this case use `maternal_compress.k30.only.meryl` and  `paternal_compress.k30.only.meryl` in the verkko command above. Preliminary support is available for read sets binned by haplotype from another method, such as [PGAS](https://github.com/daewoooo/SaaRclust) and Strand-Seq or [DipAsm](https://github.com/shilpagarg/DipAsm) and Hi-C. In these cases, make sure the phase blocks are chromosome-scale and consistent within each chromosome. You can build merqury DBs as above and specify them along with either `hic` or `strandseq` instead of `trio` to verkko instead.
+
+Verkko also supports hi-c phasing, reads should be provided with --hic1 and --hic2 options.
 
 You can pass through snakemake options to restrict CPU/memory/cluster resources by adding the `--snakeopts` option to verkko. For example, `--snakeopts "--dry-run"` will print what jobs will run while `--snakeopts "--cores 1000"` would restrict grid runs to at most 1000 cores across all submited jobs.
 
