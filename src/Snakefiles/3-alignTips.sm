@@ -79,7 +79,7 @@ xargs -L 1 -P {threads} < tip_reads.extract \\\\
 zcat {params.ext_files} |awk -v SEQ="" '{{ if (match(\$1, ">") && \$1 != NAME) {{ if (SEQ != "") {{ print NAME; print SEQ; }} SEQ=""; NAME=\$1; }} else {{ SEQ=SEQ""\$1;}} }} END {{ print NAME; print SEQ}}' | sed -r s/'A{{1,}}+'/A/g |sed -r s/'C{{1,}}+'/C/g |sed -r s/'G{{1,}}+'/G/g |sed -r s/'T{{1,}}+'/T/g > tip_reads_compressed.fasta
 rm -f {params.ext_files}
 
-cat ../{input.graph} |awk '{{ if (match(\$1, "^S")) {{ print ">"\$2; print \$3 }} }}' |fold -c > tips.fasta
+cat ../{input.graph} |awk '{{ if (match(\$1, "^S")) {{ print ">"\$2; print \$3 }} }}' |fold -b > tips.fasta
 
 bases=\`expr {params.bases} / 2 \`
 {PYTHON} {VERKKO}/scripts/fasta_partition.py \\\\
