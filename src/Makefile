@@ -777,6 +777,10 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/scripts/unroll_tip_loops.py \
      ../lib/verkko/scripts/untip_relative.py \
      ../lib/verkko/scripts/circularize_ctgs.py \
+     ../lib/verkko/scripts/cluster.py \
+     ../lib/verkko/scripts/graph_functions.py \
+     ../lib/verkko/scripts/hicverkko.py \
+     ../lib/verkko/scripts/parse_sam_pairs.py \
      \
      ../lib/verkko/Snakefile \
      ../lib/verkko/Snakefiles/1-buildGraph.sm \
@@ -793,6 +797,7 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/Snakefiles/7-combineConsensus.sm \
      ../lib/verkko/Snakefiles/7-extractONT.sm \
      ../lib/verkko/Snakefiles/7-generateConsensus.sm \
+     ../lib/verkko/Snakefiles/8-hicPipeline.sm \
      ../lib/verkko/Snakefiles/c1-buildStore.sm \
      ../lib/verkko/Snakefiles/c2-countKmers.sm \
      ../lib/verkko/Snakefiles/c3-computeOverlaps.sm \

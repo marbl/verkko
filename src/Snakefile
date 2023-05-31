@@ -44,6 +44,8 @@ PERL   = config.get('PERL', '')
 #
 HIFI_READS = config.get('HIFI_READS')
 ONT_READS  = config.get('ONT_READS')
+HIC_READS1  = config.get('HIC_READS1')
+HIC_READS2  = config.get('HIC_READS2')
 
 
 ##########
@@ -155,13 +157,23 @@ rule cnspath:
         layout      = '6-layoutContigs/unitig-popped.layout',
         scfmap      = '6-layoutContigs/unitig-popped.layout.scfmap',
         consensus   = '7-consensus/unitig-popped.fasta',
+        cnshap1     = '7-consensus/unitig-popped.haplotype1.fasta',
+        cnshap2     = '7-consensus/unitig-popped.haplotype2.fasta',
+        cnsunas     = '7-consensus/unitig-popped.unassigned.fasta'
     output:
         layout      = 'assembly.homopolymer-compressed.layout',
         consensus   = 'assembly.fasta'
+    params:
+        cnshap1     = 'assembly.haplotype1.fasta',    #  Actually, these are optional outputs.
+        cnshap2     = 'assembly.haplotype2.fasta',
+        cnsunas     = 'assembly.unassigned.fasta',
     shell:
         '''
 cp -p {input.layout}    {output.layout}
 cp -p {input.consensus} {output.consensus}
+cp -p {input.cnshap1}   {params.cnshap1}
+cp -p {input.cnshap2}   {params.cnshap2}
+cp -p {input.cnsunas}   {params.cnsunas}
         '''
         
 
@@ -225,3 +237,4 @@ include: 'Snakefiles/7-extractONT.sm'
 include: 'Snakefiles/7-buildPackage.sm'
 include: 'Snakefiles/7-generateConsensus.sm'
 include: 'Snakefiles/7-combineConsensus.sm'
+include: 'Snakefiles/8-hicPipeline.sm'

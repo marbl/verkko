@@ -1,0 +1,386 @@
+#############################################################################
+ #
+ #  This file is part of Verkko, a software program that assembles
+ #  whole-genome sequencing reads into telomere-to-telomere
+ #  haplotype-resolved chromosomes.
+ #
+ #  Except as indicated otherwise, this is a 'United States Government
+ #  Work', and is released in the public domain.
+ #
+ #  File 'README.licenses' in the root directory of this distribution
+ #  contains full conditions and disclaimers.
+ #
+ ##
+
+
+HIFI_READS = config.get('HIFI_READS')
+ONT_READS  = config.get('ONT_READS')
+HIC_READS1  = config.get('HIC_READS1')
+HIC_READS2  = config.get('HIC_READS2')
+
+
+VERKKO = config.get('VERKKO')
+
+        
+rule copyFiles:
+    input:
+        unitig_scfmap = '6-layoutContigs/unitig-popped.layout.scfmap',
+        unitig_assembly = '7-consensus/unitig-popped.fasta',
+        unitig_graph = rules.verkko.input.graph,
+        hifi5cov    = rules.verkko.input.hifi5cov
+    log:
+        err    = '8-hicPipeline/prepare_hic.err'
+    threads:
+        int(config['fhc_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = int(config['fhc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
+    output:
+        rename_map = '8-hicPipeline/contigs_rename.map',
+        unitig_fasta = '8-hicPipeline/unitigs.fasta',
+        unitig_hpc = '8-hicPipeline/unitigs.hpc.fasta' ,
+        unitig_graph = '8-hicPipeline/unitigs.hpc.noseq.gfa',
+        finalnseqgraph = 'assembly.homopolymer-compressed.noseq.gfa'
+    shell:
+        '''
+cd 8-hicPipeline
+cat > ./prepare_hic.sh <<EOF
+#!/bin/sh
+set -e
+cat ../{input.unitig_scfmap} | awk '{{if (match(\$1, "path")) print \$2"\\t"\$3}}' > ../{output.rename_map}
+{PYTHON} {VERKKO}/scripts/process_reads.py rename ../{output.unitig_fasta}  ../{output.rename_map} ../{input.unitig_assembly}
+
+awk '/^S/{{print ">"\$2"\\n"\$3}}' ../{input.unitig_graph} | fold > ../{output.unitig_hpc}
+awk < ../{input.unitig_graph} \\\\
+  'BEGIN \\\\
+   {{ \\\\
+     FS="[ \\t]+"; OFS="\\t"; \\\\
+   }} \\\\
+   {{ \\\\
+     if (\$1 == "S") {{ \\\\
+       print "S", \$2, "*", "LN:i:"length(\$3); \\\\
+     }} else {{ \\\\
+       print \$0; \\\\
+     }} \\\\
+   }}' \\\\
+| \\\\
+{PYTHON} {VERKKO}/scripts/inject_coverage.py --allow-absent \\\\
+  ../{input.hifi5cov} \\\\
+> ../{output.unitig_graph}
+cp -p ../{output.unitig_graph} ../{output.finalnseqgraph}
+EOF
+
+chmod +x ./prepare_hic.sh
+
+./prepare_hic.sh > ../{log.err} 2>&1
+        '''
+       
+rule runMashMap:
+    input:
+        unitigs_hpc = '8-hicPipeline/unitigs.hpc.fasta'
+    output:
+        unitigs_matches = '8-hicPipeline/unitigs.matches'
+    log:
+        err    = '8-hicPipeline/run_mashmap.err'
+    threads:
+        int(config['fhc_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = int(config['fhc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
+    shell:
+        '''
+cd 8-hicPipeline
+
+cat > ./run_mashmap.sh <<EOF
+#!/bin/sh
+set -e
+echo "---Running mashmap"
+mashmap -r ../{input.unitigs_hpc} -q ../{input.unitigs_hpc} -t {threads} -f none --pi 95 -s 10000 -o mashmap.out
+cat mashmap.out |awk '{{if (\$NF > 99 && \$4-\$3 > 100000 && \$1 != \$6) print \$1"\\t"\$6"\\t"\$4-\$3}}'|sort |uniq > ../{output.unitigs_matches}
+EOF
+
+chmod +x ./run_mashmap.sh
+
+./run_mashmap.sh > ../{log.err} 2>&1
+        '''
+
+
+
+
+#a lot of code duplication with 3-alignONT stages
+def splitHICoutputs(wildcards):
+#here we need only wildcards, right?
+    return glob_wildcards("8-hicPipeline/split/hic1{xxxx}.fasta.gz").xxxx
+
+# there is no use of base quality in bwa, so it's OK to use fasta_partition.py
+
+checkpoint splitHIC:
+    input:
+        hic1           = HIC_READS1,
+        hic2           = HIC_READS2 
+    output:
+        split_finished = '8-hicPipeline/splitHIC.finished'
+    log:
+        err            = '8-hicPipeline/splitHIC.err'
+    params:
+        bases          = config['shc_bases'],
+        reads          = config['shc_reads'],
+        length         = config['shc_min_length']
+    threads:
+        int(config['fhc_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = int(config['fhc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
+    shell:
+        '''
+cd 8-hicPipeline
+
+cat > ./splitHIC.sh <<EOF
+#!/bin/sh
+set -e
+
+mkdir -p split
+
+{PYTHON} {VERKKO}/scripts/fasta_partition.py \\\\
+  partition split/hic1 {params.bases} {params.reads} {params.length} \\\\
+  {input.hic1} \\\\
+&& \\\\
+{PYTHON} {VERKKO}/scripts/fasta_partition.py \\\\
+  partition split/hic2 {params.bases} {params.reads} {params.length} \\\\
+  {input.hic2} \\\\
+&& \\\\
+touch ../{output.split_finished}
+EOF
+
+chmod +x ./splitHIC.sh
+
+./splitHIC.sh > ../{log.err} 2>&1
+        '''
+
+rule indexBWA:
+    input:
+        unitigs = '8-hicPipeline/unitigs.fasta'
+    output:
+        index = '8-hicPipeline/unitigs.fasta.bwt'
+    log:
+        err    = '8-hicPipeline/index_bwa.err'
+    resources:
+        job_id = 1,
+        n_cpus = int(config['fhc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
+    shell:
+        '''
+cd 8-hicPipeline
+
+cat > ./index_bwa.sh <<EOF
+#!/bin/sh
+set -e
+echo "---Creating BWA index for {input.unitigs}"
+bwa index ../{input.unitigs}
+EOF
+
+chmod +x ./index_bwa.sh
+./index_bwa.sh > ../{log.err} 2>&1
+
+        '''
+            
+rule alignBWA:
+    input:
+        unitigs = '8-hicPipeline/unitigs.fasta',
+        hic1    = '8-hicPipeline/split/hic1{nnnn}.fasta.gz',
+        hic2    = '8-hicPipeline/split/hic2{nnnn}.fasta.gz',
+        index   = '8-hicPipeline/unitigs.fasta.bwt'
+    output:
+        bwa_mapping = '8-hicPipeline/mapped{nnnn}.bam'
+    log:
+        err    = '8-hicPipeline/align_bwa{nnnn}.err'
+    threads:
+        int(config['ahc_n_cpus'])
+    resources:
+        job_id = lambda wildcards, input, attempt: int(wildcards.nnnn),
+        n_cpus = int(config['ahc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'ahc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ahc', 10.0)
+    shell:
+        '''
+cd 8-hicPipeline
+
+cat > ./align_bwa{wildcards.nnnn}.sh <<EOF
+#!/bin/sh
+set -e
+echo "---Mapping {input.hic1} and {input.hic2} to {input.unitigs} with BWA"
+bwa mem -t {threads} -5 -S -P ../{input.unitigs} ../{input.hic1} ../{input.hic2} | samtools view -bh -@ {threads} -q 1 -F 0x800 - | samtools sort -n -@ {threads} - -o ../{output.bwa_mapping} 
+EOF
+
+chmod +x ./align_bwa{wildcards.nnnn}.sh
+
+./align_bwa{wildcards.nnnn}.sh > ../{log.err} 2>&1 
+        '''
+
+#TODO: bwa and mashmap and samtools bins
+rule mergeBWA:
+    input:
+        split_finished = rules.splitHIC.output.split_finished,
+        index          = '8-hicPipeline/unitigs.fasta.bwt',
+        alignments     = lambda wildcards: expand("8-hicPipeline/mapped{nnnn}.bam", nnnn = splitHICoutputs(wildcards))
+        
+    output:
+        alignments     = '8-hicPipeline/hic_to_assembly.sorted_by_read.bam'
+    log:
+        err            = '8-hicPipeline/mergeBWA.err'
+    params:
+        alignments     = lambda wildcards: expand("mapped{nnnn}.bam", nnnn = splitHICoutputs(wildcards)),
+        keepinter      = config['keep_intermediate']
+    threads:
+        int(config['fhc_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = int(config['fhc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
+    shell:    
+        '''
+cd 8-hicPipeline
+
+cat > ./mergeBWA.sh <<EOF
+#!/bin/sh
+set -e
+
+samtools merge -@ {threads} -o ../{output.alignments} {params.alignments}
+
+if [ {params.keepinter} = False ] ; then
+  rm -f {params.alignments}
+
+  rm -f ./align_bwa*.err
+  rm -f ./align_bwa*.sh
+
+  rm -f ./unitigs.fasta.*
+fi
+
+EOF
+
+chmod +x ./mergeBWA.sh
+
+./mergeBWA.sh > ../{log.err} 2>&1
+        '''
+
+rule transformBWA:
+    input:
+        bwa_mapping = '8-hicPipeline/hic_to_assembly.sorted_by_read.bam'
+    output:
+        byread_mapping = '8-hicPipeline/hic_mapping.byread.output'
+    log:
+        err    = '8-hicPipeline/transform_bwa.err'
+    threads:
+        int(config['fhc_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = int(config['fhc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
+    shell:
+        '''
+cd 8-hicPipeline
+
+cat > ./transform_bwa.sh <<EOF
+#!/bin/sh
+set -e
+samtools view -F 0x800 -q 1 ../{input.bwa_mapping} | {PYTHON} {VERKKO}/scripts/parse_sam_pairs.py  > ../{output.byread_mapping}
+EOF
+
+chmod +x ./transform_bwa.sh
+
+./transform_bwa.sh > ../{log.err} 2>&1
+        '''
+
+rule hicPhasing:
+    input:
+        mashmap_matches = '8-hicPipeline/unitigs.matches',
+        hicmapping_byread = '8-hicPipeline/hic_mapping.byread.output',
+        graph='8-hicPipeline/unitigs.hpc.noseq.gfa'
+    output:
+        hic_compressed = '8-hicPipeline/hic.byread.compressed',
+        hic_binned_unitigs = '8-hicPipeline/hicverkko.colors.tsv'
+    log:
+        err    = '8-hicPipeline/hic_phasing.err'
+    threads:
+        int(config['fhc_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = int(config['fhc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
+    shell: 
+        '''
+cd 8-hicPipeline
+
+cat > ./hic_phasing.sh <<EOF
+#!/bin/sh
+set -e
+{PYTHON} {VERKKO}/scripts/hicverkko.py .
+EOF
+
+chmod +x ./hic_phasing.sh
+
+./hic_phasing.sh > ../{log.err} 2>&1
+        '''
+        
+rule runRukkiHIC:
+    input:
+        graph = '8-hicPipeline/unitigs.hpc.noseq.gfa',
+        binning = '8-hicPipeline/hicverkko.colors.tsv'
+    output:
+        tsv_path = '8-hicPipeline/rukki.paths.tsv',
+        gaf_path = '8-hicPipeline/rukki.paths.gaf',
+        final_paths_tsv = 'assembly.paths.tsv'
+    log:                                                                                                                                                                                                                                                     
+        err    = '8-hicPipeline/rukki_hic.err'
+    threads:
+        int(config['fhc_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = int(config['fhc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
+    shell:
+        '''
+cd 8-hicPipeline
+
+cat > ./rukki_hic.sh <<EOF                                                                                                                                                                                                                                 
+#!/bin/sh
+set -e
+echo "---Running rukki on the resulting clustering"
+params=" --init-assign out_init_ann.csv --refined-assign out_refined_ann.csv --final-assign out_final_ann.csv"
+params="\$params --marker-sparsity 5000"
+params="\$params --issue-sparsity 1000"
+params="\$params --try-fill-bubbles"
+params="\$params --fillable-bubble-diff 1000"
+params="\$params --fillable-bubble-len 500000"
+params="\$params --assign-tangles --tangle-allow-deadend"
+params="\$params --issue-ratio 1."
+params="\$params --solid-homozygous-cov-coeff 1.1"
+params="\$params --solid-ratio 1.5"
+params="\$params --hap-names haplotype1,haplotype2"
+
+{VERKKO}/bin/rukki trio -g ../{input.graph} -m ../{input.binning}              -p ../{output.tsv_path} \$params
+{VERKKO}/bin/rukki trio -g ../{input.graph} -m ../{input.binning} --gaf-format -p ../{output.gaf_path} \$params
+cp -p ../{output.tsv_path} ../{output.final_paths_tsv}
+echo "haplotype1" > label1
+echo "haplotype2" > label2
+
+EOF
+
+chmod +x ./rukki_hic.sh
+
+./rukki_hic.sh > ../{log.err} 2>&1
+        '''
+
+
+

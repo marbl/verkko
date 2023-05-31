@@ -45,8 +45,11 @@ help=""
 hifi=""
 nano=""
 outd=""
+hic1=""
+hic2=""
 
 withont="False"
+withhic="False"
 
 keepinter="True"
 
@@ -164,6 +167,16 @@ ruk_hap2=""
 ruk_type=""
 ruk_fract="0.9"
 
+#  split_hic, partitioning illumina hic reads for alignment
+#Do not want to use shc_bases at all because of synchronization between left and right that will be broken in case of some precorrecion or trimming 
+#relying on shc_reads only
+
+shc_bases=30000000000000
+shc_reads=20000000
+shc_min_length=0
+
+
+
 #
 #  Run parameters.
 #
@@ -247,6 +260,18 @@ par_time_h=24
 cns_n_cpus=8
 cns_mem_gb=0
 cns_time_h=24
+
+# align_hic stuff
+ahc_n_cpus=24
+ahc_mem_gb=64
+ahc_time_h=240
+
+# fast things in hic pipeline
+fhc_n_cpus=8
+fhc_mem_gb=16
+fhc_time_h=24
+
+
 
 #
 #  If an empty command, give usage.
@@ -338,7 +363,28 @@ while [ $# -gt 0 ] ; do
             shift
             arg=$1
         done
-
+    elif [ "$opt" = "--hic1" ] ; then
+        withhic="True"
+        while [ -e "$arg" ] ; do
+            if [ -e "/$arg" ] ; then
+                hic1="$hic1 $arg"
+            else
+                hic1="$hic1 `pwd`/$arg"
+            fi
+            shift
+            arg=$1
+        done
+    elif [ "$opt" = "--hic2" ] ; then
+        withhic="True"
+        while [ -e "$arg" ] ; do
+            if [ -e "/$arg" ] ; then
+                hic2="$hic2 $arg"
+            else
+                hic2="$hic2 `pwd`/$arg"
+            fi
+            shift
+            arg=$1
+        done   
     elif [ "$opt" = "--no-nano" ] ; then
         withont="False"
 
@@ -630,6 +676,13 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --hap-kmers h1 h2 type  Use rukki to assign paths to haplotypes.  'h1' and 'h2"
     echo "                            must be Meryl databases of homopolymer-compressed parental"
     echo "                            kmers.  'type' must be 'trio', 'hic' or 'strandseq'."
+    echo "    --hic1 <files ...>      List of files containing left hic reads."
+    echo "    --hic2 <files ...>      List of files containing right hic reads."
+    echo "                            Order of left and right files should be same, no interlaced files allowed." 
+    echo "                            Input reads can be any combination of FASTA/FASTQ,"
+    echo "                            uncompressed or gzip/bzip2/xz compressed.  Any"
+    echo "                            number of files can be supplied; *.gz works."
+    echo ""
     echo ""
     echo "    --base-k"
     echo "    --max-k"
@@ -742,6 +795,17 @@ for o in ${nano} ; do
   echo >> ${outd}/verkko.yml " - '$o'"
 done
 echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "withHIC:             '${withhic}'"
+echo >> ${outd}/verkko.yml "HIC_READS1:"
+for o in ${hic1} ; do
+  echo >> ${outd}/verkko.yml " - '$o'"
+done
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "HIC_READS2:"
+for o in ${hic2} ; do
+  echo >> ${outd}/verkko.yml " - '$o'"
+done
+echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  Algorithm parameters."
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  buildStore, countKmers and computeOverlaps"
@@ -797,6 +861,11 @@ echo >> ${outd}/verkko.yml "ruk_hap1:            '${ruk_hap1}'"
 echo >> ${outd}/verkko.yml "ruk_hap2:            '${ruk_hap2}'"
 echo >> ${outd}/verkko.yml "ruk_type:            '${ruk_type}'"
 echo >> ${outd}/verkko.yml "ruk_fract:           '${ruk_fract}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  Aligning hic reads"
+echo >> ${outd}/verkko.yml "shc_bases:           '${shc_bases}'"
+echo >> ${outd}/verkko.yml "shc_reads:           '${shc_reads}'"
+echo >> ${outd}/verkko.yml "shc_min_length:      '${shc_min_length}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  Run parameters."
 echo >> ${outd}/verkko.yml ""
@@ -882,6 +951,16 @@ echo >> ${outd}/verkko.yml "cns_n_cpus:          '${cns_n_cpus}'"
 echo >> ${outd}/verkko.yml "cns_mem_gb:          '${cns_mem_gb}'"
 echo >> ${outd}/verkko.yml "cns_time_h:          '${cns_time_h}'"
 echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  align hic stuff"
+echo >> ${outd}/verkko.yml "ahc_n_cpus:          '${ahc_n_cpus}'"
+echo >> ${outd}/verkko.yml "ahc_mem_gb:          '${ahc_mem_gb}'"
+echo >> ${outd}/verkko.yml "ahc_time_h:          '${ahc_time_h}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  fast hic stuff"
+echo >> ${outd}/verkko.yml "fhc_n_cpus:          '${fhc_n_cpus}'"
+echo >> ${outd}/verkko.yml "fhc_mem_gb:          '${fhc_mem_gb}'"
+echo >> ${outd}/verkko.yml "fhc_time_h:          '${fhc_time_h}'"
+
 echo >> ${outd}/verkko.yml "#  This is the end."
 
 #
@@ -891,6 +970,10 @@ echo >> ${outd}/verkko.yml "#  This is the end."
 #
 
 target="verkko"
+
+if [ "x$withhic" = "xTrue" ] ; then
+    target="runRukkiHIC"
+fi
 
 if [ "x$cnspaths" != "x" ] ; then
     target="cnspath"
@@ -914,10 +997,9 @@ if [ "x$cnspaths" != "x" ] ; then
 
     if [ ! -e "${outd}/5-untip" ]; then
        mkdir ${outd}/5-untip
-       cp -p ${cnsassembly}/5-untip/unitig-popped-unitig-normal-connected-tip.hifi-coverage.csv     ${outd}/5-untip/unitig-popped-unitig-normal-connected-tip.hifi-coverage.csv
-       cp -p ${cnsassembly}/5-untip/unitig-popped-unitig-normal-connected-tip.ont-coverage.csv      ${outd}/5-untip/unitig-popped-unitig-normal-connected-tip.ont-coverage.csv
-       cp -p ${cnsassembly}/5-untip/unitig-popped-unitig-normal-connected-tip.gfa                   ${outd}/5-untip/unitig-popped-unitig-normal-connected-tip.gfa
-       cp -p ${cnsassembly}/5-untip/unitig-popped-unitig-normal-connected-tip.ont-coverage.csv      ${outd}/5-untip/unitig-popped-unitig-normal-connected-tip.ont-coverage.csv
+       cp -p ${cnsassembly}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.hifi-coverage.csv     ${outd}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.hifi-coverage.csv
+       cp -p ${cnsassembly}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.ont-coverage.csv      ${outd}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.ont-coverage.csv
+       cp -p ${cnsassembly}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.gfa                   ${outd}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.gfa
        cp -p ${cnsassembly}/5-untip/combined-edges-final.gfa                                        ${outd}/5-untip/combined-edges-final.gfa
        cp -p ${cnsassembly}/5-untip/combined-nodemap-final.txt                                      ${outd}/5-untip/combined-nodemap-final.txt
        cp -p ${cnsassembly}/5-untip/nodelens-final.txt                                              ${outd}/5-untip/nodelens-final.txt
@@ -988,3 +1070,45 @@ chmod +x ${outd}/snakemake.sh
 
 cd ${outd}
 ./snakemake.sh
+
+
+#Failed to do it with snakemake
+if [ "x$withhic" = "xTrue" ] ; then
+    if [ ! -e "8-hicPipeline/rukki.paths.gaf" ]; then
+        echo "ERROR!"
+        echo "Not running final consensus since no rukki paths provided!"
+        exit 
+    fi
+    newoutd=8-hicPipeline/final_contigs/
+    mkdir -p $newoutd
+    cp verkko.yml $newoutd
+    cp snakemake.sh $newoutd
+    if [ ! -e "${newoutd}/5-untip" ]; then
+       mkdir ${newoutd}/5-untip
+       cp -p 5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.hifi-coverage.csv     ${newoutd}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.hifi-coverage.csv
+       cp -p 5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.ont-coverage.csv      ${newoutd}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.ont-coverage.csv
+       cp -p 5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.gfa                   ${newoutd}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.gfa
+       cp -p 5-untip/combined-edges-final.gfa                                        ${newoutd}/5-untip/combined-edges-final.gfa
+       cp -p 5-untip/combined-nodemap-final.txt                                      ${newoutd}/5-untip/combined-nodemap-final.txt
+       cp -p 5-untip/nodelens-final.txt                                              ${newoutd}/5-untip/nodelens-final.txt
+    fi
+
+    if [ ! -e "${newoutd}/6-layoutContigs" ] ; then
+        mkdir ${newoutd}/6-layoutContigs
+        cp -p 6-layoutContigs/combined-nodemap.txt     ${newoutd}/6-layoutContigs/combined-nodemap.txt
+        cp -p 6-layoutContigs/combined-edges.gfa       ${newoutd}/6-layoutContigs/combined-edges.gfa
+        cp -p 6-layoutContigs/combined-alignments.gaf  ${newoutd}/6-layoutContigs/combined-alignments.gaf
+        cp -p 8-hicPipeline/rukki.paths.gaf            ${newoutd}/6-layoutContigs/consensus_paths.txt
+        cp -p 6-layoutContigs/nodelens.txt             ${newoutd}/6-layoutContigs/nodelens.txt
+    fi
+
+    if [ ! -e "${newoutd}/7-consensus" ] ; then
+        mkdir ${newoutd}/7-consensus
+        cp -p 7-consensus/ont_subset.fasta.gz          ${newoutd}/7-consensus/ont_subset.fasta.gz
+    fi
+    cd $newoutd
+    sed -i 's/runRukkiHIC/cnspath/g' snakemake.sh
+    ./snakemake.sh
+    cp *.fasta ../../
+    cp *.layout ../../
+fi
