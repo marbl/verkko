@@ -45,7 +45,7 @@ jobs:
 
     - name: Install snakemake-minimal
       run: |
-        mamba -c conda-forge -c bioconda install snakemake-minimal MBG GraphAligner mashmap winnowmap
+        mamba install -c conda-forge -c bioconda snakemake-minimal MBG GraphAligner mashmap winnowmap
 
     - name: Fetch Data
       run: |
