@@ -23,7 +23,7 @@ fullpath() {
 
   if [ ! -e $ipath ] ; then
     echo 1>&2 "File '$ipath' doesn't exist."
-    exit
+    exit 1
   fi
 
   if [ -d $ipath ] ; then      #  If a directory, go in there and
@@ -263,7 +263,7 @@ while [ $# -gt 0 ] ; do
     #  Handle --help and --version special.
     #
 
-    if   [ "$opt" = "--version" ] ;      then echo "$version"; exit;
+    if   [ "$opt" = "--version" ] ;      then echo "$version"; exit 0;
     elif [ "$opt" = "--help" ] ;         then help="help";
 
     #
@@ -697,8 +697,14 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo ""
     echo "  Verkko module path: ${verkko}/"
     echo ""
-    printf "${errors}"
-    exit 0
+
+    if [ "x$help" = "xhelp" ]
+    then       #  Requested --help, not an error.
+        exit 0
+    else       #  Errors!
+        printf "${errors}"
+        exit 1
+    fi
 fi
 
 #
@@ -894,12 +900,12 @@ if [ "x$cnspaths" != "x" ] ; then
 
     if [ ! -e $cnspaths ] ; then
         echo "Can't find --paths ${cnspaths}."
-        exit
+        exit 1
     fi
 
     if [ ! -d $cnsassembly ] ; then
         echo "Can't find --assembly ${cnsassembly}."
-        exit
+        exit 1
     fi
 
     #  Copy pieces from the previous assembly to the new run directory.  This
