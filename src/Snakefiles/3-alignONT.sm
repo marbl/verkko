@@ -131,6 +131,7 @@ fi
   --overlap-incompatible-cutoff {params.incompat_cutoff} \\\\
   --max-trace-count {params.max_trace} \\\\
   --mem-index-no-wavelet-tree \\\\
+  --diploid-heuristic \\\\
 && \\\\
 mv -f ../{params.alignmentstmp} ../{output.alignments}
 EOF
