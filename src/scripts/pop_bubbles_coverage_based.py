@@ -66,7 +66,7 @@ def remove_graph_node(node, edges):
 
 # Detecting Superbubbles in Assembly Graphs, Onodera et al 2013
 # fig. 5
-def find_bubble(s, edges, max_bubble_size, nodelens):
+def find_bubble(s, edges, max_bubble_size, nodelens, max_size):
 	if s not in edges: return None
 	if len(edges[s]) < 2: return None
 	S = [s]
@@ -79,7 +79,7 @@ def find_bubble(s, edges, max_bubble_size, nodelens):
 		seen.remove(v)
 		assert v not in visited
 		visited.add(v)
-		if v != s and nodelens[v[1:]] > max_poppable_node_size: return None
+		if v != s and nodelens[v[1:]] > max_size: return None
 		if len(visited) > max_bubble_size: return None
 		if v not in edges: return None
 		if len(edges[v]) == 0: return None
@@ -107,15 +107,24 @@ def find_bubble(s, edges, max_bubble_size, nodelens):
 def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage, nodelens):
 	bubble_nodes = set()
 	bubble_edges = set()
+	max_bubble_node_size = 0
 	predecessor = {}
 	stack = []
 	stack.append((start, start, coverage.get(start[1:], 0)))
 	while len(stack) > 0:
 		(top, before, pathwidth) = stack.pop()
+		if top in predecessor:
+			p = predecessor[top]
+		else:
+			p = ""
 		if top not in predecessor: predecessor[top] = (before, pathwidth)
-		if predecessor[top][1] < pathwidth: predecessor[top] = (before, pathwidth)
+		# special case for three-node bubbles (e.g. transitive), we won't replace the predecessor to skip the intermediate node unless it has really low coverage
+		# without this we'd force keep the begin node to end node edge if the end node has higher coverage than the intermediate node, even if they are 22.1 vs 22.09
+		if (top != end or before != start or predecessor[top][1] < 0.5*avg_coverage) and predecessor[top][1] < pathwidth: predecessor[top] = (before, pathwidth)
 		bubble_nodes.add(top[1:])
 		bubble_edges.add((before, top))
+		if top[1:] != start[1:] and top[1:] != end[1:] and nodelens[top[1:]] > max_bubble_node_size:
+			max_bubble_node_size = nodelens[top[1:]]
 		if top == end: continue
 		for edge in iterate_deterministic(edges[top], end):
 			stack.append((edge, top, min(pathwidth, coverage.get(edge[1:], 0))))
@@ -135,7 +144,13 @@ def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage, nodele
 	assert len(kept_nodes) <= len(bubble_nodes)
 	assert len(kept_edges) < len(bubble_edges) or len(bubble_edges) == 1
 
-	if start[1:] in coverage and end[1:] in coverage and nodelens[start[1:]] > max_poppable_node_size and nodelens[end[1:]] > max_poppable_node_size and coverage[start[1:]] <= 1.5*avg_coverage and coverage[start[1:]] >= 0.5 * avg_coverage and coverage[end[1:]] <= 1.5*avg_coverage and coverage[end[1:]] >= 0.5*avg_coverage:
+	# check that the length is acceptable for standard bubbles, transitive edge bubbles are allowed a larger pop length
+	if len(bubble_nodes) > 3 and max_bubble_node_size > max_poppable_node_size: return
+
+	# set minimum coverage, for 3-node (transitive) bubbles we are conservative always, otherwise be agressive in haploid genomes and when we are surrounded by large likely resolved nodes (e.g. within haplotype bubble)
+	if len(bubble_nodes) == 3:
+		max_poppable_coverage = 0.5*avg_coverage
+	elif start[1:] in coverage and end[1:] in coverage and nodelens[start[1:]] > max_poppable_node_size and nodelens[end[1:]] > max_poppable_node_size and coverage[start[1:]] <= 1.5*avg_coverage and coverage[start[1:]] >= 0.5 * avg_coverage and coverage[end[1:]] <= 1.5*avg_coverage and coverage[end[1:]] >= 0.5*avg_coverage:
 		max_poppable_coverage = avg_coverage
 	elif haploid:
 		max_poppable_coverage = avg_coverage
@@ -246,7 +261,7 @@ for node in nodelens:
 possible_merges = []
 
 for edge in edges:
-	bubble = find_bubble(edge, edges, len(nodelens), nodelens)
+	bubble = find_bubble(edge, edges, len(nodelens), nodelens, max_poppable_node_size * 5)
 	if not bubble: continue
 	if bubble[0][1:] not in coverage or bubble[1][1:] not in coverage: continue
 	possible_merges.append((bubble[0][1:], bubble[1][1:], max(coverage[bubble[0][1:]] / coverage[bubble[1][1:]], coverage[bubble[1][1:]] / coverage[bubble[0][1:]])))
@@ -285,13 +300,13 @@ for node in iterate_deterministic(nodelens):
 	key = find(parent, node)
 	if key not in unique_chains: continue
 	if node in removed_nodes: continue
-	bubble = find_bubble(">" + node, edges, max_bubble_pop_size, nodelens)
+	bubble = find_bubble(">" + node, edges, max_bubble_pop_size, nodelens, max_poppable_node_size * 5)
 	if bubble:
 		assert bubble[0] == ">" + node
 		assert bubble[1][1:] != node
 		if find(parent, bubble[1][1:]) != key: continue
 		pop_bubble(bubble[0], bubble[1], removed_nodes, removed_edges, edges, coverage, nodelens)
-	bubble = find_bubble("<" + node, edges, max_bubble_pop_size, nodelens)
+	bubble = find_bubble("<" + node, edges, max_bubble_pop_size, nodelens, max_poppable_node_size * 5)
 	if bubble:
 		assert bubble[0] == "<" + node
 		assert bubble[1][1:] != node
@@ -302,10 +317,10 @@ for node in iterate_deterministic(nodelens):
 	key = find(parent, node)
 	if key not in unique_chains: continue
 	if node in removed_nodes: continue
-	bubble = find_bubble(">" + node, edges, max_bubble_pop_size, nodelens)
+	bubble = find_bubble(">" + node, edges, max_bubble_pop_size, nodelens, max_poppable_node_size)
 	if not bubble:
 		try_pop_tip(">" + node, edges, coverage, removed_nodes, removed_edges, avg_coverage*.75, nodelens)
-	bubble = find_bubble("<" + node, edges, max_bubble_pop_size, nodelens)
+	bubble = find_bubble("<" + node, edges, max_bubble_pop_size, nodelens, max_poppable_node_size)
 	if not bubble:
 		try_pop_tip("<" + node, edges, coverage, removed_nodes, removed_edges, avg_coverage*.75, nodelens)
 
