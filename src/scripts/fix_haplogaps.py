@@ -200,21 +200,23 @@ for edge in edges:
 next_fake_node_id = 0
 for edge in extra_edges:
 	assert revnode(edge[0]) not in node_trims
-	assert edge[0] not in node_cuts
-	assert revnode(edge[0]) not in node_cuts
+	fromprint = ""
+	if edge[0] in node_cuts or revnode(edge[0]) in node_cuts:
+		fromprint = "_end" if edge[0][0] == ">" else "_beg"
+		assert edge[0] not in node_trims
 	assert edge[1] in node_cuts
 	assert revnode(edge[1]) not in node_cuts
 	gap_len = edge[2]
 	trimprint = ""
 	if edge[0] in node_trims: trimprint = "_trim"
 	if gap_len <= 0:
-		print("L\t" + edge[0][1:] + trimprint + "\t" + ("+" if edge[0][0] == ">" else "-") + "\t" + edge[1][1:] + ("_end" if edge[1][0] == ">" else "_beg") + "\t" + ("+" if edge[1][0] == ">" else "-") + "\t" + str(-gap_len) + "M")
+		print("L\t" + edge[0][1:] + fromprint + trimprint + "\t" + ("+" if edge[0][0] == ">" else "-") + "\t" + edge[1][1:] + ("_end" if edge[1][0] == ">" else "_beg") + "\t" + ("+" if edge[1][0] == ">" else "-") + "\t" + str(-gap_len) + "M")
 	else:
 		assert trimprint == ""
 		assert edge[0] not in node_trims
 		fake_node = gapname + "_" + str(next_fake_node_id)
 		next_fake_node_id += 1
-		print("L\t" + edge[0][1:] + "\t" + ("+" if edge[0][0] == ">" else "-") + "\t" + fake_node + "\t" + "+" + "\t" + "0M")
+		print("L\t" + edge[0][1:] + fromprint + "\t" + ("+" if edge[0][0] == ">" else "-") + "\t" + fake_node + "\t" + "+" + "\t" + "0M")
 		print("S\t" + fake_node + "\t" + "N"*gap_len)
 		print("L\t" + fake_node + "\t" + "+" + "\t" + edge[1][1:] + ("_end" if edge[1][0] == ">" else "_beg") + "\t" + ("+" if edge[1][0] == ">" else "-") + "\t" + "0M")
 
