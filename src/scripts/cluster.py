@@ -146,7 +146,7 @@ def fixUnbalanced(part, C, G):
                         if cost < 0 and curswap + G.nodes[node]['length'] < maxswap:
                             changed = True
                             curswap += G.nodes[node]['length']
-                            part[1 - ind].append(node)
+                            part[1 - ind].add(node)
                             part[ind].remove(node)
                             edge_swapped +=1
                             print (f"SWAPPED {node}")
