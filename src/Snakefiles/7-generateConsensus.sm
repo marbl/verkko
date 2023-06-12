@@ -38,7 +38,7 @@ rule generateConsensus:
         job_id = lambda wildcards, input, attempt: int(wildcards.nnnn),
         n_cpus = int(config['cns_n_cpus']),
         mem_gb = lambda wildcards, input, attempt: getConsensusMemoryRequest(attempt, wildcards.nnnn),
-        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'cns')
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'cns', 3)
     shell:
         '''
 cd 7-consensus
