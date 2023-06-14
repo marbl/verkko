@@ -237,16 +237,20 @@ with open(paths_file) as f:
 
 		#  Find all words that
 		#    begin with [<>], contain anything but [
-		#    begin with [N, contain digits and end with N]
+		#    begin with [N, contain digits and end with N] or N:optional-description]
+                #    we dump the description here and anly keep the N, digits N] part
 		#
 		fullname = lp[0]
-		pathfull = re.findall(r"([<>][^[]+|\[N\d+N\])", lp[1])
+		pathfull = re.findall(r"([<>][^[]+|\[N\d+N(?:[^\]]+){0,1}\])", lp[1])
+		sys.stderr.write("Matched %s\n"%(pathfull))
 
 		contig_pieces[fullname] = []
 
 		for pp in pathfull:
-			if re.match(r"\[N\d+N\]", pp):
-				contig_pieces[fullname].append(pp)
+			gp = re.match(r"\[(N\d+N)(?:[^\]]+){0,1}\]", pp)
+			if gp:
+				sys.stderr.write("The gp match for %s is %s and groups is %s and groups1 is %s\n"%(pp, gp, gp.group(), gp.group(1))) 
+				contig_pieces[fullname].append("[" + gp.group(1) + "]")
 				continue
 
 			pieceid = pieceid + 1
