@@ -242,14 +242,12 @@ with open(paths_file) as f:
 		#
 		fullname = lp[0]
 		pathfull = re.findall(r"([<>][^[]+|\[N\d+N(?:[^\]]+){0,1}\])", lp[1])
-		sys.stderr.write("Matched %s\n"%(pathfull))
 
 		contig_pieces[fullname] = []
 
 		for pp in pathfull:
 			gp = re.match(r"\[(N\d+N)(?:[^\]]+){0,1}\]", pp)
 			if gp:
-				sys.stderr.write("The gp match for %s is %s and groups is %s and groups1 is %s\n"%(pp, gp, gp.group(), gp.group(1))) 
 				contig_pieces[fullname].append("[" + gp.group(1) + "]")
 				continue
 
