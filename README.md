@@ -23,23 +23,24 @@ creates contig consensus sequences using Canu's consensus module.
 * Running verkko with hi-c data also requires 
   * [samtools](http://www.htslib.org/)
   * [bwa](https://bio-bwa.sourceforge.net/)
-  * [networkx] (https://networkx.org/documentation/stable/install.html) python library
+  * [networkx](https://networkx.org/documentation/stable/install.html) python library
+    
 Installing with a 'package manager' is encouraged:
   * `conda install -c conda-forge -c bioconda -c defaults verkko`
    
 or
   * `conda create -n verkko -c conda-forge -c bioconda -c defaults verkko`
   
-if you prefer to install verkko in a separate environment. Alternatively, you can download the source for a recent [release](https://github.com/maickrau/verkko/releases).
+if you prefer to install verkko in a separate environment. Alternatively, you can download the source for a recent [release](https://github.com/marbl/verkko/releases).
 
 To install Verkko from github (for developers only) run:
 
-    git clone https://github.com/maickrau/verkko.git
+    git clone https://github.com/marbl/verkko.git
     cd verkko/src
     git submodule init && git submodule update
     make -j32
 
-This will create the folder `verkko/bin` and `verkko/lib/verkko`. You can move the contents of these folders to a central installation location or you can add `verkko/bin` to your path. If GraphAligner or MBG are not available in your path you may also symlink them under `verkko/lib/verkko/bin/`. Make sure you are using the latest tip of MBG/GraphAligner not a conda install in this case.
+This will create the folder `verkko/bin` and `verkko/lib/verkko`. You can move the contents of these folders to a central installation location or you can add `verkko/bin` to your path. If any of the dependencies (e.g. GraphAligner, MBG, winnowmap, mashmap, etc) are not available in your path you may also symlink them under `verkko/lib/verkko/bin/`. Make sure you are using the latest tip of MBG/GraphAligner not a conda install for development.
 
 ## Run:
 
@@ -50,7 +51,9 @@ and create a config.yml file.
 
 By default, verkko will run the snakemake workflow and all compute on the local machine. Support for SGE, Slurm and LSF (untested) can be enabled with options `--sge`, `--slurm` and `--lsf`, respectively. This will run the snakemake workflow on the local machine but submit all compute to the grid. To launch the both the snakemake workflow and compute on the grid, wrap the verkko command in a shell script and submit using your scheduler.  You may need to set the environment variable VERKKO to the installation directory of Verkko if there are errors that component scripts are not found.
 
-Verkko supports trio-based phasing using using [rukki](https://github.com/marbl/rukki). To run in this mode, you must first generate [merqury](https://github.com/marbl/merqury) hapmer databases and pass them to verkko. Please use git clone to pull the latest versions merqury (see the merqury documentation for details) and make sure that `/path/to/verkko/lib/verkko/bin` is in your path. Then, if you have a SLURM cluster you can run:
+Verkko supports extended phasing using using [rukki](https://github.com/marbl/rukki) using either trio or Hi-C information.
+
+To run in trio mode, you must first generate [merqury](https://github.com/marbl/merqury) hapmer databases and pass them to verkko. Please use git clone to pull the latest versions merqury (see the merqury documentation for details) and make sure that `/path/to/verkko/lib/verkko/bin` is in your path. Then, if you have a SLURM cluster you can run:
 
     $MERQURY/_submit_build.sh -c 30 maternal.fofn maternal_compress
     $MERQURY/_submit_build.sh -c 30 paternal.fofn paternal_compress
@@ -76,11 +79,17 @@ replacing XX and YY with the threads and memory you want meryl to use. Once you 
                   paternal_compress.k30.hapmer.meryl \
                   trio
 
-Make sure to count k-mers in compressed space. Child data is optional, in this case use `maternal_compress.k30.only.meryl` and  `paternal_compress.k30.only.meryl` in the verkko command above. Preliminary support is available for read sets binned by haplotype from another method, such as [PGAS](https://github.com/daewoooo/SaaRclust) and Strand-Seq or [DipAsm](https://github.com/shilpagarg/DipAsm) and Hi-C. In these cases, make sure the phase blocks are chromosome-scale and consistent within each chromosome. You can build merqury DBs as above and specify them along with either `hic` or `strandseq` instead of `trio` to verkko instead.
+Make sure to count k-mers in compressed space. Child data is optional, in this case use `maternal_compress.k30.only.meryl` and  `paternal_compress.k30.only.meryl` in the verkko command above.
 
-Verkko also supports hi-c phasing, reads should be provided with --hic1 and --hic2 options.
+To run in Hi-C mode, reads should be provided using the --hic1 and --hic2 options. For example:
 
-Hi-C integration was tested mostly on human-like genomes. Please check --rdna-tangle, --uneven-depth and --haplo-divergence options if you want to assemble something distant from human. We'll be glad to help with phasing through issues on the verkko's github.
+    verkko -d asm \
+      --hifi hifi/*.fastq.gz \
+      --nano ont/*.fastq.gz \
+      --hic1 hic/*R1*fastq.gz  \
+      --hic2 hic/*R2*fastq.gz
+
+Hi-C integration is a beta release and tested mostly on human and primate genomes. Please see the --rdna-tangle, --uneven-depth and --haplo-divergence options if you want to assemble something distant from human and/or have uneven coverage. If you encounter issues or have questions about appropriate parameters, please open an [issue](https://github.com/marbl/verkko/issues).
 
 You can pass through snakemake options to restrict CPU/memory/cluster resources by adding the `--snakeopts` option to verkko. For example, `--snakeopts "--dry-run"` will print what jobs will run while `--snakeopts "--cores 1000"` would restrict grid runs to at most 1000 cores across all submited jobs.
 
