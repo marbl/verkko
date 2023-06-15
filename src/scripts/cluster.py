@@ -154,7 +154,7 @@ def fixUnbalanced(part, C, G):
     if curswap > 0:
         print (f"Fixing uneven component, moved {curswap} bases and {edge_swapped} nodes")
 
-def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir):
+def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, uneven_depth):
     #TODO: move constants to some more relevant place
     MIN_LEN = 200000  # best result so far with 200000
 
@@ -190,13 +190,16 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir):
     sys.stderr.write("Loaded a graph with %d nodes and %d edges avg degree %f and stdev %f max is %f\n" % (
     G.number_of_nodes(), G.number_of_edges(), mean, res, mean + 5 * res))
 
-    #Store rDNA component, not to add additional links from matchGraph
+    delete_set = set()
     largest_component = max(nx.connected_components(G), key=len)
-    sys.stderr.write(f"Found an rDNA huge component of {len(largest_component)} edges\n")
 
-    #Here we remove large connected components of short edge, just to exclude rDNA cluster
-    delete_set = graph_functions.remove_large_tangles(G, MIN_LEN, MAX_SHORT_COMPONENT)
-
+    if not (no_rdna):
+        #Store rDNA component, not to add additional links from matchGraph
+        sys.stderr.write(f"Found an rDNA huge component of {len(largest_component)} edges\n")
+        #Here we remove large connected components of short edge, just to exclude rDNA cluster
+        delete_set = graph_functions.remove_large_tangles(G, MIN_LEN, MAX_SHORT_COMPONENT)
+    else:
+        sys.stderr.write(f"Not using rDNA component removal heuristics\n")
     filtered_graph = open(os.path.join(output_dir, FILTERED_GFA_FILENAME), 'w')
     tsv_output = os.path.join(output_dir, RESULT_FILENAME)
     tsv_file = open(tsv_output, 'w')
@@ -255,8 +258,14 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir):
             med_cov = node[1]['coverage']
             sys.stderr.write (f'Median coverage is {med_cov}\n')
             break
+    
     MAX_COV = med_cov * 1.5
-    # no reason for this to be a grpah but meh, why not
+    if (uneven_depth):
+        sys.stderr.write(f"Will not use coverage based homozygous nodes detection\n")
+    else:
+        sys.stderr.write(f"Will use coverage based homozygous nodes detection, cutoff: {MAX_COV}\n")
+        
+    # no reason for this to be a graph but meh, why not
     # load pairs of matching nodes based on self-similarity
     matchGraph = nx.Graph()
 
@@ -403,9 +412,12 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir):
                 sys.exit()
     #        if not (n in matchGraph):
 
-            if G.nodes[n]['coverage'] > MAX_COV:
+            if G.nodes[n]['coverage'] > MAX_COV and (not uneven_depth):
                 logging_f.write("While partitoning dropping node %s coverage too high\n" % (n))
                 short.append(n)
+            elif not (n in matchGraph) and uneven_depth:
+                logging_f.write("While partitoning dropping node %s uneven coverage and no matches\n" % (n))
+                short.append(n)                
             elif G.nodes[n]['length'] < MIN_LEN:
     #            sys.stderr.write("While partitoning dropping node %s its too short\n" % (n))
 #let's not delete but collapse all short nodes. to "extend" homology information.
@@ -576,8 +588,6 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir):
                             logging_f.write(f'Seed {seed} score {sum_w} improved over {best_score}\n')
                             best_part = part
                             best_score = sum_w
-                # for ()
-                # cut_value, part = nx.stoer_wagner(C)
             #try to move relatively short edges to fix case of unbalanced haplo sizes (complex repeats on only one haplo)
             fixUnbalanced(best_part, C, G)
             logging_f.write(f'RES\t{best_part}\n')
@@ -586,8 +596,6 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir):
             only_weights = {}
             for n in current_component:
                 if G.nodes[n]['length'] < MIN_LEN and G.nodes[n]['coverage'] < MAX_COV:
-                    #            sys.stderr.write("While partitoning dropping node %s its too short\n" % (n))
-
                     weights = [0, 0]
                     all_weights = [0, 0]
                     total_w = 0
@@ -630,15 +638,10 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir):
                             tsv_file.write(f'{contig}\t100000\t0\t100000:0\t#FF8888\n')
             for contig in only_weights.keys():
                 tsv_file.write(f'{contig}\t{only_weights[contig][0]}\t{only_weights[contig][1]}\t{only_weights[contig][0]}:{only_weights[contig][1]}\t#88FF88\n')
-    #all_weights should be added here!
-
-    #        for ind in [0, 1]:
-    #            for j in best_part[ind]:
-    #               long_colors[ind].add(j)
 
 
 if __name__ == "__main__":
     if len(sys.argv) != 5:
-        print(f'Usage: {sys.argv[0]} graph.gfa homologous_nodes.matches hic_byread output_dir')
+        print(f'Usage: {sys.argv[0]} graph.gfa homologous_nodes.matches hic_byread output_dir, no_rdna, uneven_depth')
         exit()
-    run_clustering(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
+    run_clustering(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6])

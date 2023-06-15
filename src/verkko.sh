@@ -167,6 +167,14 @@ ruk_hap2=""
 ruk_type=""
 ruk_fract="0.9"
 
+#  HiC heuristics
+haplo_divergence=0.05
+#possibly this should be used not only for hic
+uneven_depth="False"   
+no_rdna_tangle="False"
+
+
+
 #  split_hic, partitioning illumina hic reads for alignment
 #Do not want to use shc_bases at all because of synchronization between left and right that will be broken in case of some precorrecion or trimming 
 #relying on shc_reads only
@@ -439,6 +447,14 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--haploid" ];              then is_haploid="True";
 
     #
+    #  HiC options
+    #
+
+    elif [ "$opt" = "--no-rdna-tangle" ];          then no_rdna_tangle="True";
+    elif [ "$opt" = "--uneven-depth" ];         then uneven_depth="True";
+    elif [ "$opt" = "--haplo-divergence" ];     then haplo_divergence=$arg;     shift
+
+    #
     #  Post-processing options
     #
 
@@ -695,6 +711,10 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "                            Provide -d for the output of new consensus, as well as the hifi and nano reads from previous run."
 
     echo ""
+    echo "    --no-rdna-tangle         Switch off option that helps to proceed large rDNA tangles which may connect multiple chromosomes."
+    echo "    --uneven-depth           Disable coverage-based heuristics in homozygous nodes detection for phasing."
+    echo "    --haplo-divergence       Estimation on maximum divergence between haplotypes. Should be increased for species with divergence significantly higher than in human. Default: 0.05, min 0, max 0.2"  
+    echo ""
     echo "  COMPUTATIONAL PARAMETERS:"
     echo "    --python <interpreter>   Path or name of a python interpreter.  Default: 'python'."
     echo "    --perl <interpreter>     Path of name of a perl interpreter.  Default: 'perl'."
@@ -880,6 +900,11 @@ echo >> ${outd}/verkko.yml "ruk_hap1:            '${ruk_hap1}'"
 echo >> ${outd}/verkko.yml "ruk_hap2:            '${ruk_hap2}'"
 echo >> ${outd}/verkko.yml "ruk_type:            '${ruk_type}'"
 echo >> ${outd}/verkko.yml "ruk_fract:           '${ruk_fract}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  HiC algo options"
+echo >> ${outd}/verkko.yml "no_rdna_tangle:      '${no_rdna_tangle}'"
+echo >> ${outd}/verkko.yml "uneven_depth:        '${uneven_depth}'"
+echo >> ${outd}/verkko.yml "haplo_divergence:    '${haplo_divergence}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  Aligning hic reads"
 echo >> ${outd}/verkko.yml "shc_bases:           '${shc_bases}'"
