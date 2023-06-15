@@ -17,8 +17,7 @@ HIFI_READS = config.get('HIFI_READS')
 ONT_READS  = config.get('ONT_READS')
 HIC_READS1  = config.get('HIC_READS1')
 HIC_READS2  = config.get('HIC_READS2')
-
-
+HAPLO_DIV = float(config.get('haplo_divergence'))
 VERKKO = config.get('VERKKO')
 
         
@@ -84,8 +83,11 @@ rule runMashMap:
         unitigs_matches = '8-hicPipeline/unitigs.matches'
     log:
         err    = '8-hicPipeline/run_mashmap.err'
+    params:
+        MASHMAP_DIV = 100 - 100*float(config['haplo_divergence'])
     threads:
         int(config['fhc_n_cpus'])
+
     resources:
         job_id = 1,
         n_cpus = int(config['fhc_n_cpus']),
@@ -99,7 +101,7 @@ cat > ./run_mashmap.sh <<EOF
 #!/bin/sh
 set -e
 echo "---Running mashmap"
-mashmap -r ../{input.unitigs_hpc} -q ../{input.unitigs_hpc} -t {threads} -f none --pi 95 -s 10000 -o mashmap.out
+mashmap -r ../{input.unitigs_hpc} -q ../{input.unitigs_hpc} -t {threads} -f none --pi {params.MASHMAP_DIV} -s 10000 -o mashmap.out
 cat mashmap.out |awk '{{if (\$NF > 99 && \$4-\$3 > 100000 && \$1 != \$6) print \$1"\\t"\$6"\\t"\$4-\$3}}'|sort |uniq > ../{output.unitigs_matches}
 EOF
 
@@ -253,7 +255,7 @@ cat > ./mergeBWA.sh <<EOF
 #!/bin/sh
 set -e
 
-samtools merge -@ {threads} -o ../{output.alignments} {params.alignments}
+samtools merge -@ {threads}  ../{output.alignments} {params.alignments}
 
 if [ {params.keepinter} = False ] ; then
   rm -f {params.alignments}
@@ -312,6 +314,9 @@ rule hicPhasing:
         err    = '8-hicPipeline/hic_phasing.err'
     threads:
         int(config['fhc_n_cpus'])
+    params:
+        NO_RDNA = config['no_rdna_tangle'],
+        UNEVEN_DEPTH = config['uneven_depth']
     resources:
         job_id = 1,
         n_cpus = int(config['fhc_n_cpus']),
@@ -324,7 +329,7 @@ cd 8-hicPipeline
 cat > ./hic_phasing.sh <<EOF
 #!/bin/sh
 set -e
-{PYTHON} {VERKKO}/scripts/hicverkko.py .
+{PYTHON} {VERKKO}/scripts/hicverkko.py {params.NO_RDNA} {params.UNEVEN_DEPTH} .
 EOF
 
 chmod +x ./hic_phasing.sh
