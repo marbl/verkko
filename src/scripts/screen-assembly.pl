@@ -368,7 +368,11 @@ sub filterMash ($$) {
 
     open(F, "< $output.$cp.mashmap.out") or die "Failed to open mashmap output '$output.$cp.mashmap.out' for reading: $!\n";
     while (<F>) {
-        my ($con, $conlen, $conbgn, $conend, $s, $ctg, $ctglen, $ctgbgn, $ctgend, $ident) = split '\s+', $_;
+        my @s = split '\s+', $_;
+        my ($con, $conlen, $conbgn, $conend, $s, $ctg, $ctglen, $ctgbgn, $ctgend) = @s;
+        my $ident = pop(@s);
+        $ident =~ s/id:f://g;
+        $ident *= 100 if $ident < 1;
 
         $maxConLen = $conlen   if ($maxConLen < $conlen);
 
