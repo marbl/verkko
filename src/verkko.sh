@@ -272,7 +272,7 @@ cns_time_h=24
 # align_hic stuff
 ahc_n_cpus=24
 ahc_mem_gb=64
-ahc_time_h=240
+ahc_time_h=48
 
 # fast things in hic pipeline
 fhc_n_cpus=8

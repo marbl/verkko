@@ -209,7 +209,7 @@ rule alignBWA:
         job_id = lambda wildcards, input, attempt: int(wildcards.nnnn),
         n_cpus = int(config['ahc_n_cpus']),
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'ahc'),
-        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ahc', 10.0)
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ahc', 5.0)
     shell:
         '''
 cd 8-hicPipeline
