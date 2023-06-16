@@ -170,13 +170,13 @@ ruk_fract="0.9"
 #  HiC heuristics
 haplo_divergence=0.05
 #possibly this should be used not only for hic
-uneven_depth="False"   
+uneven_depth="False"
 no_rdna_tangle="False"
 
 
 
 #  split_hic, partitioning illumina hic reads for alignment
-#Do not want to use shc_bases at all because of synchronization between left and right that will be broken in case of some precorrecion or trimming 
+#Do not want to use shc_bases at all because of synchronization between left and right that will be broken in case of some precorrecion or trimming
 #relying on shc_reads only
 
 shc_bases=30000000000000
@@ -392,7 +392,7 @@ while [ $# -gt 0 ] ; do
             fi
             shift
             arg=$1
-        done   
+        done
     elif [ "$opt" = "--no-nano" ] ; then
         withont="False"
 
@@ -689,31 +689,32 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --no-correction          Do not perform Canu correction on the HiFi reads."
     echo "    --no-nano                Assemble without ONT data."
     echo ""
-    echo "    --hap-kmers h1 h2 type  Use rukki to assign paths to haplotypes.  'h1' and 'h2"
-    echo "                            must be Meryl databases of homopolymer-compressed parental"
-    echo "                            kmers.  'type' must be 'trio', 'hic' or 'strandseq'."
-    echo "    --hic1 <files ...>      List of files containing left hic reads."
-    echo "    --hic2 <files ...>      List of files containing right hic reads."
-    echo "                            Order of left and right files should be same, no interlaced files allowed." 
-    echo "                            Input reads can be any combination of FASTA/FASTQ,"
-    echo "                            uncompressed or gzip/bzip2/xz compressed.  Any"
-    echo "                            number of files can be supplied; *.gz works."
-    echo "    --screen <option>       Identify common contaminants and remove from the assembly, saving 1 (circularized) exemplar."
-    echo "                            For human, '--screen human' will attempt to remove rDNA, mitochondria, and EBV."
-    echo "                            Arbitrary contaminants are supported by supplying a name and fasta:"
-    echo "                            'screen contaminant /full/path/to/contaminant.fasta'"
-    echo "                            Multiple screen commands are allowed and are additive."
-    echo "    --paths <gaf paths>     No assembly, generate consensus given paths and an existing assembly."
-    echo "                            The gaf file must be formatted as follows: 'name >utig4-1<utig4-2 HAPLOTYPE1'. One per line."
-    echo "                            where utig4-1 is in fwd orientation and utig4-2 is in reverse complement. Requires '--assembly'."
-    echo "    --assembly <output-dir> Existing verkko assembly where the nodes given to --paths are defined."
-    echo "                            The nodes should come from assembly.homopolymer-compressed.gfa"
-    echo "                            Provide -d for the output of new consensus, as well as the hifi and nano reads from previous run."
-
+    echo "    --hap-kmers h1 h2 type   Use rukki to assign paths to haplotypes.  'h1' and 'h2"
+    echo "                             must be Meryl databases of homopolymer-compressed parental"
+    echo "                             kmers.  'type' must be 'trio', 'hic' or 'strandseq'."
     echo ""
+    echo "    --hic1 <files ...>       List of files containing left hic reads."
+    echo "    --hic2 <files ...>       List of files containing right hic reads."
+    echo "                             Order of left and right files should be same, no interlaced files allowed."
+    echo "                             Input reads can be any combination of FASTA/FASTQ,"
+    echo "                             uncompressed or gzip/bzip2/xz compressed.  Any"
+    echo "                             number of files can be supplied; *.gz works."
     echo "    --no-rdna-tangle         Switch off option that helps to proceed large rDNA tangles which may connect multiple chromosomes."
     echo "    --uneven-depth           Disable coverage-based heuristics in homozygous nodes detection for phasing."
-    echo "    --haplo-divergence       Estimation on maximum divergence between haplotypes. Should be increased for species with divergence significantly higher than in human. Default: 0.05, min 0, max 0.2"  
+    echo "    --haplo-divergence       Estimation on maximum divergence between haplotypes. Should be increased for species with divergence significantly higher than in human. Default: 0.05, min 0, max 0.2"
+    echo ""
+    echo "    --screen <option>        Identify common contaminants and remove from the assembly, saving 1 (circularized) exemplar."
+    echo "                             For human, '--screen human' will attempt to remove rDNA, mitochondria, and EBV."
+    echo "                             Arbitrary contaminants are supported by supplying a name and fasta:"
+    echo "                             'screen contaminant /full/path/to/contaminant.fasta'"
+    echo "                             Multiple screen commands are allowed and are additive."
+    echo ""
+    echo "    --paths <gaf paths>      No assembly, generate consensus given paths and an existing assembly."
+    echo "                             The gaf file must be formatted as follows: 'name >utig4-1<utig4-2 HAPLOTYPE1'. One per line."
+    echo "                             where utig4-1 is in fwd orientation and utig4-2 is in reverse complement. Requires '--assembly'."
+    echo "    --assembly <output-dir>  Existing verkko assembly where the nodes given to --paths are defined."
+    echo "                             The nodes should come from assembly.homopolymer-compressed.gfa"
+    echo "                             Provide -d for the output of new consensus, as well as the hifi and nano reads from previous run."
     echo ""
     echo "  COMPUTATIONAL PARAMETERS:"
     echo "    --python <interpreter>   Path or name of a python interpreter.  Default: 'python'."
@@ -1121,7 +1122,7 @@ if [ "x$withhic" = "xTrue" ] ; then
     if [ ! -e "8-hicPipeline/rukki.paths.gaf" ]; then
         echo "ERROR!"
         echo "Not running final consensus since no rukki paths provided!"
-        exit 
+        exit
     fi
     newoutd=8-hicPipeline/final_contigs/
     mkdir -p $newoutd
