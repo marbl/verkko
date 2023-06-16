@@ -68,7 +68,7 @@ awk < ../{input.unitig_graph} \\\\
 {PYTHON} {VERKKO}/scripts/inject_coverage.py --allow-absent \\\\
   ../{input.hifi5cov} \\\\
 > ../{output.unitig_graph}
-cp -p ../{output.unitig_graph} ../{output.finalnseqgraph}
+cp ../{output.unitig_graph} ../{output.finalnseqgraph}
 EOF
 
 chmod +x ./prepare_hic.sh
@@ -376,7 +376,7 @@ params="\$params --hap-names haplotype1,haplotype2"
 
 {VERKKO}/bin/rukki trio -g ../{input.graph} -m ../{input.binning}              -p ../{output.tsv_path} \$params
 {VERKKO}/bin/rukki trio -g ../{input.graph} -m ../{input.binning} --gaf-format -p ../{output.gaf_path} \$params
-cp -p ../{output.tsv_path} ../{output.final_paths_tsv}
+cp ../{output.tsv_path} ../{output.final_paths_tsv}
 echo "haplotype1" > label1
 echo "haplotype2" > label2
 
