@@ -59,6 +59,7 @@ touch empty.fasta
   --bandwidth {params.bandwidth} \\\\
   --seeds-mxm-length {params.mxm_length} \\\\
   --mem-index-no-wavelet-tree \\\\
+  --diploid-heuristic-cache ../3-align/diploid-index.tmp \\\\
   --seeds-mem-count {params.mem_count} && touch ../{output.index}
 
 rm -f empty.gaf empty.fasta
@@ -132,6 +133,7 @@ fi
   --max-trace-count {params.max_trace} \\\\
   --mem-index-no-wavelet-tree \\\\
   --diploid-heuristic \\\\
+  --diploid-heuristic-cache ../3-align/diploid-index.tmp \\\\
 && \\\\
 mv -f ../{params.alignmentstmp} ../{output.alignments}
 EOF
