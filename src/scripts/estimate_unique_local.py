@@ -144,7 +144,7 @@ sys.stderr.write("first unique coverage estimate: " + str(global_average_coverag
 coverage_sum = 0.0
 coverage_count = 0.0
 for node in maybe_long_nodes:
-	if node_coverage[node] < global_average_coverage * 0.5 or node_coverage[node] > global_average_coverage * 1.5: continue
+	if node_coverage[node] < global_average_coverage * 0.15 or node_coverage[node] > global_average_coverage * 1.5: continue
 	coverage_sum += node_coverage[node] * nodelens[node]
 	coverage_count += nodelens[node]
 
@@ -153,7 +153,7 @@ sys.stderr.write("refined unique coverage estimate: " + str(global_average_cover
 
 long_nodes = set()
 for node in maybe_long_nodes:
-	if node_coverage[node] < global_average_coverage * 0.5 or node_coverage[node] > global_average_coverage * 1.5: continue
+	if node_coverage[node] < global_average_coverage * 0.15 or node_coverage[node] > global_average_coverage * 1.5: continue
 	long_nodes.add(node)
 
 node_nonoverlap_lens = {}
@@ -252,15 +252,16 @@ for node in nodelens:
 		sys.stderr.write("WARNING: nonsense local coverage of " + str(compare_coverage) + " for node " + node + ", reverting to global average " + str(global_average_coverage) + "\n")
 		compare_coverage = global_average_coverage
 	if compare_coverage > 0.01:
+		#sys.stderr.write("Normalizing coverage for node %s from %s based on comparison %s to be %s\n"%(node, node_coverage[node], compare_coverage, (node_coverage[node]/compare_coverage)))
 		normalized_node_coverage[node] = node_coverage[node] / compare_coverage
 	else:
 		sys.stderr.write('WARN: division by zero prevented for node ' + node + "\n")
-		normalized_node_coverage[node] = 100.
+		normalized_node_coverage[node] = node_coverage[node] / global_average_coverage
 
 roughly_average_coverage_nodes = set()
 for n in nodelens:
 	if n not in normalized_node_coverage: continue
-	if normalized_node_coverage[n] < 0.6 and node_coverage[n] / global_average_coverage < 0.6: continue
+	if normalized_node_coverage[n] < 0.4 and node_coverage[n] / global_average_coverage < 0.4: continue
 	if normalized_node_coverage[n] > 1.4 and node_coverage[n] / global_average_coverage > 1.4: continue
 	roughly_average_coverage_nodes.add(n)
 
@@ -364,7 +365,7 @@ for node in copycount_2_chain_core_nodes:
 		min_cov = 2
 		max_cov = 0
 		for edge in edges[">" + node]:
-			if normalized_node_coverage[edge[1:]] < 0.5 or normalized_node_coverage[edge[1:]] > 1.5 or edge[1:] in copycount_2_chain_core_nodes: maybe_valid = False
+			if normalized_node_coverage[edge[1:]] < 0.4 or normalized_node_coverage[edge[1:]] > 1.5 or edge[1:] in copycount_2_chain_core_nodes: maybe_valid = False
 			if len(edges[revnode(edge)]) != 1: maybe_valid = False
 			min_cov = min(min_cov, normalized_node_coverage[edge[1:]])
 			max_cov = max(max_cov, normalized_node_coverage[edge[1:]])
@@ -379,7 +380,7 @@ for node in copycount_2_chain_core_nodes:
 		min_cov = 2
 		max_cov = 0
 		for edge in edges["<" + node]:
-			if normalized_node_coverage[edge[1:]] < 0.5 or normalized_node_coverage[edge[1:]] > 1.5 or edge[1:] in copycount_2_chain_core_nodes: maybe_valid = False
+			if normalized_node_coverage[edge[1:]] < 0.4 or normalized_node_coverage[edge[1:]] > 1.5 or edge[1:] in copycount_2_chain_core_nodes: maybe_valid = False
 			if len(edges[revnode(edge)]) != 1: maybe_valid = False
 			min_cov = min(min_cov, normalized_node_coverage[edge[1:]])
 			max_cov = max(max_cov, normalized_node_coverage[edge[1:]])
@@ -420,13 +421,13 @@ for node in copycount_2_chain_core_nodes:
 					if skip_this:
 						maybe_disablable.add(edge[1:])
 					else:
-						if normalized_node_coverage[edge[1:]] > 0.5 and normalized_node_coverage[edge[1:]] < 1.5 and edge[1:] not in copycount_2_chain_core_nodes:
+						if normalized_node_coverage[edge[1:]] > 0.4 and normalized_node_coverage[edge[1:]] < 1.5 and edge[1:] not in copycount_2_chain_core_nodes:
 							maybe_addable.add(edge[1:])
 							min_cov = min(min_cov, normalized_node_coverage[edge[1:]])
 							max_cov = max(max_cov, normalized_node_coverage[edge[1:]])
 				for edge in further_ahead_nodes:
 					if further_ahead_nodes[edge] == 2:
-						if normalized_node_coverage[edge[1:]] > 0.5 and normalized_node_coverage[edge[1:]] < 1.5 and edge[1:] not in copycount_2_chain_core_nodes:
+						if normalized_node_coverage[edge[1:]] > 0.4 and normalized_node_coverage[edge[1:]] < 1.5 and edge[1:] not in copycount_2_chain_core_nodes:
 							maybe_addable.add(edge[1:])
 							min_cov = min(min_cov, normalized_node_coverage[edge[1:]])
 							max_cov = max(max_cov, normalized_node_coverage[edge[1:]])
@@ -468,13 +469,13 @@ for node in copycount_2_chain_core_nodes:
 					if skip_this:
 						maybe_disablable.add(edge[1:])
 					else:
-						if normalized_node_coverage[edge[1:]] > 0.5 and normalized_node_coverage[edge[1:]] < 1.5 and edge[1:] not in copycount_2_chain_core_nodes:
+						if normalized_node_coverage[edge[1:]] > 0.4 and normalized_node_coverage[edge[1:]] < 1.5 and edge[1:] not in copycount_2_chain_core_nodes:
 							maybe_addable.add(edge[1:])
 							min_cov = min(min_cov, normalized_node_coverage[edge[1:]])
 							max_cov = max(max_cov, normalized_node_coverage[edge[1:]])
 				for edge in further_ahead_nodes:
 					if further_ahead_nodes[edge] == 2:
-						if normalized_node_coverage[edge[1:]] > 0.5 and normalized_node_coverage[edge[1:]] < 1.5 and edge[1:] not in copycount_2_chain_core_nodes:
+						if normalized_node_coverage[edge[1:]] > 0.4 and normalized_node_coverage[edge[1:]] < 1.5 and edge[1:] not in copycount_2_chain_core_nodes:
 							maybe_addable.add(edge[1:])
 							min_cov = min(min_cov, normalized_node_coverage[edge[1:]])
 							max_cov = max(max_cov, normalized_node_coverage[edge[1:]])
@@ -497,11 +498,14 @@ for node in nodelens:
 	chain_coverage = float(chain_coverage_sum[chain]) / float(chain_coverage_count[chain])
 	chain_length = float(chain_coverage_sum[chain])
 	unique_chain = False
-	if chain_length > 35000 and chain_coverage > 0.9 and chain_coverage < 1.1: unique_chain = True
-	if chain_length > 50000 and chain_coverage > 0.8 and chain_coverage < 1.2: unique_chain = True
-	if chain_length > 75000 and chain_coverage > 0.75 and chain_coverage < 1.25: unique_chain = True
-	if chain_length > 100000 and chain_coverage > 0.7 and chain_coverage < 1.3: unique_chain = True
-	if chain_length > 200000 and chain_coverage > 0.6 and chain_coverage < 1.4: unique_chain = True
+	#sys.stderr.write("Checking chain %s of length %s and coverage %s\n"%(chain, chain_length, chain_coverage))
+	if chain_length >   5000 and chain_coverage > 0.95 and chain_coverage < 1.01: unique_chain = True
+	if chain_length >  20000 and chain_coverage > 0.85 and chain_coverage < 1.02: unique_chain = True
+	if chain_length >  35000 and chain_coverage > 0.70 and chain_coverage < 1.10: unique_chain = True
+	if chain_length >  50000 and chain_coverage > 0.40 and chain_coverage < 1.20: unique_chain = True
+	if chain_length >  75000 and chain_coverage > 0.40 and chain_coverage < 1.25: unique_chain = True
+	if chain_length > 100000 and chain_coverage > 0.40 and chain_coverage < 1.30: unique_chain = True
+	if chain_length > 200000 and chain_coverage > 0.40 and chain_coverage < 1.40: unique_chain = True
 	if unique_chain: unique_chains.add(chain)
 
 for node in nodelens:
@@ -531,12 +535,15 @@ for node in nodelens:
 	if unique_chain:
 		chain_coverage = float(chain_coverage_sum[chain]) / float(chain_coverage_count[chain])
 		chain_normalized_coverage = normalized_node_coverage[node] / chain_coverage
-		if chain_normalized_coverage > 0.6 and chain_normalized_coverage < 1.4: chain_unique_nodes.add(node)
+		if chain_normalized_coverage > 0.4 and chain_normalized_coverage < 1.4: chain_unique_nodes.add(node)
 	nodelen = node_nonoverlap_lens[node]
-	if nodelen > 20000 and normalized_coverage > 0.9 and normalized_coverage < 1.1: length_unique_nodes.add(node)
-	if nodelen > 30000 and normalized_coverage > 0.8 and normalized_coverage < 1.2: length_unique_nodes.add(node)
-	if nodelen > 50000 and normalized_coverage > 0.7 and normalized_coverage < 1.3: length_unique_nodes.add(node)
-	if nodelen > 100000 and normalized_coverage > 0.6 and normalized_coverage < 1.4: length_unique_nodes.add(node)
+	#sys.stderr.write("Checking node %s with length %s and normalized_coverage %s\n"%(node, nodelen, normalized_coverage))
+	if nodelen >   1000 and normalized_coverage > 0.95 and normalized_coverage < 1.01: length_unique_nodes.add(node)
+	if nodelen >  10000 and normalized_coverage > 0.85 and normalized_coverage < 1.02: length_unique_nodes.add(node)
+	if nodelen >  20000 and normalized_coverage > 0.75 and normalized_coverage < 1.10: length_unique_nodes.add(node)
+	if nodelen >  30000 and normalized_coverage > 0.70 and normalized_coverage < 1.20: length_unique_nodes.add(node)
+	if nodelen >  50000 and normalized_coverage > 0.40 and normalized_coverage < 1.30: length_unique_nodes.add(node)
+	if nodelen > 100000 and normalized_coverage > 0.40 and normalized_coverage < 1.40: length_unique_nodes.add(node)
 
 uniques = set()
 for node in long_nodes: uniques.add(node)
@@ -545,9 +552,9 @@ for node in chain_of_longnode: uniques.add(node)
 for node in copycount_2_chain_unique_nodes: uniques.add(node)
 for node in chain_unique_nodes: uniques.add(node)
 for node in length_unique_nodes: uniques.add(node)
-for node in copycount_2_chain_nonunique_nodes: 
+for node in copycount_2_chain_nonunique_nodes:
 	if node in uniques: uniques.remove(node)
-for node in copycount_2_chain_core_nodes: 
+for node in copycount_2_chain_core_nodes:
 	if node in uniques: uniques.remove(node)
 
 for node in uniques:
