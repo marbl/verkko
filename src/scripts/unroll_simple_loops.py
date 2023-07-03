@@ -79,7 +79,7 @@ with open(graph_file) as f:
 			if len(neighbors) <= 2:
 				for n in neighbors:
 					#sys.stderr.write("Checking neighbors for node %s which is %s and it has coverage %s and length %s vs min %s\n"%(parts[1], n[1:], coverage[n[1:]], nodelens[n[1:]], min_len))
-					if (n[1:] in coverage and  coverage[n[1:]] >= 2.5 * avg_coverage) or nodelens[n[1:]] < int(min_len / 6):
+					if (n[1:] in coverage and coverage[n[1:]] >= 2.5 * avg_coverage)  or n[1:] == tonodeFwd[1:] or nodelens[n[1:]] < int(min_len / 6):
 						skip=True
 			else:
 				skip=True
