@@ -1062,6 +1062,7 @@ if [ "x$cnspaths" != "x" ] ; then
     if [ ! -e "${outd}/7-consensus" ] ; then
         mkdir ${outd}/7-consensus
         cp -p ${cnsassembly}/7-consensus/ont_subset.fasta.gz          ${outd}/7-consensus/ont_subset.fasta.gz
+	cp -p ${cnsassembly}/7-consensus/ont_subset.id                ${outd}/7-consensus/ont_subset.id
     fi
 fi
 
@@ -1150,6 +1151,7 @@ if [ "x$withhic" = "xTrue" ] ; then
     if [ ! -e "${newoutd}/7-consensus" ] ; then
         mkdir ${newoutd}/7-consensus
         cp -p 7-consensus/ont_subset.fasta.gz          ${newoutd}/7-consensus/ont_subset.fasta.gz
+	cp -p ${cnsassembly}/7-consensus/ont_subset.id                ${outd}/7-consensus/ont_subset.id
     fi
     cd $newoutd
     sed -i 's/runRukkiHIC/cnspath/g' snakemake.sh
