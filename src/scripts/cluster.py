@@ -228,7 +228,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
         elif parts[0] == 'L':
             fromnode = (">" if parts[2] == "+" else "<") + parts[1]
             tonode = (">" if parts[4] == "+" else "<") + parts[3]
-    #        edgelines.append((fromnode, tonode, l.strip()))
+   #        edgelines.append((fromnode, tonode, l.strip()))
             if fromnode not in edges:
                 edges[fromnode] = set()
             if revnode(tonode) not in edges:
@@ -289,6 +289,14 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
         if line[0] == line[1]:
             continue
         if int(line[2]) > CLEAR_HOMOLOGY:
+            color_sum = 0
+            for id in range(0, 2):
+                if line[id] in component_colors:
+                    color_sum += 1
+            if color_sum != 2:
+                sys.stderr.write(f"Weird deleted node pair {line[0]} {line[1]}")
+                continue
+
             matchGraph.add_edge(line[0], line[1])
             match_links.append([line[0], line[1]])
             for id in range(0, 2):
