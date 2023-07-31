@@ -25,7 +25,8 @@ rule generateConsensus:
     input:
         package    = '7-consensus/packages/part{nnnn}.cnspack',
         tigmap     = rules.buildPackages.output.tigmap,
-        packreport = rules.buildPackages.output.packreport
+        packreport = rules.buildPackages.output.packreport,
+        ont_id_file = {rules.extractONT.output.ont_subset_id} if config['withONT'] == "True" else {rules.emptyfile.output}
     output:
         consensus  = '7-consensus/packages/part{nnnn}.fasta'
     log:

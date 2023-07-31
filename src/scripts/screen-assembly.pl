@@ -306,7 +306,7 @@ sub mashMap ($$$$) {
         $map .= " --ref '$a'";
         $map .= " --query '$cs'";
         $map .= " --perc_identity 95";
-        $map .= " --segLength 10000";
+        $map .= " --segLength 5000";
         $map .= " --filter_mode none";
         $map .= " --threads $threads";
         $map .= " --output '$output.$cp.mashmap.out'";
@@ -369,8 +369,9 @@ sub filterMash ($$) {
     open(F, "< $output.$cp.mashmap.out") or die "Failed to open mashmap output '$output.$cp.mashmap.out' for reading: $!\n";
     while (<F>) {
         my @s = split '\s+', $_;
+        my $l = scalar(@s);
         my ($con, $conlen, $conbgn, $conend, $s, $ctg, $ctglen, $ctgbgn, $ctgend) = @s;
-        my $ident = pop(@s);
+        my $ident = ($l > 10 ? $s[12] : pop(@s));
         $ident =~ s/id:f://g;
         $ident *= 100 if $ident < 1;
 

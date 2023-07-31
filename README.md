@@ -20,6 +20,7 @@ creates contig consensus sequences using Canu's consensus module.
   * [MBG](https://github.com/maickrau/MBG)
   * [GraphAligner](https://github.com/maickrau/GraphAligner)
   * [MashMap](https://github.com/marbl/MashMap)
+  * [Winnowmap](https://github.com/marbl/Winnowmap)
 * Running verkko with hi-c data also requires 
   * [samtools](http://www.htslib.org/)
   * [bwa](https://bio-bwa.sourceforge.net/)

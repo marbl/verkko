@@ -256,6 +256,7 @@ def resolve_hairpins(nodelength, nodes, paths_crossing, node_seqs, node_lens, ed
 	resolved = set()
 	for node in hairpins:
 		assert revnode(node) not in hairpins # double hairpin resolution hard to implement, so just hope it never happens
+		if len(edges[revnode(node)]) == 0: continue # don't resolve disconnected hairpins, they're probably spurious anyway
 		resolutions = {}
 		for path in iterate_paths(paths_crossing, node[1:]):
 			if len(path) < 4: continue
