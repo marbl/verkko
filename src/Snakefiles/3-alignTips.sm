@@ -66,7 +66,7 @@ set -e -o pipefail
 mkdir -p split
 
 {PYTHON} {VERKKO}/scripts/find_tips.py ../{input.graph} > tips.fasta 2> find_tips.err
-grep ">" tips.fasta |awk '{{ print substr(\$1, 2, length(\$1)) }}' > tips.ids
+awk '/^>/ {{ print substr(\$1, 2) }}' < tips.fasta > tips.ids
 cat ../{input.ont_paths} | {PYTHON} {VERKKO}/scripts/filter_alignments_by_column.py tips.ids 5 false | awk -F "\\t" '{{ if (\$12 >= 20) print \$1;}}' | sort |uniq > tip_reads.ids
 
 for fn in {params.ext_files} ; do
