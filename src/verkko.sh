@@ -675,34 +675,43 @@ elif [ ! -e "$mbg" ] ; then
     errors="${errors}Can't find MBG executable at '$mbg'.\n"
 fi
 
-if   [ "x$graphaligner" = "x" ] ; then
-    errors="${errors}Can't find GraphAligner executable in \$PATH or \$VERKKO/bin/GraphAligner.\n"
-elif [ ! -e "$graphaligner" ] ; then
-    errors="${errors}Can't find GraphAligner executable at '$graphaligner'.\n"
+# graphaligner and winnowmap are required when we have ONT data
+if [ "x$withont" = "xTrue" ] ; then
+    if   [ "x$graphaligner" = "x" ] ; then
+        errors="${errors}Can't find GraphAligner executable in \$PATH or \$VERKKO/bin/GraphAligner.\n"
+    elif [ ! -e "$graphaligner" ] ; then
+        errors="${errors}Can't find GraphAligner executable at '$graphaligner'.\n"
+    fi
+
+    if   [ "x$winnowmap" = "x" ] ; then
+        errors="${errors}Can't find Winnowmap executable in \$PATH or \$VERKKO/bin/winnowmap.\n"
+    elif [ ! -e "$winnowmap" ] ; then
+        errors="${errors}Can't find Winnowmap executable at '$winnowmap'.\n"
+    fi
 fi
 
-if   [ "x$mashmap" = "x" ] ; then
-    errors="${errors}Can't find MashMap executable in \$PATH or \$VERKKO/bin/mashmap.\n"
-elif [ ! -e "$mashmap" ] ; then
-    errors="${errors}Can't find MashMap executable at '$mashmap'.\n"
+# mashmap required for hic and for screening contaminant
+if [ ! -z "$screen" -o "x$withhic" = "xTrue" ] ; then
+    if   [ "x$mashmap" = "x" ] ; then
+        errors="${errors}Can't find MashMap executable in \$PATH or \$VERKKO/bin/mashmap.\n"
+    elif [ ! -e "$mashmap" ] ; then
+        errors="${errors}Can't find MashMap executable at '$mashmap'.\n"
+    fi
 fi
 
-if   [ "x$winnowmap" = "x" ] ; then
-    errors="${errors}Can't find Winnowmap executable in \$PATH or \$VERKKO/bin/winnowmap.\n"
-elif [ ! -e "$winnowmap" ] ; then
-    errors="${errors}Can't find Winnowmap executable at '$winnowmap'.\n"
-fi
+# bwa and samtools required for HiC data
+if [ "x$withhic" = "xTrue" ] ; then
+    if   [ "x$bwa" = "x" ] ; then
+        errors="${errors}Can't find BWA executable in \$PATH or \$VERKKO/bin/bwa.\n"
+    elif [ ! -e "$bwa" ] ; then
+        errors="${errors}Can't find BWA executable at '$bwa'.\n"
+    fi
 
-if   [ "x$bwa" = "x" ] ; then
-    errors="${errors}Can't find BWA executable in \$PATH or \$VERKKO/bin/bwa.\n"
-elif [ ! -e "$bwa" ] ; then
-    errors="${errors}Can't find BWA executable at '$bwa'.\n"
-fi
-
-if   [ "x$samtools" = "x" ] ; then
-    errors="${errors}Can't find Samtools executable in \$PATH or \$VERKKO/bin/samtools.\n"
-elif [ ! -e "$samtools" ] ; then
-    errors="${errors}Can't find Samtools executable at '$samtools'.\n"
+    if   [ "x$samtools" = "x" ] ; then
+        errors="${errors}Can't find Samtools executable in \$PATH or \$VERKKO/bin/samtools.\n"
+    elif [ ! -e "$samtools" ] ; then
+        errors="${errors}Can't find Samtools executable at '$samtools'.\n"
+    fi
 fi
 
 #
