@@ -63,6 +63,8 @@ mbg=""
 graphaligner=""
 mashmap=""
 winnowmap=""
+bwa=""
+samtools=""
 python=
 perl=
 
@@ -312,7 +314,9 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--mbg" ] ;                then mbg=$arg;           shift
     elif [ "$opt" = "--graphaligner" ] ;       then graphaligner=$arg;  shift
     elif [ "$opt" = "--mashmap" ] ;            then mashmap=$arg;       shift
-    elif [ "$opt" = "--winnowmap" ] ;          then winnowmap$arg;      shift
+    elif [ "$opt" = "--winnowmap" ] ;          then winnowmap=$arg;     shift
+    elif [ "$opt" = "--bwa" ] ;                then bwa=$arg;           shift
+    elif [ "$opt" = "--samtools" ] ;           then samtools=$arg;      shift
     elif [ "$opt" = "--local" ] ;              then grid="local";
     elif [ "$opt" = "--sge" ] ;                then grid="slurm-sge";
     elif [ "$opt" = "--slurm" ] ;              then grid="slurm-sge";
@@ -545,6 +549,26 @@ fi
 if [ "x$winnowmap" != "x" ]; then
   winnowmap=$(fullpath $winnowmap)
 fi
+
+if [ "x$bwa" = "x" ] ; then
+  bwa=${verkko}/bin/bwa
+fi
+if [ ! -e $bwa ] ; then
+  bwa=$(which bwa)
+fi
+if [ "x$bwa" != "x" ]; then
+  bwa=$(fullpath $bwa)
+fi
+
+if [ "x$samtools" = "x" ] ; then
+  samtools=${verkko}/bin/samtools
+fi
+if [ ! -e $samtools ] ; then
+  samtools=$(which samtools)
+fi
+if [ "x$samtools" != "x" ]; then
+  samtools=$(fullpath $samtools)
+fi
 #
 #  Fix stuff.
 #
@@ -658,15 +682,27 @@ elif [ ! -e "$graphaligner" ] ; then
 fi
 
 if   [ "x$mashmap" = "x" ] ; then
-    errors="${errors}Can't find mashmap executable in \$PATH or \$VERKKO/bin/mashmap.\n"
+    errors="${errors}Can't find MashMap executable in \$PATH or \$VERKKO/bin/mashmap.\n"
 elif [ ! -e "$mashmap" ] ; then
-    errors="${errors}Can't find mashmap executable at '$mashmap'.\n"
+    errors="${errors}Can't find MashMap executable at '$mashmap'.\n"
 fi
 
 if   [ "x$winnowmap" = "x" ] ; then
-    errors="${errors}Can't find winnowmap executable in \$PATH or \$VERKKO/bin/winnowmap.\n"
+    errors="${errors}Can't find Winnowmap executable in \$PATH or \$VERKKO/bin/winnowmap.\n"
 elif [ ! -e "$winnowmap" ] ; then
-    errors="${errors}Can't find winnowmap executable at '$winnowmap'.\n"
+    errors="${errors}Can't find Winnowmap executable at '$winnowmap'.\n"
+fi
+
+if   [ "x$bwa" = "x" ] ; then
+    errors="${errors}Can't find BWA executable in \$PATH or \$VERKKO/bin/bwa.\n"
+elif [ ! -e "$bwa" ] ; then
+    errors="${errors}Can't find BWA executable at '$bwa'.\n"
+fi
+
+if   [ "x$samtools" = "x" ] ; then
+    errors="${errors}Can't find Samtools executable in \$PATH or \$VERKKO/bin/samtools.\n"
+elif [ ! -e "$samtools" ] ; then
+    errors="${errors}Can't find Samtools executable at '$samtools'.\n"
 fi
 
 #
@@ -721,8 +757,10 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --perl <interpreter>     Path of name of a perl interpreter.  Default: 'perl'."
     echo "    --mbg <path>             Path to MBG.             Default for all three"
     echo "    --graphaligner <path>    Path to GraphAligner.    one packaged with verkko."
-    echo "    --mashmap <path>         Path to mashmap."
-    echo "    --winnowmap <path>       Path to winnowmap."
+    echo "    --mashmap <path>         Path to MashMap."
+    echo "    --winnowmap <path>       Path to Winnowmap."
+    echo "    --bwa <path>             Path to BWA."
+    echo "    --samtools <path>        Path to Samtools."
     echo ""
     echo "    --cleanup                Remove intermediate results."
     echo "    --no-cleanup             Retain intermediate results (default)."
@@ -820,6 +858,8 @@ echo >> ${outd}/verkko.yml "MBG:                 '${mbg}'"
 echo >> ${outd}/verkko.yml "GRAPHALIGNER:        '${graphaligner}'"
 echo >> ${outd}/verkko.yml "MASHMAP:             '${mashmap}'"
 echo >> ${outd}/verkko.yml "WINNOWMAP:           '${winnowmap}'"
+echo >> ${outd}/verkko.yml "BWA:                 '${bwa}'"
+echo >> ${outd}/verkko.yml "SAMTOOLS:            '${samtools}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "PYTHON:              '${python}'"
 echo >> ${outd}/verkko.yml "PERL:                '${perl}'"
@@ -1062,7 +1102,7 @@ if [ "x$cnspaths" != "x" ] ; then
     if [ ! -e "${outd}/7-consensus" ] ; then
         mkdir ${outd}/7-consensus
         cp -p ${cnsassembly}/7-consensus/ont_subset.fasta.gz          ${outd}/7-consensus/ont_subset.fasta.gz
-	cp -p ${cnsassembly}/7-consensus/ont_subset.id                ${outd}/7-consensus/ont_subset.id
+        cp -p ${cnsassembly}/7-consensus/ont_subset.id                ${outd}/7-consensus/ont_subset.id
     fi
 fi
 
@@ -1151,7 +1191,7 @@ if [ "x$withhic" = "xTrue" ] ; then
     if [ ! -e "${newoutd}/7-consensus" ] ; then
         mkdir ${newoutd}/7-consensus
         cp -p 7-consensus/ont_subset.fasta.gz          ${newoutd}/7-consensus/ont_subset.fasta.gz
-	cp -p ${cnsassembly}/7-consensus/ont_subset.id                ${outd}/7-consensus/ont_subset.id
+        cp -p 7-consensus/ont_subset.id                ${newoutd}/7-consensus/ont_subset.id
     fi
     cd $newoutd
     sed -i 's/runRukkiHIC/cnspath/g' snakemake.sh
