@@ -84,6 +84,7 @@ rule runMashMap:
     log:
         err    = '8-hicPipeline/run_mashmap.err'
     params:
+        MASHMAP   = config.get('MASHMAP', "{VERKKO}/bin/mashmap"),
         MASHMAP_DIV = 100 - 100*float(config['haplo_divergence'])
     threads:
         int(config['fhc_n_cpus'])
@@ -100,8 +101,8 @@ cd 8-hicPipeline
 cat > ./run_mashmap.sh <<EOF
 #!/bin/sh
 set -e
-echo "---Running mashmap"
-mashmap -r ../{input.unitigs_hpc} -q ../{input.unitigs_hpc} -t {threads} -f none --pi {params.MASHMAP_DIV} -s 10000 -o mashmap.out
+echo "---Running MashMap"
+{params.MASHMAP} -r ../{input.unitigs_hpc} -q ../{input.unitigs_hpc} -t {threads} -f none --pi {params.MASHMAP_DIV} -s 10000 -o mashmap.out
 cat mashmap.out |awk '{{if (\$NF > 99 && \$4-\$3 > 100000 && \$1 != \$6) print \$1"\\t"\$6"\\t"\$4-\$3}}'|sort |uniq > ../{output.unitigs_matches}
 EOF
 
@@ -169,14 +170,16 @@ rule indexBWA:
     input:
         unitigs = '8-hicPipeline/unitigs.fasta'
     output:
-        index = '8-hicPipeline/unitigs.fasta.bwt'
+        index   = '8-hicPipeline/unitigs.fasta.bwt'
     log:
-        err    = '8-hicPipeline/index_bwa.err'
+        err     = '8-hicPipeline/index_bwa.err'
+    params:
+        BWA     = config.get('BWA', "{VERKKO}/bin/bwa")
     resources:
-        job_id = 1,
-        n_cpus = int(config['fhc_n_cpus']),
-        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
-        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
+        job_id  = 1,
+        n_cpus  = int(config['fhc_n_cpus']),
+        mem_gb  = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
+        time_h  = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
     shell:
         '''
 cd 8-hicPipeline
@@ -185,7 +188,7 @@ cat > ./index_bwa.sh <<EOF
 #!/bin/sh
 set -e
 echo "---Creating BWA index for {input.unitigs}"
-bwa index ../{input.unitigs}
+{params.BWA} index ../{input.unitigs}
 EOF
 
 chmod +x ./index_bwa.sh
@@ -203,6 +206,9 @@ rule alignBWA:
         bwa_mapping = '8-hicPipeline/mapped{nnnn}.bam'
     log:
         err    = '8-hicPipeline/align_bwa{nnnn}.err'
+    params:
+        BWA      = config.get('BWA', "{VERKKO}/bin/bwa"),
+        SAMTOOLS = config.get('SAMTOOLS', "{VERKKO}/bin/samtools")
     threads:
         int(config['ahc_n_cpus'])
     resources:
@@ -218,7 +224,7 @@ cat > ./align_bwa{wildcards.nnnn}.sh <<EOF
 #!/bin/sh
 set -e
 echo "---Mapping {input.hic1} and {input.hic2} to {input.unitigs} with BWA"
-bwa mem -t {threads} -5 -S -P ../{input.unitigs} ../{input.hic1} ../{input.hic2} | samtools view -bh -@ {threads} -q 1 -F 0x800 - | samtools sort -n -@ {threads} - -o ../{output.bwa_mapping} 
+{params.BWA} mem -t {threads} -5 -S -P ../{input.unitigs} ../{input.hic1} ../{input.hic2} | {params.SAMTOOLS} view -bh -@ {threads} -q 1 -F 0x800 - | {params.SAMTOOLS} sort -n -@ {threads} - -o ../{output.bwa_mapping} 
 EOF
 
 chmod +x ./align_bwa{wildcards.nnnn}.sh
@@ -238,6 +244,7 @@ rule mergeBWA:
     log:
         err            = '8-hicPipeline/mergeBWA.err'
     params:
+        SAMTOOLS       = config.get('SAMTOOLS', "{VERKKO}/bin/samtools"),
         alignments     = lambda wildcards: expand("mapped{nnnn}.bam", nnnn = splitHICoutputs(wildcards)),
         keepinter      = config['keep_intermediate']
     threads:
@@ -255,7 +262,7 @@ cat > ./mergeBWA.sh <<EOF
 #!/bin/sh
 set -e
 
-samtools merge -@ {threads}  ../{output.alignments} {params.alignments}
+{params.SAMTOOLS} merge -@ {threads}  ../{output.alignments} {params.alignments}
 
 if [ {params.keepinter} = False ] ; then
   rm -f {params.alignments}
@@ -280,6 +287,8 @@ rule transformBWA:
         byread_mapping = '8-hicPipeline/hic_mapping.byread.output'
     log:
         err    = '8-hicPipeline/transform_bwa.err'
+    params:
+        SAMTOOLS = config.get('SAMTOOLS', "{VERKKO}/bin/samtools")
     threads:
         int(config['fhc_n_cpus'])
     resources:
@@ -294,7 +303,7 @@ cd 8-hicPipeline
 cat > ./transform_bwa.sh <<EOF
 #!/bin/sh
 set -e
-samtools view -F 0x800 -q 1 ../{input.bwa_mapping} | {PYTHON} {VERKKO}/scripts/parse_sam_pairs.py  > ../{output.byread_mapping}
+{params.SAMTOOLS} view -F 0x800 -q 1 ../{input.bwa_mapping} | {PYTHON} {VERKKO}/scripts/parse_sam_pairs.py  > ../{output.byread_mapping}
 EOF
 
 chmod +x ./transform_bwa.sh

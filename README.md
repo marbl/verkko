@@ -22,8 +22,8 @@ creates contig consensus sequences using Canu's consensus module.
   * [MashMap](https://github.com/marbl/MashMap)
   * [Winnowmap](https://github.com/marbl/Winnowmap)
 * Running verkko with hi-c data also requires 
-  * [samtools](http://www.htslib.org/)
-  * [bwa](https://bio-bwa.sourceforge.net/)
+  * [Samtools](http://www.htslib.org/)
+  * [BWA](https://bio-bwa.sourceforge.net/)
   * [networkx](https://networkx.org/documentation/stable/install.html) python library
     
 Installing with a 'package manager' is encouraged:
