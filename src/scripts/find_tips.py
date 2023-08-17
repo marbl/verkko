@@ -75,4 +75,4 @@ with open(graph_file) as f:
                 print(parts[2])
                 # this causes linewraps on some systems, which causes truncated utig names
                 # which lead to a crash in step 4
-				#print(">%s\n%s"%(parts[1], parts[2]))
+                #print(">%s\n%s"%(parts[1], parts[2]))
