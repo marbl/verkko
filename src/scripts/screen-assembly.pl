@@ -373,7 +373,7 @@ sub filterMash ($$) {
         my ($con, $conlen, $conbgn, $conend, $s, $ctg, $ctglen, $ctgbgn, $ctgend) = @s;
         my $ident = ($l > 10 ? $s[12] : pop(@s));
         $ident =~ s/id:f://g;
-        $ident *= 100 if $ident < 1;
+        $ident *= 100 if $ident <= 1;
 
         $maxConLen = $conlen   if ($maxConLen < $conlen);
 
