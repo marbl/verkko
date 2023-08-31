@@ -182,12 +182,13 @@ def getAllGraphs(type):
                 '../4-processONT/unrolled-ont-resolved.gfa ' +
                 '../4-processONT/unitig-unrolled-ont-resolved.gfa ')
     if (type > 5):   # and config['withONT'] == "True":
-        ret += ('../5-untip/connected-tip.gfa ' +
-                '../5-untip/unitig-normal-connected-tip.gfa ' +
-                '../5-untip/popped-unitig-normal-connected-tip.gfa ' +
-                '../5-untip/unrolled-popped-unitig-normal-connected-tip.gfa ' +
-                '../5-untip/unitig-unrolled-popped-unitig-normal-connected-tip.gfa ' +
-                '../5-untip/unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.gfa ' +
+        ret += ('../5-untip/connected-tip.gfa ' + 
+		        '../5-untip/unitig-connected-tip.gfa ' + 
+				'../5-untip/popped-connected-tip.gfa ' +
+                '../5-untip/unrolled-popped-connected-tip.gfa ' +
+                '../5-untip/unitig-unrolled-popped-connected-tip.gfa ' +
+                '../5-untip/popped-unitig-unrolled-popped-connected-tip.gfa ' +
+                '../5-untip/unrolled-popped-unitig-unrolled-popped-connected-tip.gfa ' +
                 '../' + rules.verkko.input.graph + ' ')
     return ret
 
