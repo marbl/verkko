@@ -79,7 +79,7 @@ xargs -L 1 -P {threads} < tip_reads.extract \\\\
 gunzip -c {params.ext_files} |awk -v SEQ="" '{{ if (match(\$1, ">") && \$1 != NAME) {{ if (SEQ != "") {{ print NAME; print SEQ; }} SEQ=""; NAME=\$1; }} else {{ SEQ=SEQ""\$1;}} }} END {{ print NAME; print SEQ}}' | tr -s ACGT > tip_reads_compressed.fasta
 rm -f {params.ext_files}
 
-cat ../{input.graph} |awk '{{ if (match(\$1, "^S")) {{ print ">"\$2; print \$3 }} }}' |fold -b > tips.fasta
+cat ../{input.graph} |awk '{{ if (match(\$1, "^S")) {{ print ">"\$2; print \$3 }} }}' > tips.fasta
 
 bases=\`expr {params.bases} / 2 \`
 {PYTHON} {VERKKO}/scripts/fasta_partition.py \\\\
@@ -139,7 +139,7 @@ rule alignTipsONT:
         err               = '3-alignTips/aligned{nnnn}.err'
     params:
         WINNOWMAP         = config['WINNOWMAP'],
-        alignmentstmp     = '3-align/aligned{nnnn}.WORKING.gaf',
+        alignmentstmp     = '3-alignTips/aligned{nnnn}.WORKING.gaf',
         min_aln_len       = 5000,
         min_aln_idy       = 0.90
     threads:

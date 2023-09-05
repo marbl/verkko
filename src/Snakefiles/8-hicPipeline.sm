@@ -51,7 +51,7 @@ set -e
 cat ../{input.unitig_scfmap} | awk '{{if (match(\$1, "path")) print \$2"\\t"\$3}}' > ../{output.rename_map}
 {PYTHON} {VERKKO}/scripts/fasta_combine.py rename ../{output.unitig_fasta}  ../{output.rename_map} ../{input.unitig_assembly}
 
-awk '/^S/{{print ">"\$2"\\n"\$3}}' ../{input.unitig_graph} | fold > ../{output.unitig_hpc}
+awk '/^S/{{print ">"\$2"\\n"\$3}}' ../{input.unitig_graph} > ../{output.unitig_hpc}
 awk < ../{input.unitig_graph} \\\\
   'BEGIN \\\\
    {{ \\\\
