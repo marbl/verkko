@@ -83,15 +83,21 @@ if scfmap:  #  For 'combine' combine the contig pieces and gaps into scaffolds.
 
   for clist in scfmap:
     seq = ""
+    prev = ""
     for piece in scfmap[clist]:
       numn = re.match(r"\[N(\d+)N]", piece)
 
       if numn:
+        if not seq:
+           print(f"ERROR:piece {prev} missing from gapped contig {clist}.", file=sys.stderr)
+           sys.exit(1)
         seq += "N" * int(numn[1])
       elif piece in pieces:
         seq += pieces[piece]
       elif seq:
         print(f"ERROR: piece {piece} missing from gapped contig {clist}.", file=sys.stderr)
+        sys.exit(1)
+      prev = piece
 
     if seq:
       outf.write(f">{clist}\n".encode())
