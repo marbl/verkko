@@ -96,16 +96,16 @@ echo Fix coverage
 echo Pop bubbles based on coverage
 {PYTHON} {VERKKO}/scripts/pop_bubbles_coverage_based.py \\\\
   ../{output.hificov} {params.haploid} \\\\
-< ../{input.graph} \\\\
+< unitig-connected-tip.gfa \\\\
 > popped-connected-tip.gfa \\\\
 2> popinfo_round1.err
 
 # consider doing this in a loop to avoid code redundancy
 echo Unroll simple loops
-{PYTHON} {VERKKO}/scripts/unroll_simple_loops.py popped-connected-tip.gfa ../{output.hificov} > unrolled-popped-connected-tip.gfa 2> unitig-mapping-3a.txt
+{PYTHON} {VERKKO}/scripts/unroll_simple_loops.py popped-connected-tip.gfa ../{output.hificov} > unrolled-popped-connected-tip.gfa 2>> unitig-mapping-3a.txt
 
 echo Unitigify 3
-{PYTHON} {VERKKO}/scripts/unitigify.py utig3- unitig-mapping-3b.txt \\\\
+{PYTHON} {VERKKO}/scripts/unitigify.py utig3b- unitig-mapping-3b.txt \\\\
 < unrolled-popped-connected-tip.gfa \\\\
 > unitig-unrolled-popped-connected-tip.gfa
 
