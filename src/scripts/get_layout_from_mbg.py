@@ -5,7 +5,9 @@ import re
 
 mapping_file = sys.argv[1]
 edge_overlap_file = sys.argv[2]
+#Read alignments to the graph. Only hifi alignments (+gaps) and ONT gaps are used.
 read_alignment_file = sys.argv[3]
+#Either paths from rukki or just single nodes
 paths_file = sys.argv[4]
 nodelens_file = sys.argv[5]
 layout_output = sys.argv[6]
@@ -246,6 +248,7 @@ with open(paths_file) as f:
 		contig_pieces[fullname] = []
 
 		for pp in pathfull:
+			#pp is either path without gaps or gap. In latest case do nothing
 			gp = re.match(r"\[(N\d+N)(?:[^\]]+){0,1}\]", pp)
 			if gp:
 				contig_pieces[fullname].append("[" + gp.group(1) + "]")
