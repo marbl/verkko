@@ -5,10 +5,13 @@ import re
 
 mapping_file = sys.argv[1]
 edge_overlap_file = sys.argv[2]
-#Read alignments to the graph. Only hifi alignments (+gaps) and ONT gaps are used.
+
+#Read alignments to the graph. Only hifi alignments to mbg and gaps are currently used
 read_alignment_file = sys.argv[3]
+
 #Either paths from rukki or just single nodes
 paths_file = sys.argv[4]
+
 nodelens_file = sys.argv[5]
 layout_output = sys.argv[6]
 layscf_output = sys.argv[7]
@@ -25,6 +28,7 @@ def canon(left, right):
 		return (revnode(right), revnode(left))
 	return (left, right)
 
+#transform paths to base elements - mbg nodes and gaps.
 def get_leafs(path, mapping, edge_overlaps, raw_node_lens):
 	path_len = 0
 	for i in range(0, len(path)):
@@ -83,6 +87,9 @@ def get_leafs(path, mapping, edge_overlaps, raw_node_lens):
 		assert current_len == path_len
 	return (result, overlaps)
 
+#this gives us matches of individual read to contigs(= rukki paths or isolated utig4 node)
+#path is an alignment of read (for most cases, hifi read to utig1 graph)
+#node_poses - map from nodes to the list of contigs and their positions in contigs 
 def get_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_overlaps, pathleftclip, pathrightclip, readleftclip, readrightclip, readlen, readstart, readend, gap):
 	longest = None
 	result = []
@@ -228,6 +235,9 @@ with open(mapping_file) as f:
 		assert left_len == right_len - left_clip - right_clip
 
 pieceid = 0
+
+#all these contains info about contigs - here nodes or rukki paths splitted by N
+#paths are transformed into mbg nodes and gaps with get_leafs procedure
 contig_lens = {}
 contig_nodeseqs = {}
 contig_nodeoverlaps = {}
@@ -284,7 +294,7 @@ with open(paths_file) as f:
 			sys.stderr.write(pathname + "\t" + pathstr + "\n")
 
 		contig_pieces[fullname].append("end")
-
+#map from node to list of contigs where it occures
 node_poses = {}
 for contigname in contig_nodeseqs:
 	for i in range(0, len(contig_nodeseqs[contigname])):
@@ -363,6 +373,8 @@ for readname in matches_per_read:
 				len_readend = readlen
 			contig_contains_reads[contig][readname].append((contigpos + readlen, contigpos, len_readstart, len_readend, readlen, readstart, readend))
 
+#here we clusterize separate matches to the nodes in the path to clusters (by match position in contig)
+
 read_clusters = {}
 for contig in contig_contains_reads:
 	for readname in contig_contains_reads[contig]:
@@ -385,6 +397,7 @@ for contig in contig_contains_reads:
 			if fw:
 				if fwcluster is None:
 					fwcluster = (contigstart, contigend, readstart, readend, [(real_readstart, real_readend)])
+				#this is the place where alignment to different nodes are actually united
 				elif contigstart < fwcluster[0] + 50 and contigend < fwcluster[1] + 50:
 					fwcluster = (contigstart, contigend, min(fwcluster[2], readstart), max(fwcluster[3], readend), fwcluster[4] + [(real_readstart, real_readend)])
 				else:
