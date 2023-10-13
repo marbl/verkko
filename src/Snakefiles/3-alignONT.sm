@@ -25,7 +25,8 @@ rule indexGraph:
     input:
         gfa               = rules.processGraph.output.gfa
     output:
-        index             = "3-align/graph.index"
+        index             = "3-align/graph.index",
+        diploid_index     = "3-align/diploid.index"
     log:
         err               = "3-align/index.err"
     params:
@@ -59,7 +60,8 @@ touch empty.fasta
   --bandwidth {params.bandwidth} \\\\
   --seeds-mxm-length {params.mxm_length} \\\\
   --mem-index-no-wavelet-tree \\\\
-  --diploid-heuristic-cache ../3-align/diploid-index.tmp \\\\
+  --diploid-heuristic \\\\
+  --diploid-heuristic-cache ../{output.diploid_index} \\\\
   --seeds-mem-count {params.mem_count} && touch ../{output.index}
 
 rm -f empty.gaf empty.fasta
@@ -76,6 +78,7 @@ rule alignONT:
     input:
         ont_reads         = '3-align/split/ont{nnnn}.fasta.gz',
         index             = rules.indexGraph.output.index,
+        diploid_index     = rules.indexGraph.output.diploid_index,
         gfa               = rules.processGraph.output.gfa
     output:
         alignments        = '3-align/aligned{nnnn}.gaf'
@@ -100,7 +103,7 @@ rule alignONT:
     resources:
         job_id = lambda wildcards, input, attempt: int(wildcards.nnnn),
         n_cpus = int(config['ali_n_cpus']),
-        mem_gb = lambda wildcards, input, attempt: getAlignMemoryRequest(attempt, 3, [ input.index ]),
+        mem_gb = lambda wildcards, input, attempt: getAlignMemoryRequest(attempt, 4, [ input.index, input.diploid_index ]),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ali', 3)
     shell:
         '''
@@ -133,7 +136,7 @@ fi
   --max-trace-count {params.max_trace} \\\\
   --mem-index-no-wavelet-tree \\\\
   --diploid-heuristic \\\\
-  --diploid-heuristic-cache ../3-align/diploid-index.tmp \\\\
+  --diploid-heuristic-cache ../{input.diploid_index} \\\\
 && \\\\
 mv -f ../{params.alignmentstmp} ../{output.alignments}
 EOF
