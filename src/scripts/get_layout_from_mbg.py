@@ -294,6 +294,7 @@ with open(paths_file) as f:
 			sys.stderr.write(pathname + "\t" + pathstr + "\n")
 
 		contig_pieces[fullname].append("end")
+
 #map from node to list of contigs where it occures
 node_poses = {}
 for contigname in contig_nodeseqs:
@@ -310,6 +311,7 @@ read_name_to_id = {}
 next_read_id = 0
 
 matches_per_read = {}
+readname_to_paths = {}
 with open(read_alignment_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
@@ -332,6 +334,8 @@ with open(read_alignment_file) as f:
 			if node[1:4] == "gap":
 				gap = True
 				break
+		readname_to_paths[readname] = [path, gap]
+
 		matches = get_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_overlaps, pathleftclip, pathrightclip, readleftclip, readrightclip, readlen, readstart, readend, gap)
 		if len(matches) == 0: continue
 		if readname not in matches_per_read: matches_per_read[readname] = []
@@ -376,12 +380,71 @@ for readname in matches_per_read:
 #here we clusterize separate matches to the nodes in the path to clusters (by match position in contig)
 
 read_clusters = {}
+total_banned = 0
+total_notbanned = 0
 for contig in contig_contains_reads:
+	print (f"debugggging  {contig}")
+	cont_seq = ""
+	for i in range(0, len(contig_nodeseqs[contig])):
+		cont_seq += (contig_nodeseqs[contig][i][0])
+	print (cont_seq)
+
+	sys.stdout.flush()
+#lets try to ban the reads that have a suffix or prefix that contradict to the contig
+	contig_ends = [contig_nodeseqs[contig][0][0], contig_nodeseqs[contig][-1][0]]
+
+	contig_nodes_no_dir = set()
+	for i in range(0, len(contig_nodeseqs[contig])):
+		contig_nodes_no_dir.add(contig_nodeseqs[contig][i][0][1:])
+
 	for readname in contig_contains_reads[contig]:
 		if readname not in read_clusters: read_clusters[readname] = []
 		lines = contig_contains_reads[contig][readname]
 		assert len(lines) > 0
 		readlen = lines[0][4]
+
+		#lets not ban gap containing reads 
+		if not readname_to_paths[readname][1]:
+			to_ban = False
+			near_contig_end = False
+			#if read_end not in contig, then something likely went wrong..
+			#can be replaced by more accurate check to exclude case where read end is somewhere else, but it should not make big sense.
+			
+			to_ban_left = False
+			to_ban_right = False
+			if not (readname_to_paths[readname][0][0][1:] in contig_nodes_no_dir):
+				to_ban_left = True
+			if not (readname_to_paths[readname][0][-1][1:] in contig_nodes_no_dir):
+				to_ban_right = True
+			#lets always allow read to extend contig
+			contains_contig_ends = [False, False]
+			for node in readname_to_paths[readname][0]:
+				for i in range(0,2):
+					#nodes same without respect to the orientation
+					if node[1:] == contig_ends[i][1:]:
+						contains_contig_ends[i] = True
+						#read going different direction with contig, so should switch ban logic
+						#rc loop may confuse this logic, but it would be weird anyway.
+						'''if node[0] != contig_ends[i][0]:							
+							tmp = to_ban_left
+							to_ban_left = to_ban_right
+							to_ban_right = tmp
+							print ("switching")
+							print (readname_to_paths[readname][0]) '''
+							
+						
+			if to_ban_left and not(contains_contig_ends[0]):
+				to_ban = True
+			if to_ban_right and not(contains_contig_ends[1]):
+				to_ban = True	
+			if to_ban:
+				print(f" {to_ban_left} {to_ban_right} banning")
+				print (readname_to_paths[readname][0])
+				total_banned +=1
+				continue
+			else:
+				total_notbanned +=1
+
 		lines.sort(key=lambda x: min(x[0], x[1]))
 		fwcluster = None
 		bwcluster = None
@@ -401,7 +464,8 @@ for contig in contig_contains_reads:
 				elif contigstart < fwcluster[0] + 50 and contigend < fwcluster[1] + 50:
 					fwcluster = (contigstart, contigend, min(fwcluster[2], readstart), max(fwcluster[3], readend), fwcluster[4] + [(real_readstart, real_readend)])
 				else:
-					if fwcluster[3] - fwcluster[2] >= readlen * min_read_len_fraction: read_clusters[readname].append((contig, fwcluster[0], fwcluster[1], get_exact_match_length(fwcluster[4])))
+					if fwcluster[3] - fwcluster[2] >= readlen * min_read_len_fraction:
+						read_clusters[readname].append((contig, fwcluster[0], fwcluster[1], get_exact_match_length(fwcluster[4])))
 					fwcluster = (contigstart, contigend, readstart, readend, [(real_readstart, real_readend)])
 			else:
 				if bwcluster is None:
@@ -409,14 +473,18 @@ for contig in contig_contains_reads:
 				elif contigstart < bwcluster[0] + 50 and contigend < bwcluster[1] + 50:
 					bwcluster = (contigstart, contigend, min(bwcluster[2], readstart), max(bwcluster[3], readend), bwcluster[4] + [(real_readstart, real_readend)])
 				else:
-					if bwcluster[3] - bwcluster[2] >= readlen * min_read_len_fraction: read_clusters[readname].append((contig, bwcluster[1], bwcluster[0], get_exact_match_length(bwcluster[4])))
+					if bwcluster[3] - bwcluster[2] >= readlen * min_read_len_fraction: 
+						read_clusters[readname].append((contig, bwcluster[1], bwcluster[0], get_exact_match_length(bwcluster[4])))
 					bwcluster = (contigstart, contigend, readstart, readend, [(real_readstart, real_readend)])
 		if fwcluster is not None:
-			if fwcluster[3] - fwcluster[2] >= readlen * min_read_len_fraction: read_clusters[readname].append((contig, fwcluster[0], fwcluster[1], get_exact_match_length(fwcluster[4])))
+			if fwcluster[3] - fwcluster[2] >= readlen * min_read_len_fraction: 
+				read_clusters[readname].append((contig, fwcluster[0], fwcluster[1], get_exact_match_length(fwcluster[4])))
 		if bwcluster is not None:
-			if bwcluster[3] - bwcluster[2] >= readlen * min_read_len_fraction: read_clusters[readname].append((contig, bwcluster[1], bwcluster[0], get_exact_match_length(bwcluster[4])))
-
+			if bwcluster[3] - bwcluster[2] >= readlen * min_read_len_fraction: 
+				read_clusters[readname].append((contig, bwcluster[1], bwcluster[0], get_exact_match_length(bwcluster[4])))
+print (f"Banned {total_banned} allowed {total_notbanned}")
 contig_actual_lines = {}
+#selecting best alignment to the contig, if multiple best use all of them.
 for readname in read_clusters:
 	longest = []
 	for line in read_clusters[readname]:
