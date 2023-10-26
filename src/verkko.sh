@@ -470,6 +470,9 @@ while [ $# -gt 0 ] ; do
           screen="$screen rdna human-rdna-KY962518.1.fasta.gz"
           shift
       else
+          if [ "x$arg" == 'x' ] || [ "x$arh" == 'x' ]; then
+              errors="${errors}Invalid screen option: '$arg', '$arh'. Provide both contaminant name and contaminant file.\n"
+          fi
           screen="$screen $arg $arh"
           shift   #  Both arg and arh are processed.
           shift
@@ -634,15 +637,18 @@ if [ ! -z "$screen" ] ; then
         sfpath=$( echo $sctest | cut -s -d ' ' -f 2  )
         dtpath="$verkko/data/$sfpath"
         sctest=$( echo $sctest | cut -s -d ' ' -f 3- )
-
         if   [ -e "$sfpath" ] ; then
-            screen="$screen $sident $sfpath"
+            if   [ -e "/$sfpath" ] ; then
+                screen="$screen $sident $sfpath"
+            else
+                screen="$screen $sident `pwd`/$sfpath"
+            fi
         elif [ -e "$dtpath" ] ; then
             screen="$screen $sident $dtpath"
         else
-            echo "ERROR: Can't find screen '$sident' data file.  Looked for:"
-            echo "  user-supplied:   '$sfpath' and"
-            echo "  verkko-supplied: '$dtpath'"
+            errors=${errors}"ERROR: Can't find screen '$sident' data file.  Looked for:\n"
+            errors=${errors}"  user-supplied:   '$sfpath' and\n"
+            errors=${errors}"  verkko-supplied: '$dtpath'\n"
         fi
     done
 fi
