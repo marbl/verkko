@@ -43,7 +43,8 @@ for fwpos in connectors:
 	for bwpos in connectors[fwpos]:
 		max_coverage = max(max_coverage, len(connectors[fwpos][bwpos]))
 	for bwpos in connectors[fwpos]:
-		if max_coverage >= 2 * len(connectors[fwpos][bwpos]):
+		#sys.stderr.write("Checking coverage for nodes %s and %s with max %s and len %s\n"%(fwpos, bwpos, max_coverage, len(connectors[fwpos][bwpos])))
+		if len(connectors[fwpos][bwpos]) == 1 or max_coverage >= 2 * len(connectors[fwpos][bwpos]):
 			for j in connectors[fwpos][bwpos]:
 				forbidden.add(j)
 
