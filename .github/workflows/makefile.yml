@@ -8,6 +8,8 @@ on:
     - '**.sh'
     - 'src/*'
     - '.github/workflows/*.yml'
+    branches-ignore:
+    - v2
 
   pull_request:
     branches: [ master ]
