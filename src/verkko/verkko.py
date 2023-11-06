@@ -1,6 +1,9 @@
+import os
 import sys
-import textwrap
+#import textwrap
 import inspect
+#import pathlib
+
 import argparse
 import configparser
 
@@ -88,6 +91,52 @@ pC['help']     .set_defaults(func=help)
 pC['correct']  .set_defaults(func=correct.correctHiFi)
 pC['mbg']      .set_defaults(func=mbg.buildGraph)
 pC['consensus'].set_defaults(func=consensus.computeConsensus)
+
+
+
+
+
+#
+#  Load defaults.
+#    From the system  verkko.ini (as found via the path)
+#    From the system  verkko.ini (as found via the environment)
+#    From the user    verkko.ini (as found via the environment)
+#    From the current verkko.ini (in the current directory)
+#    From the command line
+#
+
+def loadConfig(config, dirname, filename):
+  if dirname != None:
+    filename = os.path.join(dirname, filename)
+  if filename == None:
+    return
+  if not os.path.exists(filename):
+    return
+
+  print(f"Loading config from '{filename}'.")
+
+  cIn = configparser.ConfigParser(strict=False)
+  cIn.read(filename)
+
+  for s in cIn:
+    for k in cIn[s]:
+      if s not in cConfig:
+        config[s] = {}
+      config[s][k] = cIn[s][k]
+
+cConfig   = configparser.ConfigParser(strict=False)
+
+rundir = os.path.dirname(os.path.abspath(__file__))
+sysdir = os.getenv('VERKKO_HOME')
+usrdir = os.getenv('HOME')
+cwddir = os.getcwd()
+
+loadConfig(cConfig, rundir, 'verkko.ini')
+loadConfig(cConfig, sysdir, 'verkko.ini')
+loadConfig(cConfig, usrdir, 'verkko.ini')
+loadConfig(cConfig, cwddir, 'verkko.ini')
+
+#cConfig.write(sys.stdout)
 
 #  Parse the args, show help, or run the command.
 #  If there is no subcommand, show global help, listing the subcommands.
