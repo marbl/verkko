@@ -66,9 +66,6 @@ endif
 ifeq ($(wildcard overlapErrorAdjustment/findErrors.C), )
   $(shell ln -s canu/src/overlapErrorAdjustment overlapErrorAdjustment)
 endif
-ifeq ($(wildcard overlapInCore/overlapImport.C), )
-  $(shell ln -s canu/src/overlapInCore overlapInCore)
-endif
 ifeq ($(wildcard seqrequester/src), )
   $(shell ln -s canu/src/seqrequester seqrequester)
 endif
@@ -81,7 +78,10 @@ endif
 ifeq ($(wildcard utility/src), )
   $(shell ln -s canu/src/utility utility)
 endif
-ifeq ($(wildcard stores/sqStoreDumpFASTQ.C), )
+ifeq ($(wildcard overlapInCore/overlapImport.C), )
+  $(shell ln -s canu/src/overlapInCore)
+endif
+ifeq ($(wildcard overlapBasedTrimming/clearRangeFile.H), )
   $(shell ln -s canu/src/overlapBasedTrimming overlapBasedTrimming)
 endif
 
@@ -811,7 +811,7 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/profiles/jobscript.sh \
      ../lib/verkko/profiles/slurm-sge-status.sh \
      ../lib/verkko/profiles/slurm-sge-submit.sh
-	@rm  -f gfa meryl overlapErrorAdjustment overlapBasedTrimming overlapInCore seqrequester stores utgcns utility
+	@rm  -f gfa meryl overlapInCore overlapErrorAdjustment overlapBasedTrimming seqrequester stores utgcns utility
 	@echo ""
 	@echo "Success!"
 	@echo "${MODULE} installed in ${TARGET_DIR}/bin/${MODULE}"
@@ -839,7 +839,7 @@ $(foreach TGT,${ALL_TGTS},\
   $(eval $(call ADD_CLEAN_RULE,${TGT})))
 clean:
 	rm -rf rukki/target
-	rm  -f gfa meryl overlapErrorAdjustment seqrequester stores utgcns utility
+	rm  -f gfa meryl overlapInCore overlapErrorAdjustment overlapBasedTrimming seqrequester stores utgcns utility
 	find build -type d -print | sort -r | xargs -n 100 rmdir
 
 deinstall:

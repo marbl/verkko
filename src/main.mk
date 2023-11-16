@@ -111,6 +111,8 @@ SOURCES      := utility/src/align/align-ksw2-driver.C \
                 \
                 stores/objectStore.C \
                 \
+                overlapInCore/liboverlap/Binomial_Bound.C \
+                \
                 utgcns/libpbutgcns/AlnGraphBoost.C  \
                 \
                 gfa/gfa.C \
