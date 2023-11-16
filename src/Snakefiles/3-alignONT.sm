@@ -60,7 +60,7 @@ touch empty.fasta
   --bandwidth {params.bandwidth} \\\\
   --seeds-mxm-length {params.mxm_length} \\\\
   --mem-index-no-wavelet-tree \\\\
-  --diploid-heuristic \\\\
+  --diploid-heuristic 21 31 \\\\
   --diploid-heuristic-cache ../{output.diploid_index} \\\\
   --seeds-mem-count {params.mem_count} && touch ../{output.index}
 
@@ -135,7 +135,7 @@ fi
   --overlap-incompatible-cutoff {params.incompat_cutoff} \\\\
   --max-trace-count {params.max_trace} \\\\
   --mem-index-no-wavelet-tree \\\\
-  --diploid-heuristic \\\\
+  --diploid-heuristic 21 31 \\\\
   --diploid-heuristic-cache ../{input.diploid_index} \\\\
 && \\\\
 mv -f ../{params.alignmentstmp} ../{output.alignments}
