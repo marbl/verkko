@@ -119,12 +119,11 @@ fi
 #  buildStore, countKmers and computeOverlaps
 correction_enabled=True
 
-mer_size=28
-mer_threshold=20
-mer_filter=0.995
+mer_size=201
+mer_threshold=75
 
 cor_min_read=4000
-cor_min_overlap=2000
+cor_min_overlap=1000
 cor_hash_bits=25
 cor_filter_kmers=0
 
@@ -205,7 +204,7 @@ meg_mem_gb=32    #  It is used for merging kmer databases.
 meg_time_h=4
 
 ovb_n_cpus=8
-ovb_mem_gb=32
+ovb_mem_gb=8
 ovb_time_h=24
 
 ovs_n_cpus=1
@@ -409,7 +408,6 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--filter-kmer" ];                 then cor_filter_kmers=$arg; shift
     elif [ "$opt" = "--correct-k-mer-size" ] ;         then mer_size=$arg;        shift
     elif [ "$opt" = "--correct-mer-threshold" ] ;      then mer_threshold=$arg;   shift
-    elif [ "$opt" = "--correct-mer-filter" ] ;         then mer_filter=$arg;      shift
     elif [ "$opt" = "--correct-min-read-length" ] ;    then cor_min_read=$arg;    shift
     elif [ "$opt" = "--correct-min-overlap-length" ] ; then cor_min_overlap=$arg; shift
     elif [ "$opt" = "--correct-hash-bits" ] ;          then cor_hash_bits=$arg;   shift
@@ -664,10 +662,10 @@ for exe in bin/findErrors \
            bin/meryl-lookup \
            bin/ovStoreBuild \
            bin/ovStoreConfig \
-           bin/overlapInCore \
-           bin/overlapInCorePartition \
+           bin/overlapImport \
            bin/sqStoreCreate \
            bin/sqStoreDumpMetaData \
+           bin/sqStoreDumpFASTQ \
            bin/utgcns \
            scripts/get_layout_from_mbg.py ; do
   if [ ! -e "$verkko/$exe" ] ; then
@@ -907,7 +905,6 @@ echo >> ${outd}/verkko.yml "#  buildStore, countKmers and computeOverlaps"
 echo >> ${outd}/verkko.yml "correction_enabled:  '${correction_enabled}'"
 echo >> ${outd}/verkko.yml "mer_size:            '${mer_size}'"
 echo >> ${outd}/verkko.yml "mer_threshold:       '${mer_threshold}'"
-echo >> ${outd}/verkko.yml "mer_filter:          '${mer_filter}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "cor_min_read:        '${cor_min_read}'"
 echo >> ${outd}/verkko.yml "cor_min_overlap:     '${cor_min_overlap}'"

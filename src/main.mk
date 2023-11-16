@@ -111,25 +111,6 @@ SOURCES      := utility/src/align/align-ksw2-driver.C \
                 \
                 stores/objectStore.C \
                 \
-                overlapInCore/overlapReadCache.C \
-                \
-                overlapInCore/liboverlap/Binomial_Bound.C \
-                overlapInCore/liboverlap/Display_Alignment.C \
-                overlapInCore/liboverlap/prefixEditDistance.C \
-                overlapInCore/liboverlap/prefixEditDistance-allocateMoreSpace.C \
-                overlapInCore/liboverlap/prefixEditDistance-extend.C \
-                overlapInCore/liboverlap/prefixEditDistance-forward.C \
-                overlapInCore/liboverlap/prefixEditDistance-reverse.C \
-                \
-                utgcns/libNDalign/NDalign.C \
-                \
-                utgcns/libNDalign/Binomial_Bound.C \
-                utgcns/libNDalign/NDalgorithm.C \
-                utgcns/libNDalign/NDalgorithm-allocateMoreSpace.C \
-                utgcns/libNDalign/NDalgorithm-extend.C \
-                utgcns/libNDalign/NDalgorithm-forward.C \
-                utgcns/libNDalign/NDalgorithm-reverse.C \
-                \
                 utgcns/libpbutgcns/AlnGraphBoost.C  \
                 \
                 gfa/gfa.C \
@@ -159,13 +140,10 @@ SRC_INCDIRS  := . \
                 stores \
                 stores/libsnappy \
                 alignment \
-                utgcns/libNDalign \
                 utgcns/libcns \
                 utgcns/libpbutgcns \
-                utgcns/libNDFalcon \
                 utgcns/libboost \
-                overlapInCore \
-                overlapInCore/liboverlap
+                overlapBasedTrimming \
 
 SUBMAKEFILES := stores/ovStoreBuild.mk \
                 stores/ovStoreConfig.mk \
@@ -174,12 +152,12 @@ SUBMAKEFILES := stores/ovStoreBuild.mk \
                 stores/ovStoreIndexer.mk \
                 stores/sqStoreCreate.mk \
                 stores/sqStoreDumpMetaData.mk \
+                stores/sqStoreDumpFASTQ.mk \
                 \
                 meryl/src/meryl/meryl.mk \
                 meryl/src/meryl-lookup/meryl-lookup.mk \
                 \
-                overlapInCore/overlapInCore.mk \
-                overlapInCore/overlapInCorePartition.mk \
+                overlapInCore/overlapImport.mk \
                 \
                 overlapErrorAdjustment/findErrors.mk \
                 overlapErrorAdjustment/fixErrors.mk \

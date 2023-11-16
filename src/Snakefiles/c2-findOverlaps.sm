@@ -1,0 +1,148 @@
+#############################################################################
+ #
+ #  This file is part of Verkko, a software program that assembles
+ #  whole-genome sequencing reads into telomere-to-telomere
+ #  haplotype-resolved chromosomes.
+ #
+ #  Except as indicated otherwise, this is a 'United States Government
+ #  Work', and is released in the public domain.
+ #
+ #  File 'README.licenses' in the root directory of this distribution
+ #  contains full conditions and disclaimers.
+ #
+ ##
+
+rule computeOverlaps:
+    input:
+        seqstore  = {rules.buildStore.output.seqstore},
+    output:
+        ovb       = '0-correction/overlaps.ovb',
+    log:
+        err       = '0-correction/overlap.err'
+    params:
+        minread   = config['cor_min_read'],
+        minolap   = config['cor_min_overlap'],
+        mersize   = config['mer_size'],
+        merwindow = config['mer_threshold']
+    threads:
+        int(config['ovb_n_cpus']),
+    resources:
+        job_id = 1,
+        n_cpus = int(config['ovb_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getOverlapMemoryRequest(attempt),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ovb')
+    shell:
+        '''
+cd 0-correction
+
+cat > ./overlap.sh <<EOF
+#!/bin/sh
+set -e
+
+{VERKKO}/bin/sqStoreDumpFASTQ -fasta -compressed -S ../{input.seqstore} -o reads.gz -nolibname -noreadname
+
+{VERKKO}/bin/matchchains \\\\
+  {threads} \\\\
+  {params.mersize} \\\\
+  4 {params.merwindow} \\\\
+  reads.fasta.gz > overlaps.WORKING \\\\
+&& \\\\
+cat overlaps.WORKING  | sed 's/read//g' | awk '{{if (\$4 > \$2) \$4=\$2; if (\$9> \$7) \$9=\$7; if (\$NF == "fw") print \$1"\\t"\$2"\\t"\$3"\\t"\$4"\\t+\\t"\$6"\\t"\$7"\\t"\$8"\\t"\$9"\\t0\\t"\$4-\$3"\\t255\\tid:f:0.99"; else print \$1"\\t"\$2"\\t"\$3"\\t"\$4"\\t-\\t"\$6"\\t"\$7"\\t"\$7-\$9"\\t"\$7-\$8"\\t0\\t"\$4-\$3"\\t255\\tid:f:0.99"}}' > overlaps.out && rm overlaps.WORKING
+
+{VERKKO}/bin/overlapImport -maxerror 0.01 -minreadlength {params.minread} -minoverlaplength {params.minolap} -paf -o overlaps.ovb -S ../{input.seqstore} overlaps.out
+EOF
+
+chmod +x ./overlap.sh
+
+./overlap.sh > ../{log.err} 2>&1
+        '''
+
+
+
+rule combineOverlapsConfigure:
+    input:
+        ovb  = {rules.computeOverlaps.output.ovb},
+        seqstore  = {rules.buildStore.output.seqstore},
+    output:
+        ovlconfig = "0-correction/hifi.ovlStore.config",
+        ovlmemory = "0-correction/hifi.ovlStore.config.memory-request"
+    log:
+        err       = "0-correction/combineOverlapsConfigure.err"
+    threads:
+        int(config['ovs_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = int(config['ovs_n_cpus']),
+        mem_gb = int(config['ovs_mem_gb']),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ovs')
+    shell:
+        '''
+cd 0-correction
+
+cat > ./combineOverlapsConfigure.sh <<EOF
+#!/bin/sh
+set -e
+
+#  Note: file ./ovb-files is created by Snakemake when it discovers inputs
+#  for rule combineOverlaps.  This lets us avoid having to convert a list of
+#  filenames into a newline separated file, or having to use a very very long
+#  command line.
+
+echo ../{input.ovb} > ovb-files
+
+{VERKKO}/bin/ovStoreConfig \\\\
+  -S ../{input.seqstore} \\\\
+  -L ./ovb-files \\\\
+  -M 1-{resources.mem_gb} \\\\
+  -create ../{output.ovlconfig}
+
+{VERKKO}/bin/ovStoreConfig \\\\
+  -S ../{input.seqstore} \\\\
+  -sortmemory \\\\
+  -describe ../{output.ovlconfig} \\\\
+> ../{output.ovlmemory}
+EOF
+
+chmod +x ./combineOverlapsConfigure.sh
+
+./combineOverlapsConfigure.sh > ../{log.err} 2>&1
+        '''
+
+
+rule combineOverlaps:
+    input:
+        ovb       = {rules.computeOverlaps.output.ovb},
+        seqstore  = {rules.buildStore.output.seqstore},
+        ovlconfig = {rules.combineOverlapsConfigure.output.ovlconfig},
+        ovlmemory = {rules.combineOverlapsConfigure.output.ovlmemory}
+    output:
+        ovlstore  = directory("0-correction/hifi.ovlStore")
+    log:
+        err       = "0-correction/combineOverlaps.err"
+    threads:
+        int(config['ovs_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = int(config['ovs_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getCombineOverlapsMemory(attempt),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ovs')
+    shell:
+        '''
+cd 0-correction
+
+cat > ./combineOverlaps.sh <<EOF
+#!/bin/sh
+set -e
+
+#  This version sorts in one giant batch and uses as much memory as it wants.
+#
+{VERKKO}/bin/ovStoreBuild \\\\
+  -S ../{input.seqstore} \\\\
+  -O ../{output.ovlstore} \\\\
+  -C ../{input.ovlconfig}
+EOF
+
+chmod +x ./combineOverlaps.sh
+
+./combineOverlaps.sh > ../{log.err} 2>&1
+        '''

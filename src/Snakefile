@@ -199,7 +199,7 @@ cp -p {input.cnsunas}   {params.cnsunas}
 #    configureOverlaps - runs a Canu binary to load read lengths and decide
 #                        on batche sizes to compute overlaps.
 #
-localrules: verkko, configureOverlaps, correctHiFi, configureFindErrors, cnspath, emptyfile
+localrules: verkko, correctHiFi, configureFindErrors, cnspath, emptyfile
 
 
 
@@ -210,8 +210,7 @@ localrules: verkko, configureOverlaps, correctHiFi, configureFindErrors, cnspath
 include: 'Snakefiles/functions.sm'
 
 include: 'Snakefiles/c1-buildStore.sm'
-include: 'Snakefiles/c2-countKmers.sm'
-include: 'Snakefiles/c3-computeOverlaps.sm'
+include: 'Snakefiles/c2-findOverlaps.sm'
 include: 'Snakefiles/c4-findErrors.sm'
 
 include: 'Snakefiles/1-buildGraph.sm'

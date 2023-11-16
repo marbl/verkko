@@ -55,6 +55,20 @@ def getMemoryRequest(attempt, tag):
    mem = float(config[f"{tag}_mem_gb"])
    return int(math.ceil(math.ceil(mem)*scl))
 
+def getOverlapMemoryRequest(attempt, factor=3.5):
+   scl= 0.75 + attempt / 4.0
+   mem = float(config["ovb_mem_gb"])
+   info="%s/info.txt"%(rules.buildStore.output.seqstore)
+
+   if os.path.exists(info):
+      with open(info) as f:
+        for l in f:
+           if "corrected-compressed" in l:
+              mem=max(mem, float(l.strip().split()[1])*factor/1024/1024/1024)
+              break
+
+   return int(math.ceil(math.ceil(mem)*scl))
+
 def getAlignMemoryRequest(attempt, factor, files):
    scl = 0.75 + attempt / 4.0
    mem = float(config['ali_mem_gb'])

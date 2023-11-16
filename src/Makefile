@@ -66,8 +66,8 @@ endif
 ifeq ($(wildcard overlapErrorAdjustment/findErrors.C), )
   $(shell ln -s canu/src/overlapErrorAdjustment overlapErrorAdjustment)
 endif
-ifeq ($(wildcard overlapInCore/overlapInCore.C), )
-  $(shell ln -s canu/src/overlapInCore)
+ifeq ($(wildcard overlapInCore/overlapImport.C), )
+  $(shell ln -s canu/src/overlapInCore overlapInCore)
 endif
 ifeq ($(wildcard seqrequester/src), )
   $(shell ln -s canu/src/seqrequester seqrequester)
@@ -80,6 +80,9 @@ ifeq ($(wildcard utgcns/utgcns.C), )
 endif
 ifeq ($(wildcard utility/src), )
   $(shell ln -s canu/src/utility utility)
+endif
+ifeq ($(wildcard stores/sqStoreDumpFASTQ.C), )
+  $(shell ln -s canu/src/overlapBasedTrimming overlapBasedTrimming)
 endif
 
 # ADD_CLEAN_RULE - Parameterized "function" that adds a new rule and phony
@@ -570,7 +573,7 @@ ifeq (${CANU_BUILD_ENV}, ports)
 else
 
   # Ignore the gmake default 'c++' and force g++9.
-	ifeq ($(origin CXX), default)
+  ifeq ($(origin CXX), default)
     CC    = gcc9
     CXX   = g++9
     CCLIB = -rpath /usr/local/lib/gcc9
@@ -719,10 +722,10 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/bin/meryl-lookup \
      ../lib/verkko/bin/ovStoreBuild \
      ../lib/verkko/bin/ovStoreConfig \
-     ../lib/verkko/bin/overlapInCore \
-     ../lib/verkko/bin/overlapInCorePartition \
+     ../lib/verkko/bin/overlapImport \
      ../lib/verkko/bin/sqStoreCreate \
      ../lib/verkko/bin/sqStoreDumpMetaData \
+     ../lib/verkko/bin/sqStoreDumpFASTQ \
      ../lib/verkko/bin/utgcns \
      ../lib/verkko/bin/alignGFA \
      ../lib/verkko/bin/seqrequester \
@@ -799,8 +802,7 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/Snakefiles/7-generateConsensus.sm \
      ../lib/verkko/Snakefiles/8-hicPipeline.sm \
      ../lib/verkko/Snakefiles/c1-buildStore.sm \
-     ../lib/verkko/Snakefiles/c2-countKmers.sm \
-     ../lib/verkko/Snakefiles/c3-computeOverlaps.sm \
+     ../lib/verkko/Snakefiles/c2-findOverlaps.sm \
      ../lib/verkko/Snakefiles/c4-findErrors.sm \
      ../lib/verkko/Snakefiles/functions.sm \
      ../lib/verkko/Snakefiles/get-coverage.sm \
@@ -809,7 +811,7 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/profiles/jobscript.sh \
      ../lib/verkko/profiles/slurm-sge-status.sh \
      ../lib/verkko/profiles/slurm-sge-submit.sh
-	@rm  -f gfa meryl overlapErrorAdjustment overlapInCore seqrequester stores utgcns utility
+	@rm  -f gfa meryl overlapErrorAdjustment overlapBasedTrimming overlapInCore seqrequester stores utgcns utility
 	@echo ""
 	@echo "Success!"
 	@echo "${MODULE} installed in ${TARGET_DIR}/bin/${MODULE}"
@@ -837,7 +839,7 @@ $(foreach TGT,${ALL_TGTS},\
   $(eval $(call ADD_CLEAN_RULE,${TGT})))
 clean:
 	rm -rf rukki/target
-	rm  -f gfa meryl overlapErrorAdjustment overlapInCore seqrequester stores utgcns utility
+	rm  -f gfa meryl overlapErrorAdjustment seqrequester stores utgcns utility
 	find build -type d -print | sort -r | xargs -n 100 rmdir
 
 deinstall:
