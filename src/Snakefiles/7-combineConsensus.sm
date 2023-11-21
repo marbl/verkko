@@ -90,6 +90,10 @@ echo ""
 echo "--------------------"
 echo "Filtering short/disconnected and contaminants."
 echo ""
+screen=""
+if [ "x{params.screens}" != "x" ]; then
+   screen="--contaminant {params.screens} --mashmap {params.MASHMAP}"
+fi
 
 {PERL} {VERKKO}/scripts/screen-assembly.pl \\\\
  --assembly      combined.fasta \\\\
@@ -97,9 +101,8 @@ echo ""
  --graphmap      ../{input.scfmap} \\\\
  --hifi-coverage ../{input.hificov} \\\\
  --minlength     {params.short_len} \\\\
- --contaminant   {params.screens} \\\\
  --output        assembly \\\\
- --mashmap       {params.MASHMAP} \\\\
+ \$screen \\\\
  --threads       {threads} \\\\
 > ./screen-assembly.out 2> ./screen-assembly.err
 
