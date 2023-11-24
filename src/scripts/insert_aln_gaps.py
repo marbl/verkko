@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import sys
+import networkx as nx
+import graph_functions
 
 graph_file = sys.argv[1]
 input_aln_file = sys.argv[2]
@@ -33,6 +35,8 @@ not_tips = set()
 node_seqs = {}
 edge_overlaps = {}
 
+#not_tips = no outgoing nodes, assymetric!
+
 with open(graph_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
@@ -40,6 +44,7 @@ with open(graph_file) as f:
 			node_seqs[parts[1]] = parts[2]
 		if parts[0] == 'L':
 			fromnode = (">" if parts[2] == "+" else "<") + parts[1]
+#this is not to_node but reverse(to_node)
 			tonode = ("<" if parts[4] == "+" else ">") + parts[3]
 			edge_overlaps[canontip(fromnode, tonode)] = int(parts[5][:-1])
 			if parts[1] != parts[3]: # we will skip self-edges for this consideration, if you have a loop at a gap, try to patch it anyway
@@ -48,6 +53,15 @@ with open(graph_file) as f:
 		print(l.strip())
 
 if allow_nontips: not_tips = set()
+
+
+G = nx.Graph()
+graph_functions.load_indirect_graph(graph_file, G)
+tangles = graph_functions.nodes_in_tangles(G, 30000, 100)
+or_tangles = set()
+for node in tangles:
+	for pref in (">", "<"):
+		or_tangles.add(pref + node)
 
 gaps = {}
 
@@ -58,6 +72,7 @@ with open(input_aln_file) as f:
 		if readname not in count_per_read: count_per_read[readname] = 0
 		count_per_read[readname] += 1
 
+#Here we save rc to start of alignment. This allow to work 
 alns_per_read = {}
 with open(input_aln_file) as f:
 	for l in f:
@@ -83,6 +98,15 @@ with open(input_aln_file) as f:
 used_names = list(alns_per_read)
 used_names.sort()
 
+def tangle_onetip(s_node, e_node, or_tangles, not_tips):
+	if (s_node in not_tips and e_node in or_tangles) or (e_node in not_tips and s_node in or_tangles):
+#		print (f"banning nodes near tangles {s_node} {e_node}")
+#		print (f"{s_node in not_tips} and {e_node in or_tangles} or {e_node in not_tips} ad {s_node in or_tangles}")
+		return True
+	else:
+		return False
+		
+
 for name in alns_per_read:
 	alns_per_read[name].sort(key=lambda x: x[0])
 	if len(alns_per_read[name]) < 2: continue
@@ -91,7 +115,9 @@ for name in alns_per_read:
 		assert alns[i][0] >= alns[i-1][0]
 		if alns[i][0] == alns[i-1][0]: continue
 		if alns[i][1] <= alns[i-1][1]: continue
-		if allow_onetip and alns[i-1][3] in not_tips and alns[i][2] in not_tips: continue
+#alns[i][2] is RC to alignment, that's why it works.		
+		if allow_onetip and alns[i-1][3] in not_tips and alns[i][2] in not_tips: continue	
+		if allow_onetip and tangle_onetip(alns[i-1][3], alns[i][2], or_tangles, not_tips): continue 			
 		if not allow_onetip and (alns[i-1][3] in not_tips or alns[i][2] in not_tips): continue
 		if alns[i-1][5] > max_end_clip or alns[i][4] > max_end_clip: continue 
 		gap_len = (alns[i][0] - alns[i][4]) - (alns[i-1][1] + alns[i-1][5])
@@ -172,6 +198,7 @@ with open(gap_aln_file_out, "w") as f:
 			if alns[i][0] == alns[i-1][0]: continue
 			if alns[i][1] <= alns[i-1][1]: continue
 			if allow_onetip and alns[i-1][3] in not_tips and alns[i][2] in not_tips: continue
+			if allow_onetip and tangle_onetip(alns[i-1][3], alns[i][2], or_tangles, not_tips): continue			
 			if not allow_onetip and (alns[i-1][3] in not_tips or alns[i][2] in not_tips): continue
 			if alns[i-1][5] > max_end_clip or alns[i][4] > max_end_clip: continue
 			key = canontip(alns[i-1][3], alns[i][2])
