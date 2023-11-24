@@ -781,6 +781,7 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/scripts/graph_functions.py \
      ../lib/verkko/scripts/hicverkko.py \
      ../lib/verkko/scripts/parse_sam_pairs.py \
+     ../lib/verkko/scripts/graph_functions.py \
      \
      ../lib/verkko/Snakefile \
      ../lib/verkko/Snakefiles/1-buildGraph.sm \

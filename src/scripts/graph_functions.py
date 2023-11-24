@@ -1,10 +1,11 @@
 import networkx as nx
 import sys
 
-def remove_large_tangles(G, MIN_LEN, MAX_SHORT_COMPONENT):
+#Functions for indirect graph processing, nodes - "utig1-234"
+def remove_large_tangles(G, MAX_LEN, MAX_SHORT_COMPONENT):
     shorts = set()
     for node in G.nodes():
-        if G.nodes[node]['length'] < MIN_LEN:
+        if G.nodes[node]['length'] < MAX_LEN:
             shorts.add(node)
     sh_G = G.subgraph(shorts)
     nodes_deleted = 0
@@ -21,17 +22,46 @@ def remove_large_tangles(G, MIN_LEN, MAX_SHORT_COMPONENT):
                      f'number of nodes {G.number_of_nodes()}\n')
     return set(to_delete)
 
+def nodes_in_tangles(G, MAX_LEN, MIN_TANGLE_SIZE):
+    shorts = set()
+    for node in G.nodes():
+        if G.nodes[node]['length'] < MAX_LEN:
+            shorts.add(node)
+    res = set()
+    sh_G = G.subgraph(shorts)
+    for comp in nx.connected_components(sh_G):
+        if len(comp) > MIN_TANGLE_SIZE:
+            for n in comp:
+                res.add(n)
+    return res
+
+
 def load_indirect_graph(gfa_file, G):
-    translate = open(gfa_file, 'r')
-    for line in translate:
+
+    for line in open(gfa_file, 'r'):
         if "#" in line:
             continue
         line = line.strip().split()
 
         if line[0] == "S":
-            G.add_node(line[1], length=int(line[3][5:]), coverage=float(line[5][5:]))
-        elif line[0] == "L":
+            #noseq graphs
+            ls = len(line[2])
+            cov = 0
+            for i in range(4, len(line)):
+                spl_tag = line[i].split(":")
+                if spl_tag[0] == "LN":
+                    ls = int(spl_tag[2])
+                if spl_tag[0] == "ll":
+                    cov = float(spl_tag[2])                           
+            G.add_node(line[1], length=int(ls), coverage=float(cov))
+            
+    #L and S lines can be mixed
+    for line in open(gfa_file, 'r'):
+        if "#" in line:
+            continue
+        line = line.strip().split()       
+        if line[0] == "L":
             if line[1] not in G or line[3] not in G:
-                sys.stderr.write("Warning, skip link between nodes not in graph:%s" % (line))
+                sys.stderr.write("Error while graph loading; link between nodes not in graph:%s" % (line))
                 sys.exit(1)
             G.add_edge(line[1], line[3])

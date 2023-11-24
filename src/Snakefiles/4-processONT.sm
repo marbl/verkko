@@ -82,14 +82,16 @@ echo Step 2a
 
 cat alns-ont-nogap-2.gaf alns-ont-gap1.gaf alns-ont-gap2.gaf | {PYTHON} {VERKKO}/scripts/maybe_trim_alignment.py gapped-twice-unitig-unrolled-hifi-resolved.gfa 100 selected-winnowmap.ids > alns-cut-trim.gaf
 
-{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-twice-unitig-unrolled-hifi-resolved.gfa alns-cut-trim.gaf 10 100 alns-ont-nogap.gaf alns-ont-gap3.gaf cutgap y > gapped-unitig-unrolled-hifi-resolved.gfa
+#{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-twice-unitig-unrolled-hifi-resolved.gfa alns-cut-trim.gaf 10 100 alns-ont-nogap.gaf alns-ont-gap3.gaf cutgap y > gapped-unitig-unrolled-hifi-resolved.gfa
+cat gapped-twice-unitig-unrolled-hifi-resolved.gfa > gapped-unitig-unrolled-hifi-resolved.gfa
 
 
-cat alns-ont-gap1.gaf alns-ont-gap2.gaf alns-ont-gap3.gaf > ../{output.ont_gap_align}
+cat alns-ont-gap1.gaf alns-ont-gap2.gaf > ../{output.ont_gap_align}
+
 
 echo ""
 echo Step 2b
-cat alns-ont-nogap.gaf ../{output.ont_gap_align} | awk -F "\\t" '{{if (\$4-\$3 >= \$2*0.8 && \$12 >= 20) print;}}' | {PYTHON} {VERKKO}/scripts/trim_dbg_alignment.py gapped-unitig-unrolled-hifi-resolved.gfa 1500 > alns-ont-filter-trim.gaf
+cat ../{output.ont_gap_align} | awk -F "\\t" '{{if (\$4-\$3 >= \$2*0.8 && \$12 >= 20) print;}}' | {PYTHON} {VERKKO}/scripts/trim_dbg_alignment.py gapped-unitig-unrolled-hifi-resolved.gfa 1500 > alns-ont-filter-trim.gaf
 
 echo ""
 echo Step 2c
