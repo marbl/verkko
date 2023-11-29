@@ -96,11 +96,20 @@ echo ../{input.ovb} > ovb-files
   -M 1-{resources.mem_gb} \\\\
   -create ../{output.ovlconfig}
 
-{VERKKO}/bin/ovStoreConfig \\\\
+numslices=`\\\\
+  {VERKKO}/bin/ovStoreConfig \\\\
+  -S ../{input.seqstore} \\\\
+  -numslices \\\\
+  -describe ../{output.ovlconfig} \\\\
+  `
+sortmem=`\\\\
+   {VERKKO}/bin/ovStoreConfig \\\\
   -S ../{input.seqstore} \\\\
   -sortmemory \\\\
   -describe ../{output.ovlconfig} \\\\
-> ../{output.ovlmemory}
+  `
+
+expr \$numslices \\* \$sortmem > ../{output.ovlmemory}
 EOF
 
 chmod +x ./combineOverlapsConfigure.sh
