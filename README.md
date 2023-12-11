@@ -37,6 +37,7 @@ if you prefer to install verkko in a separate environment. Alternatively, you ca
 To install Verkko from github (for developers only) run:
 
     git clone https://github.com/marbl/verkko.git
+    git checkout <desired branch> (optional if you want to use a branch for development/compilation and not master)
     cd verkko/src
     git submodule init && git submodule update
     make -j32
