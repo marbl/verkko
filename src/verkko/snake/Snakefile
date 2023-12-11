@@ -1,0 +1,113 @@
+import verkkoA
+import verkkoB
+import verkkoC
+import verkkoD
+
+#
+#  Run as 'snakemake -c1 4-output/merged`
+#
+
+#
+#  The input rules MUST used the horrendous unpack(lambda ...) syntax so that
+#  snakemake will receive a function pointer instead of a function result.
+#  By having a function pointer, it is able to call the function repeatedly,
+#  instead of once at the start.  Use of a checkpoint rule requires that the
+#  input to each rule be recomputed after the checkpoint rule executes.
+#  Further, the lambda itself is required so that we can pass both 'wildcards'
+#  and 'rules' to the function - without the lambda, only 'wildcards' is passed
+#  but we need to know 'rules' so we can refer to outputs of other rules.
+#
+#  See:
+#    https://snakemake.readthedocs.io/en/stable/snakefiles/rules.html#input-functions-and-unpack
+#
+
+#
+#  The call to 'checkpoints.{rule}.get(**wildcards) mentioned in the documentation
+#  returns only the directory the checkpoint outputs are written into.  The docs also
+#  say:
+#
+#    If the checkpoint has not yet been executed, accessing
+#    checkpoints.somestep.get(**wildcards) ensures that Snakemake records the
+#    checkpoint as a direct dependency of [this rule].
+#
+#  but we can do that with a simple step-complete sentinel file - which
+#  also lets us check if the rule is actually finished (existence of the
+#  sentinel) as opposed to having simply started (existence of the output
+#  directory).
+#
+#print(checkpoints.partition.get(**wildcards).output[0])
+#
+
+#
+#  The module functions can either return a dict directly, or create a dict,
+#  populate it, and return that object.
+#      
+#      m = {}               -OR-
+#      m['out1'] = 'Aseq1'        return { 'out1': 'Aseq1',
+#      m['out2'] = 'Aseq2'                 'out2': 'Aseq2' }
+#      return m
+#
+#  You can access outputs from other rules with 'rules.{rule-name}.output.{label}`
+#
+#  Note that threads() must return an integer.
+#
+
+#
+#  Inside run(), you can access the files for the current rule with:
+#
+#    for label,name in outputs.items():   -OR- (where {label} is defined in outputs())
+#      open(name, ...)                          open(outputs.{label}, ...)
+#
+#  Inside run(), you can get the job index (not the snakemake step number)
+#  with 'wildcards.xxxx' (where 'xxxx' is the wildcard used in the
+#  input/output filename) or:
+#
+#      for k,v in wildcards.items():
+#        print(f'wildcard \'{k}\' = \'{v}\'')
+#
+
+
+
+#  Generate an input that we'll later use to make parallel jobs.
+rule prepare:
+  input:    unpack(lambda wildcards: verkkoA.inputs(rules, wildcards, checkpoints))
+  output:                          **verkkoA.outputs(rules)
+  log:                             **verkkoA.logs(rules)
+  params:                          **verkkoA.params(rules)
+  threads:                           verkkoA.threads(rules)
+  resources:                       **verkkoA.resources(rules)
+  run:                               verkkoA.run(input, output, log, params, threads, resources, wildcards)
+
+#  Convert the file created above into a set of jobs to run in parallel.
+checkpoint partition:
+  input:    unpack(lambda wildcards: verkkoB.inputs(rules, wildcards, checkpoints))
+  output:                          **verkkoB.outputs(rules)
+  log:                             **verkkoB.logs(rules)
+  params:                          **verkkoB.params(rules)
+  threads:                           verkkoB.threads(rules)
+  resources:                       **verkkoB.resources(rules)
+  run:                               verkkoB.run(input, output, log, params, threads, resources, wildcards)
+
+#  Compute a SINGLE job from the jobs partitioned above.
+rule compute:
+  input:    unpack(lambda wildcards: verkkoC.inputs(rules, wildcards, checkpoints))
+  output:                          **verkkoC.outputs(rules)
+  log:                             **verkkoC.logs(rules)
+  params:                          **verkkoC.params(rules)
+  threads:                           verkkoC.threads(rules)
+  resources:                       **verkkoC.resources(rules)
+  run:                               verkkoC.run(input, output, log, params, threads, resources, wildcards)
+
+#  Combine the output of all jobs into a single file.
+rule combine:
+  input:    unpack(lambda wildcards: verkkoD.inputs(rules, wildcards, checkpoints))
+  output:                          **verkkoD.outputs(rules)
+  log:                             **verkkoD.logs(rules)
+  params:                          **verkkoD.params(rules)
+  threads:                           verkkoD.threads(rules)
+  resources:                       **verkkoD.resources(rules)
+  run:                               verkkoD.run(input, output, log, params, threads, resources, wildcards)
+
+#  The final output we're after.
+rule final:
+  input:           rules.combine.output.merged
