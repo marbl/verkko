@@ -96,18 +96,18 @@ echo ../{input.ovb} > ovb-files
   -M 1-{resources.mem_gb} \\\\
   -create ../{output.ovlconfig}
 
-numslices=`\\\\
+numslices=\\`\\\\
   {VERKKO}/bin/ovStoreConfig \\\\
   -S ../{input.seqstore} \\\\
   -numslices \\\\
   -describe ../{output.ovlconfig} \\\\
-  `
-sortmem=`\\\\
+  \\`
+sortmem=\\`\\\\
    {VERKKO}/bin/ovStoreConfig \\\\
   -S ../{input.seqstore} \\\\
   -sortmemory \\\\
   -describe ../{output.ovlconfig} \\\\
-  `
+  \\`
 
 expr \$numslices \\* \$sortmem > ../{output.ovlmemory}
 EOF
