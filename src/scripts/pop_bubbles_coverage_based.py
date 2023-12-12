@@ -202,7 +202,7 @@ def try_pop_tip(start, edges, coverage, removed_nodes, removed_edges, max_remova
 		coverage_here = 0
 		if node[1:] in coverage: coverage_here = coverage[node[1:]]
 		# if we have a node w/better coverage, remove this one. Ties are broken by length
-		if coverage_here < max_removable and (coverage_here < max_coverage or (coverage_here == max_coverage and nodelens[node[1:]] < max_len and len(remove_this)+1 < len(edges[start]))):
+		if coverage_here < max_removable and len(remove_this)+1 < len(edges[start]) and (coverage_here < max_coverage or (coverage_here == max_coverage and nodelens[node[1:]] < max_len)):
 			remove_this.append(node)
 	if len(remove_this) == 0: return
 	for remove_node in remove_this:
