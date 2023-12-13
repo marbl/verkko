@@ -51,25 +51,25 @@ def details():
         viverra ut. In hac habitasse platea dictumst.'''
   return inspect.cleandoc(s)
 
-def run(args):
-  loadHiFi.run(args)
-  loadONT.run(args)
-  loadParental.run(args)
-  loadHiC.run(args)
+def run():
+  loadHiFi.run()
+  loadONT.run()
+  loadParental.run()
+  loadHiC.run()
 
-  correctHiFi.run(args)
-  correctONT.run(args)
-  correctParental.run(args)
-  correctHiC.run(args)
+  correctHiFi.run()
+  correctONT.run()
+  correctParental.run()
+  correctHiC.run()
 
-  buildGraph.run(args)
-  refineGraph.run(args)
+  buildGraph.run()
+  refineGraph.run()
 
-  buildPaths.run(args)
-  refinePaths.run(args)
+  buildPaths.run()
+  refinePaths.run()
 
-  haplotype.run(args)
-  phase.run(args)
-  rukki.run(args)
+  haplotype.run()
+  phase.run()
+  rukki.run()
 
-  consensus.run(args)
+  consensus.run()

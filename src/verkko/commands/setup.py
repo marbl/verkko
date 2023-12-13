@@ -1,76 +1,39 @@
 import os                    #
 import sys                   #
-import inspect               #  For 'cleandoc'
+#mport inspect               #  For 'cleandoc'
 #mport configparser as cP    #  For reading verkko.ini
-import vconfig
-import verkkoHelper as vH    #  For 'ruleOutput' and 'ruleInputs'
-import snakemake.io as sIO   #  For 'glob_wildcards' and 'expand'
+import verkkoConfig as vC    #
+#mport verkkoHelper as vH    #  For 'ruleOutput' and 'ruleInputs'
+#mport snakemake.io as sIO   #  For 'glob_wildcards' and 'expand'
 
 #
-#  See comments in verkko.py, please.
-def synopsis():
-  #     -90-columns-------------------------------------------------------------------------------
-  s=f'''validate command line options and write a config file for the assembly'''
-  return inspect.cleandoc(s)
-
-def details():
-  #     -90-columns-------------------------------------------------------------------------------
-  s=f'''The 'setup' command creates a parameter file ('verkko.ini') in the run-directory
-        which contains all parameters and input file names for the assembly.
-
-        It will check that:
-         - parameters are valid
-         - parameters are consistent with any existing parameter file
-         - input files exist and are readable
-         - external programs exist and can be executed
-
-        Any failing check will result in an immediate failure, except that
-        when parameters are not consistent with the existing parameter file,
-        it will:
-         - silently update the parameters if no intermediate results depend
-           on the changed parameters
-         - otherwise, depending on option '--recompute', emit an error indicating
-           which parameter changed and which intermediate result(s) are affected,
-           or remove all such intermediate results and recomptue.
-
-        All other Verkko sub-commands read their parameters from 'verkko.ini'.
-        Suuplying algorithmic parameters directly to the sub-command will override
-        the global parameter but NOT update the parameter file.'''
-  return inspect.cleandoc(s)
-
-
-
-#def inputs(rules, wildcards, checkpoints):
-#  return {}
+#  Validate the parameter file ('verkko.current.ini') in the run-directory
+#  which contains all parameters and input file names for the assembly.
 #
-#def outputs(rules):
-#  return { 'ini': 'verkko.current.ini' }
+#  It will check that:
+#   - parameters are valid
+#   - parameters are consistent with any existing parameter file
+#   - input files exist and are readable
+#   - external programs exist and can be executed
 #
-#def logs(rules):
-#  return {}
+#  Any failing check will result in an immediate failure, except that
+#  when parameters are not consistent with the existing parameter file,
+#  it will:
+#   - silently update the parameters if no intermediate results depend
+#     on the changed parameters
+#   - otherwise, depending on option '--recompute', emit an error indicating
+#     which parameter changed and which intermediate result(s) are affected,
+#     or remove all such intermediate results and recomptue.
 #
-#def params(rules):
-#  return {}
-#
-#def threads(rules):
-#  return 1
-#
-#def resources(rules):
-#  return {}
+#  All other Verkko sub-commands read their parameters from 'verkko.ini'.
+#  Suuplying algorithmic parameters directly to the sub-command will override
+#  the global parameter but NOT update the parameter file.'''
 #
 
 
-def run():
-  cfg = vconfig.verkkoConfig()
-  cfg.load('verkko.current.ini')
-
-  checkValid(cfg)
-  checkInputs(cfg)
-  checkExternal(cfg)
-  checkConfig(cfg)
-  writeConfig(cfg)
-
-
+#  Helpers.  Convert a string to an integer/float and
+#  allow use in a 'with cCint(string) as p' block.
+#
 class cCint(object):
   def __init__(self, val):              self.val = int(val)
   def __enter__(self):                  return self.val
@@ -81,11 +44,11 @@ class cCfloat(object):
   def __enter__(self):                  return self.val
   def __exit__(self, type, value, tb):  pass
 
-def fileExistsAndIsReadable(src, fn):
-  if not os.path.exists(fn):
-    return(f"input {src} '{fn}' does not exist\n")
-  return(f'')
 
+#  Test if a file exists, and if not, return an error string.
+def fileExistsAndIsReadable(src, fn, err):
+  if not os.path.exists(fn):
+    err.append(f'{src} input \'{fn}\' does not exist')
 
 
 
@@ -121,36 +84,12 @@ def checkValid(cfg, cErrors):
 
 
 def checkInputs(cfg, cErrors):
-  errors = ''
-
-  for fn in cfg['HIFI'].values:
-    print(f'DumpChecking HiFi:  \'{fn}\'')
-  for fn in cfg['ONT'].values:
-    print(f'DumpChecking ONT:   \'{fn}\'')
-
-  for fn in cfg['HIFI'].values:
-    print(f'Checking HiFi:  \'{fn}\'')
-    errors += fileExistsAndIsReadable('HiFi', fn)
-
-  for fn in cfg['ONT'].values:
-    print(f'Checking ONT:   \'{fn}\'')
-    errors += fileExistsAndIsReadable('ONT', fn)
-
-  for fn in cfg['HIC1'].values:
-    print(f'Checking HiC-2: \'{fn}\'')
-    errors += fileExistsAndIsReadable('HiC-1', fn)
-
-  for fn in cfg['HIC2'].values:
-    print(f'Checking HiC-1: \'{fn}\'')
-    errors += fileExistsAndIsReadable('HiC-2', fn)
-
-  #for fn in cfg['HAP1']:
-  #  errors += fileExistsAndIsReadable(fn)
-
-  #for fn in cfg['HAP2']:
-  #  errors += fileExistsAndIsReadable(fn)
-
-  print(errors)
+  for fn in cfg['HIFI'].values:   fileExistsAndIsReadable('HiFi',  fn, cErrors)
+  for fn in cfg['ONT' ].values:   fileExistsAndIsReadable('ONT',   fn, cErrors)
+  for fn in cfg['HIC1'].values:   fileExistsAndIsReadable('HiC-1', fn, cErrors)
+  for fn in cfg['HIC2'].values:   fileExistsAndIsReadable('HiC-2', fn, cErrors)
+  for fn in cfg['HAP1'].values:   fileExistsAndIsReadable('Hap-1', fn, cErrors)
+  for fn in cfg['HAP2'].values:   fileExistsAndIsReadable('Hap-2', fn, cErrors)
 
 def checkExternal(cfg, cErrors):
   a=3
@@ -158,9 +97,16 @@ def checkExternal(cfg, cErrors):
 def checkConfig(cfg, cErrors):
   a=3
 
-def writeConfig(cfg, cErrors):
-  a=3
+def failIfErrors(cfg, cErrors):
+  if len(cErrors) == 0:
+    return
 
+  print(f'')
+  print(f'Errors detected:')
+  for e in cErrors:
+    print(f' - {e}')
+  print(f'')
+  exit(1)
 
 #needs a config step that
 # - compares existing options vs config files

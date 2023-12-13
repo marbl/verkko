@@ -3,9 +3,11 @@
 import os
 import sys
 import inspect
-
 import argparse
-import vconfig
+
+import verkkoConfig as vC    #
+#mport verkkoHelper as vH    #  For 'ruleOutput' and 'ruleInputs'
+
 
 import importlib
 
@@ -68,8 +70,8 @@ def shortdesc():
 #    From the current verkko.ini (in the current directory)
 #    From the command line
 #
-cErrors   = {}
-cConfig   = vconfig.verkkoConfig()
+cErrors   = []
+cConfig   = vC.verkkoConfig()
 
 cConfig.load(os.path.dirname(os.path.abspath(__file__)), 'verkko.ini')  #  verkko defaults
 cConfig.load(os.getenv('VERKKO_HOME'),                   'verkko.ini')  #  system defaults
@@ -126,6 +128,83 @@ pParent.add_argument('--local-cpus',           dest='local_cpus',   help='set CP
 pParent.add_argument('--snakeopts',            dest='', help='')
 
 #
+
+pParent.add_argument('--hifi',                                                          action=vC.optapp, nargs='+', vconfig=cConfig, optsection='HIFI')
+pParent.add_argument('--ont', '--nano',                                                 action=vC.optapp, nargs='+', vconfig=cConfig, optsection='ONT')
+pParent.add_argument('--hic1',                                                          action=vC.optapp, nargs='+', vconfig=cConfig, optsection='HIC1')
+pParent.add_argument('--hic2',                                                          action=vC.optapp, nargs='+', vconfig=cConfig, optsection='HIC2')
+#Parent.add_argument('--hap-kmers',                                                     action=vC.optapp, nargs='+', vconfig=cConfig, optsection='HAP1')
+#Parent.add_argument('--hap-kmers',                                                     action=vC.optapp, nargs='+', vconfig=cConfig, optsection='HAP2')
+
+#Parent.add_argument('--no-ont',                     dest='with-ont', default=True, action='store_const', const=False)
+
+#Parent.add_argument('--paths',                      dest='hic1',   action='extend', nargs='+')
+#Parent.add_argument('--assembly',                   dest='hic1',   action='extend', nargs='+')
+
+#  Read Loading options
+pParent.add_argument('--ont-split-bases',            dest='ont-split-bases',            action=vC.setopt, vconfig=cConfig, optsection='ONT_SPLIT')
+pParent.add_argument('--ont-split-reads',            dest='ont-split-reads',            action=vC.setopt, vconfig=cConfig, optsection='ONT_SPLIT')
+pParent.add_argument('--ont-split-min-length',       dest='ont-split-min-length',       action=vC.setopt, vconfig=cConfig, optsection='ONT_SPLIT')
+
+pParent.add_argument('--hic-split-bases',            dest='hic-split-bases',            action=vC.setopt, vconfig=cConfig, optsection='HIC_SPLIT')
+pParent.add_argument('--hic-split-reads',            dest='hic-split-reads',            action=vC.setopt, vconfig=cConfig, optsection='HIC_SPLIT')
+pParent.add_argument('--hic-split-min-length',       dest='hic-split-min-length',       action=vC.setopt, vconfig=cConfig, optsection='HIC_SPLIT')
+
+#  Canu Correction options
+pParent.add_argument('--correct-kmer-size',          dest='kmer-size',                  action=vC.setopt, vconfig=cConfig, optsection='CANU_READ_CORRECTION')
+pParent.add_argument('--correct-kmer-threshold',     dest='kmer-threshold',             action=vC.setopt, vconfig=cConfig, optsection='CANU_READ_CORRECTION')
+pParent.add_argument('--correct-kmer-filter',        dest='kmer-filter',                action=vC.setopt, vconfig=cConfig, optsection='CANU_READ_CORRECTION')
+
+pParent.add_argument('--no-correction',              dest='enabled',                    action=vC.setval, vconfig=cConfig, optsection='CANU_READ_CORRECTION', const='False')
+pParent.add_argument('--correct-min-read-length',    dest='min-read-length',            action=vC.setopt, vconfig=cConfig, optsection='CANU_READ_CORRECTION')
+pParent.add_argument('--correct-min-overlap-length', dest='min-overlap-length',         action=vC.setopt, vconfig=cConfig, optsection='CANU_READ_CORRECTION')
+pParent.add_argument('--correct-min-kmers',          dest='min-kmers',                  action=vC.setopt, vconfig=cConfig, optsection='CANU_READ_CORRECTION')
+pParent.add_argument('--correct-hash-bits',          dest='hash-bits',                  action=vC.setopt, vconfig=cConfig, optsection='CANU_READ_CORRECTION')
+
+#  MBG Graph Building options
+pParent.add_argument('--mbg-baseK',                  dest='mbg-baseK',                  action=vC.setopt, vconfig=cConfig, optsection='MBG')
+pParent.add_argument('--mbg-maxK',                   dest='mbg-maxK',                   action=vC.setopt, vconfig=cConfig, optsection='MBG')
+pParent.add_argument('--mbg-window',                 dest='mbg-window',                 action=vC.setopt, vconfig=cConfig, optsection='MBG')
+pParent.add_argument('--mbg-max-resolution',         dest='mbg-max-resolution',         action=vC.setopt, vconfig=cConfig, optsection='MBG')
+pParent.add_argument('--mbg-hifi-coverage',          dest='mbg-hifi-coverage',          action=vC.setopt, vconfig=cConfig, optsection='MBG')
+pParent.add_argument('--mbg-unitig-abundance',       dest='mbg-unitig-abundance',       action=vC.setopt, vconfig=cConfig, optsection='MBG')
+
+#  GraphAligner ONT Alignment options
+pParent.add_argument('--ali-mxm-length',             dest='ali-mxm-length',             action=vC.setopt, vconfig=cConfig, optsection='ONT_ALIGN')
+pParent.add_argument('--ali-mem-count',              dest='ali-mem-count',              action=vC.setopt, vconfig=cConfig, optsection='ONT_ALIGN')
+pParent.add_argument('--ali-bandwidth',              dest='ali-bandwidth',              action=vC.setopt, vconfig=cConfig, optsection='ONT_ALIGN')
+pParent.add_argument('--ali-multi-score-f',          dest='ali-multi-score-f',          action=vC.setopt, vconfig=cConfig, optsection='ONT_ALIGN')
+pParent.add_argument('--ali-clipping',               dest='ali-clipping',               action=vC.setopt, vconfig=cConfig, optsection='ONT_ALIGN')
+pParent.add_argument('--ali-min-score',              dest='ali-min-score',              action=vC.setopt, vconfig=cConfig, optsection='ONT_ALIGN')
+pParent.add_argument('--ali-end-clipping',           dest='ali-end-clipping',           action=vC.setopt, vconfig=cConfig, optsection='ONT_ALIGN')
+pParent.add_argument('--ali-incompat-cutoff',        dest='ali-incompat-cutoff',        action=vC.setopt, vconfig=cConfig, optsection='ONT_ALIGN')
+pParent.add_argument('--ali-max-trace',              dest='ali-max-trace',              action=vC.setopt, vconfig=cConfig, optsection='ONT_ALIGN')
+pParent.add_argument('--ali-seed-window',            dest='ali-seed-window',            action=vC.setopt, vconfig=cConfig, optsection='ONT_ALIGN')
+
+#  Graph Refinement options
+pParent.add_argument('--pop-min-allowed-cov',        dest='pop-min-allowed-cov',        action=vC.setopt, vconfig=cConfig, optsection='PROCESS_PATHS')
+pParent.add_argument('--pop-resolve-steps',          dest='pop-resolve-steps',          action=vC.setopt, vconfig=cConfig, optsection='PROCESS_PATHS')
+pParent.add_argument('--is-haploid',                 dest='is-haploid',                 action=vC.setval, vconfig=cConfig, optsection='PROCESS_PATHS', const='True')
+
+#  Hi-C Phasing options
+pParent.add_argument('--haplo-divergence',           dest='haplo-divergence',           action=vC.setopt, vconfig=cConfig, optsection='HIC')
+pParent.add_argument('--uneven-depth',               dest='uneven-depth',               action=vC.setval, vconfig=cConfig, optsection='HIC', const='True')
+pParent.add_argument('--no-rdna-tangle',             dest='no-rdna-tangle',             action=vC.setval, vconfig=cConfig, optsection='HIC', const='True')
+
+#  Rukki options
+pParent.add_argument('--ruk-enable',                 dest='ruk-enable',                 action=vC.setval, vconfig=cConfig, optsection='RUKKI', const='True')
+pParent.add_argument('--ruk-hap1',                   dest='ruk-hap1',                   action=vC.setopt, vconfig=cConfig, optsection='RUKKI')
+pParent.add_argument('--ruk-hap2',                   dest='ruk-hap2',                   action=vC.setopt, vconfig=cConfig, optsection='RUKKI')
+pParent.add_argument('--ruk-type',                   dest='ruk-type',                   action=vC.setopt, vconfig=cConfig, optsection='RUKKI')
+pParent.add_argument('--ruk-fract',                  dest='ruk-fract',                  action=vC.setopt, vconfig=cConfig, optsection='RUKKI')
+
+#  Contig Filtering options
+pParent.add_argument('--short-contig-length',        dest='short-contig-length',        action=vC.setopt, vconfig=cConfig, optsection='FILTERING')
+pParent.add_argument('--screen',                     dest='screen',                     action=vC.setopt, vconfig=cConfig, optsection='FILTERING')
+
+
+
+#
 #  Create a sub-command parser for all the sub-commands.  Do NOT make this
 #  'required=True', as that will suppress the long help message when we're
 #  run with no sub-command.
@@ -143,7 +222,7 @@ pC['theory']                 = pCmds.add_parser('theory',              help=theo
 pC['run']                    = pCmds.add_parser('run',                 help=run.synopsis(),             description=run.details(),             add_help=False, formatter_class=pFmt, parents=[pParent])
 pC['dry-run']                = pCmds.add_parser('dry-run',             help=dryrun.synopsis(),          description=dryrun.details(),          add_help=False, formatter_class=pFmt, parents=[pParent])
 
-pC['setup']                  = pCmds.add_parser('setup',               help=setup.synopsis(),           description=setup.details(),           add_help=False, formatter_class=pFmt, parents=[pParent])
+#C['setup']                  = pCmds.add_parser('setup',               help=setup.synopsis(),           description=setup.details(),           add_help=False, formatter_class=pFmt, parents=[pParent])
 
 pC['load-hifi-reads']        = pCmds.add_parser('load-hifi-reads',     help=loadHiFi.synopsis(),        description=loadHiFi.details(),        add_help=False, formatter_class=pFmt, parents=[pParent])
 pC['load-ont-reads']         = pCmds.add_parser('load-ont-reads',      help=loadONT.synopsis(),         description=loadONT.details(),         add_help=False, formatter_class=pFmt, parents=[pParent])
@@ -176,81 +255,6 @@ pC['theory'].set_defaults(func=theory.run)
 
 pC['run'].set_defaults(func=run.run)
 
-
-#  set these defaults from either the system init file or hardcoded values if no system file
-pC['setup'].set_defaults(func=setup.run)
-pC['setup'].add_argument('--hifi',                                                          action=vconfig.optapp, nargs='+', vconfig=cConfig, optsection='HIFI')
-pC['setup'].add_argument('--ont', '--nano',                                                 action=vconfig.optapp, nargs='+', vconfig=cConfig, optsection='ONT')
-pC['setup'].add_argument('--hic1',                                                          action=vconfig.optapp, nargs='+', vconfig=cConfig, optsection='HIC1')
-pC['setup'].add_argument('--hic2',                                                          action=vconfig.optapp, nargs='+', vconfig=cConfig, optsection='HIC2')
-#C['setup'].add_argument('--hap-kmers',                                                     action=vconfig.optapp, nargs='+', vconfig=cConfig, optsection='HAP1')
-#C['setup'].add_argument('--hap-kmers',                                                     action=vconfig.optapp, nargs='+', vconfig=cConfig, optsection='HAP2')
-
-#C['setup'].add_argument('--no-ont',                     dest='with-ont', default=True, action='store_const', const=False)
-
-#C['setup'].add_argument('--paths',                      dest='hic1',   action='extend', nargs='+')
-#C['setup'].add_argument('--assembly',                   dest='hic1',   action='extend', nargs='+')
-
-#  Read Loading options
-pC['setup'].add_argument('--ont-split-bases',            dest='ont-split-bases',            action=vconfig.setopt, vconfig=cConfig, optsection='ONT_SPLIT')
-pC['setup'].add_argument('--ont-split-reads',            dest='ont-split-reads',            action=vconfig.setopt, vconfig=cConfig, optsection='ONT_SPLIT')
-pC['setup'].add_argument('--ont-split-min-length',       dest='ont-split-min-length',       action=vconfig.setopt, vconfig=cConfig, optsection='ONT_SPLIT')
-
-pC['setup'].add_argument('--hic-split-bases',            dest='hic-split-bases',            action=vconfig.setopt, vconfig=cConfig, optsection='HIC_SPLIT')
-pC['setup'].add_argument('--hic-split-reads',            dest='hic-split-reads',            action=vconfig.setopt, vconfig=cConfig, optsection='HIC_SPLIT')
-pC['setup'].add_argument('--hic-split-min-length',       dest='hic-split-min-length',       action=vconfig.setopt, vconfig=cConfig, optsection='HIC_SPLIT')
-
-#  Canu Correction options
-pC['setup'].add_argument('--correct-kmer-size',          dest='kmer-size',                  action=vconfig.setopt, vconfig=cConfig, optsection='CANU_READ_CORRECTION')
-pC['setup'].add_argument('--correct-kmer-threshold',     dest='kmer-threshold',             action=vconfig.setopt, vconfig=cConfig, optsection='CANU_READ_CORRECTION')
-pC['setup'].add_argument('--correct-kmer-filter',        dest='kmer-filter',                action=vconfig.setopt, vconfig=cConfig, optsection='CANU_READ_CORRECTION')
-
-pC['setup'].add_argument('--no-correction',              dest='enabled',                    action=vconfig.setval, vconfig=cConfig, optsection='CANU_READ_CORRECTION', const='False')
-pC['setup'].add_argument('--correct-min-read-length',    dest='min-read-length',            action=vconfig.setopt, vconfig=cConfig, optsection='CANU_READ_CORRECTION')
-pC['setup'].add_argument('--correct-min-overlap-length', dest='min-overlap-length',         action=vconfig.setopt, vconfig=cConfig, optsection='CANU_READ_CORRECTION')
-pC['setup'].add_argument('--correct-min-kmers',          dest='min-kmers',                  action=vconfig.setopt, vconfig=cConfig, optsection='CANU_READ_CORRECTION')
-pC['setup'].add_argument('--correct-hash-bits',          dest='hash-bits',                  action=vconfig.setopt, vconfig=cConfig, optsection='CANU_READ_CORRECTION')
-
-#  MBG Graph Building options
-pC['setup'].add_argument('--mbg-baseK',                  dest='mbg-baseK',                  action=vconfig.setopt, vconfig=cConfig, optsection='MBG')
-pC['setup'].add_argument('--mbg-maxK',                   dest='mbg-maxK',                   action=vconfig.setopt, vconfig=cConfig, optsection='MBG')
-pC['setup'].add_argument('--mbg-window',                 dest='mbg-window',                 action=vconfig.setopt, vconfig=cConfig, optsection='MBG')
-pC['setup'].add_argument('--mbg-max-resolution',         dest='mbg-max-resolution',         action=vconfig.setopt, vconfig=cConfig, optsection='MBG')
-pC['setup'].add_argument('--mbg-hifi-coverage',          dest='mbg-hifi-coverage',          action=vconfig.setopt, vconfig=cConfig, optsection='MBG')
-pC['setup'].add_argument('--mbg-unitig-abundance',       dest='mbg-unitig-abundance',       action=vconfig.setopt, vconfig=cConfig, optsection='MBG')
-
-#  GraphAligner ONT Alignment options
-pC['setup'].add_argument('--ali-mxm-length',             dest='ali-mxm-length',             action=vconfig.setopt, vconfig=cConfig, optsection='ONT_ALIGN')
-pC['setup'].add_argument('--ali-mem-count',              dest='ali-mem-count',              action=vconfig.setopt, vconfig=cConfig, optsection='ONT_ALIGN')
-pC['setup'].add_argument('--ali-bandwidth',              dest='ali-bandwidth',              action=vconfig.setopt, vconfig=cConfig, optsection='ONT_ALIGN')
-pC['setup'].add_argument('--ali-multi-score-f',          dest='ali-multi-score-f',          action=vconfig.setopt, vconfig=cConfig, optsection='ONT_ALIGN')
-pC['setup'].add_argument('--ali-clipping',               dest='ali-clipping',               action=vconfig.setopt, vconfig=cConfig, optsection='ONT_ALIGN')
-pC['setup'].add_argument('--ali-min-score',              dest='ali-min-score',              action=vconfig.setopt, vconfig=cConfig, optsection='ONT_ALIGN')
-pC['setup'].add_argument('--ali-end-clipping',           dest='ali-end-clipping',           action=vconfig.setopt, vconfig=cConfig, optsection='ONT_ALIGN')
-pC['setup'].add_argument('--ali-incompat-cutoff',        dest='ali-incompat-cutoff',        action=vconfig.setopt, vconfig=cConfig, optsection='ONT_ALIGN')
-pC['setup'].add_argument('--ali-max-trace',              dest='ali-max-trace',              action=vconfig.setopt, vconfig=cConfig, optsection='ONT_ALIGN')
-pC['setup'].add_argument('--ali-seed-window',            dest='ali-seed-window',            action=vconfig.setopt, vconfig=cConfig, optsection='ONT_ALIGN')
-
-#  Graph Refinement options
-pC['setup'].add_argument('--pop-min-allowed-cov',        dest='pop-min-allowed-cov',        action=vconfig.setopt, vconfig=cConfig, optsection='PROCESS_PATHS')
-pC['setup'].add_argument('--pop-resolve-steps',          dest='pop-resolve-steps',          action=vconfig.setopt, vconfig=cConfig, optsection='PROCESS_PATHS')
-pC['setup'].add_argument('--is-haploid',                 dest='is-haploid',                 action=vconfig.setval, vconfig=cConfig, optsection='PROCESS_PATHS', const='True')
-
-#  Hi-C Phasing options
-pC['setup'].add_argument('--haplo-divergence',           dest='haplo-divergence',           action=vconfig.setopt, vconfig=cConfig, optsection='HIC')
-pC['setup'].add_argument('--uneven-depth',               dest='uneven-depth',               action=vconfig.setval, vconfig=cConfig, optsection='HIC', const='True')
-pC['setup'].add_argument('--no-rdna-tangle',             dest='no-rdna-tangle',             action=vconfig.setval, vconfig=cConfig, optsection='HIC', const='True')
-
-#  Rukki options
-pC['setup'].add_argument('--ruk-enable',                 dest='ruk-enable',                 action=vconfig.setval, vconfig=cConfig, optsection='RUKKI', const='True')
-pC['setup'].add_argument('--ruk-hap1',                   dest='ruk-hap1',                   action=vconfig.setopt, vconfig=cConfig, optsection='RUKKI')
-pC['setup'].add_argument('--ruk-hap2',                   dest='ruk-hap2',                   action=vconfig.setopt, vconfig=cConfig, optsection='RUKKI')
-pC['setup'].add_argument('--ruk-type',                   dest='ruk-type',                   action=vconfig.setopt, vconfig=cConfig, optsection='RUKKI')
-pC['setup'].add_argument('--ruk-fract',                  dest='ruk-fract',                  action=vconfig.setopt, vconfig=cConfig, optsection='RUKKI')
-
-#  Contig Filtering options
-pC['setup'].add_argument('--short-contig-length',        dest='short-contig-length',        action=vconfig.setopt, vconfig=cConfig, optsection='FILTERING')
-pC['setup'].add_argument('--screen',                     dest='screen',                     action=vconfig.setopt, vconfig=cConfig, optsection='FILTERING')
 
 
 
@@ -296,10 +300,9 @@ setup.checkValid(cConfig, cErrors)      #  Are all parameters valid?
 setup.checkInputs(cConfig, cErrors)     #  Do all input files exist?
 setup.checkExternal(cConfig, cErrors)   #  Are all external tools available?
 setup.checkConfig(cConfig, cErrors)     #  Are new config options compatible?
-setup.writeConfig(cConfig, cErrors)     #  Save the new config.
+setup.failIfErrors(cConfig, cErrors)    #  Explode if any errors were detected.
 
-
-
+#  Report usage if no sub-command.
 
 if pArgs.subcommand == None:
   pMain.print_help()
@@ -311,6 +314,6 @@ if pArgs.subcommand == None:
 #  pC[pArgs.subcommand].print_help()
 
 else:
-  pArgs.func(pArgs)
+  pArgs.func()
 
 exit(0)
