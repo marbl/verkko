@@ -56,7 +56,7 @@ echo ""
 
 touch empty.fasta
 
-if [ {params.haploid} == "False" ]; then
+if [ "{params.haploid}" == "False" ]; then
   diploid="--diploid-heuristic 21 31 --diploid-heuristic-cache ../{output.diploid_index}"
 else
    touch ../{output.diploid_index}
@@ -128,7 +128,7 @@ if [ {params.mem_window} -gt 0 ]; then
    memwindow="--seeds-mxm-windowsize {params.mem_window}"
 fi
 
-if [ {params.haploid} == "False" ]; then
+if [ "{params.haploid}" == "False" ]; then
   diploid="--diploid-heuristic 21 31 --diploid-heuristic-cache ../{input.diploid_index}"
 fi
 

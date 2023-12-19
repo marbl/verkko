@@ -59,7 +59,7 @@ with open(winnowmap_alignment_file) as f:
 
 		currID = parts[0]
 		idys.append(idy)
-	read_alignment_idy[currID] = [statistics.median(idys), mad(idys, statistics.mean(idys))]
+	if len(idys) > 0: read_alignment_idy[currID] = [statistics.median(idys), mad(idys, statistics.mean(idys))]
 
 # two pass, first records median alignment identity for a read, second only keeps those within some distand from median
 reads=set()
