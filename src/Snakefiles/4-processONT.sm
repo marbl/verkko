@@ -98,7 +98,7 @@ cat alns-ont-gap1.gaf alns-ont-gap2.gaf alns-ont-gap3.gaf alns-ont-gap4.gaf > ..
 
 echo ""
 echo Step 2b
-cat ../{output.ont_gap_align} | awk -F "\\t" '{{if (\$4-\$3 >= \$2*0.8 && \$12 >= 20) print;}}' | {PYTHON} {VERKKO}/scripts/trim_dbg_alignment.py gapped-unitig-unrolled-hifi-resolved.gfa 1500 > alns-ont-filter-trim.gaf
+cat alns-ont-nogap.gaf ../{output.ont_gap_align} | awk -F "\\t" '{{if (\$4-\$3 >= \$2*0.8 && \$12 >= 20) print;}}' | {PYTHON} {VERKKO}/scripts/trim_dbg_alignment.py gapped-unitig-unrolled-hifi-resolved.gfa 1500 > alns-ont-filter-trim.gaf
 
 echo ""
 echo Step 2c
