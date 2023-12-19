@@ -90,6 +90,30 @@ def find_bubble_end(edges, s):
 			return t
 	return None
 
+# if we have a tip on one side of the node, we check the other exits from our connecting node and if they are also all tips and not long, we allow this node to be processed as a tip
+def is_tip_unique_candidate(edges, s):
+	# the node is not connected to anything, it can be considered a tip
+	if ">"+s in tips and "<"+s in tips:
+		return True
+	elif ">"+s in tips:
+		d="<"
+	elif "<"+s in tips:
+		d = ">"
+	# the node is not a tip
+	else:
+		return False
+
+	# grap the reverse of the tip (e.g. the side we have a connection) and then traverse all the nodes from that node we connect to
+	for o in edges[d+s]:
+		if revnode(o) not in edges: continue
+		for n in edges[revnode(o)]:
+			if s != n[1:]:
+				# when the node is also a tip and has similar length/coverage to us, then that is OK
+				covRatio = abs(normalized_node_coverage[n[1:]] - normalized_node_coverage[s])
+				if n not in tips or nodelens[n[1:]] >= 2.5*nodelens[s] or n[1:] in long_nodes or covRatio >= 0.5:
+					return False
+	return True
+
 parent = {}
 rank = {}
 
@@ -99,6 +123,9 @@ canon_edges = set()
 edges = {}
 nodelens = {}
 max_overlap = {}
+tips = set()
+not_tips = set()
+
 with open(graph_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
@@ -107,6 +134,8 @@ with open(graph_file) as f:
 			nodelens[parts[1]] = len(parts[2])
 			if len(parts[2]) > long_node_threshold:
 				maybe_long_nodes.add(parts[1])
+			tips.add(">" + parts[1])
+			tips.add("<" + parts[1])
 		elif parts[0] == 'L':
 			fromnode = (">" if parts[2] == "+" else "<") + parts[1]
 			tonode = ("<" if parts[4] == "+" else ">") + parts[3]
@@ -119,6 +148,9 @@ with open(graph_file) as f:
 			edges[fromnode].add(revnode(tonode))
 			edges[tonode].add(revnode(fromnode))
 			canon_edges.add(canontip(fromnode, tonode))
+			not_tips.add(fromnode)
+			not_tips.add(tonode)
+tips=tips.difference(not_tips)
 
 node_coverage = {}
 with open(node_coverage_file) as f:
@@ -538,6 +570,7 @@ for node in nodelens:
 		if chain_normalized_coverage > 0.4 and chain_normalized_coverage < 1.4: chain_unique_nodes.add(node)
 	nodelen = node_nonoverlap_lens[node]
 	#sys.stderr.write("Checking node %s with length %s and normalized_coverage %s\n"%(node, nodelen, normalized_coverage))
+	if is_tip_unique_candidate(edges, node) and nodelen > 1000 and normalized_coverage > 0.25 and normalized_coverage < 1.20: length_unique_nodes.add(node)
 	if nodelen >   1000 and normalized_coverage > 0.95 and normalized_coverage < 1.01: length_unique_nodes.add(node)
 	if nodelen >  10000 and normalized_coverage > 0.85 and normalized_coverage < 1.02: length_unique_nodes.add(node)
 	if nodelen >  20000 and normalized_coverage > 0.75 and normalized_coverage < 1.10: length_unique_nodes.add(node)
