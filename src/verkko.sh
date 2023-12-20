@@ -127,6 +127,7 @@ cor_min_read=4000
 cor_min_overlap=2000
 cor_hash_bits=25
 cor_filter_kmers=0
+cor_batch_size=30000
 
 #  buildGraph, parameters for MBG
 mbg_baseK=1001
@@ -413,6 +414,7 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--correct-min-read-length" ] ;    then cor_min_read=$arg;    shift
     elif [ "$opt" = "--correct-min-overlap-length" ] ; then cor_min_overlap=$arg; shift
     elif [ "$opt" = "--correct-hash-bits" ] ;          then cor_hash_bits=$arg;   shift
+    elif [ "$opt" = "--correct-batch-size" ] ;         then cor_batch_size=$arg;  shift
 
     #
     #  MBG options
@@ -809,12 +811,14 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo ""
     echo "ADVANCED MODULE PARAMETERS (expert users):"
     echo "HiFi read correction:"
-    echo "    --correct-k-mer-size"
-    echo "    --correct-mer-threshold"
-    echo "    --correct-mer-filter"
-    echo "    --correct-min-read-length"
-    echo "    --correct-min-overlap-length"
-    echo "    --correct-hash-bits"
+    echo "    --correct-k-mer-size           Set the k-mer size to use for finding overlaps (28)"
+    echo "    --correct-mer-threshold        Set the k-mer repeat threshold (20)"
+    echo "    --correct-mer-filter           Set the k-mer repeat threshold (0.995)"
+    echo "    --correct-min-read-length      Set the overall minimum read length (4000)"
+    echo "    --correct-min-overlap-length   Set the minimum overlap length (2000)"
+    echo "    --correct-hash-bits            Set the overlapper table size (25)"
+    echo "    --correct-batch-size           Set the RED batch size, in Mbp (30000)"
+    echo "                                   (might also need to adjust --red-run)"
     echo "    "
     echo "MBG:"
     echo "    --base-k"
@@ -914,6 +918,8 @@ echo >> ${outd}/verkko.yml "cor_min_overlap:     '${cor_min_overlap}'"
 echo >> ${outd}/verkko.yml "cor_hash_bits:       '${cor_hash_bits}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "cor_filter_kmers:    '${cor_filter_kmers}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "cor_batch_size:      '${cor_batch_size}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  build-graph, MBG"
 echo >> ${outd}/verkko.yml "mbg_baseK:           '${mbg_baseK}'"
