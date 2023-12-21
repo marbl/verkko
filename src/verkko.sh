@@ -519,7 +519,7 @@ if [ "x$mbg" = "x" ] ; then    #  Not set by an option,
   mbg=${verkko}/bin/MBG        #  Set it to our bin/ directory.
 fi
 if [ ! -e $mbg ] ; then        #  Not in the bin directory,
-  mbg=$(which MBG)             #  Set it to whatever is in the PATH.
+  mbg=$(which MBG 2>/dev/null) #  Set it to whatever is in the PATH.
 fi
 if [ "x$mbg" != "x" ]; then
   mbg=$(fullpath $mbg)
@@ -529,17 +529,17 @@ if [ "x$graphaligner" = "x" ] ; then
   graphaligner=${verkko}/bin/GraphAligner
 fi
 if [ ! -e $graphaligner ] ; then
-  graphaligner=$(which GraphAligner)
+  graphaligner=$(which GraphAligner 2>/dev/null)
 fi
 if [ "x$graphaligner" != "x" ]; then
-  graphaligner=$(fullpath $graphaligner)
+  graphaligner=$(fullpath $graphaligner 2>/dev/null)
 fi
 
 if [ "x$mashmap" = "x" ] ; then
   mashmap=${verkko}/bin/mashmap
 fi
 if [ ! -e $mashmap ] ; then
-  mashmap=$(which mashmap)
+  mashmap=$(which mashmap 2>/dev/null)
 fi
 if [ "x$mashmap" != "x" ]; then
   mashmap=$(fullpath $mashmap)
@@ -549,7 +549,7 @@ if [ "x$winnowmap" = "x" ] ; then
   winnowmap=${verkko}/bin/winnowmap
 fi
 if [ ! -e $winnowmap ] ; then
-  winnowmap=$(which winnowmap)
+  winnowmap=$(which winnowmap 2>/dev/null)
 fi
 if [ "x$winnowmap" != "x" ]; then
   winnowmap=$(fullpath $winnowmap)
@@ -559,7 +559,7 @@ if [ "x$bwa" = "x" ] ; then
   bwa=${verkko}/bin/bwa
 fi
 if [ ! -e $bwa ] ; then
-  bwa=$(which bwa)
+  bwa=$(which bwa 2>/dev/null)
 fi
 if [ "x$bwa" != "x" ]; then
   bwa=$(fullpath $bwa)
@@ -569,7 +569,7 @@ if [ "x$samtools" = "x" ] ; then
   samtools=${verkko}/bin/samtools
 fi
 if [ ! -e $samtools ] ; then
-  samtools=$(which samtools)
+  samtools=$(which samtools 2>/dev/null)
 fi
 if [ "x$samtools" != "x" ]; then
   samtools=$(fullpath $samtools)
