@@ -55,6 +55,14 @@ ifeq ($(wildcard rukki/Cargo.toml), )
   $(info $(shell git submodule update --init rukki))
   $(info $(space))
 endif
+ifeq ($(wildcard MBG/makefile), )
+  $(info $(shell git submodule update --init --recursive MBG))
+  $(info $(space))
+endif
+ifeq ($(wildcard hifioverlapper/makefile), )
+  $(info $(shell git submodule update --init --recursive hifioverlapper))
+  $(info $(space))
+endif
 
 #  Make symlinks to source directories if needed.
 ifeq ($(wildcard gfa/alignGFA.C), )
@@ -711,6 +719,23 @@ VERSION := verkko branch $(shell git rev-parse --abbrev-ref HEAD) commit $(shell
 
 # Define the "all" target (which simply builds all user-defined targets) as the
 # default goal.
+
+RUK=../lib/verkko/bin/rukki
+MBG=../lib/verkko/bin/MBG
+HOV=../lib/verkko/bin/matchchains_index ../lib/verkko/bin/matchchains_matchindex
+
+ifneq (${WITHOUT_RUKKI},)
+RUK=
+endif
+
+ifneq (${WITHOUT_MBG},)
+MBG=
+endif
+
+ifneq (${WITHOUT_HIFIOVERLAPPER},)
+HOV=
+endif
+
 .PHONY: all
 all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../bin/verkko \
@@ -730,7 +755,7 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/bin/alignGFA \
      ../lib/verkko/bin/seqrequester \
      \
-     ../lib/verkko/bin/rukki \
+     ${RUK} ${MBG} ${HOV} \
      \
      ../lib/verkko/data/human-ebv-AJ507799.2.fasta.gz \
      ../lib/verkko/data/human-mito-NC_012920.1.fasta.gz \
@@ -812,7 +837,7 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/profiles/jobscript.sh \
      ../lib/verkko/profiles/slurm-sge-status.sh \
      ../lib/verkko/profiles/slurm-sge-submit.sh
-	@rm  -f gfa meryl overlapInCore overlapErrorAdjustment overlapBasedTrimming seqrequester stores utgcns utility
+	@rm  -f gfa meryl overlapErrorAdjustment overlapInCore overlapBasedTrimming seqrequester stores utgcns utility
 	@echo ""
 	@echo "Success!"
 	@echo "${MODULE} installed in ${TARGET_DIR}/bin/${MODULE}"
@@ -840,7 +865,9 @@ $(foreach TGT,${ALL_TGTS},\
   $(eval $(call ADD_CLEAN_RULE,${TGT})))
 clean:
 	rm -rf rukki/target
-	rm  -f gfa meryl overlapInCore overlapErrorAdjustment overlapBasedTrimming seqrequester stores utgcns utility
+	rm -f gfa meryl overlapErrorAdjustment overlapInCore overlapBasedTrimming seqrequester stores utgcns utility
+	cd MBG ; $(MAKE) clean
+	cd hifioverlapper; $(MAKE) clean
 	find build -type d -print | sort -r | xargs -n 100 rmdir
 
 deinstall:
@@ -904,6 +931,46 @@ rukki/target/release/rukki: rukki/Cargo.toml \
 ../lib/verkko/bin/rukki: rukki/target/release/rukki
 	@mkdir -p ../lib/verkko/bin
 	cp -p rukki/target/release/rukki $@
+
+#  MBG and hifioverlapper binaries are implemented as one rule (well, one
+#  pair of rules) so that the compilation is skipped entirely if a newer
+#  binary is present in the output directory.  The usual two-step build-copy
+#  method would always build a local hifioverlap even if a copy in
+#  lib/verkko/bin is newer than the sources - because the local build copy
+#  doesn't exist, as the dependency chain {lib} -> {local-bin} -> {sources}
+#  is missing {local-bin}.
+#
+#  the dependency lists came from their respective makefiles.
+
+MBG_DEPS = $(addprefix MBG/src/,\
+            $(patsubst %.o,%.cpp,\
+                       MBG.o \
+                       fastqloader.h CommonUtils.h MBGCommon.h VectorWithDirection.h FastHasher.h SparseEdgeContainer.h HashList.h UnitigGraph.h BluntGraph.h ReadHelper.h HPCConsensus.h ErrorMaskHelper.h CompressedSequence.h ConsensusMaker.h StringIndex.h LittleBigVector.h MostlySparse2DHashmap.h RankBitvector.h TwobitLittleBigVector.h UnitigResolver.h CumulativeVector.h UnitigHelper.h BigVectorSet.h              Serializer.h DumbSelect.h MsatValueVector.h Node.h KmerMatcher.h \
+                       fastqloader.o CommonUtils.o MBGCommon.o                       FastHasher.o SparseEdgeContainer.o HashList.o UnitigGraph.o BluntGraph.o              HPCConsensus.o ErrorMaskHelper.o CompressedSequence.o ConsensusMaker.o StringIndex.o                                           RankBitvector.o                         UnitigResolver.o                    UnitigHelper.o BigVectorSet.o ReadHelper.o Serializer.o DumbSelect.o MsatValueVector.o Node.o KmerMatcher.o))
+
+HIFIOVERLAP_DEPS = $(addprefix hifioverlapper/src/,\
+                    $(patsubst %.o,%.cpp,\
+                               matchchains_index.o matchchains_matchindex.o \
+                               MatchIndex.h MinimizerIterator.h TwobitString.h ReadStorage.h UnitigKmerCorrector.h UnitigStorage.h ReadMatchposStorage.h \
+                               MatchIndex.o MinimizerIterator.o TwobitString.o ReadStorage.o UnitigKmerCorrector.o UnitigStorage.o ReadMatchposStorage.o))
+
+../lib/verkko/bin/MBG: $(MBG_DEPS)
+	cd MBG ; git submodule update --init --recursive
+	cd MBG ; $(MAKE) all
+	@mkdir -p ../lib/verkko/bin
+	cp -p MBG/bin/MBG $@
+
+../lib/verkko/bin/matchchains_index: $(HIFIOVERLAP_DEPS)
+	cd hifioverlapper ; git submodule update --init --recursive
+	cd hifioverlapper ; $(MAKE) all
+	@mkdir -p ../lib/verkko/bin
+	cp -p hifioverlapper/bin/matchchains_index $@
+
+../lib/verkko/bin/matchchains_matchindex: $(HIFIOVERLAP_DEPS)
+	cd hifioverlapper ; git submodule update --init --recursive
+	cd hifioverlapper ; $(MAKE) all
+	@mkdir -p ../lib/verkko/bin
+	cp -p hifioverlapper/bin/matchchains_matchindex $@
 
 
 #  Makefile processed.  Regenerate the version number file, make some
