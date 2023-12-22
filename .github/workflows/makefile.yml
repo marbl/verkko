@@ -47,7 +47,7 @@ jobs:
 
     - name: Install snakemake-minimal
       run: |
-        mamba install -c conda-forge -c bioconda snakemake-minimal MBG GraphAligner mashmap winnowmap
+        mamba install -c conda-forge -c bioconda 'snakemake-minimal>7,<8' MBG GraphAligner mashmap winnowmap
 
     - name: Fetch Data
       run: |
@@ -100,7 +100,7 @@ jobs:
         chmod 755 ga.sh
         chmod 755 lib/verkko/bin/utgcns
 
-        ./bin/verkko -d asm --no-correction --mbg $PWD/mbg.sh --graphaligner $PWD/ga.sh --hifi ./hifi.fastq.gz --nano ./ont.fastq.gz
+        ./bin/verkko -d asm --mbg $PWD/mbg.sh --graphaligner $PWD/ga.sh --hifi ./hifi.fastq.gz --nano ./ont.fastq.gz
         if [ ! -s asm/assembly.fasta ]; then
            reportLogs
         fi
