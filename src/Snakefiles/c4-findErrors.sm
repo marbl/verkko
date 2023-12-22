@@ -92,7 +92,11 @@ rule computeErrors:
 cd       0-correction/find-errors-jobs
 
 range=`cat ../../{input.range}`
-ncpus=`expr {threads} - 1`          #  One CPU is used for I/O.
+if [ {threads} -gt 1 ]; then
+   ncpus=`expr {threads} - 1`          #  One CPU is used for I/O.
+else
+   ncpus={threads}
+fi
 
 cat > ./{wildcards.nnnn}.sh <<EOF
 #!/bin/sh
