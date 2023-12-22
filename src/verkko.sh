@@ -205,7 +205,7 @@ meg_mem_gb=32    #  It is used for merging kmer databases.
 meg_time_h=4
 
 ovb_n_cpus=8
-ovb_mem_gb=8
+ovb_mem_gb=1
 ovb_time_h=24
 
 ovs_n_cpus=1

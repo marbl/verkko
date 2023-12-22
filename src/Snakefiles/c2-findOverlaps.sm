@@ -84,10 +84,10 @@ rule computeOverlaps:
         minread   = config['cor_min_read'],
         minolap   = config['cor_min_overlap'],
     threads:
-        int(config['ovb_n_cpus']),
+        1,
     resources:
         job_id = 1,
-        n_cpus = int(config['ovb_n_cpus']),
+        n_cpus = 1,
         mem_gb = lambda wildcards, input, attempt: getOverlapMemoryRequest(attempt),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ovb')
     shell:
@@ -192,10 +192,10 @@ rule combineOverlapsConfigure:
     params:
         paths     = combineOverlapsP
     threads:
-        int(config['ovs_n_cpus'])
+        1,
     resources:
         job_id = 1,
-        n_cpus = int(config['ovs_n_cpus']),
+        n_cpus = 1,
         mem_gb = int(config['ovs_mem_gb']),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ovs')
     shell:
