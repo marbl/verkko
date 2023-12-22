@@ -1,58 +1,88 @@
 #!/usr/bin/env python
 
 import sys
+import argparse
 
-graph_file = sys.argv[1]
-node_lens_file = sys.argv[2]
-rdna_nodes_file = sys.argv[3]
-telomere_locations_file = sys.argv[4]
-node_to_contig_file = sys.argv[5]
+# Create the parser
+parser = argparse.ArgumentParser()
 
-# graph to stdout
+# Add the arguments
+parser.add_argument('-r', '--rdna', required=False, help='rDNA node list, from mash screen')
+parser.add_argument('-t', '--telo', required=False, help='Telomere location in bed format, from seqtk telo -d 10000')
+parser.add_argument('-g', '--gfa', default='assembly.homopolymer-compressed.noseq.gfa', help='assembly.homopolymer-compressed.noseq.gfa')
+parser.add_argument('-s', '--scfmap', default='assembly.scfmap', help='assembly.scfmap')
+parser.add_argument('-p', '--paths', default='assembly.paths.tsv', help='assembly.paths.tsv')
+parser.add_argument('-o', '--output', default='assembly.homopolymer-compressed.noseq.telo_rdna.gfa', help='Modified GFA with added telomere nodes and an rDNA node for a mok-collapsed rDNA (default: assembly.homopolymer-compressed.noseq.telo_rdna.gfa)')
+parser.add_argument('-c', '--colors', default='assembly.colors.telo_rdna.csv', help='Colors for the telomere and rDNA nodes to go along with the modified GFA. Nodes will be colored green for telomeres, purple for rDNA node. If assembly.colors.csv exist, it will be copied to this output with the new colors appended at the end. (default: assembly.colors.telo_rdna.csv)')
 
-def revnode(n):
-    assert len(n) >= 2
-    assert n[0] == ">" or n[0] == "<"
-    return (">" if n[0] == "<" else "<") + n[1:]
+# Parse the arguments
+args = parser.parse_args()
 
-def canontip(left, right):
-    fwstr = left + right
-    bwstr = right + left
-    if bwstr < fwstr: return (right, left)
-    return (left, right)
+rdna_nodes_file = args.rdna     # rdna.screennodes.list from mash
+telomere_file = args.telo       # telomere from seqtk telo -d 10000
 
-def revcomp(s):
-    comp = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C', 'N': 'N'}
-    return "".join(comp[c] for c in s[::-1])
+graph_file = args.gfa           # assembly.homopolymer-compressed.noseq.gfa
+node_to_path_file = args.scfmap # assembly.scfmap
+path_to_nodes_file = args.paths # assembly.paths.tsv
+
+# Check if either rdna or telo is provided
+if not args.rdna and not args.telo:
+    parser.error("--rdna or --telo must be provided.")
+
+telo_rdna_gfa_file = open(args.output, "w")
+
+telo_rdna_color_file = open(args.colors, "w")
+padding="\t0\t0\t0:0\t"
+
+try:
+    with open("assembly.colors.csv", "r") as f:
+        for l in f:
+            telo_rdna_color_file.write(l)
+except:
+    sys.stderr.write("No assembly.colors.csv file found. Creating a simple colored csv file\n")
+    padding = "\t"
+    telo_rdna_color_file.write("node\tcolor\n")
+
+telo_col = "#008000" # green
+rdna_col = "#A020F0" # purple
 
 rdna = set()
-with open(rdna_nodes_file) as f:
-    for l in f:
-        parts = l.strip().split('\t')
-        rdna.add(parts[0])
+try:
+    with open(rdna_nodes_file, "r") as f:
+        for l in f:
+            parts = l.strip().split('\t')
+            rdna.add(parts[0])
+except:
+    sys.stderr.write("No rDNA nodes found. Skipping rDNA node creation\n")
 
-translate_contig = {}
-with open(node_to_contig_file) as f:
+has_rDNA = True if len(rdna) > 0 else False
+
+# contig : path
+contig_to_path = {}
+with open(node_to_path_file, "r") as f:
     for l in f:
         parts=l.strip().split(' ')
         if parts[0] == "path":
-            translate_contig[parts[1]] = parts[2]
+            # parts[1] = contig name
+            # parts[2] = path name
+            contig_to_path[parts[1]] = parts[2]
 
-node_seqs = set()
+# path : nodes
+path_to_nodes = {}
+with open(path_to_nodes_file, "r") as f:
+    for l in f:
+        parts=l.strip().split('\t')
+        # parts[0] = path name
+        # parts[1] = nodes in path, "," separated
+        path_to_nodes[parts[0]] = [ parts[1].split(',')[0], (parts[1].split(','))[-1] ]
+
+# node_seqs = set()
 telnodes = set()
-node_lens = {}
 edge_overlaps = {}
 
-with open(node_lens_file) as f:
+with open(graph_file, "r") as f:
     for l in f:
         parts = l.strip().split('\t')
-        node_lens[parts[0]] = int(parts[1])
-with open(graph_file) as f:
-    for l in f:
-        parts = l.strip().split('\t')
-        if parts[0] == "S":
-            node_seqs.add(">" + parts[1])
-            node_seqs.add("<" + parts[1])
         if parts[0] == 'L':
             fromnode = (">" if parts[2] == "-" else "<") + parts[1]
             tonode = ("<" if parts[4] == "-" else ">") + parts[3]
@@ -60,20 +90,29 @@ with open(graph_file) as f:
                 edge_overlaps[fromnode] = set() 
             edge_overlaps[fromnode].add(tonode)
 
-with open(telomere_locations_file) as f:
+with open(telomere_file, "r") as f:
     for l in f:
         parts = l.strip().split('\t')
         fromnode = ""
 
         #assert(parts[0] in translate_contig)
-        if parts[0] not in translate_contig: continue
-        graph_node = translate_contig[parts[0]]
+        if parts[0] not in contig_to_path:
+            sys.stderr.write("Warning, no path available for contig %s line %s\n"%(parts[0], l.strip()))
+            continue
+
+        path = contig_to_path[parts[0]]
+        graph_node = path_to_nodes[path]
         if int(parts[1]) < 10000:
-            fromnode=">" + graph_node
-            tonode=">telomere_"+graph_node+"_start"
-        elif int(parts[2])+10000 > node_lens[parts[0]]:
-            fromnode="<" + graph_node
-            tonode=">telomere_"+graph_node+"_end"
+            telnode=graph_node[0]
+            # reverse the beginning node direction
+            fromnode= (">" if telnode[-1] == "+" else "<") + telnode[0:-1]
+            tonode=">telomere_" + telnode + "_start"
+            telo_rdna_color_file.write("%s%s%s\n"%(tonode[1:], padding, telo_col))
+        elif int(parts[2])+10000 > int(parts[3]):
+            telnode=graph_node[1]
+            fromnode=(">" if telnode[-1] == "-" else "<") + telnode[0:-1]
+            tonode=">telomere_" + telnode + "_end"
+            telo_rdna_color_file.write("%s%s%s\n"%(tonode[1:], padding, telo_col))
 
         if fromnode == "": continue
         if tonode in telnodes: continue
@@ -85,26 +124,29 @@ with open(telomere_locations_file) as f:
         edge_overlaps[tonode] = set()
         edge_overlaps[tonode].add(fromnode)
 
-print("S\trDNA\t*\tLN:i:45000")
+if (has_rDNA):
+    telo_rdna_gfa_file.write("S\trDNA\t*\tLN:i:45000")
+    telo_rdna_color_file.write("rDNA%s%s\n"%(padding, rdna_col))
+
 # output new telomere nodes
 for t in telnodes:
-    print("S\t%s\t*\tLN:i:6"%(t[1:]))
+    telo_rdna_gfa_file.write("S\t%s\t*\tLN:i:6"%(t[1:]))
     if t in edge_overlaps:
         for l in edge_overlaps[t]:
             if l[0] == '>': ori="+"
             elif l[0] == '<':ori = "-" 
-            print("L\t%s\t%s\t%s\t%s\t0M"%(t[1:], '+', l[1:], ori))
+            telo_rdna_gfa_file.write("L\t%s\t%s\t%s\t%s\t0M"%(t[1:], '+', l[1:], ori))
 
-with open(graph_file) as f:
+with open(graph_file, "r") as f:
     for l in f:
         parts = l.strip().split('\t')
         if parts[0] == "S":
             if parts[1] not in rdna:
-                print(l.strip())
+                telo_rdna_gfa_file.write(l.strip())
         if parts[0] == 'L':
             if parts[1] not in rdna and parts[3] not in rdna:
-                print(l.strip())
+                telo_rdna_gfa_file.write(l.strip())
             elif parts[1] not in rdna and parts[3] in rdna:
-                print("L\t%s\t%s\trDNA\t+\t0M"%(parts[1], parts[2]))
+                telo_rdna_gfa_file.write("L\t%s\t%s\trDNA\t+\t0M"%(parts[1], parts[2]))
             elif parts[1] in rdna and parts[3] not in rdna:
-                print("L\trDNA\t+\t%s\t%s\t0M"%(parts[3], parts[4]))
+                telo_rdna_gfa_file.write("L\trDNA\t+\t%s\t%s\t0M"%(parts[3], parts[4]))
