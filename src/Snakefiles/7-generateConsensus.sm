@@ -51,7 +51,6 @@ cat > ./packages/part{wildcards.nnnn}.sh <<EOF
 set -e
 
 {VERKKO}/bin/utgcns \\\\
-    -V -V -V \\\\
     -threads {threads} \\\\
     -import ../{input.package} \\\\
     -A ../{output.consensus}.WORKING \\\\
