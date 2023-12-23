@@ -124,9 +124,7 @@ mer_window=75
 
 cor_min_read=4000
 cor_min_overlap=1000
-
-cor_index_batches=16
-cor_overlap_batches=32
+cor_batch_size=30000
 
 #  buildGraph, parameters for MBG
 mbg_baseK=1001
@@ -410,6 +408,7 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--correct-k-mer-window" ] ;       then mer_window=$arg;       shift
     elif [ "$opt" = "--correct-min-read-length" ] ;    then cor_min_read=$arg;     shift
     elif [ "$opt" = "--correct-min-overlap-length" ] ; then cor_min_overlap=$arg;  shift
+    elif [ "$opt" = "--correct-batch-size" ] ;         then cor_batch_size=$arg;  shift
 
     elif [ "$opt" = "--correct-index-batches" ] ;      then cor_index_batches=$arg;    shift
     elif [ "$opt" = "--correct-overlap-batches" ] ;    then cor_overlap_batches=$arg;  shift
@@ -517,7 +516,7 @@ if [ "x$mbg" = "x" ] ; then    #  Not set by an option,
   mbg=${verkko}/bin/MBG        #  Set it to our bin/ directory.
 fi
 if [ ! -e $mbg ] ; then        #  Not in the bin directory,
-  mbg=$(which MBG)             #  Set it to whatever is in the PATH.
+  mbg=$(which MBG 2>/dev/null) #  Set it to whatever is in the PATH.
 fi
 if [ "x$mbg" != "x" ]; then
   mbg=$(fullpath $mbg)
@@ -527,17 +526,17 @@ if [ "x$graphaligner" = "x" ] ; then
   graphaligner=${verkko}/bin/GraphAligner
 fi
 if [ ! -e $graphaligner ] ; then
-  graphaligner=$(which GraphAligner)
+  graphaligner=$(which GraphAligner 2>/dev/null)
 fi
 if [ "x$graphaligner" != "x" ]; then
-  graphaligner=$(fullpath $graphaligner)
+  graphaligner=$(fullpath $graphaligner 2>/dev/null)
 fi
 
 if [ "x$mashmap" = "x" ] ; then
   mashmap=${verkko}/bin/mashmap
 fi
 if [ ! -e $mashmap ] ; then
-  mashmap=$(which mashmap)
+  mashmap=$(which mashmap 2>/dev/null)
 fi
 if [ "x$mashmap" != "x" ]; then
   mashmap=$(fullpath $mashmap)
@@ -547,7 +546,7 @@ if [ "x$winnowmap" = "x" ] ; then
   winnowmap=${verkko}/bin/winnowmap
 fi
 if [ ! -e $winnowmap ] ; then
-  winnowmap=$(which winnowmap)
+  winnowmap=$(which winnowmap 2>/dev/null)
 fi
 if [ "x$winnowmap" != "x" ]; then
   winnowmap=$(fullpath $winnowmap)
@@ -557,7 +556,7 @@ if [ "x$bwa" = "x" ] ; then
   bwa=${verkko}/bin/bwa
 fi
 if [ ! -e $bwa ] ; then
-  bwa=$(which bwa)
+  bwa=$(which bwa 2>/dev/null)
 fi
 if [ "x$bwa" != "x" ]; then
   bwa=$(fullpath $bwa)
@@ -567,7 +566,7 @@ if [ "x$samtools" = "x" ] ; then
   samtools=${verkko}/bin/samtools
 fi
 if [ ! -e $samtools ] ; then
-  samtools=$(which samtools)
+  samtools=$(which samtools 2>/dev/null)
 fi
 if [ "x$samtools" != "x" ]; then
   samtools=$(fullpath $samtools)
@@ -809,10 +808,13 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo ""
     echo "ADVANCED MODULE PARAMETERS (expert users):"
     echo "HiFi read correction:"
-    echo "    --correct-k-mer-size"
-    echo "    --correct-k-mer-window"
-    echo "    --correct-min-read-length"
-    echo "    --correct-min-overlap-length"
+    echo "    --correct-k-mer-size           Set the k-mer size to use for finding overlaps (201)"
+    echo "    --correct-k-mer-window         Set the window size for sketching reads when finding overlaps (75)"
+    echo "    --correct-min-read-length      Set the overall minimum read length (4000)"
+    echo "    --correct-min-overlap-length   Set the minimum overlap length (1000)"
+    echo "    --correct-hash-bits            Set the overlapper table size (25)"
+    echo "    --correct-batch-size           Set the RED batch size, in Mbp (30000)"
+    echo "                                   (might also need to adjust --red-run)"
     echo "    "
     echo "MBG:"
     echo "    --base-k"
@@ -911,6 +913,8 @@ echo >> ${outd}/verkko.yml "cor_min_overlap:     '${cor_min_overlap}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "cor_index_batches:   '${cor_index_batches}'"
 echo >> ${outd}/verkko.yml "cor_overlap_batches: '${cor_overlap_batches}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "cor_batch_size:      '${cor_batch_size}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  build-graph, MBG"
 echo >> ${outd}/verkko.yml "mbg_baseK:           '${mbg_baseK}'"

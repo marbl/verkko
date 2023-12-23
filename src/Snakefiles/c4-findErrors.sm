@@ -24,6 +24,8 @@ checkpoint configureFindErrors:
         finished          = '0-correction/configureFindErrors.finished'
     log:
         err               = '0-correction/configureFindErrors.err'
+    params:
+        batchsize         = int(config['cor_batch_size']) * 1000
     threads:
         1
     resources:
@@ -41,22 +43,28 @@ set -e
 
 mkdir -p find-errors-jobs
 
-bat=1
-bgn=1
-len=19999
-tot=\$({VERKKO}/bin/sqStoreDumpMetaData -S ../{input.seqstore} -stats | grep total-reads | awk '{{ print \$1 }}')
-
-while [ \$bgn -lt \$tot ] ; do
-  end=\`expr \$bgn + \$len\`
-  if [ \$end -gt \$tot ] ; then
-    end=\$tot
-  fi
-
-  echo > \`printf find-errors-jobs/%04d.range \$bat\` \$bgn \$end
-
-  bat=\`expr \$bat + 1\`
-  bgn=\`expr \$end + 1\`   #  OEA expects inclusive ranges.
-done
+{VERKKO}/bin/sqStoreDumpMetaData -S ../{input.seqstore} -reads \\\\
+| \\\\
+awk -v lim={params.batchsize} \\\\
+'function output(bat, bgn, end, file) {{
+   file=sprintf("find-errors-jobs/%04d.range", bat)
+   print bgn, end > file
+   close(file)
+ }}
+ BEGIN {{ bat=1; bgn=1; end=1; len=0; }}
+ /^[ \\t]*[0-9]+/ {{
+   if (len + \$3 > lim) {{
+     output(bat, bgn, end)
+     bat++
+     bgn = \$1  #  OEA expects inclusive ranges
+     len =  0
+   }}
+   end  = \$1
+   len += \$3
+ }}
+ END {{
+   output(bat, bgn, end)
+ }}'
 
 touch ../{output.finished}
 EOF
