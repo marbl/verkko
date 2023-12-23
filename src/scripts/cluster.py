@@ -163,7 +163,8 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
     KLIN_STARTS = 1000  # number of different starts of kernighan lin
     KLIN_ITER = 10000  # number of iterations inside kernighan lin
 
-    MAX_SHORT_COMPONENT = 100 # we remove from consideration each connected compoents of edges < MIN_LEN that is larger than
+    MAX_SHORT_COMPONENT = 100 # we remove from consideration each connected compoents of edges < MIN_SHORT_LEN that is larger than MAX_SHORT_COMPONENT
+    MAX_SHORT_LEN=200000 #we remove from consideration each connected compoents of edges < MIN_SHORT_LEN that is larger than
     MIN_WEIGHT = 10 # Ignore edges with few links
     SIGNIFICANT_MAJORITY = 2.5
 
@@ -192,12 +193,18 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
 
     delete_set = set()
     largest_component = max(nx.connected_components(G), key=len)
+    cur_col = 0
+    old_colors = {}
+    for current_component in sorted(nx.connected_components(G), key=len, reverse=True):
+        for e in current_component:
+            old_colors[e] = cur_col
+        cur_col += 1
 
     if not (no_rdna):
         #Store rDNA component, not to add additional links from matchGraph
         sys.stderr.write(f"Found an rDNA huge component of {len(largest_component)} edges\n")
         #Here we remove large connected components of short edge, just to exclude rDNA cluster
-        delete_set = graph_functions.remove_large_tangles(G, MIN_LEN, MAX_SHORT_COMPONENT)
+        delete_set = graph_functions.remove_large_tangles(G, MAX_SHORT_LEN, MAX_SHORT_COMPONENT)
     else:
         sys.stderr.write(f"Not using rDNA component removal heuristics\n")
     filtered_graph = open(os.path.join(output_dir, FILTERED_GFA_FILENAME), 'w')
@@ -294,7 +301,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                 if line[id] in component_colors:
                     color_sum += 1
             if color_sum != 2:
-                sys.stderr.write(f"Weird deleted node pair {line[0]} {line[1]}")
+                sys.stderr.write(f"Weird deleted node pair {line[0]} {line[1]}\n")
                 continue
 
             matchGraph.add_edge(line[0], line[1])
@@ -337,7 +344,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
     for line in match_links:
         if line[0] in G.nodes and line[1] in G.nodes:
             if component_colors[line[0]] != component_colors[line[1]]:
-                if line[0] in largest_component and line[1] in largest_component:
+                if old_colors[line[0]] == old_colors[line[1]]:
                     logging_f.write(f"Attempt to restore removed link in former rDNA component between {line[0]} {line[1]} forbidden\n")
                 else:
                     for id in range(0, 2):

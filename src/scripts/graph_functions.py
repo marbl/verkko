@@ -47,7 +47,7 @@ def load_indirect_graph(gfa_file, G):
             #noseq graphs
             ls = len(line[2])
             cov = 0
-            for i in range(4, len(line)):
+            for i in range(3, len(line)):
                 spl_tag = line[i].split(":")
                 if spl_tag[0] == "LN":
                     ls = int(spl_tag[2])

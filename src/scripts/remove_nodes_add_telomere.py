@@ -62,10 +62,14 @@ contig_to_path = {}
 with open(node_to_path_file, "r") as f:
     for l in f:
         parts=l.strip().split(' ')
-        if parts[0] == "path":
+        if parts[0] == "path": 
             # parts[1] = contig name
             # parts[2] = path name
-            contig_to_path[parts[1]] = parts[2]
+            translate_contig[parts[1]] = parts[2]
+            #for hi-c runs
+            translate_contig[parts[2]] = parts[2]
+
+
 
 # path : nodes
 path_to_nodes = {}
