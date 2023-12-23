@@ -124,6 +124,8 @@ mer_window=75
 
 cor_min_read=4000
 cor_min_overlap=1000
+cor_index_batches=16
+cor_overlap_batches=32
 cor_batch_size=30000
 
 #  buildGraph, parameters for MBG
@@ -812,7 +814,6 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --correct-k-mer-window         Set the window size for sketching reads when finding overlaps (75)"
     echo "    --correct-min-read-length      Set the overall minimum read length (4000)"
     echo "    --correct-min-overlap-length   Set the minimum overlap length (1000)"
-    echo "    --correct-hash-bits            Set the overlapper table size (25)"
     echo "    --correct-batch-size           Set the RED batch size, in Mbp (30000)"
     echo "                                   (might also need to adjust --red-run)"
     echo "    "
