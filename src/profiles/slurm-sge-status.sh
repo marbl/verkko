@@ -7,6 +7,14 @@
 jobid=$1
 jobstatus="running"
 
+# jobid is composite, contains both cluster and jobid
+# split into ID and cluster
+if [ $(echo $jobid | grep ';') ] ; then
+  cluster=$(echo $jobid | cut -f 2 -d ';')
+  jobid=$(echo $jobid | cut -f 1 -d ';')
+fi
+
+
 #  Test for Slurm: if sinfo is present, assume slurm works.
 slurm=$(which sinfo 2> /dev/null)
 
@@ -33,6 +41,14 @@ if [ "x$slurm" != "x" ] ; then
     sacct="/usr/local/bin/dashboard_cli jobs --fields state"
   else
     sacct="sacct --allclusters --format State"
+  fi
+
+  # an ID might not be unique across multiple clusters,
+  # only look on the correct cluster if known
+  if [ "x$cluster" = "x" ] ; then
+	  sacct="$sacct --allclusters"
+  else
+	  sacct="$sacct -M $cluster"
   fi
 
   jobstatus=$($sacct -j "$jobid" --noheader)

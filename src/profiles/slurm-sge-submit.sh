@@ -36,6 +36,7 @@ mem_gb=$1; shift   #  Exepcted memory needed, in gigabytes
 time_h=$1; shift   #  Expected time needed, in hours
 rule_n=$1; shift   #  Name of the rule
 jobidx=$1; shift   #  Index of the job, "1" if a non-parallel job
+params=$1; shift   #  Additional parameters to pass to the submit script
 
 eval script=\${$#} #  Path to the script we want to submit (this returns the last arg)
 
@@ -66,11 +67,11 @@ lsf=$LSF_ENVDIR
 #  Note that --time expects format hh:mm:ss.
 #
 if [ "x$slurm" != "x" ] ; then
-  jobid=$(sbatch --parsable --cpus-per-task ${n_cpus} --mem ${mem_gb}g --time ${time_h}:00:00 --output batch-scripts/%A.${rule_n}.${jobidx}.out "$@")
+  jobid=$(sbatch --parsable --cpus-per-task ${n_cpus} --mem ${mem_gb}g --time ${time_h}:00:00 --output batch-scripts/%A.${rule_n}.${jobidx}.out $params "$@")
 
   if [ $? != 0 ] ; then
     sleep 30
-    jobid=$(sbatch --parsable --cpus-per-task ${n_cpus} --mem ${mem_gb}g --time ${time_h}:00:00 --output batch-scripts/%A.${rule_n}.${jobidx}.out "$@")
+    jobid=$(sbatch --parsable --cpus-per-task ${n_cpus} --mem ${mem_gb}g --time ${time_h}:00:00 --output batch-scripts/%A.${rule_n}.${jobidx}.out $params "$@")
   fi
 
   if [ $? != 0 ] ; then
@@ -78,7 +79,7 @@ if [ "x$slurm" != "x" ] ; then
   fi
 
   echo > batch-scripts/${jobid}.${rule_n}.${jobidx}.submit \
-          sbatch --parsable --cpus-per-task ${n_cpus} --mem ${mem_gb}g --time ${time_h}:00:00 --output batch-scripts/%A.${rule_n}.${jobidx}.out "$@"
+          sbatch --parsable --cpus-per-task ${n_cpus} --mem ${mem_gb}g --time ${time_h}:00:00 --output batch-scripts/%A.${rule_n}.${jobidx}.out $params "$@"
 
   if [ -x /usr/local/bin/dashboard_cli ] ; then    #  If on NIH biowulf, slow down
     sleep 2                                        #  job submission.
@@ -100,12 +101,12 @@ if [ "x$slurm" != "x" ] ; then
 elif [ "x$sge" != "x" ] ; then
   mem_per_thread=$(dc -e "3 k ${mem_gb} ${n_cpus} / p")
 
-  jobid=$(qsub -h -terse -cwd -V -pe thread ${n_cpus} -l memory=${mem_per_thread}g -j y -o batch-scripts/${jobidx}.${rule_n}.${jobidx}.out "$@")
+  jobid=$(qsub -h -terse -cwd -V -pe thread ${n_cpus} -l memory=${mem_per_thread}g -j y -o batch-scripts/${jobidx}.${rule_n}.${jobidx}.out $params "$@")
 
   qalter -h U -o batch-scripts/${jobid}.${rule_n}.${jobidx}.out ${jobid}
 
   echo  > batch-scripts/${jobid}.${rule_n}.${jobidx}.submit \
-          qsub -terse -cwd -V -pe thread ${n_cpus} -l memory=${mem_per_thread}g -j y -o batch-scripts/${jobid}.${rule_n}.${jobidx}.out "$@"
+          qsub -terse -cwd -V -pe thread ${n_cpus} -l memory=${mem_per_thread}g -j y -o batch-scripts/${jobid}.${rule_n}.${jobidx}.out $params "$@"
 
 
 ##########
@@ -133,10 +134,10 @@ elif [ "x$lsf" != "x" ] ; then
     mem=$(dc -e "3 k ${mem_gb} 1048576 / p")
   fi
 
-  jobid=$(bsub -R span[hosts=1] -n ${n_cpus} -M ${mem} -oo batch-scripts/\$JOB_ID.${rule_n}.${jobidx}.out "$@")
+  jobid=$(bsub -R span[hosts=1] -n ${n_cpus} -M ${mem} -oo batch-scripts/\$JOB_ID.${rule_n}.${jobidx}.out $params "$@")
 
   echo > batch-scripts/${jobid}.${rule_n}.${jobidx}.submit \
-          bsub -R span[hosts=1] -n ${n_cpus} -M ${mem} -oo batch-scripts/${jobid}.${rule_n}.${jobidx}.out "$@"
+          bsub -R span[hosts=1] -n ${n_cpus} -M ${mem} -oo batch-scripts/${jobid}.${rule_n}.${jobidx}.out $params "$@"
 
 ##########
 #

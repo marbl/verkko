@@ -71,4 +71,8 @@ with open(graph_file) as f:
 		parts = l.strip().split('\t')
 		if parts[0] == "S":
 			if ">" + parts[1] in tips or "<" + parts[1] in tips:
-				print(">%s\n%s"%(parts[1], parts[2]))
+                print(">", parts[1], sep="")
+                print(parts[2])
+                # this causes linewraps on some systems, which causes truncated utig names
+                # which lead to a crash in step 4
+                #print(">%s\n%s"%(parts[1], parts[2]))
