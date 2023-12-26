@@ -14,7 +14,8 @@
 
 checkpoint prepareOverlaps:
     input:
-        HIFI_READS
+        reads = HIFI_READS,
+        store = rules.buildStore.output.seqstore
     output:
         metadata  = '0-correction/matchchains.metadata',
         positions = '0-correction/matchchains.positions'
@@ -53,7 +54,7 @@ for ii in \$batchlist ; do
 done
 
 #  The max limit is necessary until seqrequester is updated.
-{VERKKO}/bin/seqrequester extract -compress -fasta -length {params.minread}-999999999 {input} \\\\
+{VERKKO}/bin/seqrequester extract -compress -fasta -length {params.minread}-999999999 {input.reads} \\\\
 | \\\\
 {VERKKO}/bin/matchchains_index \\\\
   {threads} \\\\
@@ -62,6 +63,11 @@ done
   {params.nindex} \\\\
   matchchains \\\\
   -.fasta
+
+if [ ! -s matchchains.positions ]; then
+   echo "Error: indexing failed, check above for any errors"
+   exit 1
+fi
 EOF
 
 chmod +x ./matchchains-index.sh
