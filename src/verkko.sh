@@ -126,7 +126,6 @@ cor_min_read=4000
 cor_min_overlap=1000
 cor_index_batches=16
 cor_overlap_batches=32
-cor_batch_size=30000
 
 #  buildGraph, parameters for MBG
 mbg_baseK=1001
@@ -410,7 +409,6 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--correct-k-mer-window" ] ;       then mer_window=$arg;       shift
     elif [ "$opt" = "--correct-min-read-length" ] ;    then cor_min_read=$arg;     shift
     elif [ "$opt" = "--correct-min-overlap-length" ] ; then cor_min_overlap=$arg;  shift
-    elif [ "$opt" = "--correct-batch-size" ] ;         then cor_batch_size=$arg;  shift
 
     elif [ "$opt" = "--correct-index-batches" ] ;      then cor_index_batches=$arg;    shift
     elif [ "$opt" = "--correct-overlap-batches" ] ;    then cor_overlap_batches=$arg;  shift
@@ -914,8 +912,6 @@ echo >> ${outd}/verkko.yml "cor_min_overlap:     '${cor_min_overlap}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "cor_index_batches:   '${cor_index_batches}'"
 echo >> ${outd}/verkko.yml "cor_overlap_batches: '${cor_overlap_batches}'"
-echo >> ${outd}/verkko.yml ""
-echo >> ${outd}/verkko.yml "cor_batch_size:      '${cor_batch_size}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  build-graph, MBG"
 echo >> ${outd}/verkko.yml "mbg_baseK:           '${mbg_baseK}'"
