@@ -383,11 +383,11 @@ read_clusters = {}
 total_banned = 0
 total_notbanned = 0
 for contig in contig_contains_reads:
-	print (f"debugggging  {contig}")
+#	print (f"debugggging  {contig}")
 	cont_seq = ""
 	for i in range(0, len(contig_nodeseqs[contig])):
 		cont_seq += (contig_nodeseqs[contig][i][0])
-	print (cont_seq)
+#	print (cont_seq)
 
 	sys.stdout.flush()
 #lets try to ban the reads that have a suffix or prefix that contradict to the contig
@@ -438,8 +438,8 @@ for contig in contig_contains_reads:
 			if to_ban_right and not(contains_contig_ends[1]):
 				to_ban = True	
 			if to_ban:
-				print(f" {to_ban_left} {to_ban_right} banning")
-				print (readname_to_paths[readname][0])
+#				print(f" {to_ban_left} {to_ban_right} banning")
+#				print (readname_to_paths[readname][0])
 				total_banned +=1
 				continue
 			else:
@@ -482,7 +482,7 @@ for contig in contig_contains_reads:
 		if bwcluster is not None:
 			if bwcluster[3] - bwcluster[2] >= readlen * min_read_len_fraction: 
 				read_clusters[readname].append((contig, bwcluster[1], bwcluster[0], get_exact_match_length(bwcluster[4])))
-print (f"Banned {total_banned} allowed {total_notbanned}")
+print (f"Banned {total_banned} allowed {total_notbanned} read-paths")
 contig_actual_lines = {}
 #selecting best alignment to the contig, if multiple best use all of them.
 for readname in read_clusters:
