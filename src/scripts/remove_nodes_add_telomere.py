@@ -59,15 +59,16 @@ has_rDNA = True if len(rdna) > 0 else False
 
 # contig : path
 contig_to_path = {}
+translate_contig = {}
 with open(node_to_path_file, "r") as f:
     for l in f:
         parts=l.strip().split(' ')
         if parts[0] == "path": 
             # parts[1] = contig name
             # parts[2] = path name
-            translate_contig[parts[1]] = parts[2]
+            contig_to_path[parts[1]] = parts[2]
             #for hi-c runs
-            translate_contig[parts[2]] = parts[2]
+            contig_to_path[parts[2]] = parts[2]
 
 
 
@@ -105,7 +106,11 @@ with open(telomere_file, "r") as f:
             continue
 
         path = contig_to_path[parts[0]]
-        graph_node = path_to_nodes[path]
+        #for hic
+        if path.startswith("utig"):
+            graph_node = [path, path+"+"]
+        else:
+            graph_node = path_to_nodes[path]
         if int(parts[1]) < 10000:
             telnode=graph_node[0]
             # reverse the beginning node direction
@@ -129,28 +134,28 @@ with open(telomere_file, "r") as f:
         edge_overlaps[tonode].add(fromnode)
 
 if (has_rDNA):
-    telo_rdna_gfa_file.write("S\trDNA\t*\tLN:i:45000")
+    telo_rdna_gfa_file.write("S\trDNA\t*\tLN:i:45000\n")
     telo_rdna_color_file.write("rDNA%s%s\n"%(padding, rdna_col))
 
 # output new telomere nodes
 for t in telnodes:
-    telo_rdna_gfa_file.write("S\t%s\t*\tLN:i:6"%(t[1:]))
+    telo_rdna_gfa_file.write("S\t%s\t*\tLN:i:6\n"%(t[1:]))
     if t in edge_overlaps:
         for l in edge_overlaps[t]:
             if l[0] == '>': ori="+"
             elif l[0] == '<':ori = "-" 
-            telo_rdna_gfa_file.write("L\t%s\t%s\t%s\t%s\t0M"%(t[1:], '+', l[1:], ori))
+            telo_rdna_gfa_file.write("L\t%s\t%s\t%s\t%s\t0M\n"%(t[1:], '+', l[1:], ori))
 
 with open(graph_file, "r") as f:
     for l in f:
         parts = l.strip().split('\t')
         if parts[0] == "S":
             if parts[1] not in rdna:
-                telo_rdna_gfa_file.write(l.strip())
+                telo_rdna_gfa_file.write(l.strip()+"\n")
         if parts[0] == 'L':
             if parts[1] not in rdna and parts[3] not in rdna:
-                telo_rdna_gfa_file.write(l.strip())
+                telo_rdna_gfa_file.write(l.strip()+"\n")
             elif parts[1] not in rdna and parts[3] in rdna:
-                telo_rdna_gfa_file.write("L\t%s\t%s\trDNA\t+\t0M"%(parts[1], parts[2]))
+                telo_rdna_gfa_file.write("L\t%s\t%s\trDNA\t+\t0M\n"%(parts[1], parts[2]))
             elif parts[1] in rdna and parts[3] not in rdna:
-                telo_rdna_gfa_file.write("L\trDNA\t+\t%s\t%s\t0M"%(parts[3], parts[4]))
+                telo_rdna_gfa_file.write("L\trDNA\t+\t%s\t%s\t0M\n"%(parts[3], parts[4]))
