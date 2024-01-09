@@ -138,7 +138,7 @@ cat > ./run_rdnamashmap.sh <<EOF
 #!/bin/sh
 set -e
 echo "---Running MashMap"
-{params.MASHMAP} -r /data/antipovd2/devel/ribotin/template_seqs/chm13_rDNAs.fa  -q ../{input.unitigs} -t {threads} --pi 95.0 -s 5000 -o ../{output.unitigs_rdnamatches}
+{params.MASHMAP} -r {VERKKO}/data/chm13_rDNAs.fa  -q ../{input.unitigs} -t {threads} --pi 95.0 -s 5000 -o ../{output.unitigs_rdnamatches}
 EOF
 
 chmod +x ./run_rdnamashmap.sh
