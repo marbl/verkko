@@ -35,6 +35,18 @@ def nodes_in_tangles(G, MAX_LEN, MIN_TANGLE_SIZE):
                 res.add(n)
     return res
 
+def tsv2gaf(tsv_path):
+    res = ""
+    arr = tsv_path.strip().split(',')
+    for node in arr:
+        if node.endswith("+"):
+            res += ">" +node[:-1]
+        elif node.endswith("-"):
+            res += "<" +node[:-1]
+        else:
+            res += node
+    return res
+        
 
 def load_indirect_graph(gfa_file, G):
 

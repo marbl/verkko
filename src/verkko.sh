@@ -62,6 +62,7 @@ verkko=""
 mbg=""
 graphaligner=""
 mashmap=""
+seqtk=""
 winnowmap=""
 bwa=""
 samtools=""
@@ -313,6 +314,7 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--mbg" ] ;                then mbg=$arg;           shift
     elif [ "$opt" = "--graphaligner" ] ;       then graphaligner=$arg;  shift
     elif [ "$opt" = "--mashmap" ] ;            then mashmap=$arg;       shift
+    elif [ "$opt" = "--seqtk" ] ;              then seqtk=$arg;       shift
     elif [ "$opt" = "--winnowmap" ] ;          then winnowmap=$arg;     shift
     elif [ "$opt" = "--bwa" ] ;                then bwa=$arg;           shift
     elif [ "$opt" = "--samtools" ] ;           then samtools=$arg;      shift
@@ -453,7 +455,8 @@ while [ $# -gt 0 ] ; do
     #  HiC options
     #
 
-    elif [ "$opt" = "--no-rdna-tangle" ];          then no_rdna_tangle="True";
+    elif [ "$opt" = "--no-rdna-tangle" ];       then no_rdna_tangle="True";
+    elif [ "$opt" = "--rdna-scaff" ];           then rdna_scaff="True";
     elif [ "$opt" = "--uneven-depth" ];         then uneven_depth="True";
     elif [ "$opt" = "--haplo-divergence" ];     then haplo_divergence=$arg;     shift
 
@@ -540,6 +543,16 @@ if [ ! -e $mashmap ] ; then
 fi
 if [ "x$mashmap" != "x" ]; then
   mashmap=$(fullpath $mashmap)
+fi
+
+if [ "x$seqtk" = "x" ] ; then
+  seqtk=${verkko}/bin/seqtk
+fi
+if [ ! -e $seqtk ] ; then
+  seqtk=$(which seqtk 2>/dev/null)
+fi
+if [ "x$seqtk" != "x" ]; then
+  seqtk=$(fullpath $seqtk)
 fi
 
 if [ "x$winnowmap" = "x" ] ; then
@@ -704,7 +717,7 @@ if [ ! -z "$screen" -o "x$withhic" = "xTrue" ] ; then
     fi
 fi
 
-# bwa and samtools required for HiC data
+# bwa samtools and seqtk required for HiC data
 if [ "x$withhic" = "xTrue" ] ; then
     if   [ "x$bwa" = "x" ] ; then
         errors="${errors}Can't find BWA executable in \$PATH or \$VERKKO/bin/bwa.\n"
@@ -717,6 +730,12 @@ if [ "x$withhic" = "xTrue" ] ; then
     elif [ ! -e "$samtools" ] ; then
         errors="${errors}Can't find Samtools executable at '$samtools'.\n"
     fi
+
+    if   [ "x$seqtk" = "x" ] ; then
+        errors="${errors}Can't find seqtk executable in \$PATH or \$VERKKO/bin/seqtk.\n"
+    elif [ ! -e "$seqtk" ] ; then
+        errors="${errors}Can't find seqtk executable at '$seqtk'.\n"
+    fi    
 fi
 
 #
@@ -750,8 +769,9 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "                             uncompressed or gzip/bzip2/xz compressed.  Any"
     echo "                             number of files can be supplied; *.gz works."
     echo "    --no-rdna-tangle         Switch off option that helps to proceed large rDNA tangles which may connect multiple chromosomes."
+    echo "    --rdna-scaff             Switch on experimental HiC scaffolding over rDNA clusters for acrocentric chromosomes. Tested only on primates!"    
     echo "    --uneven-depth           Disable coverage-based heuristics in homozygous nodes detection for phasing."
-    echo "    --haplo-divergence       Estimation on maximum divergence between haplotypes. Should be increased for species with divergence significantly higher than in human. Default: 0.05, min 0, max 0.2"
+    echo "    --haplo-divergence       Estimation on maximum divergence between haplotypes, is used only with hic data. Should be increased for species with divergence significantly higher than in human. Default: 0.05, min 0, max 0.2"
     echo ""
     echo "    --screen <option>        Identify common contaminants and remove from the assembly, saving 1 (circularized) exemplar."
     echo "                             For human, '--screen human' will attempt to remove rDNA, mitochondria, and EBV."
@@ -772,6 +792,7 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --mbg <path>             Path to MBG.             Default for all three"
     echo "    --graphaligner <path>    Path to GraphAligner.    one packaged with verkko."
     echo "    --mashmap <path>         Path to MashMap."
+    echo "    --seqtk <path>           Path to seqtk."
     echo "    --winnowmap <path>       Path to Winnowmap."
     echo "    --bwa <path>             Path to BWA."
     echo "    --samtools <path>        Path to Samtools."
@@ -871,6 +892,7 @@ echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "MBG:                 '${mbg}'"
 echo >> ${outd}/verkko.yml "GRAPHALIGNER:        '${graphaligner}'"
 echo >> ${outd}/verkko.yml "MASHMAP:             '${mashmap}'"
+echo >> ${outd}/verkko.yml "SEQTK:               '${seqtk}'"
 echo >> ${outd}/verkko.yml "WINNOWMAP:           '${winnowmap}'"
 echo >> ${outd}/verkko.yml "BWA:                 '${bwa}'"
 echo >> ${outd}/verkko.yml "SAMTOOLS:            '${samtools}'"
@@ -1069,7 +1091,11 @@ echo >> ${outd}/verkko.yml "#  This is the end."
 target="verkko"
 
 if [ "x$withhic" = "xTrue" ] ; then
-    target="runRukkiHIC"
+    if [ "x$rdna_scaff" = "xTrue" ] ; then
+        target="HiC_rdnascaff"    
+    else
+        target="runRukkiHIC"
+    fi
 fi
 
 if [ "x$cnspaths" != "x" ] ; then
@@ -1209,6 +1235,7 @@ if [ "x$withhic" = "xTrue" ] ; then
     cp -p emptyfile ${newoutd}/emptyfile
     cd $newoutd
     sed -i 's/runRukkiHIC/cnspath/g' snakemake.sh
+    sed -i 's/HiC_rdnascaff/cnspath/g' snakemake.sh
     ./snakemake.sh
     cp *.fasta ../../
     cp *.layout ../../

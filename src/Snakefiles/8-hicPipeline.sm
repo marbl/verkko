@@ -111,6 +111,75 @@ chmod +x ./run_mashmap.sh
 ./run_mashmap.sh > ../{log.err} 2>&1
         '''
 
+#TODO update chm13 paths
+rule runRDNAMashMap:
+    input:
+        unitigs = '8-hicPipeline/unitigs.fasta'
+    output:
+        unitigs_rdnamatches = '8-hicPipeline/rdna_mashmap.out'
+    log:
+        err    = '8-hicPipeline/run_rdnamashmap.err'
+    params:
+        MASHMAP   = config.get('MASHMAP', "{VERKKO}/bin/mashmap"),
+        MASHMAP_DIV = 100 - 100*float(config['haplo_divergence'])
+    threads:
+        int(config['fhc_n_cpus'])
+
+    resources:
+        job_id = 1,
+        n_cpus = int(config['fhc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
+    shell:
+        '''
+cd 8-hicPipeline
+
+cat > ./run_rdnamashmap.sh <<EOF
+#!/bin/sh
+set -e
+echo "---Running MashMap"
+{params.MASHMAP} -r /data/antipovd2/devel/ribotin/template_seqs/chm13_rDNAs.fa  -q ../{input.unitigs} -t {threads} --pi 95.0 -s 5000 -o ../{output.unitigs_rdnamatches}
+EOF
+
+chmod +x ./run_rdnamashmap.sh
+
+./run_rdnamashmap.sh > ../{log.err} 2>&1
+        '''
+
+
+rule run_seqtktelo:
+    input:
+        unitigs = '8-hicPipeline/unitigs.fasta'
+    output:
+        unitigs_telo = '8-hicPipeline/unitigs.telo'
+    log:
+        err    = '8-hicPipeline/run_seqtktelo.err'
+    params:
+        SEQTK   = config.get('SEQTK', "{VERKKO}/bin/seqtk"),
+    threads:
+        int(config['fhc_n_cpus'])
+
+    resources:
+        job_id = 1,
+        n_cpus = int(config['fhc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
+    shell:
+        '''
+cd 8-hicPipeline
+
+cat > ./run_seqtktelo.sh <<EOF
+#!/bin/sh
+set -e
+echo "---Running seqtk telo"
+{params.SEQTK} telo ../{input.unitigs} > ../{output.unitigs_telo}
+EOF
+
+chmod +x ./run_seqtktelo.sh
+
+./run_seqtktelo.sh > ../{log.err} 2>&1
+        '''
+
 
 
 
@@ -396,5 +465,47 @@ chmod +x ./rukki_hic.sh
 ./rukki_hic.sh > ../{log.err} 2>&1
         '''
 
+rule HiC_rdnascaff:
+    input:
+        graph = '8-hicPipeline/unitigs.hpc.noseq.gfa',        
+        tsv_path = '8-hicPipeline/rukki.paths.tsv',
+        gaf_path = '8-hicPipeline/rukki.paths.gaf',
+        unitigs_telo = '8-hicPipeline/unitigs.telo',
+        unitigs_rdnamatches = '8-hicPipeline/rdna_mashmap.out'        
+    output:
+        scaff_tsv_path = '8-hicPipeline/scaff_rukki.paths.tsv',
+        scaff_gaf_path = '8-hicPipeline/scaff_rukki.paths.gaf',
+        prescaf_tsv_path = '8-hicPipeline/prescaf_rukki.paths.tsv',
+        prescaf_gaf_path = '8-hicPipeline/prescaf_rukki.paths.gaf',
+    log:                                                                                                                                                                                                                                                     
+        err    = '8-hicPipeline/hic_scaff.err'
+    threads:
+        int(config['fhc_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = int(config['fhc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
+    shell:
+        '''
+cd 8-hicPipeline
+
+cat > ./hic_scaff.sh <<EOF
+#!/bin/sh
+set -e
+{PYTHON} {VERKKO}/scripts/rdna_scaff.py .
 
 
+cp ../{input.tsv_path} ../{output.prescaf_tsv_path} 
+cp ../{input.gaf_path} ../{output.prescaf_gaf_path} 
+
+cp ../{output.scaff_tsv_path} ../{input.tsv_path} 
+cp ../{output.scaff_gaf_path} ../{input.gaf_path} 
+
+cp ../{input.tsv_path} ../{rules.runRukkiHIC.output.final_paths_tsv}
+EOF
+
+chmod +x ./hic_scaff.sh
+
+./hic_scaff.sh > ../{log.err} 2>&1
+        '''

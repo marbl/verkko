@@ -23,6 +23,7 @@ creates contig consensus sequences using Canu's consensus module.
 * Running verkko with hi-c data also requires 
   * [Samtools](http://www.htslib.org/)
   * [BWA](https://bio-bwa.sourceforge.net/)
+  * [seqtk](https://github.com/lh3/seqtk)
   * [networkx](https://networkx.org/documentation/stable/install.html) python library
     
 Installing with a 'package manager' is encouraged:
