@@ -129,7 +129,7 @@ long_arm_paths = {}
 multiplicities = {}
 for long_arm in sorted(experimental_long_arm_path_ids.keys()):
     long_arm_paths[long_arm] = paths.getEdgeSequenceById(long_arm)
-
+print (f"Total long arms found {len(experimental_long_arm_path_ids.keys())}")
 for path_id in paths.getPathIds():
     for node in paths.getEdgeSequenceById(path_id):
         if not node in multiplicities:
@@ -193,6 +193,8 @@ for short_id in short_arm_paths_ids.keys():
             mults[edge] = 0
         mults[edge] +=1
 tsv_out = {}
+#if one long assigned to multiple short - do not change any and report weirdness
+long_arm_multiplicities = {}
 for short_id in short_arm_paths_ids.keys():
     short_arm_nodes = paths.getEdgeSequenceById(short_id)
     #    print (weights_map[short_id])
@@ -200,21 +202,32 @@ for short_id in short_arm_paths_ids.keys():
     max_long_arm = "none"
     best_path = sf.get_best_path(short_id, long_arm_paths, paths, longarm_to_component, multiplicities, weights_map, G)
     final_assignment[short_id] = best_path
+    if not best_path in long_arm_multiplicities:
+        long_arm_multiplicities[best_path] = 0
+    long_arm_multiplicities[best_path] += 1
+for short_id in final_assignment.keys():
+    best_path = final_assignment[short_id]
     if best_path != "Unclear":
-        to_output = []
-        if experimental_long_arm_path_ids[best_path]:
-            to_output.extend(paths.getPathById(best_path))
+        if long_arm_multiplicities[best_path] > 1:
+            error_str = f"Multiple short arms assigned to one long arm {best_path}, not scaffolding!"
+            for id in final_assignment.keys():
+                if final_assignment[id] == best_path:
+                    error_str += f" {id}"
+            print (error_str)
         else:
-            to_output.extend(sf.rc_path(paths.getPathById(best_path)))
-        to_output.append("[N1000001N:rdna]")
-        if short_arm_paths_ids[short_id]:
-            to_output.extend(sf.rc_path(paths.getPathById(short_id)))
-        else:
-            to_output.extend(paths.getPathById(short_id))
-        res_path = ','.join(to_output)
-        print (f" OUT res")
-        tsv_out[best_path] = res_path
-        tsv_out[short_id] = "NONE"
+            to_output = []
+            if experimental_long_arm_path_ids[best_path]:
+                to_output.extend(paths.getPathById(best_path))
+            else:
+                to_output.extend(sf.rc_path(paths.getPathById(best_path)))
+            to_output.append("[N1000001N:rdna]")
+            if short_arm_paths_ids[short_id]:
+                to_output.extend(sf.rc_path(paths.getPathById(short_id)))
+            else:
+                to_output.extend(paths.getPathById(short_id))
+            res_path = ','.join(to_output)
+            tsv_out[best_path] = res_path
+            tsv_out[short_id] = "NONE"
 
 with open(scaff_rukki_tsv_file, "w") as out_tsv:        
     for line in open(rukki_tsv_file):
