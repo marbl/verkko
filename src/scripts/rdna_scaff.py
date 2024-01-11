@@ -66,18 +66,21 @@ if os.path.exists(rdna_file):
 rdna_nodes = sf.get_rdna_mashmap(hicrun_dir)
 
 
-G = nx.Graph()
+G = nx.DiGraph()
 #graph_f fails?
 #TODO should use graph_functions!
-gf.load_indirect_graph(gfa_file, G)
+gf.load_direct_graph(gfa_file, G)
 #double distance between middle of nodes
-dists = dict(nx.all_pairs_dijkstra_path_length(G, weight=lambda u, v, d: G.nodes[u]['length'] + G.nodes[v]['length']))
-
+dists = dict(nx.all_pairs_dijkstra_path_length(G, weight='mid_length'))
 paths = sf.read_rukki_paths(rukki_tsv_file, G)
 
-short_arm_paths_ids = sf.get_arm_paths_ids(telomere_locations_file, G, paths, rdna_nodes, dists, 100000, 5000000, False)
-experimental_long_arm_path_ids = sf.get_arm_paths_ids(telomere_locations_file, G, paths, rdna_nodes, dists, 10000000, 999999999, True)
-
+short_arm_paths_ids = sf.get_arm_paths_ids(telomere_locations_file, G, paths, rdna_nodes, 100000, 5000000, False)
+experimental_long_arm_path_ids = sf.get_arm_paths_ids(telomere_locations_file, G, paths, rdna_nodes, 10000000, 999999999, True)
+same_component_long_arm_path_ids = sf.get_same_component_paths(short_arm_paths_ids, G, paths, 10000000,999999999)
+for idd in same_component_long_arm_path_ids.keys():
+    if idd not in experimental_long_arm_path_ids:
+        experimental_long_arm_path_ids[idd] = same_component_long_arm_path_ids[idd]
+        print (f"Component-based added path {idd}")
 print (f"short arms PATH number{len(short_arm_paths_ids)}")
 for idd in short_arm_paths_ids.keys():
     print(paths.getPathById(idd))
@@ -126,15 +129,19 @@ if os.path.exists(translation_hap1_file) and os.path.exists(translation_paths_fi
 
 
 long_arm_paths = {}
-multiplicities = {}
 for long_arm in sorted(experimental_long_arm_path_ids.keys()):
-    long_arm_paths[long_arm] = paths.getEdgeSequenceById(long_arm)
+    long_arm_paths[long_arm] = paths.getPathById(long_arm)
 print (f"Total long arms found {len(experimental_long_arm_path_ids.keys())}")
+
+
+multiplicities = {}
 for path_id in paths.getPathIds():
-    for node in paths.getEdgeSequenceById(path_id):
-        if not node in multiplicities:
-            multiplicities[node] = 0
-        multiplicities[node] += 1
+    for edge in paths.getEdgeSequenceById(path_id):
+        for dir in ["+", "-"]:
+            node = edge + dir      
+            if not node in multiplicities:
+                multiplicities[node] = 0
+            multiplicities[node] += 1
 
 
 
@@ -161,7 +168,7 @@ for long_arm in sorted(experimental_long_arm_path_ids.keys()):
         comp_w[component_id] = 0
     for node in path:
         if node in node_to_component:
-            comp_w[node_to_component[node]] += G.nodes[node]['length']
+            comp_w[node_to_component[node]] += G.nodes[node+'+']['length']
     majority_component = max(comp_w, key=comp_w.get)
     longarm_to_component[long_arm] = majority_component
     if not majority_component in component_to_longarm:
@@ -177,26 +184,25 @@ print(longarm_to_component)
 weights_map = {}
 for line in open (hic_byread):
     arr = line.strip().split()
-    if not arr[1] in weights_map:
-        weights_map[arr[1]] = {}
-    if not arr[2] in weights_map:
-        weights_map[arr[2]] = {}
-    weights_map[arr[1]][arr[2]] = int(arr[3])
-    weights_map[arr[2]][arr[1]] = int(arr[3])
-
+    if not arr[1]+'+' in weights_map:
+        for dir in ["+", "-"]:
+            weights_map[arr[1] + dir] = {}
+    if not arr[2]+'+' in weights_map:
+        for dir in ["+", "-"]:
+            weights_map[arr[2] + dir] = {}
+    for dir1 in ["+", "-"]:
+        for dir2 in ["+", "-"]:
+            weights_map[arr[1]+dir1][arr[2] + dir2] =  int(arr[3])
+            weights_map[arr[2]+dir1][arr[1] +dir2] =  int(arr[3])
+         
 #path scoring
 final_assignment = {}
-mults = {}
-for short_id in short_arm_paths_ids.keys():
-    for edge in paths.getEdgeSequenceById(short_id):
-        if not edge in mults.keys():
-            mults[edge] = 0
-        mults[edge] +=1
+
 tsv_out = {}
 #if one long assigned to multiple short - do not change any and report weirdness
 long_arm_multiplicities = {}
 for short_id in short_arm_paths_ids.keys():
-    short_arm_nodes = paths.getEdgeSequenceById(short_id)
+    short_arm_nodes = paths.getPathById(short_id)
     #    print (weights_map[short_id])
     max_score = 0
     max_long_arm = "none"
@@ -213,6 +219,7 @@ for short_id in final_assignment.keys():
             for id in final_assignment.keys():
                 if final_assignment[id] == best_path:
                     error_str += f" {id}"
+                    final_assignment[id] = "Unclear"
             print (error_str)
         else:
             to_output = []
@@ -254,12 +261,12 @@ for short_id in short_arm_paths_ids.keys():
        assgnd += 1
     scores[short_id] = {}
     for long_arm in long_arm_paths.keys():
-        scores[short_id][long_arm] = sf.scorepath(paths.getEdgeSequenceById(short_id), long_arm_paths[long_arm], multiplicities, weights_map, True)
+        scores[short_id][long_arm] = sf.scorepath(paths.getPathById(short_id), long_arm_paths[long_arm], multiplicities, weights_map, True)
     print (f"All scores path using homozygous: {short_id} --- {scores[short_id]}\n")
     
     scores[short_id] = {}
     for long_arm in long_arm_paths.keys():
-        scores[short_id][long_arm] = sf.scorepath(paths.getEdgeSequenceById(short_id), long_arm_paths[long_arm], multiplicities, weights_map, False)
+        scores[short_id][long_arm] = sf.scorepath(paths.getPathById(short_id), long_arm_paths[long_arm], multiplicities, weights_map, False)
     print (f"All scores NOT using homozygous: {short_id} --- {scores[short_id]}\n")
         
 print (f"total paths assigned {assgnd} of {len(short_arm_paths_ids)}")
