@@ -47,7 +47,7 @@ def tsv2gaf(tsv_path):
             res += node
     return res
         
-
+#TODO: get rid of code dup
 def load_indirect_graph(gfa_file, G):
 
     for line in open(gfa_file, 'r'):
@@ -76,4 +76,45 @@ def load_indirect_graph(gfa_file, G):
             if line[1] not in G or line[3] not in G:
                 sys.stderr.write("Error while graph loading; link between nodes not in graph:%s" % (line))
                 sys.exit(1)
-            G.add_edge(line[1], line[3])
+            overlap = 0
+            if len(line) > 5 and isinstance(line[5][:-1], int):
+                overlap = int(line[5][:-1])
+            #Double distance between centers of nodes
+            G.add_edge(line[1], line[3], mid_length = G.nodes[line[1]]['length'] + G.nodes[line[3]]['length'] - 2*overlap)
+
+def load_direct_graph(gfa_file, G):
+    rc = {"+": "-", "-": "+"}
+    
+    
+    for line in open(gfa_file, 'r'):
+        if "#" in line:
+            continue
+        line = line.strip().split()
+
+        if line[0] == "S":
+            #noseq graphs
+            ls = len(line[2])
+            cov = 0
+            for i in range(3, len(line)):
+                spl_tag = line[i].split(":")
+                if spl_tag[0] == "LN":
+                    ls = int(spl_tag[2])
+                if spl_tag[0] == "ll":
+                    cov = float(spl_tag[2])
+            for suff in ["+", "-"]:
+                G.add_node(line[1]+suff, length=int(ls), coverage=float(cov))                        
+            
+    #L and S lines can be mixed
+    for line in open(gfa_file, 'r'):
+        line = line.strip().split()       
+        if line[0] == "L":
+            if line[1]+"+" not in G or line[3]+"+" not in G:
+                sys.stderr.write("Error while graph loading; link between nodes not in graph:%s" % (line))
+                sys.exit(1)
+            overlap = 0
+            if len(line) > 5 and isinstance(line[5][:-1], int):
+                overlap = int(line[5][:-1])
+            #Double distance between centers of nodes
+            G.add_edge(line[1] + line[2], line[3] + line[4], mid_length = G.nodes[line[1]+line[2]]['length'] + G.nodes[line[3]+line[4]]['length'] - 2*overlap)
+            G.add_edge(line[3] + rc[line[4]], line[1] + rc[line[2]], mid_length = G.nodes[line[1]+line[2]]['length'] + G.nodes[line[3]+line[4]]['length'] - 2*overlap)
+
