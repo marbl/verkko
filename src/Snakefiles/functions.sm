@@ -55,7 +55,7 @@ def getMemoryRequest(attempt, tag):
    mem = float(config[f"{tag}_mem_gb"])
    return int(math.ceil(math.ceil(mem)*scl))
 
-def getOverlapMemoryRequest(attempt, factor=4.5):
+def getOverlapMemoryRequest(attempt, factor=4.75):
    scl= 0.75 + attempt / 4.0
    mem = float(config["ovb_mem_gb"])
    batches = int(config["cor_overlap_batches"])

@@ -53,16 +53,14 @@ for ii in \$batchlist ; do
   echo \$ii > overlap-jobs/\$jj.id
 done
 
-#  The max limit is necessary until seqrequester is updated.
-{VERKKO}/bin/seqrequester extract -compress -fasta -length {params.minread}-999999999 {input.reads} \\\\
-| \\\\
 {VERKKO}/bin/matchchains_index \\\\
-  {threads} \\\\
-  {params.mersize} \\\\
-  4 {params.merwindow} \\\\
-  {params.nindex} \\\\
-  matchchains \\\\
-  -.fasta
+  --hpc \\\\
+  -t {threads} \\\\
+  -k {params.mersize} \\\\
+  -n 4 -w {params.merwindow} \\\\
+  --tmp-file-count {params.nindex} \\\\
+  -o matchchains \\\\
+  {input.reads}
 
 if [ ! -s matchchains.positions ]; then
    echo "Error: indexing failed, check above for any errors"
@@ -107,12 +105,6 @@ cat > ./{wildcards.nnnn}.sh <<EOF
 set -e
 
 #  $batchnum == {wildcards.nnnn}
-
-{VERKKO}/bin/matchchains_matchindex \\\\
-  ../matchchains \\\\
-  {wildcards.nnnn} {rules.prepareOverlaps.params.nbatches} \\\\
-  > ../../{output.ovb}.txt
-
 #  Outputs:  (all on one line)
 #    left   leftlen   leftstart   leftend   (leftFw  ? "fw" : "bw")
 #    right  rightlen  rightstart  rightend  (rightFw ? "fw" : "bw")
@@ -123,7 +115,12 @@ set -e
 #   -For overlap output, we need to split on tabs initially, then
 #    split just the name to extract the first word.
 #
-awk \\\\
+
+{VERKKO}/bin/matchchains_matchindex \\\\
+  -i ../matchchains \\\\
+  --batchindex {wildcards.nnnn} --batchcount {rules.prepareOverlaps.params.nbatches} \\\\
+  --min-match-length {params.minolap} \\\\
+ | awk \\\\
 'BEGIN \\\\
  {{ \\\\
    FS="[ \\t]"; \\\\
@@ -145,17 +142,14 @@ awk \\\\
    else \\\\
      print fn,\$2,\$3,\$4,"-",sn,\$7,\$7-\$9,\$7-\$8,"0",\$4-\$3,"255","id:f:0.99"; \\\\
  }}' \\\\
-< ../../{output.ovb}.txt \\\\
-> ../../{output.ovb}.paf
-
-{VERKKO}/bin/overlapImport \\\\
+ | {VERKKO}/bin/overlapImport \\\\
   -maxerror 0.01 \\\\
   -minreadlength {params.minread} \\\\
   -minoverlaplength {params.minolap} \\\\
   -paf \\\\
   -o ../../{output.ovb} \\\\
   -S ../../{input.seqstore} \\\\
-  ../../{output.ovb}.paf
+  -
 EOF
 
 chmod +x ./{wildcards.nnnn}.sh
