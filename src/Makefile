@@ -952,27 +952,32 @@ MBG_DEPS = $(addprefix MBG/src/,\
                        fastqloader.h CommonUtils.h MBGCommon.h VectorWithDirection.h FastHasher.h SparseEdgeContainer.h HashList.h UnitigGraph.h BluntGraph.h ReadHelper.h HPCConsensus.h ErrorMaskHelper.h CompressedSequence.h ConsensusMaker.h StringIndex.h LittleBigVector.h MostlySparse2DHashmap.h RankBitvector.h TwobitLittleBigVector.h UnitigResolver.h CumulativeVector.h UnitigHelper.h BigVectorSet.h              Serializer.h DumbSelect.h MsatValueVector.h Node.h KmerMatcher.h \
                        fastqloader.o CommonUtils.o MBGCommon.o                       FastHasher.o SparseEdgeContainer.o HashList.o UnitigGraph.o BluntGraph.o              HPCConsensus.o ErrorMaskHelper.o CompressedSequence.o ConsensusMaker.o StringIndex.o                                           RankBitvector.o                         UnitigResolver.o                    UnitigHelper.o BigVectorSet.o ReadHelper.o Serializer.o DumbSelect.o MsatValueVector.o Node.o KmerMatcher.o))
 
+MBG/bin/MBG: $(MBG_DEPS)
+	cd MBG ; git submodule update --init --recursive
+	cd MBG ; $(MAKE) all
+
+../lib/verkko/bin/MBG: MBG/bin/MBG
+	@mkdir -p ../lib/verkko/bin
+	cp -p MBG/bin/MBG $@
+
+
 HIFIOVERLAP_DEPS = $(addprefix hifioverlapper/src/,\
                     $(patsubst %.o,%.cpp,\
                                matchchains_index.o matchchains_matchindex.o \
                                MatchIndex.h MinimizerIterator.h TwobitString.h ReadStorage.h UnitigKmerCorrector.h UnitigStorage.h ReadMatchposStorage.h \
                                MatchIndex.o MinimizerIterator.o TwobitString.o ReadStorage.o UnitigKmerCorrector.o UnitigStorage.o ReadMatchposStorage.o))
 
-../lib/verkko/bin/MBG: $(MBG_DEPS)
-	cd MBG ; git submodule update --init --recursive
-	cd MBG ; $(MAKE) all
-	@mkdir -p ../lib/verkko/bin
-	cp -p MBG/bin/MBG $@
-
-../lib/verkko/bin/matchchains_index: $(HIFIOVERLAP_DEPS)
+hifioverlapper/lib/hifioverlapper.a: $(HIFIOVERLAP_DEPS)
 	cd hifioverlapper ; git submodule update --init --recursive
-	cd hifioverlapper ; $(MAKE) all
+	cd hifioverlapper ; $(MAKE) lib/hifioverlapper.a MBG/lib/mbg.a
+
+../lib/verkko/bin/matchchains_index: hifioverlapper/lib/hifioverlapper.a
+	cd hifioverlapper ; $(MAKE) bin/matchchains_index
 	@mkdir -p ../lib/verkko/bin
 	cp -p hifioverlapper/bin/matchchains_index $@
 
-../lib/verkko/bin/matchchains_matchindex: $(HIFIOVERLAP_DEPS)
-	cd hifioverlapper ; git submodule update --init --recursive
-	cd hifioverlapper ; $(MAKE) all
+../lib/verkko/bin/matchchains_matchindex: hifioverlapper/lib/hifioverlapper.a
+	cd hifioverlapper ; $(MAKE) bin/matchchains_matchindex
 	@mkdir -p ../lib/verkko/bin
 	cp -p hifioverlapper/bin/matchchains_matchindex $@
 
