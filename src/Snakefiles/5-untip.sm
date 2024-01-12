@@ -53,24 +53,19 @@ cat > ./untip.sh <<EOF
 #!/bin/sh
 set -e
 
-echo UntipRelative
-{PYTHON} {VERKKO}/scripts/untip_relative.py 35000 35000 0.1 0.1 \\\\
-< ../{input.graph} \\\\
-> connected-tip.gfa
 
+{PYTHON} {VERKKO}/scripts/untip_relative.py 15000 5000 0.1 < ../{input.graph} > connected-tip.gfa
 
-echo Unitigify 3
 {PYTHON} {VERKKO}/scripts/unitigify.py utig3a- unitig-mapping-3a.txt \\\\
-< connected-tip.gfa \\\\
-> unitig-normal-connected-tip.gfa
-
+ < connected-tip.gfa \\\\
+  > unitig-connected-tip.gfa
 
 echo Combine mappings
 cat {params.maps} unitig-mapping-3a.txt \\\\
 > combined-nodemap-1.txt
 
 echo Combine edges
-cat {params.graphs} connected-tip.gfa unitig-normal-connected-tip.gfa \\\\
+cat {params.graphs} connected-tip.gfa unitig-connected-tip.gfa \\\\
 | grep '^L' \\\\
 > combined-edges-1.gfa
 
@@ -78,7 +73,7 @@ cat {params.graphs} connected-tip.gfa unitig-normal-connected-tip.gfa \\\\
 # this used to have grep -v \*
 #
 echo Find lengths
-cat {params.graphs} connected-tip.gfa unitig-normal-connected-tip.gfa \\\\
+cat {params.graphs} connected-tip.gfa unitig-connected-tip.gfa \\\\
 | awk 'BEGIN \\\\
        {{ \\\\
           FS="[ \\t]+"; OFS="\\t"; \\\\
@@ -91,7 +86,7 @@ cat {params.graphs} connected-tip.gfa unitig-normal-connected-tip.gfa \\\\
 
 echo Fix coverage
 {PYTHON} {VERKKO}/scripts/get_original_coverage.py \\\\
-  ../5-untip/unitig-normal-connected-tip.gfa \\\\
+  unitig-connected-tip.gfa \\\\
   combined-nodemap-1.txt \\\\
   combined-edges-1.gfa \\\\
   nodelens-1.txt \\\\
@@ -101,25 +96,25 @@ echo Fix coverage
 echo Pop bubbles based on coverage
 {PYTHON} {VERKKO}/scripts/pop_bubbles_coverage_based.py \\\\
   ../{output.hificov} {params.haploid} \\\\
-< ../5-untip/unitig-normal-connected-tip.gfa \\\\
-> popped-unitig-normal-connected-tip.gfa \\\\
-2> popinfo.err
+< unitig-connected-tip.gfa \\\\
+> popped-connected-tip.gfa \\\\
+2> popinfo_round1.err
 
 # consider doing this in a loop to avoid code redundancy
 echo Unroll simple loops
-{PYTHON} {VERKKO}/scripts/unroll_simple_loops.py popped-unitig-normal-connected-tip.gfa ../{output.hificov} > unrolled-popped-unitig-normal-connected-tip.gfa 2>> unitig-mapping-3a.txt
+{PYTHON} {VERKKO}/scripts/unroll_simple_loops.py popped-connected-tip.gfa ../{output.hificov} > unrolled-popped-connected-tip.gfa 2>> unitig-mapping-3a.txt
 
-echo Unitigify 3b
+echo Unitigify 3
 {PYTHON} {VERKKO}/scripts/unitigify.py utig3b- unitig-mapping-3b.txt \\\\
-< unrolled-popped-unitig-normal-connected-tip.gfa \\\\
-> unitig-unrolled-popped-unitig-normal-connected-tip.gfa
+< unrolled-popped-connected-tip.gfa \\\\
+> unitig-unrolled-popped-connected-tip.gfa
 
 echo Combine mappings
 cat {params.maps} unitig-mapping-3a.txt unitig-mapping-3b.txt \\\\
 > combined-nodemap-1.txt
 
 echo Combine edges
-cat {params.graphs} connected-tip.gfa unitig-normal-connected-tip.gfa unrolled-popped-unitig-normal-connected-tip.gfa unitig-unrolled-popped-unitig-normal-connected-tip.gfa \\\\
+cat {params.graphs} connected-tip.gfa unitig-connected-tip.gfa popped-connected-tip.gfa unrolled-popped-connected-tip.gfa unitig-unrolled-popped-connected-tip.gfa \\\\
 | grep '^L' \\\\
 > combined-edges-1.gfa
 
@@ -127,7 +122,7 @@ cat {params.graphs} connected-tip.gfa unitig-normal-connected-tip.gfa unrolled-p
 # this used to have grep -v \*
 #
 echo Find lengths
-cat {params.graphs} connected-tip.gfa unitig-normal-connected-tip.gfa unrolled-popped-unitig-normal-connected-tip.gfa unitig-unrolled-popped-unitig-normal-connected-tip.gfa \\\\
+cat {params.graphs} connected-tip.gfa unitig-connected-tip.gfa popped-connected-tip.gfa unrolled-popped-connected-tip.gfa unitig-unrolled-popped-connected-tip.gfa \\\\
 | awk 'BEGIN \\\\
        {{ \\\\
           FS="[ \\t]+"; OFS="\\t"; \\\\
@@ -140,19 +135,26 @@ cat {params.graphs} connected-tip.gfa unitig-normal-connected-tip.gfa unrolled-p
 
 echo Fix coverage
 {PYTHON} {VERKKO}/scripts/get_original_coverage.py \\\\
-  ../5-untip/unitig-unrolled-popped-unitig-normal-connected-tip.gfa \\\\
+  ../5-untip/unitig-unrolled-popped-connected-tip.gfa \\\\
   combined-nodemap-1.txt \\\\
   combined-edges-1.gfa \\\\
   nodelens-1.txt \\\\
   ../{input.hificov} \\\\
 >> ../{output.hificov}
 
+echo Pop bubbles based on coverage round 2
+{PYTHON} {VERKKO}/scripts/pop_bubbles_coverage_based.py \\\\
+  ../{output.hificov} {params.haploid} \\\\
+  < unitig-unrolled-popped-connected-tip.gfa \\\\
+  > popped-unitig-unrolled-popped-connected-tip.gfa \\\\
+  2> popinfo_round2.err
+
 echo Unroll simple loops round 2
-{PYTHON} {VERKKO}/scripts/unroll_simple_loops.py unitig-unrolled-popped-unitig-normal-connected-tip.gfa nodecov_hifi_fix.csv > unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.gfa 2>> unitig-mapping-3b.txt
+{PYTHON} {VERKKO}/scripts/unroll_simple_loops.py popped-unitig-unrolled-popped-connected-tip.gfa ../{output.hificov} > unrolled-popped-unitig-unrolled-popped-connected-tip.gfa 2>> unitig-mapping-3b.txt
 
 echo Unitigify 4
 {PYTHON} {VERKKO}/scripts/unitigify.py utig4- unitig-mapping-4.txt \
-< unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.gfa \
+< unrolled-popped-unitig-unrolled-popped-connected-tip.gfa \
 > ../{output.graph}
 
 # disable until we support jump links

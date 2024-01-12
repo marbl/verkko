@@ -119,9 +119,6 @@ for node in unique_nodes:
 	check_side('>' + node, checked_sides, graph_edges)
 	check_side('<' + node, checked_sides, graph_edges)
 
-for pair in forbidden_connections:
-	sys.stderr.write("removed connection: " + str(pair) + "\n")
-
 for pathstr in all_paths:
 	path = pathstr.replace('>', '\t>').replace('<', '\t<').strip().split('\t')
 	if len(path) == 0: continue
@@ -129,4 +126,4 @@ for pathstr in all_paths:
 	if key not in forbidden_connections:
 		print(pathstr)
 	else:
-		sys.stderr.write("forbade " + pathstr + "\n")
+		sys.stderr.write(pathstr + "\n")

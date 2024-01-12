@@ -16,14 +16,14 @@ creates contig consensus sequences using Canu's consensus module.
 
 * Running verkko requires:
   * [Python](https://www.python.org) (v3.5+) 
-  * [Snakemake](https://snakemake.readthedocs.io/en/stable/) (v7.0+)
-  * [MBG](https://github.com/maickrau/MBG)
+  * [Snakemake](https://snakemake.readthedocs.io/en/stable/) (>= v7.0, < 8.0.1)
   * [GraphAligner](https://github.com/maickrau/GraphAligner)
   * [MashMap](https://github.com/marbl/MashMap)
   * [Winnowmap](https://github.com/marbl/Winnowmap)
 * Running verkko with hi-c data also requires 
   * [Samtools](http://www.htslib.org/)
   * [BWA](https://bio-bwa.sourceforge.net/)
+  * [seqtk](https://github.com/lh3/seqtk)
   * [networkx](https://networkx.org/documentation/stable/install.html) python library
     
 Installing with a 'package manager' is encouraged:

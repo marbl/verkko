@@ -62,6 +62,7 @@ verkko=""
 mbg=""
 graphaligner=""
 mashmap=""
+seqtk=""
 winnowmap=""
 bwa=""
 samtools=""
@@ -119,15 +120,13 @@ fi
 #  buildStore, countKmers and computeOverlaps
 correction_enabled=True
 
-mer_size=28
-mer_threshold=20
-mer_filter=0.995
+mer_size=201
+mer_window=75
 
 cor_min_read=4000
-cor_min_overlap=2000
-cor_hash_bits=25
-cor_filter_kmers=0
-cor_batch_size=30000
+cor_min_overlap=1000
+cor_index_batches=16
+cor_overlap_batches=32
 
 #  buildGraph, parameters for MBG
 mbg_baseK=1001
@@ -206,7 +205,7 @@ meg_mem_gb=32    #  It is used for merging kmer databases.
 meg_time_h=4
 
 ovb_n_cpus=8
-ovb_mem_gb=32
+ovb_mem_gb=1
 ovb_time_h=24
 
 ovs_n_cpus=1
@@ -315,6 +314,7 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--mbg" ] ;                then mbg=$arg;           shift
     elif [ "$opt" = "--graphaligner" ] ;       then graphaligner=$arg;  shift
     elif [ "$opt" = "--mashmap" ] ;            then mashmap=$arg;       shift
+    elif [ "$opt" = "--seqtk" ] ;              then seqtk=$arg;       shift
     elif [ "$opt" = "--winnowmap" ] ;          then winnowmap=$arg;     shift
     elif [ "$opt" = "--bwa" ] ;                then bwa=$arg;           shift
     elif [ "$opt" = "--samtools" ] ;           then samtools=$arg;      shift
@@ -407,14 +407,13 @@ while [ $# -gt 0 ] ; do
 
     elif [ "$opt" = "--no-correction" ] ;              then correction_enabled=False
 
-    elif [ "$opt" = "--filter-kmer" ];                 then cor_filter_kmers=$arg; shift
-    elif [ "$opt" = "--correct-k-mer-size" ] ;         then mer_size=$arg;        shift
-    elif [ "$opt" = "--correct-mer-threshold" ] ;      then mer_threshold=$arg;   shift
-    elif [ "$opt" = "--correct-mer-filter" ] ;         then mer_filter=$arg;      shift
-    elif [ "$opt" = "--correct-min-read-length" ] ;    then cor_min_read=$arg;    shift
-    elif [ "$opt" = "--correct-min-overlap-length" ] ; then cor_min_overlap=$arg; shift
-    elif [ "$opt" = "--correct-hash-bits" ] ;          then cor_hash_bits=$arg;   shift
-    elif [ "$opt" = "--correct-batch-size" ] ;         then cor_batch_size=$arg;  shift
+    elif [ "$opt" = "--correct-k-mer-size" ] ;         then mer_size=$arg;         shift
+    elif [ "$opt" = "--correct-k-mer-window" ] ;       then mer_window=$arg;       shift
+    elif [ "$opt" = "--correct-min-read-length" ] ;    then cor_min_read=$arg;     shift
+    elif [ "$opt" = "--correct-min-overlap-length" ] ; then cor_min_overlap=$arg;  shift
+
+    elif [ "$opt" = "--correct-index-batches" ] ;      then cor_index_batches=$arg;    shift
+    elif [ "$opt" = "--correct-overlap-batches" ] ;    then cor_overlap_batches=$arg;  shift
 
     #
     #  MBG options
@@ -456,7 +455,8 @@ while [ $# -gt 0 ] ; do
     #  HiC options
     #
 
-    elif [ "$opt" = "--no-rdna-tangle" ];          then no_rdna_tangle="True";
+    elif [ "$opt" = "--no-rdna-tangle" ];       then no_rdna_tangle="True";
+    elif [ "$opt" = "--rdna-scaff" ];           then rdna_scaff="True";
     elif [ "$opt" = "--uneven-depth" ];         then uneven_depth="True";
     elif [ "$opt" = "--haplo-divergence" ];     then haplo_divergence=$arg;     shift
 
@@ -543,6 +543,16 @@ if [ ! -e $mashmap ] ; then
 fi
 if [ "x$mashmap" != "x" ]; then
   mashmap=$(fullpath $mashmap)
+fi
+
+if [ "x$seqtk" = "x" ] ; then
+  seqtk=${verkko}/bin/seqtk
+fi
+if [ ! -e $seqtk ] ; then
+  seqtk=$(which seqtk 2>/dev/null)
+fi
+if [ "x$seqtk" != "x" ]; then
+  seqtk=$(fullpath $seqtk)
 fi
 
 if [ "x$winnowmap" = "x" ] ; then
@@ -666,10 +676,10 @@ for exe in bin/findErrors \
            bin/meryl-lookup \
            bin/ovStoreBuild \
            bin/ovStoreConfig \
-           bin/overlapInCore \
-           bin/overlapInCorePartition \
+           bin/overlapImport \
            bin/sqStoreCreate \
            bin/sqStoreDumpMetaData \
+           bin/sqStoreDumpFASTQ \
            bin/utgcns \
            scripts/get_layout_from_mbg.py ; do
   if [ ! -e "$verkko/$exe" ] ; then
@@ -707,7 +717,7 @@ if [ ! -z "$screen" -o "x$withhic" = "xTrue" ] ; then
     fi
 fi
 
-# bwa and samtools required for HiC data
+# bwa samtools and seqtk required for HiC data
 if [ "x$withhic" = "xTrue" ] ; then
     if   [ "x$bwa" = "x" ] ; then
         errors="${errors}Can't find BWA executable in \$PATH or \$VERKKO/bin/bwa.\n"
@@ -720,6 +730,12 @@ if [ "x$withhic" = "xTrue" ] ; then
     elif [ ! -e "$samtools" ] ; then
         errors="${errors}Can't find Samtools executable at '$samtools'.\n"
     fi
+
+    if   [ "x$seqtk" = "x" ] ; then
+        errors="${errors}Can't find seqtk executable in \$PATH or \$VERKKO/bin/seqtk.\n"
+    elif [ ! -e "$seqtk" ] ; then
+        errors="${errors}Can't find seqtk executable at '$seqtk'.\n"
+    fi    
 fi
 
 #
@@ -753,8 +769,9 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "                             uncompressed or gzip/bzip2/xz compressed.  Any"
     echo "                             number of files can be supplied; *.gz works."
     echo "    --no-rdna-tangle         Switch off option that helps to proceed large rDNA tangles which may connect multiple chromosomes."
+    echo "    --rdna-scaff             Switch on experimental HiC scaffolding over rDNA clusters for acrocentric chromosomes. Tested only on primates!"    
     echo "    --uneven-depth           Disable coverage-based heuristics in homozygous nodes detection for phasing."
-    echo "    --haplo-divergence       Estimation on maximum divergence between haplotypes. Should be increased for species with divergence significantly higher than in human. Default: 0.05, min 0, max 0.2"
+    echo "    --haplo-divergence       Estimation on maximum divergence between haplotypes, is used only with hic data. Should be increased for species with divergence significantly higher than in human. Default: 0.05, min 0, max 0.2"
     echo ""
     echo "    --screen <option>        Identify common contaminants and remove from the assembly, saving 1 (circularized) exemplar."
     echo "                             For human, '--screen human' will attempt to remove rDNA, mitochondria, and EBV."
@@ -775,6 +792,7 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --mbg <path>             Path to MBG.             Default for all three"
     echo "    --graphaligner <path>    Path to GraphAligner.    one packaged with verkko."
     echo "    --mashmap <path>         Path to MashMap."
+    echo "    --seqtk <path>           Path to seqtk."
     echo "    --winnowmap <path>       Path to Winnowmap."
     echo "    --bwa <path>             Path to BWA."
     echo "    --samtools <path>        Path to Samtools."
@@ -811,12 +829,10 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo ""
     echo "ADVANCED MODULE PARAMETERS (expert users):"
     echo "HiFi read correction:"
-    echo "    --correct-k-mer-size           Set the k-mer size to use for finding overlaps (28)"
-    echo "    --correct-mer-threshold        Set the k-mer repeat threshold (20)"
-    echo "    --correct-mer-filter           Set the k-mer repeat threshold (0.995)"
+    echo "    --correct-k-mer-size           Set the k-mer size to use for finding overlaps (201)"
+    echo "    --correct-k-mer-window         Set the window size for sketching reads when finding overlaps (75)"
     echo "    --correct-min-read-length      Set the overall minimum read length (4000)"
-    echo "    --correct-min-overlap-length   Set the minimum overlap length (2000)"
-    echo "    --correct-hash-bits            Set the overlapper table size (25)"
+    echo "    --correct-min-overlap-length   Set the minimum overlap length (1000)"
     echo "    --correct-batch-size           Set the RED batch size, in Mbp (30000)"
     echo "                                   (might also need to adjust --red-run)"
     echo "    "
@@ -876,6 +892,7 @@ echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "MBG:                 '${mbg}'"
 echo >> ${outd}/verkko.yml "GRAPHALIGNER:        '${graphaligner}'"
 echo >> ${outd}/verkko.yml "MASHMAP:             '${mashmap}'"
+echo >> ${outd}/verkko.yml "SEQTK:               '${seqtk}'"
 echo >> ${outd}/verkko.yml "WINNOWMAP:           '${winnowmap}'"
 echo >> ${outd}/verkko.yml "BWA:                 '${bwa}'"
 echo >> ${outd}/verkko.yml "SAMTOOLS:            '${samtools}'"
@@ -910,16 +927,13 @@ echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  buildStore, countKmers and computeOverlaps"
 echo >> ${outd}/verkko.yml "correction_enabled:  '${correction_enabled}'"
 echo >> ${outd}/verkko.yml "mer_size:            '${mer_size}'"
-echo >> ${outd}/verkko.yml "mer_threshold:       '${mer_threshold}'"
-echo >> ${outd}/verkko.yml "mer_filter:          '${mer_filter}'"
+echo >> ${outd}/verkko.yml "mer_window:          '${mer_window}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "cor_min_read:        '${cor_min_read}'"
 echo >> ${outd}/verkko.yml "cor_min_overlap:     '${cor_min_overlap}'"
-echo >> ${outd}/verkko.yml "cor_hash_bits:       '${cor_hash_bits}'"
 echo >> ${outd}/verkko.yml ""
-echo >> ${outd}/verkko.yml "cor_filter_kmers:    '${cor_filter_kmers}'"
-echo >> ${outd}/verkko.yml ""
-echo >> ${outd}/verkko.yml "cor_batch_size:      '${cor_batch_size}'"
+echo >> ${outd}/verkko.yml "cor_index_batches:   '${cor_index_batches}'"
+echo >> ${outd}/verkko.yml "cor_overlap_batches: '${cor_overlap_batches}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  build-graph, MBG"
 echo >> ${outd}/verkko.yml "mbg_baseK:           '${mbg_baseK}'"
@@ -945,7 +959,6 @@ echo >> ${outd}/verkko.yml "ali_end_clipping:    '${ali_end_clipping}'"
 echo >> ${outd}/verkko.yml "ali_incompat_cutoff: '${ali_incompat_cutoff}'"
 echo >> ${outd}/verkko.yml "ali_max_trace:       '${ali_max_trace}'"
 echo >> ${outd}/verkko.yml "ali_seed_window:     '${ali_seed_window}'"
-echo >> ${outd}/verkko.yml "cor_filter_kmers:    '${cor_filter_kmers}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  post-processing"
 echo >> ${outd}/verkko.yml "short_contig_length: '${short_contig_length}'"
@@ -1078,7 +1091,11 @@ echo >> ${outd}/verkko.yml "#  This is the end."
 target="verkko"
 
 if [ "x$withhic" = "xTrue" ] ; then
-    target="runRukkiHIC"
+    if [ "x$rdna_scaff" = "xTrue" ] ; then
+        target="HiC_rdnascaff"    
+    else
+        target="runRukkiHIC"
+    fi
 fi
 
 if [ "x$cnspaths" != "x" ] ; then
@@ -1218,7 +1235,10 @@ if [ "x$withhic" = "xTrue" ] ; then
     cp -p emptyfile ${newoutd}/emptyfile
     cd $newoutd
     sed -i 's/runRukkiHIC/cnspath/g' snakemake.sh
+    sed -i 's/HiC_rdnascaff/cnspath/g' snakemake.sh
     ./snakemake.sh
     cp *.fasta ../../
     cp *.layout ../../
+    cp ../rukki.paths.tsv ../../assembly.paths.tsv
+    cp ../hicverkko.colors.tsv ../../assembly.colors.csv
 fi

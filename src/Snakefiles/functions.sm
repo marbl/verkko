@@ -55,6 +55,21 @@ def getMemoryRequest(attempt, tag):
    mem = float(config[f"{tag}_mem_gb"])
    return int(math.ceil(math.ceil(mem)*scl))
 
+def getOverlapMemoryRequest(attempt, factor=4.75):
+   scl= 0.75 + attempt / 4.0
+   mem = float(config["ovb_mem_gb"])
+   batches = int(config["cor_overlap_batches"])
+   info="%s/info.txt"%(rules.buildStore.output.seqstore)
+
+   if os.path.exists(info):
+      with open(info) as f:
+        for l in f:
+           if "corrected-compressed" in l:
+              mem=max(mem, float(l.strip().split()[1])*factor/1024/1024/1024/batches)
+              break
+
+   return int(math.ceil(math.ceil(mem)*scl))
+
 def getAlignMemoryRequest(attempt, factor, files):
    scl = 0.75 + attempt / 4.0
    mem = float(config['ali_mem_gb'])
@@ -133,7 +148,7 @@ def getConsensusMemoryRequest(attempt, jobid):    #  Figure out what partitionin
             for l in f:
                words = l.strip().split();
                if jobid == words[5]:
-                  mem = max(mem, 5.0 + 0.70 * float(words[4]))
+                  mem = max(mem, 5.0 + 0.75 * float(words[4]))
 
    return int(math.ceil(math.ceil(mem)*scl))
 
@@ -182,12 +197,13 @@ def getAllGraphs(type):
                 '../4-processONT/unrolled-ont-resolved.gfa ' +
                 '../4-processONT/unitig-unrolled-ont-resolved.gfa ')
     if (type > 5):   # and config['withONT'] == "True":
-        ret += ('../5-untip/connected-tip.gfa ' +
-                '../5-untip/unitig-normal-connected-tip.gfa ' +
-                '../5-untip/popped-unitig-normal-connected-tip.gfa ' +
-                '../5-untip/unrolled-popped-unitig-normal-connected-tip.gfa ' +
-                '../5-untip/unitig-unrolled-popped-unitig-normal-connected-tip.gfa ' +
-                '../5-untip/unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.gfa ' +
+        ret += ('../5-untip/connected-tip.gfa ' + 
+		        '../5-untip/unitig-connected-tip.gfa ' + 
+				'../5-untip/popped-connected-tip.gfa ' +
+                '../5-untip/unrolled-popped-connected-tip.gfa ' +
+                '../5-untip/unitig-unrolled-popped-connected-tip.gfa ' +
+                '../5-untip/popped-unitig-unrolled-popped-connected-tip.gfa ' +
+                '../5-untip/unrolled-popped-unitig-unrolled-popped-connected-tip.gfa ' +
                 '../' + rules.verkko.input.graph + ' ')
     return ret
 

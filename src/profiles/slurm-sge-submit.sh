@@ -66,11 +66,20 @@ lsf=$LSF_ENVDIR
 #  Note that --time expects format hh:mm:ss.
 #
 if [ "x$slurm" != "x" ] ; then
-  jobid=$(sbatch --parsable --cpus-per-task ${n_cpus} --mem ${mem_gb}g --time ${time_h}:00:00 --output batch-scripts/%A.${rule_n}.${jobidx}.out "$@")
+  isBiowulf=`hostname -a |grep -c nih.gov`
+  extras=""
+  if [ $isBiowulf -eq 1 ]; then
+    if [ $mem_gb -gt 350 ]; then
+      extras="--partition=largemem"
+    elif [ $time_h -le 4 ]; then
+      extras="--partition=norm,quick"
+    fi
+  fi
+  jobid=$(sbatch ${extras} --parsable --cpus-per-task ${n_cpus} --mem ${mem_gb}g --time ${time_h}:00:00 --output batch-scripts/%A.${rule_n}.${jobidx}.out "$@")
 
   if [ $? != 0 ] ; then
     sleep 30
-    jobid=$(sbatch --parsable --cpus-per-task ${n_cpus} --mem ${mem_gb}g --time ${time_h}:00:00 --output batch-scripts/%A.${rule_n}.${jobidx}.out "$@")
+    jobid=$(sbatch ${extras} --parsable --cpus-per-task ${n_cpus} --mem ${mem_gb}g --time ${time_h}:00:00 --output batch-scripts/%A.${rule_n}.${jobidx}.out "$@")
   fi
 
   if [ $? != 0 ] ; then
@@ -78,7 +87,7 @@ if [ "x$slurm" != "x" ] ; then
   fi
 
   echo > batch-scripts/${jobid}.${rule_n}.${jobidx}.submit \
-          sbatch --parsable --cpus-per-task ${n_cpus} --mem ${mem_gb}g --time ${time_h}:00:00 --output batch-scripts/%A.${rule_n}.${jobidx}.out "$@"
+          sbatch ${extras} --parsable --cpus-per-task ${n_cpus} --mem ${mem_gb}g --time ${time_h}:00:00 --output batch-scripts/%A.${rule_n}.${jobidx}.out "$@"
 
   if [ -x /usr/local/bin/dashboard_cli ] ; then    #  If on NIH biowulf, slow down
     sleep 2                                        #  job submission.

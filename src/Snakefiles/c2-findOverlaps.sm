@@ -1,0 +1,279 @@
+#############################################################################
+ #
+ #  This file is part of Verkko, a software program that assembles
+ #  whole-genome sequencing reads into telomere-to-telomere
+ #  haplotype-resolved chromosomes.
+ #
+ #  Except as indicated otherwise, this is a 'United States Government
+ #  Work', and is released in the public domain.
+ #
+ #  File 'README.licenses' in the root directory of this distribution
+ #  contains full conditions and disclaimers.
+ #
+ ##
+
+checkpoint prepareOverlaps:
+    input:
+        reads = HIFI_READS,
+        store = rules.buildStore.output.seqstore
+    output:
+        metadata  = '0-correction/matchchains.metadata',
+        positions = '0-correction/matchchains.positions'
+    log:
+        err       = '0-correction/matchchains-index.err'
+    params:
+        mersize   = config['mer_size'],
+        merwindow = config['mer_window'],
+        minread   = config['cor_min_read'],
+        nindex    = config['cor_index_batches'],  #  Number of batches for indexing
+        nbatches  = config['cor_overlap_batches'] #  Number of batches for overlapping, used in compute too
+    threads:
+        int(config['ovb_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = int(config['ovb_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getOverlapMemoryRequest(attempt),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ovb')
+    shell:
+        '''
+cd 0-correction
+
+cat > ./matchchains-index.sh <<EOF
+#!/bin/sh
+set -e
+
+mkdir -p overlap-jobs
+
+#  This baloney is because we need indices 0 .. nbatches-1 but seq can't do that.
+nbatches1=\`expr {params.nbatches} - 1\`
+batchlist=\`seq 0 \$nbatches1\`
+
+for ii in \$batchlist ; do
+  jj=\`printf %03d \$ii\`
+  echo \$ii > overlap-jobs/\$jj.id
+done
+
+{VERKKO}/bin/matchchains_index \\\\
+  --hpc \\\\
+  -t {threads} \\\\
+  -k {params.mersize} \\\\
+  -n 4 -w {params.merwindow} \\\\
+  --tmp-file-count {params.nindex} \\\\
+  -o matchchains \\\\
+  {input.reads}
+
+if [ ! -s matchchains.positions ]; then
+   echo "Error: indexing failed, check above for any errors"
+   exit 1
+fi
+EOF
+
+chmod +x ./matchchains-index.sh
+
+./matchchains-index.sh > ../{log.err} 2>&1
+        '''
+
+
+rule computeOverlaps:
+    input:
+        metadata  = rules.prepareOverlaps.output.metadata,
+        positions = rules.prepareOverlaps.output.positions,
+        batchnum  = '0-correction/overlap-jobs/{nnnn}.id',
+        seqstore  = rules.buildStore.output.seqstore
+    output:
+        ovb       = '0-correction/overlap-jobs/{nnnn}.ovb'
+    log:
+        err       = '0-correction/overlap-jobs/{nnnn}.err'
+    params:
+        minread   = config['cor_min_read'],
+        minolap   = config['cor_min_overlap'],
+    threads:
+        1,
+    resources:
+        job_id = 1,
+        n_cpus = 1,
+        mem_gb = lambda wildcards, input, attempt: getOverlapMemoryRequest(attempt),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ovb')
+    shell:
+        '''
+cd 0-correction/overlap-jobs
+
+batchnum=`cat ../../{input.batchnum}`
+
+cat > ./{wildcards.nnnn}.sh <<EOF
+#!/bin/sh
+set -e
+
+#  $batchnum == {wildcards.nnnn}
+#  Outputs:  (all on one line)
+#    left   leftlen   leftstart   leftend   (leftFw  ? "fw" : "bw")
+#    right  rightlen  rightstart  rightend  (rightFw ? "fw" : "bw")
+#
+#  Note FS.
+#   -For parsing readNames.txt we can split on any whitespace to
+#    get the ident and the first word of the read name.
+#   -For overlap output, we need to split on tabs initially, then
+#    split just the name to extract the first word.
+#
+
+{VERKKO}/bin/matchchains_matchindex \\\\
+  -i ../matchchains \\\\
+  --batchindex {wildcards.nnnn} --batchcount {rules.prepareOverlaps.params.nbatches} \\\\
+  --min-match-length {params.minolap} \\\\
+ | awk \\\\
+'BEGIN \\\\
+ {{ \\\\
+   FS="[ \\t]"; \\\\
+   while (getline < "../hifi.seqStore/readNames.txt") {{ \\\\
+     map[\$2]=\$1; \\\\
+   }} \\\\
+   FS="[\\t]"; \\\\
+   OFS="\\t"; \\\\
+ }} \\\\
+ {{ \\\\
+   split(\$1,na," ");  fn = map[na[1]]; \\\\
+   split(\$6,na," ");  sn = map[na[1]]; \\\\
+   if (\$4 > \$2) \$4 = \$2; \\\\
+   if (\$9 > \$7) \$9 = \$7; \\\\
+   if (fn == "")  next; \\\\
+   if (sn == "")  next; \\\\
+   if (\$10 == "fw") \\\\
+     print fn,\$2,\$3,\$4,"+",sn,\$7,\$8,\$9,"0",\$4-\$3,"255","id:f:0.99"; \\\\
+   else \\\\
+     print fn,\$2,\$3,\$4,"-",sn,\$7,\$7-\$9,\$7-\$8,"0",\$4-\$3,"255","id:f:0.99"; \\\\
+ }}' \\\\
+ | {VERKKO}/bin/overlapImport \\\\
+  -maxerror 0.01 \\\\
+  -minreadlength {params.minread} \\\\
+  -minoverlaplength {params.minolap} \\\\
+  -paf \\\\
+  -o ../../{output.ovb} \\\\
+  -S ../../{input.seqstore} \\\\
+  -
+EOF
+
+chmod +x ./{wildcards.nnnn}.sh
+
+./{wildcards.nnnn}.sh > ../../{log.err} 2>&1
+        '''
+
+
+def combineOverlapsI(wildcards):
+    return expand("0-correction/overlap-jobs/{nnnn}.ovb", nnnn = glob_wildcards("0-correction/overlap-jobs/{xxxx}.id").xxxx)
+
+
+def combineOverlapsP(wildcards):
+    paths = expand("overlap-jobs/{nnnn}.ovb", nnnn = glob_wildcards("0-correction/overlap-jobs/{xxxx}.id").xxxx) 
+    if len(paths) == 0:
+       return paths
+       
+    outf  = open("0-correction/ovb-files", mode="wb")
+    for path in paths:
+        outf.write(f"{path}\n".encode())
+    outf.close()
+
+    return paths
+
+
+#  If this blows up because it can't find inputs, you need to regenerate the
+#  .id files by removing `matchchains.metadata` and `.positions`.
+
+rule combineOverlapsConfigure:
+    input:
+        metadata  = rules.prepareOverlaps.output.metadata,
+        positions = rules.prepareOverlaps.output.positions,
+        seqstore  = {rules.buildStore.output.seqstore},
+        ovbs      = combineOverlapsI
+    output:
+        ovlconfig = "0-correction/hifi.ovlStore.config",
+        ovlmemory = "0-correction/hifi.ovlStore.config.memory-request"
+    log:
+        err       = "0-correction/combineOverlapsConfigure.err"
+    params:
+        paths     = combineOverlapsP
+    threads:
+        1,
+    resources:
+        job_id = 1,
+        n_cpus = 1,
+        mem_gb = int(config['ovs_mem_gb']),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ovs')
+    shell:
+        '''
+cd 0-correction
+
+cat > ./combineOverlapsConfigure.sh <<EOF
+#!/bin/sh
+set -e
+
+#  Note: file ./ovb-files is created by Snakemake when it discovers inputs
+#  for rule combineOverlaps.  This lets us avoid having to convert a list of
+#  filenames into a newline separated file, or having to use a very very long
+#  command line.
+
+{VERKKO}/bin/ovStoreConfig \\\\
+  -S ../{input.seqstore} \\\\
+  -L ./ovb-files \\\\
+  -M 1-{resources.mem_gb} \\\\
+  -create ../{output.ovlconfig}
+
+numslices=\\`\\\\
+  {VERKKO}/bin/ovStoreConfig \\\\
+  -S ../{input.seqstore} \\\\
+  -numslices \\\\
+  -describe ../{output.ovlconfig} \\\\
+  \\`
+sortmem=\\`\\\\
+   {VERKKO}/bin/ovStoreConfig \\\\
+  -S ../{input.seqstore} \\\\
+  -sortmemory \\\\
+  -describe ../{output.ovlconfig} \\\\
+  \\`
+
+expr \$numslices \\* \$sortmem > ../{output.ovlmemory}
+EOF
+
+chmod +x ./combineOverlapsConfigure.sh
+
+./combineOverlapsConfigure.sh > ../{log.err} 2>&1
+        '''
+
+
+rule combineOverlaps:
+    input:
+        seqstore  = {rules.buildStore.output.seqstore},
+        ovlconfig = {rules.combineOverlapsConfigure.output.ovlconfig},
+        ovlmemory = {rules.combineOverlapsConfigure.output.ovlmemory}
+    output:
+        ovlstore  = directory("0-correction/hifi.ovlStore")
+    log:
+        err       = "0-correction/combineOverlaps.err"
+    params:
+        paths     = combineOverlapsP
+    threads:
+        int(config['ovs_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = int(config['ovs_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getCombineOverlapsMemory(attempt),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ovs')
+    shell:
+        '''
+cd 0-correction
+
+cat > ./combineOverlaps.sh <<EOF
+#!/bin/sh
+set -e
+
+#  This version sorts in one giant batch and uses as much memory as it wants.
+#
+{VERKKO}/bin/ovStoreBuild \\\\
+  -S ../{input.seqstore} \\\\
+  -O ../{output.ovlstore} \\\\
+  -C ../{input.ovlconfig}
+EOF
+
+chmod +x ./combineOverlaps.sh
+
+./combineOverlaps.sh > ../{log.err} 2>&1
+        '''

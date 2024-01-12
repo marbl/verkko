@@ -62,7 +62,7 @@ with open(graph_file) as f:
 			tonodeFwd = next(iter(edge_overlaps[">" + parts[1]]))
 			tonodeRev = next(iter(edge_overlaps["<" + parts[1]]))
 			#sys.stderr.write("Found neighbors %s and %s and selected %s and %s with set %s\n"%(edge_overlaps[">" + parts[1]], edge_overlaps[">" + parts[1]], tonodeFwd, tonodeRev, set([tonodeFwd[:1], tonodeRev[:1]])))
-			if tonodeFwd[1:] == parts[1] or tonodeFwd[1:] != tonodeRev[1:] or len(set([tonodeFwd[:1], tonodeRev[:1]])) < 2: continue
+			if tonodeFwd in edge_overlaps[tonodeRev] or tonodeRev in edge_overlaps[tonodeFwd] or tonodeFwd[1:] == parts[1] or tonodeFwd[1:] != tonodeRev[1:] or len(set([tonodeFwd[:1], tonodeRev[:1]])) < 2: continue
 			#sys.stderr.write("Checking loop at %s with node %s with coverage of %s and %s and theshold 0.5 is %s and 2.5 is %s\n"%(tonodeFwd, parts[1], (coverage[parts[1]] if parts[1] in coverage else "NA"), (coverage[tonodeFwd[1:]] if tonodeFwd[1:] in coverage else"NA"), 0.5*avg_coverage, 2.5*avg_coverage)) 
 			if parts[1] not in coverage or tonodeFwd[1:] not in coverage or coverage[parts[1]] > 1.5 * avg_coverage or coverage[tonodeFwd[1:]] <= 0.5 * avg_coverage or coverage[tonodeFwd[1:]] >= 2.5 * avg_coverage:
 				# if the loop has no coverage and is contained within its overlap and the doubly traversed node has single copy coverage has single copy count, we remove the loop by removing a node not unrolling
@@ -82,7 +82,8 @@ with open(graph_file) as f:
 			if len(neighbors) <= 2:
 				for n in neighbors:
 					#sys.stderr.write("Checking neighbors for node %s which is %s and it has coverage %s and length %s vs min %s\n"%(parts[1], n[1:], coverage[n[1:]], nodelens[n[1:]], min_len))
-					if (n[1:] in coverage and coverage[n[1:]] >= 2.5 * avg_coverage) or n[1:] == tonodeFwd[1:] or nodelens[n[1:]] < int(min_len / 6):
+					# skip the unroll when we have too high of a coverage or the length of the surrounding nodes is too short or we have a self loop (n[1:] == tonodeFwd) or we already unrolled a neighbor (n[1:] in tounroll)
+					if (n[1:] in coverage and coverage[n[1:]] >= 2.5 * avg_coverage) or nodelens[n[1:]] < int(min_len / 6) or n[1:] == tonodeFwd[1:] or n[1:] in tounroll:
 						skip=True
 			else:
 				skip=True

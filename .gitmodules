@@ -4,3 +4,9 @@
 [submodule "src/rukki"]
 	path = src/rukki
 	url = https://github.com/marbl/rukki
+[submodule "src/MBG"]
+	path = src/MBG
+	url = https://github.com/maickrau/MBG
+[submodule "src/hifioverlapper"]
+	path = src/hifioverlapper
+	url = https://github.com/maickrau/hifioverlapper

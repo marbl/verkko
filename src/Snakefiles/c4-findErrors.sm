@@ -25,7 +25,8 @@ checkpoint configureFindErrors:
     log:
         err               = '0-correction/configureFindErrors.err'
     params:
-        batchsize         = int(config['cor_batch_size']) * 1000
+        batch_per_gb      = 10000000,
+        gb_mem_limit      = config['red_mem_gb']
     threads:
         1
     resources:
@@ -43,9 +44,11 @@ set -e
 
 mkdir -p find-errors-jobs
 
+batchlim=\`expr {params.batch_per_gb} \* {params.gb_mem_limit}\`
+
 {VERKKO}/bin/sqStoreDumpMetaData -S ../{input.seqstore} -reads \\\\
 | \\\\
-awk -v lim={params.batchsize} \\\\
+awk -v lim=\$batchlim \\\\
 'function output(bat, bgn, end, file) {{
    file=sprintf("find-errors-jobs/%04d.range", bat)
    print bgn, end > file
@@ -100,7 +103,11 @@ rule computeErrors:
 cd       0-correction/find-errors-jobs
 
 range=`cat ../../{input.range}`
-ncpus=`expr {threads} - 1`          #  One CPU is used for I/O.
+if [ {threads} -gt 1 ]; then
+   ncpus=`expr {threads} - 1`          #  One CPU is used for I/O.
+else
+   ncpus={threads}
+fi
 
 cat > ./{wildcards.nnnn}.sh <<EOF
 #!/bin/sh

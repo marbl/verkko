@@ -184,10 +184,11 @@ def try_pop_tip(start, edges, coverage, removed_nodes, removed_edges, max_remova
 	if len(edges[start]) < 2 or len(edges[start]) > 4: return
 	max_coverage = 0
 	max_len = 0
+	keeps = []
 	for node in iterate_deterministic(edges[start]):
 		assert revnode(node) in edges
-		if len(edges[revnode(node)]) != 1: return
-		if node in edges and len(edges[node]) > 0: return
+		if len(edges[revnode(node)]) != 1: keeps.append(node)
+		if node in edges and len(edges[node]) > 0: keeps.append(node)
 		coverage_here = 0
 		if node[1:] in coverage: coverage_here = coverage[node[1:]]
 		if coverage_here > max_coverage:
@@ -196,10 +197,12 @@ def try_pop_tip(start, edges, coverage, removed_nodes, removed_edges, max_remova
 			max_len = nodelens[node[1:]]
 	remove_this = []
 	for node in iterate_deterministic(edges[start]):
+		if node in keeps:
+		    continue
 		coverage_here = 0
 		if node[1:] in coverage: coverage_here = coverage[node[1:]]
 		# if we have a node w/better coverage, remove this one. Ties are broken by length
-		if coverage_here < max_removable and (coverage_here < max_coverage or (coverage_here == max_coverage and nodelens[node[1:]] < max_len and len(remove_this)+1 < len(edges[start]))):
+		if coverage_here < max_removable and len(remove_this)+1 < len(edges[start]) and (coverage_here < max_coverage or (coverage_here == max_coverage and nodelens[node[1:]] < max_len)):
 			remove_this.append(node)
 	if len(remove_this) == 0: return
 	for remove_node in remove_this:
@@ -207,7 +210,6 @@ def try_pop_tip(start, edges, coverage, removed_nodes, removed_edges, max_remova
 		if nodelens[remove_node[1:]] > 100000: continue
 		removed_nodes.add(remove_node[1:])
 		removed_edges.add((start, remove_node))
-		sys.stderr.write("pop tip " + str(start) + " remove " + str(remove_node) + "\n")
 
 coverage = {}
 with open(node_coverage_file) as f:
@@ -289,10 +291,13 @@ while True:
 	possible_merges = new_possible_merges
 
 unique_chains = set()
+tip_chains = set()
 for node in nodelens:
 	key = find(parent, node)
 	if key not in chain_coverage_sum: continue
 	chain_coverage = chain_coverage_sum[key] / chain_length_sum[key]
+	if chain_coverage <= avg_coverage * 1.5:
+	    tip_chains.add(key)
 	if chain_coverage >= avg_coverage * 0.5 and chain_coverage <= avg_coverage * 1.5:
 		unique_chains.add(key)
 
@@ -315,7 +320,7 @@ for node in iterate_deterministic(nodelens):
 
 for node in iterate_deterministic(nodelens):
 	key = find(parent, node)
-	if key not in unique_chains: continue
+	if key not in tip_chains: continue
 	if node in removed_nodes: continue
 	bubble = find_bubble(">" + node, edges, max_bubble_pop_size, nodelens, max_poppable_node_size)
 	if not bubble:

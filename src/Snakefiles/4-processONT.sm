@@ -63,13 +63,18 @@ set -e
 
 echo Step 1a
 # select best alignment from winnowmap and graphaligner
+# we try to close gaps with the graphaligner alignments and exclude reads used for a patch, if still not closed, we will select the best between the two
+cat ../{input.ont_paths} |awk '{{if (\$12 >= 20) print; }}' > graphaln-mapqfilter.gaf
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py ../{input.graph} graphaln-mapqfilter.gaf 3 50 alns-graphalgn-nogap-1.gaf alns-graphalign-gap1.gaf gapgraphalign1 o \\\\
+   > gapped-graphaln.gfa
+
 # we first trim up to 5kb from the graphaligner hits (to avoid extending past haplotype end point) then compare these alignments to winnowmap
 trim_len=\`expr 2 \*  {params.min_aln_len}\`
 echo \$trim_len
 cat ../{input.ont_paths} | {PYTHON} {VERKKO}/scripts/maybe_trim_alignment.py ../{input.graph} \$trim_len > alns-trimmed.gaf
 cat ../{input.ont_paths} | awk -F "\\t" '{{if (\$4-\$3 >= \$2*0.8 && \$12 >= 20) print;}}' |  {PYTHON} {VERKKO}/scripts/trim_dbg_alignment.py ../2-processGraph/unitig-unrolled-hifi-resolved.gfa 1500 |cut -f 6 > previous_paths
 
-{PYTHON} {VERKKO}/scripts/select_best_alignment.py previous_paths ../{input.tip_paths} alns-trimmed.gaf ../{input.ont_paths} 20 {params.min_aln_len} > alns-ont-mapqfilter.gaf 2> selected-winnowmap.ids
+{PYTHON} {VERKKO}/scripts/select_best_alignment.py previous_paths ../{input.tip_paths} alns-trimmed.gaf ../{input.ont_paths} 20 {params.min_aln_len} alns-graphalign-gap1.gaf > alns-ont-mapqfilter.gaf 2> selected-winnowmap.ids
 {PYTHON} {VERKKO}/scripts/chop_misassemblies.py ../{input.graph} alns-ont-mapqfilter.gaf chop-mapping.txt alns-cut.gaf 10 20 > chopped-unitig-unrolled-hifi-resolved.gfa 2> chop-info.txt
 
 echo ""
@@ -82,10 +87,14 @@ echo Step 2a
 
 cat alns-ont-nogap-2.gaf alns-ont-gap1.gaf alns-ont-gap2.gaf | {PYTHON} {VERKKO}/scripts/maybe_trim_alignment.py gapped-twice-unitig-unrolled-hifi-resolved.gfa 100 selected-winnowmap.ids > alns-cut-trim.gaf
 
-{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-twice-unitig-unrolled-hifi-resolved.gfa alns-cut-trim.gaf 10 100 alns-ont-nogap.gaf alns-ont-gap3.gaf cutgap y > gapped-unitig-unrolled-hifi-resolved.gfa
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-twice-unitig-unrolled-hifi-resolved.gfa alns-cut-trim.gaf 10 100 alns-ont-nogap-3.gaf alns-ont-gap3.gaf cutgap o > gapped-thrice-unitig-unrolled-hifi-resolved.gfa
 
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-thrice-unitig-unrolled-hifi-resolved.gfa alns-ont-nogap-3.gaf 2 0 alns-ont-nogap.gaf alns-ont-gap4.gaf extragap1 o > gapped-unitig-unrolled-hifi-resolved.gfa
 
-cat alns-ont-gap1.gaf alns-ont-gap2.gaf alns-ont-gap3.gaf > ../{output.ont_gap_align}
+cat alns-ont-gap1.gaf alns-ont-gap2.gaf alns-ont-gap3.gaf alns-ont-gap4.gaf > ../{output.ont_gap_align}
+
+# now we can drop any winnowmap mappings that were not used, we just have to ignore any nodes that were cut or reads that were used for gap patching
+{PYTHON} {VERKKO}/scripts/select_unused_reads.py selected-winnowmap.ids ../{output.ont_gap_align} alns-cut.gaf ../{input.ont_paths} 20 >> alns-ont-nogap.gaf
 
 echo ""
 echo Step 2b
