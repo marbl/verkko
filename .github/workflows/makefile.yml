@@ -27,27 +27,52 @@ jobs:
       with:
         toolchain: stable
 
-    - name: Compile
-      run: |
-        cd src
-        make -j 2
-
-    - name: Setup Python 3.8
+    - name: Setup Python 3.11
       uses: actions/setup-python@v2
       with:
-        python-version: 3.8
+        python-version: 3.11
 
-    - name: Setup Conda
-      uses: conda-incubator/setup-miniconda@v2
+    - name: Install Conda
+      uses: conda-incubator/setup-miniconda@v3
       with:
         auto-update-conda: true
         mamba-version: "*"
         channels: conda-forge,bioconda
-        python-version: 3.8
-
-    - name: Install snakemake-minimal
+        python-version: 3.11
+        
+    - name: Install dependencies
       run: |
-        mamba install -c conda-forge -c bioconda 'snakemake-minimal>7,<8' MBG GraphAligner mashmap winnowmap
+        mamba install -c conda-forge -c bioconda 'snakemake-minimal>7,<8' GraphAligner mashmap winnowmap
+        pip install networkx
+
+        echo ""
+        echo "CONDA LIST"
+        echo ""
+        conda list
+
+        echo ""
+        echo "PYTHON TEST"
+        echo "  "`command -v python`
+        echo "  "`python --version`
+
+        echo  > x.py "from importlib import metadata"
+        echo >> x.py "for dist in metadata.distributions():"
+        echo >> x.py "  print(dist._path)"
+        python x.py
+
+        echo  > x.py "from importlib.metadata import version"
+        echo >> x.py "version('networkx')"
+        python x.py
+
+        echo  > x.py "import networkx as nx"
+        echo >> x.py "G = nx.Graph()"
+        echo >> x.py "print(G)"
+        python x.py
+
+    - name: Compile
+      run: |
+        cd src
+        make -j 2
 
     - name: Fetch Data
       run: |
