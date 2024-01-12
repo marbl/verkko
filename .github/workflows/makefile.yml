@@ -42,7 +42,7 @@ jobs:
         
     - name: Install dependencies
       run: |
-        mamba install -c conda-forge -c bioconda 'snakemake-minimal>7,<8' GraphAligner mashmap winnowmap
+        mamba install -c conda-forge -c bioconda 'pulp<=2.7.0' 'snakemake-minimal>7,<8' GraphAligner mashmap winnowmap
         pip install networkx
 
         echo ""
