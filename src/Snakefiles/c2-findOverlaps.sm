@@ -39,8 +39,8 @@ checkpoint prepareOverlaps:
 cd 0-correction
 
 cat > ./matchchains-index.sh <<EOF
-#!/bin/sh
-set -e
+#!/usr/bin/env bash
+set -e -o pipefail
 
 mkdir -p overlap-jobs
 
@@ -101,8 +101,8 @@ cd 0-correction/overlap-jobs
 batchnum=`cat ../../{input.batchnum}`
 
 cat > ./{wildcards.nnnn}.sh <<EOF
-#!/bin/sh
-set -e
+#!/usr/bin/env bash
+set -e -o pipefail
 
 #  $batchnum == {wildcards.nnnn}
 #  Outputs:  (all on one line)
