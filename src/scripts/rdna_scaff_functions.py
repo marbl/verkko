@@ -39,7 +39,7 @@ class pathStorage:
         if len(arr) < 3:
             print (f"wrong path {line}")
             exit()
-        separators = ">|<|\[|\]|,"
+        separators = ">|<|,"
         edges = re.split(separators, arr[1])
         total_l = 0
         for edge in edges:
@@ -52,24 +52,13 @@ class pathStorage:
         self.path_lengths[arr[0]] = total_l
 
 
-
+#Actyally should be processed the same way as telos, with fake nodes of zero length
+#This will reduce code duplication and will allow to use "one-sided" rdna nodes that may be useful
 def get_rdna_mashmap(hicrun_dir):
     IDY_THRESHOLD = 0.95
     
     hic_stage = hicrun_dir
 
-    if not os.path.exists(os.path.join(hic_stage, "rdna_mashmap.out")):
-        sys.stderr.write(os.path.join(hic_stage, "rdna_mashmap.out") + " WTF") 
-        sys.stderr.flush()
-            #TODO This block should never be run in verkko pipeline
-        script_file = os.path.join(hic_stage, "rdna_mashmap.sh")    
-        with open (script_file, 'w') as scr_file:
-            scr_file.write("#!/usr/bin/bash\n")    
-            scr_file.write ("module load mashmap\n")
-            scr_file.write(f"mashmap -s 5000  --pi 95.0 -t 24 -r /data/antipovd2/devel/ribotin/template_seqs/chm13_rDNAs.fa -q {hic_stage}/unitigs.fasta -o {hic_stage}/rdna_mashmap.out")
-            scr_file.close()
-        os.system(f"bash {script_file}")
-    
     rdna_nodes = set()
     node_cov = {}
     node_len = {}
@@ -304,6 +293,7 @@ def get_arm_paths_ids(telomere_locations_file, old_G, paths, rdna_nodes, min_pat
                         close_rdna = True
                         print (id + " rDNA near path")
                         rdna_near[start] = True 
+                        break
             start += 1
         if not close_rdna and closest_rdna_dist < 999999999:
             print (id + " rDNA not so near path, closest node " + closest_rdna_node + " dist " + str(closest_rdna_dist) + " total_l " +str(G.nodes[closest_suff_node]['length']+ G.nodes[closest_rdna_node]['length']))

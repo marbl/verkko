@@ -14,15 +14,13 @@ import rdna_scaff_functions as sf
 #get nodes from seqtk telo 
 #select nodes that are between 500K and 2M and close to both rDNA and telomeres to be short arm
 
-#sample = sys.argv[1]
-#run_name = sys.argv[2]
+debug = False
+
 run_dir = sys.argv[1]
-hicrun_prefix = "/data/antipovd2/res/"
 
 #TODO: deprectated
 telomere_script = "/data/antipovd2/devel/scripts/verkko_output_analysis//getOnlyTelomere.sh"
 hap_assign_script = "/data/antipovd2/devel/scripts/verkko_output_analysis//get.sh"
-hicrun_dir = os.path.join(hicrun_prefix, run_dir)
 
 hicrun_dir = os.path.realpath(run_dir)
 
@@ -54,7 +52,7 @@ hicverkko_log = os.path.join(hicrun_dir, "hicverkko.log")
 #condition 
 
 #not expexted to be run in main pipeline
-if os.path.exists(rdna_file): 
+if debug and os.path.exists(rdna_file): 
     print("Somehow you are deeply in verkko's debug, is it intentional?")
     rdna_nodes_mashmap = sf.get_rdna_ribotin(hicrun_dir)
     rdna_nodes2= sf.get_rdna_mashmap(hicrun_dir)
@@ -93,7 +91,7 @@ print (short_arm_paths_ids)
 #chr names in general case not available
 
 #Should not be run in normal runs
-if os.path.exists(translation_hap1_file) and os.path.exists(translation_paths_file):
+if debug and os.path.exists(translation_hap1_file) and os.path.exists(translation_paths_file):
     print("Somehow you are deeply in verkko's debug, is it intentional?")
     long_arm_paths = {}
     multiplicities = {}
@@ -250,9 +248,8 @@ with open(scaff_rukki_gaf_file, "w") as out_gaf:
     for line in open(scaff_rukki_tsv_file):
         arr = line.strip().split()
         out_gaf.write(arr[0] + "\t" + gf.tsv2gaf(arr[1]) + "\t" + arr[2] + "\n")
-
-#HERE PLACE TO OUTPUT SCAFFS
-#Not to move in the final script
+        
+#Additional output for debugging only
 scores = {}
 assgnd = 0
 for short_id in short_arm_paths_ids.keys():
