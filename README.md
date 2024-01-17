@@ -1,10 +1,10 @@
 # Verkko
 
 Verkko is a hybrid genome assembly pipeline developed for
-telomere-to-telomere assembly of PacBio HiFi and Oxford Nanopore reads.
+telomere-to-telomere assembly of PacBio HiFi or Oxford Nanopore Duplex and Oxford Nanopore simplex reads. 
 Verkko is Finnish for net, mesh and graph.
 
-Verkko uses Canu to correct remaining errors in the HiFi reads, builds a
+Verkko uses Canu to correct remaining errors in the HiFi/duplex reads, builds a
 multiplex de Bruijn graph using MBG, aligns the Oxford Nanopore reads to the
 graph using GraphAligner, progressively resolves loops and tangles first with
 the HiFi reads then with the aligned Oxford Nanopore reads, and finally
@@ -51,7 +51,7 @@ and create a config.yml file.
 
     verkko -d <work-directory> --hifi <hifi-read-files> [--nano <ont-read-files>]
 
-By default, verkko will run the snakemake workflow and all compute on the local machine. Support for SGE, Slurm and LSF (untested) can be enabled with options `--sge`, `--slurm` and `--lsf`, respectively. This will run the snakemake workflow on the local machine but submit all compute to the grid. To launch the both the snakemake workflow and compute on the grid, wrap the verkko command in a shell script and submit using your scheduler.  You may need to set the environment variable VERKKO to the installation directory of Verkko if there are errors that component scripts are not found.
+You can provide any combination of PacBio HiFi/Oxford Nanopore duplex/both to the --hifi parameter. By default, verkko will run the snakemake workflow and all compute on the local machine. Support for SGE, Slurm and LSF (untested) can be enabled with options `--sge`, `--slurm` and `--lsf`, respectively. This will run the snakemake workflow on the local machine but submit all compute to the grid. To launch the both the snakemake workflow and compute on the grid, wrap the verkko command in a shell script and submit using your scheduler.  You may need to set the environment variable VERKKO to the installation directory of Verkko if there are errors that component scripts are not found.
 
 Verkko supports extended phasing using using [rukki](https://github.com/marbl/rukki) using either trio or Hi-C information.
 
