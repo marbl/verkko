@@ -31,7 +31,7 @@ uncompressed_nodes = os.path.join(hicrun_dir,  "unitigs.fasta")
 gfa_file = os.path.join(hicrun_dir, "unitigs.hpc.noseq.gfa")
 rukki_tsv_file = os.path.join(hicrun_dir,  "rukki.paths.tsv")
 old_rukki_tsv_file = os.path.join(hicrun_dir,  "prescaf_rukki.paths.tsv")
-if os.path.exists(old_rukki_tsv_file):
+if debug and os.path.exists(old_rukki_tsv_file):
     os.system(f"cp {old_rukki_tsv_file} {rukki_tsv_file}")
     os.system (f'cp {os.path.join(hicrun_dir,  "prescaf_rukki.paths.gaf")} {os.path.join(hicrun_dir,  "rukki.paths.gaf")}')
     print ("Scaffolder rerunning, restoring prescaf rukki file")
