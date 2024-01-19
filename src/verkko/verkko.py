@@ -4,9 +4,10 @@ import os
 import sys
 import inspect
 import argparse
+import traceback
 
-import verkkoConfig as vC    #
-#mport verkkoHelper as vH    #  For 'ruleOutput' and 'ruleInputs'
+import verkkoConfig as vC
+import verkkoHelper as vH
 
 
 import importlib
@@ -78,6 +79,10 @@ cConfig.load(os.getenv('VERKKO_HOME'),                   'verkko.ini')  #  syste
 cConfig.load(os.getenv('HOME'),                          'verkko.ini')  #  user defaults
 cConfig.load(os.getcwd(),                                'verkko.ini')  #  run defaults
 
+cConfig.lib = os.path.dirname(os.path.abspath(__file__)) + '/lib/verkko/'
+cConfig.bin = os.path.dirname(os.path.abspath(__file__)) + '/lib/verkko/bin/'
+cConfig.lib = '/work/verkko/lib/verkko/'
+cConfig.bin = '/work/verkko/lib/verkko/bin/'
 
 #  Create a master argument parser and suppress displaying the -h option.
 #  The lambda ets the formatter to a reasonable max width.
@@ -290,6 +295,9 @@ pC['generate-consensus'].set_defaults(func=consensus.run)
 
 pArgs = pMain.parse_args(sys.argv[1:])
 
+#  Copy a few choice parameters from pArgs to the config.
+
+
 #  Dump the final config for later use.
 
 cConfig.save(os.getcwd(), 'verkko.current.ini')
@@ -304,6 +312,9 @@ setup.failIfErrors(cConfig, cErrors)    #  Explode if any errors were detected.
 
 #  Report usage if no sub-command.
 
+#print(pArgs)
+
+
 if pArgs.subcommand == None:
   pMain.print_help()
 
@@ -314,6 +325,24 @@ if pArgs.subcommand == None:
 #  pC[pArgs.subcommand].print_help()
 
 else:
-  pArgs.func()
+  try:
+    vH.enterdir(pArgs.workdir)
+    vH.leavedir()
+    vH.enterdir(pArgs.workdir)
+    vH.leavedir()
+    vH.leavedir()
+
+    pArgs.func(cConfig)
+
+  except Exception as ve:
+    print(f'')
+    print(f'Verkko crashed.')
+    print(f'')
+    print(f'Traceback:')
+    traceback.print_tb(ve.__traceback__)
+    print(f'')
+    print(f'Error:')
+    print(f'  {ve}')
+    print(f'')
 
 exit(0)

@@ -20,6 +20,64 @@ def ruleInputs(mod):
   return namedtuple('X', mod.inputs({}, {}, {}).keys())(*mod.inputs({}, {}, {}).values())
 
 #
+#  A nicer exception.  It gets caught at the end of verkko.py, catching
+#  (nearly) all exceptions thrown.  If you raise a verkkoException and
+#  pass in a list of strings, they're printed one-per-line.
+#
+#
+class verkkoException(Exception):
+  def __init__(self, lines):
+    self.message = ''
+    if isinstance(lines, str):
+      self.message = lines
+    else:
+      self.message = '\n  '.join(lines)
+
+  def __str__(self):
+    return self.message
+
+
+#
+#  Directory management.
+#    enterdir(dirname)
+#     - save the current directory in 'dirstack'.
+#     - create, if needed, 'dirname' and chdir() into it.
+#
+#    leavedir()
+#     - return to whatever directory was last pushed onto 'dirstack'.
+#
+dirstack = []
+
+def enterdir(dir):
+  od = os.getcwd()
+  nd = od + '/' + dir
+  x = 0/0
+  try:
+    dirstack.append(od)
+    os.makedirs(dir, exist_ok=True)
+    os.chdir(dir)
+    nd = os.getcwd()
+    print(f'Entering \'{nd}\' from \'{od}\'')
+  except FileExistsError:
+    raise verkkoException([f'In directory \'{od}\':',
+                           f'Cannot create directory -d \'{e.filename}\': {e.strerror}'])
+  except OSError as e:
+    raise verkkoException([f'In directory \'{od}\':',
+                           f'Cannot create or use directory -d \'{e.filename}\': {e.strerror}'])
+
+def leavedir():
+  od = os.getcwd()
+  nd = 'nowhere'
+  if len(dirstack) == 0:
+    raise verkkoException(f'Attempt to leavedir() from \'{od}\' to <nowhere>')
+  try:
+    nd = dirstack.pop()
+    os.chdir(nd)
+    print(f'Leavng \'{od}\' returning to \'{nd}\'')
+  except OSError as e:
+    raise verkkoException([f'ERROR: Cannot return to  directory -d \'{e.filename}\': {e.strerror}'])
+
+#
 #  Recursively convert a thing (a scalar, list or tuple) to a list.
 #
 
@@ -58,6 +116,10 @@ def runExternal(command, *args, stdin=None, stdout=None, stderr=None):
   if stdout == None or stdout == '/dev/null':   stdout = subprocess.DEVNULL
   if stderr == None or stderr == '/dev/null':   stderr = subprocess.DEVNULL
 
+  if isinstance(stdin,  str):    stdin = open(stdin,  'r')
+  if isinstance(stdout, str):   stdout = open(stdout, 'w')
+  if isinstance(stderr, str):   stderr = open(stderr, 'w')
+
   cmdarg = [command] + flatten(args)
   cmddis = cmdarg.copy()
   cmddis.reverse()
@@ -72,20 +134,26 @@ def runExternal(command, *args, stdin=None, stdout=None, stderr=None):
 
     print(f'--     {opt}')
 
-  print(cmdarg)
+  #print(cmdarg)
+  #print(' '.join(cmdarg))
 
-  exit(0)
+  print(f'--  stdin  < {stdin}')
+  print(f'--  stdout > {stdout}')
+  print(f'--  stderr > {stderr}')
+  print(f'--')
 
   try:
     sp = subprocess.Popen(cmdarg, stdin=stdin, stdout=stdout, stderr=stderr)
   except OSError:
+    print(f'ERROR: failed to run {command}: Not found.')
     #  Failed to find binary
     pass
   except ValueError:
     #  Invalid arguments to Popen
+    print(f'ERROR: failed to run {command}: Invalid arguments.')
     pass
   except subprocess.TimeoutExpired:
-    #  Ran too long
+    #  Ran too long; not expected since we're not asking for a timeout.
     pass
 
   return sp

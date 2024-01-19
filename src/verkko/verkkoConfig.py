@@ -115,6 +115,8 @@ class verkkoConfig(object):
     self.filenames = []   #  List of files we've loaded (to prevent loading same file again)
     self.sections  = {}   #  Map from section-name to 'map from param to value'
     self.lines     = []   #  List of verkkoConfigLine objects that created this verkkoConfig
+    self.lib       = ''
+    self.bin       = ''
 
     #  While all the configurable parameters/values come from the default
     #  verkko.ini file, it is VASTLY easier if we hardcode the input file

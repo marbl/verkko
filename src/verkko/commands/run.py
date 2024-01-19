@@ -51,25 +51,25 @@ def details():
         viverra ut. In hac habitasse platea dictumst.'''
   return inspect.cleandoc(s)
 
-def run():
-  loadHiFi.run()
-  loadONT.run()
-  loadParental.run()
-  loadHiC.run()
+def run(cConfig):
+  print(f'loadHiFi:');        loadHiFi.run(cConfig)
+  print(f'loadONT:');         loadONT.run(cConfig)
+  print(f'loadParental:');    loadParental.run(cConfig)
+  print(f'loadHiC:');         loadHiC.run(cConfig)
 
-  correctHiFi.run()
-  correctONT.run()
-  correctParental.run()
-  correctHiC.run()
+  print(f'correctHiFi:');     correctHiFi.run(cConfig)
+  print(f'correctONT:');      correctONT.run(cConfig)
+  print(f'correctParental:'); correctParental.run(cConfig)
+  print(f'correctHiC:');      correctHiC.run(cConfig)
 
-  buildGraph.run()
-  refineGraph.run()
+  print(f'buildGraph:');      buildGraph.run(cConfig)
+  print(f'refineGraph:');     refineGraph.run(cConfig)
 
-  buildPaths.run()
-  refinePaths.run()
+  print(f'buildPaths:');      buildPaths.run(cConfig)
+  print(f'refinePaths:');     refinePaths.run(cConfig)
 
-  haplotype.run()
-  phase.run()
-  rukki.run()
+  print(f'haplotype:');       haplotype.run(cConfig)
+  print(f'phase:');           phase.run(cConfig)
+  print(f'rukki:');           rukki.run(cConfig)
 
-  consensus.run()
+  print(f'consensus:');       consensus.run(cConfig)

@@ -54,23 +54,35 @@ def resources(rules):
 #  Sub-command execution.
 #
 
-def run():
-  cConfig = vC.verkkoConfig()
-  cConfig.load('.', 'verkko.current.ini');
-
+def run(cConfig):
   inputs   =          cConfig['HIFI'].values
   inputstr = ' '.join(cConfig['HIFI'].values)
 
-  print(inputstr)
-  print(f'seqrequester partition -fasta -output 1-reads/hifi-####.fasta.gz -writers 4 {inputstr}')
+  #print(f'seqrequester partition -fasta -output 1-reads/hifi-####.fasta.gz -writers 4 {inputstr}')
 
-  sq = vH.runExternal('seqrequester',
-                      'partition',
-                      '-fasta',
-                      '-output', '1-reads/hifi-####.fasta.gz',
-                      '-writers', '4',
-                      inputs)
+  sqa = vH.runExternal('/work/seqrequester/build/bin/seqrequester',
+                       'partition',
+                       '-fasta',
+                       '-output',  '1-reads/hifi-####.fasta.gz',
+                       '-writers', '4',
+                       inputs,
+                       stdout='a.out', stderr='a.err')
 
-  sq.wait()
+  #print(f'seqrequester partition -fasta -output 1-reads/hifi-####.fasta.gz -writers 4 {inputstr}')
+
+  sqb = vH.runExternal(cConfig.bin + 'sqStoreCreate',
+                       '-homopolycompress',
+                       '-o',           '1-reads/hifi.seqStore',
+                       '-minlength',   cConfig['CANU_READ_CORRECTION']['min-read-length'],
+                       '-pacbio-hifi', 'hifi', inputs,
+                       stdout='b.out', stderr='b.err')
+
+  print('wait b')
+  b = sqb.wait()
+  print(b)
+
+  print('wait a')
+  a = sqa.wait()
+  print(a)
 
   exit(0)
