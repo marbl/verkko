@@ -41,7 +41,8 @@ rule combineConsensus:
         cns       = rules.verkko.input.cns,
         cnshap1   = rules.verkko.input.cnshap1,
         cnshap2   = rules.verkko.input.cnshap2,
-        cnsunas   = rules.verkko.input.cnsunas
+        cnsunas   = rules.verkko.input.cnsunas,
+        combined  = '7-consensus/combined.fasta'
     log:
         out       = '7-consensus/combineConsensus.out',
         err       = '7-consensus/combineConsensus.err'

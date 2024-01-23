@@ -24,7 +24,7 @@ VERKKO = config.get('VERKKO')
 rule copyFiles:
     input:
         unitig_scfmap = '6-layoutContigs/unitig-popped.layout.scfmap',
-        unitig_assembly = '7-consensus/unitig-popped.fasta',
+        unitig_assembly = '7-consensus/combined.fasta',
         unitig_graph = rules.verkko.input.graph,
         hifi5cov    = rules.verkko.input.hifi5cov
     log:
