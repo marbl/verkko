@@ -860,6 +860,7 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --end-clipping"
     echo "    --incompatible-cutoff"
     echo "    --max-trace"
+    echo "    --haploid                      Better ONT alignment for haploid genomes"
     echo ""
     echo "  Verkko module path: ${verkko}/"
     echo ""
