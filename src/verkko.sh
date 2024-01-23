@@ -120,8 +120,8 @@ fi
 #  buildStore, countKmers and computeOverlaps
 correction_enabled=True
 
-mer_size=201
-mer_window=75
+mer_size=425
+mer_window=19
 
 cor_min_read=4000
 cor_min_overlap=1000

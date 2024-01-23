@@ -57,7 +57,7 @@ done
   --hpc \\\\
   -t {threads} \\\\
   -k {params.mersize} \\\\
-  -n 4 -w {params.merwindow} \\\\
+  -n 1 -w {params.merwindow} \\\\
   --tmp-file-count {params.nindex} \\\\
   -o matchchains \\\\
   {input.reads}
