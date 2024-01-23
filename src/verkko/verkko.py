@@ -327,10 +327,6 @@ if pArgs.subcommand == None:
 else:
   try:
     vH.enterdir(pArgs.workdir)
-    vH.leavedir()
-    vH.enterdir(pArgs.workdir)
-    vH.leavedir()
-    vH.leavedir()
 
     pArgs.func(cConfig)
 

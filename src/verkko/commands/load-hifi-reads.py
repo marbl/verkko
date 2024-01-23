@@ -1,8 +1,9 @@
 import sys
 import inspect
 
-import verkkoConfig as vC
-import verkkoHelper as vH    #  For 'ruleOutput' and 'ruleInputs'
+import verkkoConfig  as vC
+import verkkoHelper  as vH    #  For 'ruleOutput' and 'ruleInputs'
+import verkkoManager as vM
 
 #  See comments in verkko.py, please.
 def synopsis():
@@ -60,29 +61,39 @@ def run(cConfig):
 
   #print(f'seqrequester partition -fasta -output 1-reads/hifi-####.fasta.gz -writers 4 {inputstr}')
 
-  sqa = vH.runExternal('/work/seqrequester/build/bin/seqrequester',
-                       'partition',
-                       '-fasta',
-                       '-output',  '1-reads/hifi-####.fasta.gz',
-                       '-writers', '4',
-                       inputs,
-                       stdout='a.out', stderr='a.err')
+  m = vM.verkkoManager()
+
+  vH.createdir('1-reads')
+
+  #m.submit('/work/seqrequester/build/bin/seqrequester',
+  #         'partition',
+  #         '-fasta',
+  #         '-output',  '1-reads/hifi-####.fasta.gz',
+  #         '-writers', '4',
+  #         inputs,
+  #         stdout='a.out', stderr='a.err')
 
   #print(f'seqrequester partition -fasta -output 1-reads/hifi-####.fasta.gz -writers 4 {inputstr}')
 
-  sqb = vH.runExternal(cConfig.bin + 'sqStoreCreate',
-                       '-homopolycompress',
-                       '-o',           '1-reads/hifi.seqStore',
-                       '-minlength',   cConfig['CANU_READ_CORRECTION']['min-read-length'],
-                       '-pacbio-hifi', 'hifi', inputs,
-                       stdout='b.out', stderr='b.err')
+  m.submit(cConfig.bin + 'sqStoreCreate',
+           '-homopolycompress',
+           '-o',           '1-reads/hifi.seqStore',
+           '-minlength',   cConfig['CANU_READ_CORRECTION']['min-read-length'],
+           '-pacbio-hifi', 'hifi', inputs,
+           stdout='b.out',
+           stderr='b.err')
 
-  print('wait b')
-  b = sqb.wait()
-  print(b)
+  m.execute()
+  m.wait()
 
-  print('wait a')
-  a = sqa.wait()
-  print(a)
+  vH.leavedir()
+
+  #print('wait b')
+  #b = sqb.wait()
+  #print(b)
+
+  #print('wait a')
+  #a = sqa.wait()
+  #print(a)
 
   exit(0)

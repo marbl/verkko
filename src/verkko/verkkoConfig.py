@@ -115,6 +115,9 @@ class verkkoConfig(object):
     self.filenames = []   #  List of files we've loaded (to prevent loading same file again)
     self.sections  = {}   #  Map from section-name to 'map from param to value'
     self.lines     = []   #  List of verkkoConfigLine objects that created this verkkoConfig
+
+    self.workdir   = ''
+
     self.lib       = ''
     self.bin       = ''
 

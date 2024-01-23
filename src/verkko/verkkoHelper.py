@@ -21,17 +21,13 @@ def ruleInputs(mod):
 
 #
 #  A nicer exception.  It gets caught at the end of verkko.py, catching
-#  (nearly) all exceptions thrown.  If you raise a verkkoException and
-#  pass in a list of strings, they're printed one-per-line.
-#
+#  (nearly) all exceptions thrown.  If you raise a verkkoException and pass
+#  in a list of strings (or a list of lists, etc), they're printed
+#  one-per-line.
 #
 class verkkoException(Exception):
-  def __init__(self, lines):
-    self.message = ''
-    if isinstance(lines, str):
-      self.message = lines
-    else:
-      self.message = '\n  '.join(lines)
+  def __init__(self, messages):
+    self.message = '\n  '.join(flatten(messages))
 
   def __str__(self):
     return self.message
@@ -48,22 +44,27 @@ class verkkoException(Exception):
 #
 dirstack = []
 
+def createdir(dir):
+  try:
+    os.makedirs(dir, exist_ok=True)
+  except OSError as e:
+    od = os.getcwd()
+    raise verkkoException([f'In directory \'{od}\':',
+                           f'Cannot create directory \'{e.filename}\': {e.strerror}'])
+
 def enterdir(dir):
   od = os.getcwd()
   nd = od + '/' + dir
-  x = 0/0
+  createdir(nd)
   try:
     dirstack.append(od)
-    os.makedirs(dir, exist_ok=True)
+    createdir(dir)
     os.chdir(dir)
     nd = os.getcwd()
     print(f'Entering \'{nd}\' from \'{od}\'')
-  except FileExistsError:
-    raise verkkoException([f'In directory \'{od}\':',
-                           f'Cannot create directory -d \'{e.filename}\': {e.strerror}'])
   except OSError as e:
     raise verkkoException([f'In directory \'{od}\':',
-                           f'Cannot create or use directory -d \'{e.filename}\': {e.strerror}'])
+                           f'Cannot use directory \'{e.filename}\': {e.strerror}'])
 
 def leavedir():
   od = os.getcwd()
@@ -95,66 +96,4 @@ def flatten(thing):
   else:
     output.append(thing)
   return output
-
-#
-#  Execute an external command.
-#   - command is an absolute path to the binary to run
-#   - args is a list of parameters to pass
-#   - stdin  must be from an actual file (or /dev/null)
-#   - stdout must be  to  an actual file (or /dev/null)
-#   - stderr must be  to  an actual file (or /dev/null)
-#   - no shell interpretation is performed
-#      - pipelines are not supported
-#      - file name globbing not supported
-#
-#  Input/output from/to a PIPE is NOT ENCOURAGED.  It is exceptionally easy
-#  to deadlock.  Deadlock is all but guaranteed if more than one PIPE is used.
-#
-
-def runExternal(command, *args, stdin=None, stdout=None, stderr=None):
-  if stdin  == None or stdin  == '/dev/null':   stdin  = subprocess.DEVNULL
-  if stdout == None or stdout == '/dev/null':   stdout = subprocess.DEVNULL
-  if stderr == None or stderr == '/dev/null':   stderr = subprocess.DEVNULL
-
-  if isinstance(stdin,  str):    stdin = open(stdin,  'r')
-  if isinstance(stdout, str):   stdout = open(stdout, 'w')
-  if isinstance(stderr, str):   stderr = open(stderr, 'w')
-
-  cmdarg = [command] + flatten(args)
-  cmddis = cmdarg.copy()
-  cmddis.reverse()
-
-  print(f'----------------------------------------')
-  print(f'-- Running:')
-  print(f'--   {cmddis.pop()}')
-
-  while len(cmddis):      #  evenutally pretty-ify this to put options and args on same line,
-    opt  = cmddis.pop()   #  but need care to figure out stuff like '-threads 4 /input/file'
-    optl = len(opt) + 1   #  vs '-inputs /input/files'
-
-    print(f'--     {opt}')
-
-  #print(cmdarg)
-  #print(' '.join(cmdarg))
-
-  print(f'--  stdin  < {stdin}')
-  print(f'--  stdout > {stdout}')
-  print(f'--  stderr > {stderr}')
-  print(f'--')
-
-  try:
-    sp = subprocess.Popen(cmdarg, stdin=stdin, stdout=stdout, stderr=stderr)
-  except OSError:
-    print(f'ERROR: failed to run {command}: Not found.')
-    #  Failed to find binary
-    pass
-  except ValueError:
-    #  Invalid arguments to Popen
-    print(f'ERROR: failed to run {command}: Invalid arguments.')
-    pass
-  except subprocess.TimeoutExpired:
-    #  Ran too long; not expected since we're not asking for a timeout.
-    pass
-
-  return sp
 

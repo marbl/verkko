@@ -1,6 +1,9 @@
 import sys
 import inspect
 
+import verkkoConfig as vC
+import verkkoHelper as vH    #  For 'ruleOutput' and 'ruleInputs'
+
 #  See comments in verkko.py, please.
 def synopsis():
   #     -90-columns-------------------------------------------------------------------------------
@@ -25,6 +28,32 @@ def details():
         viverra ut. In hac habitasse platea dictumst.'''
   return inspect.cleandoc(s)
 
-def run(args):
-  print(args)
 
+#
+#  Workflow description and parameters.
+#
+
+def inputs(rules, wildcards, checkpoints):
+  return {}
+
+def outputs(rules):
+  return { 'hifi-finished': '1-reads/hifi-finished' }
+
+def logs(rules):
+  return {}
+
+def params(rules):
+  return {}
+
+def threads(rules):
+  return 4
+
+def resources(rules):
+  return {}
+
+#
+#  Sub-command execution.
+#
+
+def run(cConfig):
+  pass

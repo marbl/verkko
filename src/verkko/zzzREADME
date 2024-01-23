@@ -1,0 +1,105 @@
+
+This is an attempt at refactoring verkko into something easier to run and manage.
+I liked where it was going but we decided it was too much too late, and so it's
+abandoned.
+
+There are some nice bits in here though:
+  snake/
+   - has a prototype workflow-agnostic method for configuring snakemake.
+     It lets snakemake query the computation to discover the workflow,
+     instead of a human doing the work.  (see also verkkoHelper.py)
+
+  verkkoConfig.py
+   - reads/writes a .ini file, with some enhancements to allow updating values
+     and reading from multiple inputs.
+
+  verkkoManager.py
+   - the start of a workflow manager, nothing more than some classes to
+     execute commands and some structure.
+
+BPW
+23-JAN-2024
+
+
+----------Thoughts on a workflow:
+
+Each step in the workflow is broken down into three jobs:
+  1c 16g - config
+  ?c ??g - parallel compute
+  4c 16g - merge
+
+Canu is able to run both the merge step and the next config step in the same
+job.
+
+Single-job processing follows the same strategy, but can make the
+optimization of running the compute inline with config/merge - if it will fit
+within the resources supplied to the current job.
+
+----------The Verkko workflow:
+
+Verkko has the following steps.  Some of these are more conceptual than actual.
+
+#  LOADING
+#    can also generate summary reports
+load-hifi         #  creates Canu seqStore for correction OR splits for overlapping
+load-ont          #  splits input reads into fixed-size files for alignment and filtering
+load-parental     #  counts kmers
+load-hic          #  splits input reads into fixed-size files for alignment
+
+#  CORRECTION
+correct-hifi-reads
+  config-kmer
+  compute-kmer-parallel
+  merge-kmer
+  config-overlaps
+  compute-overlaps-parallel
+  merge-overlaps
+  config-errors
+  compute-errors-parallel
+  merge-errors
+  config-correct
+  compute-correct-parallel
+  merge-correct
+correct-ont-reads       #  does nothing
+correct-parental-reads      #  does nothing
+correct-hic-reads       #  does nothing
+
+#  Process HiFi data
+build-hifi-graph        #  corrected hifi -> gfa
+refine-graph            #  gfa -> gfa (merge with above if it's quick enough)
+
+#  Process ONT data
+build-ont-paths        #  align split-ont to gfa with graphaligner
+  config-align
+  compute-align-parallel
+  merge-align
+
+#  Merge HiFi and ONT data
+refine-paths           #  both 4-processONT and 5-untip
+
+#  Compute Trio support
+compute-haplotype
+
+#  Compute HiC support
+compute-phase
+  generate-consensus    #  needs uncompressed consensus for illumina alignment
+  run-mashmap           #  self-align compressed contigs
+  config-bwa            #  including creation of bwa index files
+  align-bwa-parallel    #  parallel: illumina -> uncompressed contigs
+  merge-bwa             #  merge: ailgns sorted by read id
+  transform-bwa         #  merged-bam | parse_sam_pairs.py > sam
+  hic-phasing           #  mashmap + sam -> colors
+
+#  Apply trio or hic data
+rukki
+
+#  Generate outputs
+generate-consensus
+  layout-contigs
+  extract-ont-parallel
+  build-packages
+
+  config-consensus
+  compute-consensus-parallel
+  merge-consensus       #  also does filtering of crud
+
