@@ -18,12 +18,12 @@ parser.add_argument('-c', '--colors', default='assembly.colors.telo_rdna.csv', h
 # Parse the arguments
 args = parser.parse_args()
 
-rdna_nodes_file = args.rdna     # rdna.screennodes.list from mash
-telomere_file = args.telo       # telomere from seqtk telo -d 10000
+rdna_nodes_file = args.rdna       # rdna.screennodes.list from mash
+telomere_file = args.telo         # telomere from seqtk telo -d 10000
 
-graph_file = args.gfa           # assembly.homopolymer-compressed.noseq.gfa
-node_to_path_file = args.scfmap # assembly.scfmap
-path_to_nodes_file = args.paths # assembly.paths.tsv
+graph_file = args.gfa             # assembly.homopolymer-compressed.noseq.gfa
+contig_to_path_file = args.scfmap # assembly.scfmap
+path_to_nodes_file = args.paths   # assembly.paths.tsv
 
 # Check if either rdna or telo is provided
 if not args.rdna and not args.telo:
@@ -59,32 +59,35 @@ has_rDNA = True if len(rdna) > 0 else False
 
 # contig : path
 contig_to_path = {}
-translate_contig = {}
-with open(node_to_path_file, "r") as f:
+
+# path : nodes
+path_to_nodes = {}
+telnodes = set()
+edge_overlaps = {}
+
+# assembly.paths.tsv
+try:
+    with open(path_to_nodes_file, "r") as f:
+        for l in f:
+            parts=l.strip().split('\t')
+            # parts[0] = path name
+            # parts[1] = nodes in path, "," separated
+            path_to_nodes[parts[0]] = [ parts[1].split(',')[0], (parts[1].split(','))[-1] ]
+
+except:
+    sys.stderr.write("No path file found. Assuming assembly.scfmap has 1:1 relationship between contigs and unitigs\n")
+
+
+# assembly.scfmap
+with open(contig_to_path_file, "r") as f:
     for l in f:
         parts=l.strip().split(' ')
         if parts[0] == "path": 
             # parts[1] = contig name
-            # parts[2] = path name
+            # parts[2] = path name or utig name
             contig_to_path[parts[1]] = parts[2]
-            #for hi-c runs
-            contig_to_path[parts[2]] = parts[2]
 
-
-
-# path : nodes
-path_to_nodes = {}
-with open(path_to_nodes_file, "r") as f:
-    for l in f:
-        parts=l.strip().split('\t')
-        # parts[0] = path name
-        # parts[1] = nodes in path, "," separated
-        path_to_nodes[parts[0]] = [ parts[1].split(',')[0], (parts[1].split(','))[-1] ]
-
-# node_seqs = set()
-telnodes = set()
-edge_overlaps = {}
-
+# assembly.homopolymer-compressed.noseq.gfa
 with open(graph_file, "r") as f:
     for l in f:
         parts = l.strip().split('\t')
@@ -95,20 +98,21 @@ with open(graph_file, "r") as f:
                 edge_overlaps[fromnode] = set() 
             edge_overlaps[fromnode].add(tonode)
 
+# telomere
 with open(telomere_file, "r") as f:
     for l in f:
         parts = l.strip().split('\t')
         fromnode = ""
 
-        #assert(parts[0] in translate_contig)
+        #assert(parts[0] in contig_to_path)
         if parts[0] not in contig_to_path:
             sys.stderr.write("Warning, no path available for contig %s line %s\n"%(parts[0], l.strip()))
             continue
 
         path = contig_to_path[parts[0]]
-        #for hic
+        #for non-trio, non-hic
         if path.startswith("utig"):
-            graph_node = [path, path+"+"]
+            graph_node = [path+"+", path+"+"]
         else:
             graph_node = path_to_nodes[path]
         if int(parts[1]) < 10000:
@@ -134,12 +138,12 @@ with open(telomere_file, "r") as f:
         edge_overlaps[tonode].add(fromnode)
 
 if (has_rDNA):
-    telo_rdna_gfa_file.write("S\trDNA\t*\tLN:i:45000\n")
+    telo_rdna_gfa_file.write("S\trDNA\t*\tLN:i:45000\tRC:i:4500000\n")
     telo_rdna_color_file.write("rDNA%s%s\n"%(padding, rdna_col))
 
 # output new telomere nodes
 for t in telnodes:
-    telo_rdna_gfa_file.write("S\t%s\t*\tLN:i:6\n"%(t[1:]))
+    telo_rdna_gfa_file.write("S\t%s\t*\tLN:i:6\tRC:i:6000\n"%(t[1:]))
     if t in edge_overlaps:
         for l in edge_overlaps[t]:
             if l[0] == '>': ori="+"
@@ -151,10 +155,10 @@ with open(graph_file, "r") as f:
         parts = l.strip().split('\t')
         if parts[0] == "S":
             if parts[1] not in rdna:
-                telo_rdna_gfa_file.write(l.strip()+"\n")
+                telo_rdna_gfa_file.write(l.strip() + "\n")
         if parts[0] == 'L':
             if parts[1] not in rdna and parts[3] not in rdna:
-                telo_rdna_gfa_file.write(l.strip()+"\n")
+                telo_rdna_gfa_file.write(l.strip() + "\n")
             elif parts[1] not in rdna and parts[3] in rdna:
                 telo_rdna_gfa_file.write("L\t%s\t%s\trDNA\t+\t0M\n"%(parts[1], parts[2]))
             elif parts[1] in rdna and parts[3] not in rdna:
