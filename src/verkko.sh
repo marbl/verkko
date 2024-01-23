@@ -1239,6 +1239,7 @@ if [ "x$withhic" = "xTrue" ] ; then
     ./snakemake.sh
     cp *.fasta ../../
     cp *.layout ../../
+    cp *.scfmap ../../
     cp ../rukki.paths.tsv ../../assembly.paths.tsv
     cp ../hicverkko.colors.tsv ../../assembly.colors.csv
 fi

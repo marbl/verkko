@@ -94,7 +94,7 @@ rule verkko:
         cnshap2     = 'assembly.haplotype2.fasta',
         cnsunas     = 'assembly.unassigned.fasta',
         pathstsv    = 'assembly.paths.tsv',
-	colorscsv   = 'assembly.colors.csv'
+        colorscsv   = 'assembly.colors.csv'
     shell:
         '''
 #  Copy the rukki results to the output directory if they exist, remove them
@@ -162,7 +162,8 @@ rule cnspath:
         cnsunas     = '7-consensus/unitig-popped.unassigned.fasta'
     output:
         layout      = 'assembly.homopolymer-compressed.layout',
-        consensus   = 'assembly.fasta'
+        consensus   = 'assembly.fasta',
+        scfmap      = 'assembly.scfmap'
     params:
         cnshap1     = 'assembly.haplotype1.fasta',    #  Actually, these are optional outputs.
         cnshap2     = 'assembly.haplotype2.fasta',
@@ -174,6 +175,7 @@ cp -p {input.consensus} {output.consensus}
 cp -p {input.cnshap1}   {params.cnshap1}
 cp -p {input.cnshap2}   {params.cnshap2}
 cp -p {input.cnsunas}   {params.cnsunas}
+cp -p {input.scfmap}    {output.scfmap}
         '''
         
 
