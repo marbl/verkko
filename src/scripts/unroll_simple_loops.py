@@ -77,6 +77,7 @@ with open(graph_file) as f:
 			neighbors = edge_overlaps[">" + tonodeFwd[1:]].union(edge_overlaps["<" + tonodeFwd[1:]])
 			neighbors.remove(">" + parts[1])
 			neighbors.remove("<" + parts[1])
+			if len(neighbors) == 0: continue
 			skip=False
 			# check if the neighbors are acceptable, if the coverage is too high (we use 2 in case of nested loop) or if the nodes are very short, don't resolve
 			if len(neighbors) <= 2:
