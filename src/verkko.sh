@@ -122,6 +122,7 @@ correction_enabled=True
 
 mer_size=425
 mer_window=19
+mer_coverage=1000
 
 cor_min_read=4000
 cor_min_overlap=1000
@@ -409,6 +410,7 @@ while [ $# -gt 0 ] ; do
 
     elif [ "$opt" = "--correct-k-mer-size" ] ;         then mer_size=$arg;         shift
     elif [ "$opt" = "--correct-k-mer-window" ] ;       then mer_window=$arg;       shift
+    elif [ "$opt" = "--correct-k-mer-coverage" ] ;     then mer_coverage=$arg; shift
     elif [ "$opt" = "--correct-min-read-length" ] ;    then cor_min_read=$arg;     shift
     elif [ "$opt" = "--correct-min-overlap-length" ] ; then cor_min_overlap=$arg;  shift
 
@@ -829,8 +831,9 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo ""
     echo "ADVANCED MODULE PARAMETERS (expert users):"
     echo "HiFi read correction:"
-    echo "    --correct-k-mer-size           Set the k-mer size to use for finding overlaps (201)"
-    echo "    --correct-k-mer-window         Set the window size for sketching reads when finding overlaps (75)"
+    echo "    --correct-k-mer-size           Set the k-mer size to use for finding overlaps (425)"
+    echo "    --correct-k-mer-window         Set the window size for sketching reads when finding overlaps (19)"
+    echo "    --correct-k-mer-coverage       Set the maximum count of kmer to use for finding overlaps (1000)"
     echo "    --correct-min-read-length      Set the overall minimum read length (4000)"
     echo "    --correct-min-overlap-length   Set the minimum overlap length (1000)"
     echo "    --correct-batch-size           Set the RED batch size, in Mbp (30000)"
@@ -929,6 +932,7 @@ echo >> ${outd}/verkko.yml "#  buildStore, countKmers and computeOverlaps"
 echo >> ${outd}/verkko.yml "correction_enabled:  '${correction_enabled}'"
 echo >> ${outd}/verkko.yml "mer_size:            '${mer_size}'"
 echo >> ${outd}/verkko.yml "mer_window:          '${mer_window}'"
+echo >> ${outd}/verkko.yml "mer_coverage:        '${mer_coverage}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "cor_min_read:        '${cor_min_read}'"
 echo >> ${outd}/verkko.yml "cor_min_overlap:     '${cor_min_overlap}'"

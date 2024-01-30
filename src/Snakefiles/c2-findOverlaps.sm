@@ -24,6 +24,7 @@ checkpoint prepareOverlaps:
     params:
         mersize   = config['mer_size'],
         merwindow = config['mer_window'],
+        mercount  = config['mer_coverage'],
         minread   = config['cor_min_read'],
         nindex    = config['cor_index_batches'],  #  Number of batches for indexing
         nbatches  = config['cor_overlap_batches'] #  Number of batches for overlapping, used in compute too
@@ -58,6 +59,7 @@ done
   -t {threads} \\\\
   -k {params.mersize} \\\\
   -n 1 -w {params.merwindow} \\\\
+  --max-coverage {params.mercount} \\\\
   --tmp-file-count {params.nindex} \\\\
   -o matchchains \\\\
   {input.reads}
