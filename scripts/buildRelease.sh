@@ -37,11 +37,13 @@ fi
 
 echo "Fetching submodules."
 
-cd src          && git submodule update --init canu         && cd -
-cd src/canu/src && git submodule update --init utility      && cd -
-cd src/canu/src && git submodule update --init meryl        && cd -
-cd src/canu/src && git submodule update --init seqrequester && cd -
-cd src          && git submodule update --init rukki        && cd -
+cd src          && git submodule update --init canu           && cd -
+cd src/canu/src && git submodule update --init utility        && cd -
+cd src/canu/src && git submodule update --init meryl          && cd -
+cd src/canu/src && git submodule update --init seqrequester   && cd -
+cd src          && git submodule update --init MBG            && cd -
+cd src          && git submodule update --init hifioverlapper && cd -
+cd src          && git submodule update --init rukki          && cd -
 
 git submodule update --recursive
 
