@@ -953,7 +953,6 @@ MBG_DEPS = $(addprefix MBG/src/,\
                        fastqloader.o CommonUtils.o MBGCommon.o                       FastHasher.o SparseEdgeContainer.o HashList.o UnitigGraph.o BluntGraph.o              HPCConsensus.o ErrorMaskHelper.o CompressedSequence.o ConsensusMaker.o StringIndex.o                                           RankBitvector.o                         UnitigResolver.o                    UnitigHelper.o BigVectorSet.o ReadHelper.o Serializer.o DumbSelect.o MsatValueVector.o Node.o KmerMatcher.o))
 
 MBG/bin/MBG: $(MBG_DEPS)
-	cd MBG ; git submodule update --init --recursive
 	cd MBG ; $(MAKE) all
 
 ../lib/verkko/bin/MBG: MBG/bin/MBG
@@ -968,7 +967,6 @@ HIFIOVERLAP_DEPS = $(addprefix hifioverlapper/src/,\
                                MatchIndex.o MinimizerIterator.o TwobitString.o ReadStorage.o UnitigKmerCorrector.o UnitigStorage.o ReadMatchposStorage.o))
 
 hifioverlapper/lib/hifioverlapper.a: $(HIFIOVERLAP_DEPS)
-	cd hifioverlapper ; git submodule update --init --recursive
 	cd hifioverlapper ; $(MAKE) lib/hifioverlapper.a MBG/lib/mbg.a
 
 ../lib/verkko/bin/matchchains_index: hifioverlapper/lib/hifioverlapper.a
