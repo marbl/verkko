@@ -34,4 +34,6 @@ if __name__ == "__main__":
         hic_file = compressed_hic
 
     noseq_gfa = os.path.join(output_dir, "unitigs.hpc.noseq.gfa")
-    cluster.run_clustering(noseq_gfa, matches_file, hic_file, output_dir, no_rdna, uneven_depth)
+    tst_dir = os.path.join(output_dir, "tst_homology")   
+    os.makedirs(tst_dir, exist_ok=True)
+    cluster.run_clustering(noseq_gfa, matches_file, hic_file, tst_dir, no_rdna, uneven_depth)

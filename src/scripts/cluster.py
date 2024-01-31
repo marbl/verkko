@@ -462,7 +462,9 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                 if not good:
                     logging_f.write("While partitoning dropping node %s low links count\n" % (n))
                     short.append(n)
-
+        if 'utig4-36' in C.nodes:
+            for edge_pair in C.edges('utig4-36'):
+                sys.stderr.write(f"36y {edge_pair} {C.edges[edge_pair]}\n")
         C.remove_nodes_from(short)
         logging_f.write(f'Currently {C.number_of_nodes()} nodes\n')
         # Adding some auxilary vertices to allow slightly unbalanced partitions
@@ -489,9 +491,15 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                         if e0like in dists and e1like in dists[e0like] and dists[e0like][e1like] < MAX_GRAPH_DIST + G.nodes[e1like]['length']:
                             C.add_edge(e[0], e[1], weight=hicGraph[e[0]][e[1]]['weight'])
                             break
+        if 'utig4-36' in C.nodes:
+            for edge_pair in C.edges('utig4-36'):
+                sys.stderr.write(f"36z {edge_pair} {C.edges[edge_pair]}\n")
+            sys.stderr.write(f" edges from <36  {edges['<utig4-36']}  saved {edges_save['<utig4-36']}\n")
+            sys.stderr.write(f" edges from >33   saved {edges_save['>utig4-33']}\n")
 
         # neighboring edges are encouraged to belong to the same component
         #Currently not in use
+        '''
         for e in C.nodes:
             for pref in ['>', '<']:                
                 ornode = pref + e
@@ -506,6 +514,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                         if len (matchGraph.edges(e)) > 0 and len (matchGraph.edges(suff)) > 0:
                             connection_bonus = 0
 #connections with more than one extension are ambiguous and do not deserve bonus
+#since always at least one of them have >1 ext - here everything was set to 0
                         if ornode in multiple_ext or revnode(suff) in multiple_ext:
                             connection_bonus = 0
                         if connection_bonus != 0:
@@ -514,9 +523,12 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                         add_w = 0
                         if w != 0:
                             add_w = w['weight']
+                        if e==suff:
+                            sys.stderr.write(f"wtf   {ornode} {neighbour} \n")
                         C.add_edge(e, suff, weight= connection_bonus + add_w)
         #            C.add_edge(e[0], e[1], weight=0 + add_w)
         #            aux_nodes = aux_nodes
+        '''
         '''for e in G.edges(current_component):
             if e[0] in C and e[1] in C and matchGraph.get_edge_data(e[0], e[1]) == None:
                 w = hicGraph.get_edge_data(e[0], e[1], 0)
@@ -529,6 +541,10 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
 '''
         logging_f.write(f'Currently {C.number_of_nodes()} in current component\n')
 
+        if 'utig4-36' in C.nodes:
+            for edge_pair in C.edges('utig4-36'):
+                sys.stderr.write(f"36a {edge_pair} {C.edges[edge_pair]}\n")
+        
         if C.number_of_nodes() > 1:
     #TODO: why not just iterate on matchGraph.edges()?
             for n in C.nodes():
@@ -549,6 +565,10 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                             C.add_edge(ec[1], ec[0], weight=-10 * FIXED_WEIGHT)
             for edge in C.edges:
                 logging_f.write(f'HIC edge: {edge} {C.edges[edge]}\n')
+            if 'utig4-36' in C.nodes:
+                for edge_pair in C.edges('utig4-36'):
+                    sys.stderr.write(f"36b {edge_pair}  {C.edges[edge_pair]}\n")
+
             res = checkXYcomponent(current_component, matchGraph, G, edges)
             if res != [0, 0]:
                 sys.stderr.write(f"XY found, {res[0]} {res[1]}, adding fake links\n")
@@ -556,7 +576,26 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                     C.add_edge(res[0], res[1], weight=-10 * FIXED_WEIGHT)
                     C.add_edge(res[1], res[0], weight=-10 * FIXED_WEIGHT)
             best_score = FIXED_WEIGHT * C.number_of_nodes() * C.number_of_nodes()
+            if 'utig4-36' in C.nodes:
+                for edge_pair in C.edges('utig4-36'):
+                    sys.stderr.write(f"36c {edge_pair} {C.edges[edge_pair]}\n")
 
+            debug_neighbors = {}              
+            for debug_node in C.nodes():
+                debug_neighbors[debug_node] = set()
+            for debug_node in C.nodes():
+                for edge_pair in C.edges(debug_node):  
+                    if C.edges[edge_pair]['weight'] < 0:                      
+                        debug_neighbors[edge_pair[0]].add(edge_pair[1])
+                        debug_neighbors[edge_pair[1]].add(edge_pair[0]) 
+                        if edge_pair[0] == edge_pair[1]:
+                            sys.stderr.write(f"loop {edge_pair} {C.edges[edge_pair]}\n")
+
+            for node1 in debug_neighbors:
+                for node2 in debug_neighbors[node1]:
+                    for node3 in debug_neighbors[node2]:
+                        if node3 in debug_neighbors[node1] and node1 < node2 and node2 < node3:
+                            sys.stderr.write(f"Found a triangle {node1} {node2} {node3}\n")
             for seed in range(0, KLIN_STARTS):  # iterate on starting partition
                 random.seed(seed)
                 p1 = []
@@ -656,7 +695,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 5:
+    if len(sys.argv) != 7:
         print(f'Usage: {sys.argv[0]} graph.gfa homologous_nodes.matches hic_byread output_dir, no_rdna, uneven_depth')
         exit()
     run_clustering(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6])

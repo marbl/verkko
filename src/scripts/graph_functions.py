@@ -13,10 +13,13 @@ def remove_large_tangles(G, MAX_LEN, MAX_SHORT_COMPONENT):
     to_delete = []
     for comp in nx.connected_components(sh_G):
         if len(comp) > MAX_SHORT_COMPONENT:
+            sys.stderr.write(f'comp {components_deleted}:')
             components_deleted += 1
             for e in comp:
                 nodes_deleted += 1
                 to_delete.append(e)
+                sys.stderr.write(f' {e}')
+            sys.stderr.write('\n')   
     G.remove_nodes_from(to_delete)
     sys.stderr.write(f'Removed {components_deleted} short nodes components and {nodes_deleted} short nodes. New '
                      f'number of nodes {G.number_of_nodes()}\n')
