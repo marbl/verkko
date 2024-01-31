@@ -36,14 +36,16 @@ fi
 
 
 echo "Fetching submodules."
-
+# these are pulled in explicitly to avoid pulling the same module multiple times (e.g. utility)
 cd src          && git submodule update --init canu           && cd -
 cd src/canu/src && git submodule update --init utility        && cd -
 cd src/canu/src && git submodule update --init meryl          && cd -
 cd src/canu/src && git submodule update --init seqrequester   && cd -
-cd src          && git submodule update --init MBG            && cd -
-cd src          && git submodule update --init hifioverlapper && cd -
-cd src          && git submodule update --init rukki          && cd -
+
+# these pull recursively to get all submodules but there is some redundancy since MBG and dependencies is pulled by both hifioverlapper and MBG
+cd src          && git submodule update --init --recursive rukki          && cd -
+cd src          && git submodule update --init --recursive MBG            && cd -
+cd src          && git submodule update --init --recursive hifioverlapper && cd -
 
 git submodule update --recursive
 
