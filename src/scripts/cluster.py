@@ -286,7 +286,11 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
         for e in current_component:
             component_colors[e] = current_color
         current_color += 1
+    mashmap_weights = {}
 
+    #from node to [best_match, weight]
+    #Possibly will have to unite different matches between same node pairs splitted by mashmap
+    best_match = {}
     for line in open(mashmap_sim, 'r'):
         if "#" in line:
             continue
@@ -295,6 +299,18 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
             continue
         if line[0] == line[1]:
             continue
+        if not line[0] in best_match:
+            best_match[line[0]] = [line[1], int(line[2])]
+        if not line[1] in best_match:
+            best_match[line[1]] = [line[0], int(line[2])]       
+        if int(line[2]) > best_match[line[0]][1]:
+            best_match[line[0]] = [line[1], int(line[2])]
+        if int(line[2]) > best_match[line[1]][1]:
+            best_match[line[1]] = [line[0], int(line[2])]
+
+        mashmap_weights[line[0] + line[1]] = int(line[2])
+        mashmap_weights[line[1] + line[0]] = int(line[2])
+
         if int(line[2]) > CLEAR_HOMOLOGY:
             color_sum = 0
             for id in range(0, 2):
@@ -394,7 +410,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
             max_w = hicGraph[node1][node2]["weight"]
         compressed_file.write(f'X {node1} {node2} {hicGraph[node1][node2]["weight"]}\n')
     FIXED_WEIGHT = max_w
-    sys.stderr.write(f'Constant for neighbouring edges set to be  {FIXED_WEIGHT}, for homologous edges {-10 * FIXED_WEIGHT} \n')
+    sys.stderr.write(f'Constant for neighbouring edges set to be  {FIXED_WEIGHT} (but not used), for homologous edges {-10 * FIXED_WEIGHT} \n')
 
 
     sys.stderr.write("Loaded hic info with %d nodes and %d edges\n" % (hicGraph.number_of_nodes(), hicGraph.number_of_edges()))
@@ -434,21 +450,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                 logging_f.write("While partitoning dropping node %s uneven coverage and no matches\n" % (n))
                 short.append(n)                
             elif G.nodes[n]['length'] < MIN_LEN:
-    #            sys.stderr.write("While partitoning dropping node %s its too short\n" % (n))
-#let's not delete but collapse all short nodes. to "extend" homology information.
-                '''neighbours = set()
-                for edge in G.edges(n):
-                    if edge[0] != n:
-                        neighbours.add(edge[0])
-                    if edge[1] != n:
-                        neighbours.add(edge[1])
-#Do we need a separate subgraph for these manipulations?
-                for n1 in neighbours:
-                    for n2 in neighbours:
-                        if n1 != n2:
-                            G.add_edge(n1, n2)
-#                C.remove_nodes_from(n)
-                G.remove_nodes_from(n) '''
+
                 collapseOrientedNode(edges, n)
                 short.append(n)
 
@@ -462,9 +464,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                 if not good:
                     logging_f.write("While partitoning dropping node %s low links count\n" % (n))
                     short.append(n)
-        if 'utig4-36' in C.nodes:
-            for edge_pair in C.edges('utig4-36'):
-                sys.stderr.write(f"36y {edge_pair} {C.edges[edge_pair]}\n")
+
         C.remove_nodes_from(short)
         logging_f.write(f'Currently {C.number_of_nodes()} nodes\n')
         # Adding some auxilary vertices to allow slightly unbalanced partitions
@@ -491,60 +491,9 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                         if e0like in dists and e1like in dists[e0like] and dists[e0like][e1like] < MAX_GRAPH_DIST + G.nodes[e1like]['length']:
                             C.add_edge(e[0], e[1], weight=hicGraph[e[0]][e[1]]['weight'])
                             break
-        if 'utig4-36' in C.nodes:
-            for edge_pair in C.edges('utig4-36'):
-                sys.stderr.write(f"36z {edge_pair} {C.edges[edge_pair]}\n")
-            sys.stderr.write(f" edges from <36  {edges['<utig4-36']}  saved {edges_save['<utig4-36']}\n")
-            sys.stderr.write(f" edges from >33   saved {edges_save['>utig4-33']}\n")
-
-        # neighboring edges are encouraged to belong to the same component
-        #Currently not in use
-        '''
-        for e in C.nodes:
-            for pref in ['>', '<']:                
-                ornode = pref + e
-                if not (ornode in edges.keys()):
-                    continue
-                for neighbour in edges[ornode]:
-                    suff = neighbour[1:]
-                    if suff in C and matchGraph.get_edge_data(e, suff) == None:
-#dirty hack to kill erroneous z-connections issues
-                        connection_bonus = FIXED_WEIGHT // 2
-#                        sys.stderr.write(f"{e}  {suff}  cheeeking connection bonus \n")
-                        if len (matchGraph.edges(e)) > 0 and len (matchGraph.edges(suff)) > 0:
-                            connection_bonus = 0
-#connections with more than one extension are ambiguous and do not deserve bonus
-#since always at least one of them have >1 ext - here everything was set to 0
-                        if ornode in multiple_ext or revnode(suff) in multiple_ext:
-                            connection_bonus = 0
-                        if connection_bonus != 0:
-                            sys.stderr.write(f"{pref}  {suff}  having connection bonus \n")
-                        w = hicGraph.get_edge_data(e, suff, 0)
-                        add_w = 0
-                        if w != 0:
-                            add_w = w['weight']
-                        if e==suff:
-                            sys.stderr.write(f"wtf   {ornode} {neighbour} \n")
-                        C.add_edge(e, suff, weight= connection_bonus + add_w)
-        #            C.add_edge(e[0], e[1], weight=0 + add_w)
-        #            aux_nodes = aux_nodes
-        '''
-        '''for e in G.edges(current_component):
-            if e[0] in C and e[1] in C and matchGraph.get_edge_data(e[0], e[1]) == None:
-                w = hicGraph.get_edge_data(e[0], e[1], 0)
-                add_w = 0
-                if w != 0:
-                    add_w = w['weight']
-                C.add_edge(e[0], e[1], weight=FIXED_WEIGHT + add_w)
-    #            C.add_edge(e[0], e[1], weight=0 + add_w)
-    #            aux_nodes = aux_nodes
-'''
         logging_f.write(f'Currently {C.number_of_nodes()} in current component\n')
 
-        if 'utig4-36' in C.nodes:
-            for edge_pair in C.edges('utig4-36'):
-                sys.stderr.write(f"36a {edge_pair} {C.edges[edge_pair]}\n")
-        
+
         if C.number_of_nodes() > 1:
     #TODO: why not just iterate on matchGraph.edges()?
             for n in C.nodes():
@@ -559,15 +508,19 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                         if neighbours:
                             sys.stderr.write(f"Not adding homology information between {ec[0]} and {ec[1]} - neighbouring looplike something\n")
                             continue
-                        # while we build the initial partition give a big bonus edge for putting the homologous nodes into different partitions                       
+                        # while we build the initial partition give a big bonus edge for putting the homologous nodes into different partitions             
+                        # Adding an edge that already exists updates the edge data (in networkX graph)
+          
                         if ec[0] in C and ec[1] in C and ec[0] < ec[1]:
-                            C.add_edge(ec[0], ec[1], weight=-10 * FIXED_WEIGHT)
-                            C.add_edge(ec[1], ec[0], weight=-10 * FIXED_WEIGHT)
-            for edge in C.edges:
-                logging_f.write(f'HIC edge: {edge} {C.edges[edge]}\n')
-            if 'utig4-36' in C.nodes:
-                for edge_pair in C.edges('utig4-36'):
-                    sys.stderr.write(f"36b {edge_pair}  {C.edges[edge_pair]}\n")
+                            #At least one in the pair is the best similarity match for other
+                            if (ec[0] in best_match and ec[1] == best_match[ec[0]][0]) or (ec[1] in best_match and ec[0] == best_match[ec[1]][0]):
+                                C.add_edge(ec[0], ec[1], weight=-10 * FIXED_WEIGHT)
+                                C.add_edge(ec[1], ec[0], weight=-10 * FIXED_WEIGHT)
+                            else:
+                            #not really look like homologous node pair but still suspicious, lets just wipe the hi-c links but not prioritize splitting them to different partitions.                                
+                                C.add_edge(ec[0], ec[1], weight=0)
+                                C.add_edge(ec[1], ec[0], weight=0)
+
 
             res = checkXYcomponent(current_component, matchGraph, G, edges)
             if res != [0, 0]:
@@ -575,10 +528,11 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                 if res[0] in C and res[1] in C:
                     C.add_edge(res[0], res[1], weight=-10 * FIXED_WEIGHT)
                     C.add_edge(res[1], res[0], weight=-10 * FIXED_WEIGHT)
+            for edge in C.edges:
+                logging_f.write(f'HIC edge: {edge} {C.edges[edge]}\n')
+
+
             best_score = FIXED_WEIGHT * C.number_of_nodes() * C.number_of_nodes()
-            if 'utig4-36' in C.nodes:
-                for edge_pair in C.edges('utig4-36'):
-                    sys.stderr.write(f"36c {edge_pair} {C.edges[edge_pair]}\n")
 
             debug_neighbors = {}              
             for debug_node in C.nodes():
@@ -596,6 +550,8 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                     for node3 in debug_neighbors[node2]:
                         if node3 in debug_neighbors[node1] and node1 < node2 and node2 < node3:
                             sys.stderr.write(f"Found a triangle {node1} {node2} {node3}\n")
+                        if node1 < node3:
+                            sys.stderr.write (f"Multiple homology from {node2}, {node1} with {mashmap_weights[node1+node2]} and {node3} with {mashmap_weights[node3+node2]}\n")
             for seed in range(0, KLIN_STARTS):  # iterate on starting partition
                 random.seed(seed)
                 p1 = []
