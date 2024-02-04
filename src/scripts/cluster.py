@@ -288,7 +288,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
         current_color += 1
     mashmap_weights = {}
 
-    #from node to [best_match, weight]
+    #from node to [best_match, weight, second_best_weight], second best to other node!
     #Possibly will have to unite different matches between same node pairs splitted by mashmap
     best_match = {}
     for line in open(mashmap_sim, 'r'):
@@ -300,13 +300,21 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
         if line[0] == line[1]:
             continue
         if not line[0] in best_match:
-            best_match[line[0]] = [line[1], int(line[2])]
+            best_match[line[0]] = [line[1], int(line[2]), 1]
         if not line[1] in best_match:
-            best_match[line[1]] = [line[0], int(line[2])]       
+            best_match[line[1]] = [line[0], int(line[2]), 1]       
         if int(line[2]) > best_match[line[0]][1]:
-            best_match[line[0]] = [line[1], int(line[2])]
+            if best_match[line[0]][0] == line[1]:
+                #not updating second best match
+                best_match[line[0]] = [line[1], int(line[2]), best_match[line[0]][2]]
+            else:
+                best_match[line[0]] = [line[1], int(line[2]), best_match[line[0]][1]]
+
         if int(line[2]) > best_match[line[1]][1]:
-            best_match[line[1]] = [line[0], int(line[2])]
+            if best_match[line[1]][0] == line[0]:
+                best_match[line[1]] = [line[0], int(line[2]), best_match[line[1]][2]]
+            else:
+                best_match[line[1]] = [line[0], int(line[2]), best_match[line[1]][1]]
 
         mashmap_weights[line[0] + line[1]] = int(line[2])
         mashmap_weights[line[1] + line[0]] = int(line[2])
@@ -512,8 +520,8 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                         # Adding an edge that already exists updates the edge data (in networkX graph)
           
                         if ec[0] in C and ec[1] in C and ec[0] < ec[1]:
-                            #At least one in the pair is the best similarity match for other
-                            if (ec[0] in best_match and ec[1] == best_match[ec[0]][0]) or (ec[1] in best_match and ec[0] == best_match[ec[1]][0]):
+                            #At least one in the pair is the best similarity match for other (and second best is not too close to the best)
+                            if (ec[0] in best_match and ec[1] == best_match[ec[0]][0] and best_match[ec[0]][2]/best_match[ec[0]][1]< 0.8) or (ec[1] in best_match and ec[0] == best_match[ec[1]][0] and best_match[ec[1]][2]/best_match[ec[1]][1]< 0.8):
                                 C.add_edge(ec[0], ec[1], weight=-10 * FIXED_WEIGHT)
                                 C.add_edge(ec[1], ec[0], weight=-10 * FIXED_WEIGHT)
                             else:
