@@ -53,13 +53,16 @@ with open(winnowmap_alignment_file) as f:
 
 		if  currID != parts[0]:
 			if len(idys) > 0:
+				assert(currID not in read_alignment_idy)
 				read_alignment_idy[currID] = [statistics.median(idys), mad(idys, statistics.mean(idys))]
 				#if len(idys) > 1: sys.stderr.write("Adding info for read %s which has mean %s and list %s and mad is %s sd %s\n"%(currID, statistics.median(idys), idys, mad(idys, statistics.mean(idys)), statistics.stdev(idys)))
 				idys.clear()
 
 		currID = parts[0]
 		idys.append(idy)
-	if len(idys) > 0: read_alignment_idy[currID] = [statistics.median(idys), mad(idys, statistics.mean(idys))]
+	if len(idys) > 0:
+		assert(currID not in read_alignment_idy)
+		read_alignment_idy[currID] = [statistics.median(idys), mad(idys, statistics.mean(idys))]
 
 # two pass, first records median alignment identity for a read, second only keeps those within some distand from median
 reads=set()

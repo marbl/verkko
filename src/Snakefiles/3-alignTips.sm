@@ -120,8 +120,8 @@ cat > ./combineONT.sh <<EOF
 #!/bin/sh
 set -e
 
-cat {params.alignments} \\\\
-> ../{output.alignments}
+cat {params.alignments} | \\\\
+ sort -sk1,1 -T . > ../{output.alignments}
 
 EOF
 
