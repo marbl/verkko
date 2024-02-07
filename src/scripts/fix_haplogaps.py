@@ -161,7 +161,7 @@ for node in node_seqs:
 		assert ">" + node not in node_cuts
 		assert "<" + node not in node_cuts
 		assert ">" + node not in node_trims
-		print("S\t" + node + "_trim" + "\t" + node_seqs[node][node_trims[">" + node]:])
+		print("S\t" + node + "_trim" + "\t" + node_seqs[node][node_trims["<" + node]:])
 	if (">" + node) in node_cuts:
 		assert ">" + node not in node_trims
 		assert "<" + node not in node_trims
@@ -183,10 +183,17 @@ for edge in edges:
 	for edge2 in edges[edge]:
 		fromnode = edge
 		tonode = edge2
+		overlap=edge_overlaps[canon(edge, edge2)]
 		if ">" + fromnode[1:] in node_trims or "<" + fromnode[1:] in node_trims:
-			fromnode = fromnode + "_trim" 
+			if ">" + fromnode[1:] in node_trims and ">" + fromnode[1:] in canon(edge, edge2): overlap -= node_trims[">" + fromnode[1:]]
+			if "<" + fromnode[1:] in node_trims and "<" + fromnode[1:] in canon(edge, edge2): overlap -= node_trims["<" + fromnode[1:]]
+
+			fromnode = fromnode + "_trim"
 		if ">" + tonode[1:] in node_trims or "<" + tonode[1:] in node_trims:
-			tonode = tonode + "_trim" 
+			if ">" + tonode[1:] in node_trims and ">" + tonode[1:] in canon(edge, edge2): overlap -= node_trims[">" + tonode[1:]]
+			if "<" + tonode[1:] in node_trims and "<" + tonode[1:] in canon(edge, edge2): overlap -= node_trims["<" + tonode[1:]]
+
+			tonode = tonode + "_trim"
 		if fromnode[0] == ">" and (edge in node_cuts or revnode(edge) in node_cuts):
 			fromnode = fromnode + "_end"
 		elif fromnode[0] == "<" and (edge in node_cuts or revnode(edge) in node_cuts):
@@ -195,7 +202,7 @@ for edge in edges:
 			tonode = tonode + "_beg"
 		elif tonode[0] == "<" and (edge2 in node_cuts or revnode(edge2) in node_cuts):
 			tonode = tonode + "_end"
-		print("L\t" + fromnode[1:] + "\t" + ("+" if fromnode[0] == ">" else "-") + "\t" + tonode[1:] + "\t" + ("+" if tonode[0] == ">" else "-") + "\t" + str(edge_overlaps[canon(edge, edge2)]) + "M")
+		print("L\t" + fromnode[1:] + "\t" + ("+" if fromnode[0] == ">" else "-") + "\t" + tonode[1:] + "\t" + ("+" if tonode[0] == ">" else "-") + "\t" + str(overlap) + "M")
 
 next_fake_node_id = 0
 for edge in extra_edges:
