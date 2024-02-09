@@ -24,7 +24,8 @@
 rule processGraph:
     input:
         gfa   = rules.buildGraph.output.graph,
-        paths = rules.buildGraph.output.paths
+        paths = rules.buildGraph.output.paths,
+        cov   = rules.buildGraph.output.hificov
     output:
         gfa = '2-processGraph/unitig-unrolled-hifi-resolved.gfa',
         map = '2-processGraph/unitig-mapping-1.txt'
@@ -65,10 +66,36 @@ echo Haplogap fixing.
   > fixed-hifi-resolved.gfa
 
 echo ""
-echo Tip unrolling.
+echo Tip nrolling.
+# coverage
+grep -h '^L' ../{input.gfa} gapped-once-hifi-resolved.gfa gapped-twice-hifi-resolved.gfa gapped-hifi-resolved.gfa fixed-hifi-resolved.gfa \
+  > combined-edges-uniques.gfa
+
+# this used to have grep -v \*
+#
+cat ../{input.gfa} gapped-once-hifi-resolved.gfa gapped-twice-hifi-resolved.gfa gapped-hifi-resolved.gfa fixed-hifi-resolved.gfa \
+| \
+awk 'BEGIN \\\\
+     {{ \\\\
+        FS="[ \\t]+"; OFS="\\t"; \\\\
+     }} \\\\
+     \$1 == "S" \\\\
+     {{ \\\\
+        print \$2, length(\$3); \\\\
+     }}' \\\\
+  > nodelens-uniques.txt
+
+{PYTHON} {VERKKO}/scripts/get_original_coverage.py \
+  fixed-hifi-resolved.gfa \
+  haplofix-mapping.txt \
+  combined-edges-uniques.gfa \
+  nodelens-uniques.txt \
+  ../{input.cov} \
+> hifi-nodecov.fixed-hifi-resolved.csv
+
 cut -f 6 < ../{input.paths} \\\\
 | \\\\
-{PYTHON} {VERKKO}/scripts/unroll_tip_loops.py fixed-hifi-resolved.gfa 2 \\\\
+{PYTHON} {VERKKO}/scripts/unroll_tip_loops.py fixed-hifi-resolved.gfa 2 hifi-nodecov.fixed-hifi-resolved.csv \\\\
   > unrolled-hifi-resolved.gfa
 
 {PYTHON} {VERKKO}/scripts/get_unroll_mapping.py fixed-hifi-resolved.gfa unrolled-hifi-resolved.gfa \\\\
