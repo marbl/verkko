@@ -8,15 +8,44 @@ longest_n = int(sys.argv[2])
 # graph to stdout
 
 max_unroll_length = 200000
+cov_file = sys.argv[3]
+
+def iscanon(left, right):
+        fwstr = left + right
+        bwstr = right + left
+        if bwstr < fwstr: return False
+        return True
 
 def revnode(n):
 	assert len(n) >= 2
 	assert n[0] == "<" or n[0] == ">"
 	return (">" if n[0] == "<" else "<") + n[1:]
 
+coverage = {}
+min_len = 100000
+long_coverage_len_sum = 0
+long_coverage_cov_sum = 0
+coverage_len_sum = 0
+coverage_cov_sum = 0
+with open(cov_file) as f:
+	for l in f:
+		parts = l.strip().split('\t')
+		if "node" in parts[0]: continue
+		coverage[parts[0]] = float(parts[1])
+		nodelen = int(parts[2])
+		coverage_len_sum += nodelen
+		coverage_cov_sum += nodelen * coverage[parts[0]]
+		if nodelen > min_len:
+			long_coverage_len_sum += nodelen
+			long_coverage_cov_sum += nodelen * coverage[parts[0]]
+avg_coverage = float(coverage_cov_sum) / float(coverage_len_sum)
+if long_coverage_len_sum > 0:
+	avg_coverage = float(long_coverage_cov_sum) / float(long_coverage_len_sum)
+
 nodeseqs = {}
 edges = {}
 overlaps = {}
+max_overlap = {}
 with open(graph_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
@@ -31,6 +60,12 @@ with open(graph_file) as f:
 			edges[revnode(tonode)].add(revnode(fromnode))
 			overlaps[(fromnode, tonode)] = parts[5]
 			overlaps[(revnode(tonode), revnode(fromnode))] = parts[5]
+
+			if parts[1] != parts[3] and iscanon(fromnode, tonode):
+				if fromnode not in max_overlap: max_overlap[fromnode] = int(parts[5][:-1])
+				max_overlap[fromnode] = max(max_overlap[fromnode], int(parts[5][:-1]))
+				if tonode not in max_overlap: max_overlap[tonode] = int(parts[5][:-1])
+				max_overlap[tonode] = max(max_overlap[tonode], int(parts[5][:-1]))
 
 tip_loops = set()
 counts_per_tiploop = {}
@@ -101,6 +136,19 @@ for node in counts_per_tiploop:
 	sys.stderr.write("unroll " + str(node) + "\n")
 
 sys.stderr.write("unrolled " + str(unrolled_count) + " looptips\n")
+
+for node in tip_loops:
+	if node not in nodeseqs: continue
+
+	nodelen=len(nodeseqs[node])
+	if ">"+node in max_overlap: nodelen -= max_overlap[">"+node]
+	if "<"+node in max_overlap: nodelen -= max_overlap["<"+node]
+	if nodelen <= 0: nodelen = 1
+
+	if node in coverage and coverage[node] < 0.5*avg_coverage and nodelen <= min_len / 10:
+		sys.stderr.write("%s removed edges\n"%(node))
+		del edges[">" + node]
+		del edges["<" + node]
 
 nodenames = list(nodeseqs)
 nodenames.sort()

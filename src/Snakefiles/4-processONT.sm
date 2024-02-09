@@ -45,7 +45,7 @@ rule processONT:
         min_allowed_cov = config['pop_min_allowed_cov'],
         resolve_steps   = config['pop_resolve_steps'],
         cov_fraction    = 0.5,
-	min_aln_len	= 5000,
+        min_aln_len     = 5000,
     threads:
         int(config['pop_n_cpus'])
     resources:
@@ -334,7 +334,7 @@ echo Step 16
 echo ""
 echo Step 17
 {PYTHON} {VERKKO}/scripts/unroll_tip_loops.py \\\\
-  ont-resolved-graph.gfa 3 \\\\
+  ont-resolved-graph.gfa 3 hifi-nodecov-gapped-unitig-unrolled-hifi-resolved.csv \\\\
   < fake-ont-paths.txt \\\\
   > unrolled-ont-resolved.gfa \\\\
  2> unrolled-ont-resolved.gfa.err
