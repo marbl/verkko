@@ -1,174 +1,174 @@
 MODULE       := verkko
 VERSION      := snapshot v2.0
-VERSION_H    := canu/src/utility/src/version.H
+VERSION_H    := ${CANUROOT}utility/src/version.H
 
 TARGET       := libverkko.a
-SOURCES      := canu/src/utility/src/align/align-ksw2-driver.C \
-                canu/src/utility/src/align/align-ksw2-extz.C \
-                canu/src/utility/src/align/align-ksw2-extz2-sse.C \
-                canu/src/utility/src/align/align-parasail-driver.C \
-                canu/src/utility/src/align/align-ssw-driver.C \
-                canu/src/utility/src/align/align-ssw.C \
-                canu/src/utility/src/align/edlib.C \
+SOURCES      := ${CANUROOT}utility/src/align/align-ksw2-driver.C \
+                ${CANUROOT}utility/src/align/align-ksw2-extz.C \
+                ${CANUROOT}utility/src/align/align-ksw2-extz2-sse.C \
+                ${CANUROOT}utility/src/align/align-parasail-driver.C \
+                ${CANUROOT}utility/src/align/align-ssw-driver.C \
+                ${CANUROOT}utility/src/align/align-ssw.C \
+                ${CANUROOT}utility/src/align/edlib.C \
                 \
-                canu/src/utility/src/bits/fibonacci-v1.C \
-                canu/src/utility/src/bits/hexDump-v1.C \
-                canu/src/utility/src/bits/stuffedBits-v1-binary.C \
-                canu/src/utility/src/bits/stuffedBits-v1-bits.C \
-                canu/src/utility/src/bits/stuffedBits-v1-delta.C \
-                canu/src/utility/src/bits/stuffedBits-v1-gamma.C \
-                canu/src/utility/src/bits/stuffedBits-v1-golomb.C \
-                canu/src/utility/src/bits/stuffedBits-v1-omega.C \
-                canu/src/utility/src/bits/stuffedBits-v1-unary.C \
-                canu/src/utility/src/bits/stuffedBits-v1-zeckendorf.C \
-                canu/src/utility/src/bits/stuffedBits-v1.C \
-                canu/src/utility/src/bits/wordArray-v1.C \
+                ${CANUROOT}utility/src/bits/fibonacci-v1.C \
+                ${CANUROOT}utility/src/bits/hexDump-v1.C \
+                ${CANUROOT}utility/src/bits/stuffedBits-v1-binary.C \
+                ${CANUROOT}utility/src/bits/stuffedBits-v1-bits.C \
+                ${CANUROOT}utility/src/bits/stuffedBits-v1-delta.C \
+                ${CANUROOT}utility/src/bits/stuffedBits-v1-gamma.C \
+                ${CANUROOT}utility/src/bits/stuffedBits-v1-golomb.C \
+                ${CANUROOT}utility/src/bits/stuffedBits-v1-omega.C \
+                ${CANUROOT}utility/src/bits/stuffedBits-v1-unary.C \
+                ${CANUROOT}utility/src/bits/stuffedBits-v1-zeckendorf.C \
+                ${CANUROOT}utility/src/bits/stuffedBits-v1.C \
+                ${CANUROOT}utility/src/bits/wordArray-v1.C \
                 \
-                canu/src/utility/src/datastructures/keyAndValue-v1.C \
-                canu/src/utility/src/datastructures/splitToWords-v1.C \
-                canu/src/utility/src/datastructures/stringList-v1.C \
-                canu/src/utility/src/datastructures/strings-v1.C \
-                canu/src/utility/src/datastructures/types-v1.C \
+                ${CANUROOT}utility/src/datastructures/keyAndValue-v1.C \
+                ${CANUROOT}utility/src/datastructures/splitToWords-v1.C \
+                ${CANUROOT}utility/src/datastructures/stringList-v1.C \
+                ${CANUROOT}utility/src/datastructures/strings-v1.C \
+                ${CANUROOT}utility/src/datastructures/types-v1.C \
                 \
-                canu/src/utility/src/files/accessing-v1.C \
-                canu/src/utility/src/files/buffered-v1-reading.C \
-                canu/src/utility/src/files/buffered-v1-writing.C \
-                canu/src/utility/src/files/compressed-v1-reading.C \
-                canu/src/utility/src/files/compressed-v1-writing.C \
-                canu/src/utility/src/files/compressed-v1.C \
-                canu/src/utility/src/files/fasta-fastq-v1.C \
-                canu/src/utility/src/files/files-v1.C \
-                canu/src/utility/src/files/memoryMapped-v1.C \
-                canu/src/utility/src/files/readLine-v0.C \
-                canu/src/utility/src/files/readLine-v1.C \
-                canu/src/utility/src/files/reading-v1.C \
-                canu/src/utility/src/files/writing-v1.C \
+                ${CANUROOT}utility/src/files/accessing-v1.C \
+                ${CANUROOT}utility/src/files/buffered-v1-reading.C \
+                ${CANUROOT}utility/src/files/buffered-v1-writing.C \
+                ${CANUROOT}utility/src/files/compressed-v1-reading.C \
+                ${CANUROOT}utility/src/files/compressed-v1-writing.C \
+                ${CANUROOT}utility/src/files/compressed-v1.C \
+                ${CANUROOT}utility/src/files/fasta-fastq-v1.C \
+                ${CANUROOT}utility/src/files/files-v1.C \
+                ${CANUROOT}utility/src/files/memoryMapped-v1.C \
+                ${CANUROOT}utility/src/files/readLine-v0.C \
+                ${CANUROOT}utility/src/files/readLine-v1.C \
+                ${CANUROOT}utility/src/files/reading-v1.C \
+                ${CANUROOT}utility/src/files/writing-v1.C \
                 \
-                canu/src/utility/src/kmers-v1/kmers-exact.C \
-                canu/src/utility/src/kmers-v1/kmers-files.C \
-                canu/src/utility/src/kmers-v1/kmers-histogram.C \
-                canu/src/utility/src/kmers-v1/kmers-reader.C \
-                canu/src/utility/src/kmers-v1/kmers-writer-block.C \
-                canu/src/utility/src/kmers-v1/kmers-writer-stream.C \
-                canu/src/utility/src/kmers-v1/kmers-writer.C \
-                canu/src/utility/src/kmers-v1/kmers.C \
+                ${CANUROOT}utility/src/kmers-v1/kmers-exact.C \
+                ${CANUROOT}utility/src/kmers-v1/kmers-files.C \
+                ${CANUROOT}utility/src/kmers-v1/kmers-histogram.C \
+                ${CANUROOT}utility/src/kmers-v1/kmers-reader.C \
+                ${CANUROOT}utility/src/kmers-v1/kmers-writer-block.C \
+                ${CANUROOT}utility/src/kmers-v1/kmers-writer-stream.C \
+                ${CANUROOT}utility/src/kmers-v1/kmers-writer.C \
+                ${CANUROOT}utility/src/kmers-v1/kmers.C \
                 \
-                canu/src/utility/src/kmers-v2/kmers-exact.C \
-                canu/src/utility/src/kmers-v2/kmers-files.C \
-                canu/src/utility/src/kmers-v2/kmers-histogram.C \
-                canu/src/utility/src/kmers-v2/kmers-reader-dump.C \
-                canu/src/utility/src/kmers-v2/kmers-reader.C \
-                canu/src/utility/src/kmers-v2/kmers-writer-block.C \
-                canu/src/utility/src/kmers-v2/kmers-writer-stream.C \
-                canu/src/utility/src/kmers-v2/kmers-writer.C \
-                canu/src/utility/src/kmers-v2/kmers.C \
+                ${CANUROOT}utility/src/kmers-v2/kmers-exact.C \
+                ${CANUROOT}utility/src/kmers-v2/kmers-files.C \
+                ${CANUROOT}utility/src/kmers-v2/kmers-histogram.C \
+                ${CANUROOT}utility/src/kmers-v2/kmers-reader-dump.C \
+                ${CANUROOT}utility/src/kmers-v2/kmers-reader.C \
+                ${CANUROOT}utility/src/kmers-v2/kmers-writer-block.C \
+                ${CANUROOT}utility/src/kmers-v2/kmers-writer-stream.C \
+                ${CANUROOT}utility/src/kmers-v2/kmers-writer.C \
+                ${CANUROOT}utility/src/kmers-v2/kmers.C \
                 \
-                canu/src/utility/src/math/md5-v1.C \
-                canu/src/utility/src/math/mt19937ar-v1.C \
-                canu/src/utility/src/math/sampledDistribution-v1.C \
+                ${CANUROOT}utility/src/math/md5-v1.C \
+                ${CANUROOT}utility/src/math/mt19937ar-v1.C \
+                ${CANUROOT}utility/src/math/sampledDistribution-v1.C \
                 \
-                canu/src/utility/src/parasail/cpuid.c \
-                canu/src/utility/src/parasail/memory.c \
-                canu/src/utility/src/parasail/sg.c \
-                canu/src/utility/src/parasail/sg_trace.c \
-                canu/src/utility/src/parasail/sg_qx_dispatch.c \
-                canu/src/utility/src/parasail/sg_qb_de_dispatch.c \
-                canu/src/utility/src/parasail/sg_qe_db_dispatch.c \
-                canu/src/utility/src/parasail/cigar.c \
+                ${CANUROOT}utility/src/parasail/cpuid.c \
+                ${CANUROOT}utility/src/parasail/memory.c \
+                ${CANUROOT}utility/src/parasail/sg.c \
+                ${CANUROOT}utility/src/parasail/sg_trace.c \
+                ${CANUROOT}utility/src/parasail/sg_qx_dispatch.c \
+                ${CANUROOT}utility/src/parasail/sg_qb_de_dispatch.c \
+                ${CANUROOT}utility/src/parasail/sg_qe_db_dispatch.c \
+                ${CANUROOT}utility/src/parasail/cigar.c \
                 \
-                canu/src/utility/src/sequence/dnaSeq-v1.C \
-                canu/src/utility/src/sequence/dnaSeqFile-v1.C \
-                canu/src/utility/src/sequence/sequence-v1.C \
+                ${CANUROOT}utility/src/sequence/dnaSeq-v1.C \
+                ${CANUROOT}utility/src/sequence/dnaSeqFile-v1.C \
+                ${CANUROOT}utility/src/sequence/sequence-v1.C \
                 \
-                canu/src/utility/src/system/logging-v1.C \
-                canu/src/utility/src/system/runtime-v1.C \
-                canu/src/utility/src/system/speedCounter-v1.C \
-                canu/src/utility/src/system/sweatShop-v1.C \
-                canu/src/utility/src/system/system-stackTrace-v1.C \
-                canu/src/utility/src/system/system-v1.C \
-                canu/src/utility/src/system/time-v1.C \
+                ${CANUROOT}utility/src/system/logging-v1.C \
+                ${CANUROOT}utility/src/system/runtime-v1.C \
+                ${CANUROOT}utility/src/system/speedCounter-v1.C \
+                ${CANUROOT}utility/src/system/sweatShop-v1.C \
+                ${CANUROOT}utility/src/system/system-stackTrace-v1.C \
+                ${CANUROOT}utility/src/system/system-v1.C \
+                ${CANUROOT}utility/src/system/time-v1.C \
                 \
-                canu/src/stores/sqCache.C \
-                canu/src/stores/sqLibrary.C \
-                canu/src/stores/sqReadData.C \
-                canu/src/stores/sqReadDataWriter.C \
-                canu/src/stores/sqStore.C \
-                canu/src/stores/sqStoreBlob.C \
-                canu/src/stores/sqStoreConstructor.C \
-                canu/src/stores/sqStoreInfo.C \
+                ${CANUROOT}stores/sqCache.C \
+                ${CANUROOT}stores/sqLibrary.C \
+                ${CANUROOT}stores/sqReadData.C \
+                ${CANUROOT}stores/sqReadDataWriter.C \
+                ${CANUROOT}stores/sqStore.C \
+                ${CANUROOT}stores/sqStoreBlob.C \
+                ${CANUROOT}stores/sqStoreConstructor.C \
+                ${CANUROOT}stores/sqStoreInfo.C \
                 \
-                canu/src/stores/ovOverlap.C \
-                canu/src/stores/ovStore.C \
-                canu/src/stores/ovStoreWriter.C \
-                canu/src/stores/ovStoreFilter.C \
-                canu/src/stores/ovStoreFile.C \
-                canu/src/stores/ovStoreHistogram.C \
+                ${CANUROOT}stores/ovOverlap.C \
+                ${CANUROOT}stores/ovStore.C \
+                ${CANUROOT}stores/ovStoreWriter.C \
+                ${CANUROOT}stores/ovStoreFilter.C \
+                ${CANUROOT}stores/ovStoreFile.C \
+                ${CANUROOT}stores/ovStoreHistogram.C \
                 \
-                canu/src/stores/tgStore.C \
-                canu/src/stores/tgTig.C \
-                canu/src/stores/tgTigSizeAnalysis.C \
-                canu/src/stores/tgTigMultiAlignDisplay.C \
+                ${CANUROOT}stores/tgStore.C \
+                ${CANUROOT}stores/tgTig.C \
+                ${CANUROOT}stores/tgTigSizeAnalysis.C \
+                ${CANUROOT}stores/tgTigMultiAlignDisplay.C \
                 \
-                canu/src/stores/libsnappy/snappy-sinksource.cc \
-                canu/src/stores/libsnappy/snappy-stubs-internal.cc \
-                canu/src/stores/libsnappy/snappy.cc \
+                ${CANUROOT}stores/libsnappy/snappy-sinksource.cc \
+                ${CANUROOT}stores/libsnappy/snappy-stubs-internal.cc \
+                ${CANUROOT}stores/libsnappy/snappy.cc \
                 \
-                canu/src/stores/objectStore.C \
+                ${CANUROOT}stores/objectStore.C \
                 \
-                canu/src/overlapInCore/liboverlap/Binomial_Bound.C \
+                ${CANUROOT}overlapInCore/liboverlap/Binomial_Bound.C \
                 \
-                canu/src/gfa/gfa.C \
-                canu/src/gfa/bed.C
+                ${CANUROOT}gfa/gfa.C \
+                ${CANUROOT}gfa/bed.C
 
 
 ifeq (${BUILDSTACKTRACE}, 1)
-SOURCES      += canu/src/utility/src/system/libbacktrace/atomic.c \
-                canu/src/utility/src/system/libbacktrace/backtrace.c \
-                canu/src/utility/src/system/libbacktrace/dwarf.c \
-                canu/src/utility/src/system/libbacktrace/elf.c \
-                canu/src/utility/src/system/libbacktrace/fileline.c \
-                canu/src/utility/src/system/libbacktrace/mmap.c \
-                canu/src/utility/src/system/libbacktrace/mmapio.c \
-                canu/src/utility/src/system/libbacktrace/posix.c \
-                canu/src/utility/src/system/libbacktrace/print.c \
-                canu/src/utility/src/system/libbacktrace/simple.c \
-                canu/src/utility/src/system/libbacktrace/sort.c \
-                canu/src/utility/src/system/libbacktrace/state.c \
-                canu/src/utility/src/system/libbacktrace/unknown.c
+SOURCES      += ${CANUROOT}utility/src/system/libbacktrace/atomic.c \
+                ${CANUROOT}utility/src/system/libbacktrace/backtrace.c \
+                ${CANUROOT}utility/src/system/libbacktrace/dwarf.c \
+                ${CANUROOT}utility/src/system/libbacktrace/elf.c \
+                ${CANUROOT}utility/src/system/libbacktrace/fileline.c \
+                ${CANUROOT}utility/src/system/libbacktrace/mmap.c \
+                ${CANUROOT}utility/src/system/libbacktrace/mmapio.c \
+                ${CANUROOT}utility/src/system/libbacktrace/posix.c \
+                ${CANUROOT}utility/src/system/libbacktrace/print.c \
+                ${CANUROOT}utility/src/system/libbacktrace/simple.c \
+                ${CANUROOT}utility/src/system/libbacktrace/sort.c \
+                ${CANUROOT}utility/src/system/libbacktrace/state.c \
+                ${CANUROOT}utility/src/system/libbacktrace/unknown.c
 endif
 
 
 
 SRC_INCDIRS  := . \
-                canu/src/utility/src \
-                canu/src/stores \
-                canu/src/stores/libsnappy \
-                canu/src/alignment \
-                canu/src/utgcns/libcns \
-                canu/src/utgcns/libpbutgcns \
-                canu/src/overlapBasedTrimming \
+                ${CANUROOT}utility/src \
+                ${CANUROOT}stores \
+                ${CANUROOT}stores/libsnappy \
+                ${CANUROOT}alignment \
+                ${CANUROOT}utgcns/libcns \
+                ${CANUROOT}utgcns/libpbutgcns \
+                ${CANUROOT}overlapBasedTrimming \
 
-SUBMAKEFILES := canu/src/stores/ovStoreBuild.mk \
-                canu/src/stores/ovStoreConfig.mk \
-                canu/src/stores/ovStoreBucketizer.mk \
-                canu/src/stores/ovStoreSorter.mk \
-                canu/src/stores/ovStoreIndexer.mk \
-                canu/src/stores/sqStoreCreate.mk \
-                canu/src/stores/sqStoreDumpMetaData.mk \
-                canu/src/stores/sqStoreDumpFASTQ.mk \
+SUBMAKEFILES := ${CANUROOT}stores/ovStoreBuild.mk \
+                ${CANUROOT}stores/ovStoreConfig.mk \
+                ${CANUROOT}stores/ovStoreBucketizer.mk \
+                ${CANUROOT}stores/ovStoreSorter.mk \
+                ${CANUROOT}stores/ovStoreIndexer.mk \
+                ${CANUROOT}stores/sqStoreCreate.mk \
+                ${CANUROOT}stores/sqStoreDumpMetaData.mk \
+                ${CANUROOT}stores/sqStoreDumpFASTQ.mk \
                 \
-                canu/src/meryl/src/meryl/meryl.mk \
-                canu/src/meryl/src/meryl-lookup/meryl-lookup.mk \
+                ${CANUROOT}meryl/src/meryl/meryl.mk \
+                ${CANUROOT}meryl/src/meryl-lookup/meryl-lookup.mk \
                 \
-                canu/src/overlapInCore/overlapImport.mk \
+                ${CANUROOT}overlapInCore/overlapImport.mk \
                 \
-                canu/src/overlapErrorAdjustment/findErrors.mk \
-                canu/src/overlapErrorAdjustment/fixErrors.mk \
+                ${CANUROOT}overlapErrorAdjustment/findErrors.mk \
+                ${CANUROOT}overlapErrorAdjustment/fixErrors.mk \
                 \
-                canu/src/utgcns/layoutToPackage.mk \
-                canu/src/utgcns/utgcns.mk \
+                ${CANUROOT}utgcns/layoutToPackage.mk \
+                ${CANUROOT}utgcns/utgcns.mk \
                 \
-                canu/src/gfa/alignGFA.mk
+                ${CANUROOT}gfa/alignGFA.mk
 
 EXECUTABLES  := verkko.sh                             -> ../bin/verkko \
                 \

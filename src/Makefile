@@ -52,7 +52,7 @@ define INIT_SUBMODULE
   ifeq ($$(wildcard ${1}),${1})
   ifeq ($$(wildcard ${1}/*),)
     $$(info Fetching submodule '${1}')
-    $$(shell git submodule update --init ${2} ${1} 2>&1 | awk '{ print " - "$$$$0 }' 1>&2)
+    $$(shell cd $$(dir ${1}) ; git submodule update --init ${2} $$(notdir ${1}) 2>&1 | awk '{ print " - "$$$$0 }' 1>&2)
     $$(info )
   endif
   endif
@@ -65,6 +65,20 @@ $(eval $(call INIT_SUBMODULE,canu/src/seqrequester,))
 $(eval $(call INIT_SUBMODULE,rukki,))
 $(eval $(call INIT_SUBMODULE,MBG,--recursive))
 $(eval $(call INIT_SUBMODULE,hifioverlapper,--recursive))
+
+#  Only meryl needs the symlink, but the rest are left in for consistency.
+#  To remove them, replace CANUROOT in main.mk with 'canu/src/' (in SOURCES,
+#  SRC_INCDIRS and SUBMAKEFILES).
+
+$(if $(wildcard gfa/alignGFA.C),,                        $(shell ln -s canu/src/gfa gfa))
+$(if $(wildcard meryl/src),,                             $(shell ln -s canu/src/meryl meryl))
+$(if $(wildcard overlapBasedTrimming/clearRangeFile.H),, $(shell ln -s canu/src/overlapBasedTrimming overlapBasedTrimming))
+$(if $(wildcard overlapErrorAdjustment/findErrors.C),,   $(shell ln -s canu/src/overlapErrorAdjustment overlapErrorAdjustment))
+$(if $(wildcard overlapInCore/overlapImport.C),,         $(shell ln -s canu/src/overlapInCore))
+$(if $(wildcard seqrequester/src),,                      $(shell ln -s canu/src/seqrequester seqrequester))
+$(if $(wildcard stores/sqStore.C),,                      $(shell ln -s canu/src/stores stores))
+$(if $(wildcard utgcns/utgcns.C),,                       $(shell ln -s canu/src/utgcns utgcns))
+$(if $(wildcard utility/src),,                           $(shell ln -s canu/src/utility utility))
 
 #
 #  Set compiler and flags based on operating system and compiler toolchain.
@@ -398,6 +412,7 @@ $(eval $(call INCLUDE_SUBMAKEFILE,main.mk))
 
 .PHONY: doall
 doall: $(addprefix ${TARGET_DIR}/,${ALL_TGTS})
+	@rm -f gfa meryl overlapErrorAdjustment overlapInCore overlapBasedTrimming seqrequester stores utgcns utility
 	@echo ""
 	@echo "Success!"
 	@echo "${MODULE} installed in ${TARGET_DIR}/bin/${MODULE}"
@@ -406,6 +421,7 @@ doall: $(addprefix ${TARGET_DIR}/,${ALL_TGTS})
 .PHONY: doclean-final
 doclean-final: doclean
 	if [ -d ${TARGET_DIR} ] ; then find ${TARGET_DIR} -type d -print | sort -r | xargs -n 100 rmdir ; fi
+	@rm -f gfa meryl overlapErrorAdjustment overlapInCore overlapBasedTrimming seqrequester stores utgcns utility
 	@echo ""
 	@echo "Cleaned."
 	@echo ""
