@@ -1,3 +1,5 @@
+# -*- Makefile -*-
+#
 # boilermake: A reusable, but flexible, boilerplate Makefile.
 #
 # Copyright 2008, 2009, 2010 Dan Moulding, Alan T. DeKok
@@ -15,443 +17,75 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Caution: Don't edit this Makefile! Create your own main.mk and other
-#          submakefiles, which will be included by this Makefile.
-#          Only edit this if you need to modify boilermake's behavior (fix
-#          bugs, add features, etc).
-
-# Note: Parameterized "functions" in this makefile that are marked with
-#       "USE WITH EVAL" are only useful in conjuction with eval. This is
-#       because those functions result in a block of Makefile syntax that must
-#       be evaluated after expansion. Since they must be used with eval, most
-#       instances of "$" within them need to be escaped with a second "$" to
-#       accomodate the double expansion that occurs when eval is invoked.
-
-#  Before doing ANYTHING, initialize submodules...if the version of
-#  git is compatible.
-gitv := $(shell git --version | cut -d\  -f 3 | cut -c 1)
-ifeq (1, $(gitv))
-  gitv := $(shell git --version | cut -d\  -f 3)
-  $(error git '$(shell which git)' version '$(gitv)' too old; at least version 2.12 is required)
-endif
-
-ifeq ($(wildcard canu/src/Makefile), )
-  $(info $(shell git submodule update --init canu))
-  $(info $(space))
-endif
-ifeq ($(wildcard canu/src/utility/src/Makefile), )
-  $(info $(shell cd canu/src ; git submodule update --init utility))
-  $(info $(space))
-endif
-ifeq ($(wildcard canu/src/meryl/src/Makefile), )
-  $(info $(shell cd canu/src ; git submodule update --init meryl))
-  $(info $(space))
-endif
-ifeq ($(wildcard canu/src/seqrequester/src/Makefile), )
-  $(info $(shell cd canu/src ; git submodule update --init seqrequester))
-  $(info $(space))
-endif
-ifeq ($(wildcard rukki/Cargo.toml), )
-  $(info $(shell git submodule update --init rukki))
-  $(info $(space))
-endif
-ifeq ($(wildcard MBG/makefile), )
-  $(info $(shell git submodule update --init --recursive MBG))
-  $(info $(space))
-endif
-ifeq ($(wildcard hifioverlapper/makefile), )
-  $(info $(shell git submodule update --init --recursive hifioverlapper))
-  $(info $(space))
-endif
-
-#  Make symlinks to source directories if needed.
-ifeq ($(wildcard gfa/alignGFA.C), )
-   $(shell ln -s canu/src/gfa gfa)
-endif 
-ifeq ($(wildcard meryl/src), )
-  $(shell ln -s canu/src/meryl meryl)
-endif
-ifeq ($(wildcard overlapErrorAdjustment/findErrors.C), )
-  $(shell ln -s canu/src/overlapErrorAdjustment overlapErrorAdjustment)
-endif
-ifeq ($(wildcard seqrequester/src), )
-  $(shell ln -s canu/src/seqrequester seqrequester)
-endif
-ifeq ($(wildcard stores/sqStore.C), )
-  $(shell ln -s canu/src/stores stores)
-endif
-ifeq ($(wildcard utgcns/utgcns.C), )
-  $(shell ln -s canu/src/utgcns utgcns)
-endif
-ifeq ($(wildcard utility/src), )
-  $(shell ln -s canu/src/utility utility)
-endif
-ifeq ($(wildcard overlapInCore/overlapImport.C), )
-  $(shell ln -s canu/src/overlapInCore)
-endif
-ifeq ($(wildcard overlapBasedTrimming/clearRangeFile.H), )
-  $(shell ln -s canu/src/overlapBasedTrimming overlapBasedTrimming)
-endif
-
-# ADD_CLEAN_RULE - Parameterized "function" that adds a new rule and phony
-#   target for cleaning the specified target (removing its build-generated
-#   files).
 #
-#   USE WITH EVAL
+# Significantly modified for Marbl projects.  Get the original from
+#   https://github.com/dmoulding/boilermake
 #
-define ADD_CLEAN_RULE
-    clean: clean_${1}
-    .PHONY: clean_${1}
-    clean_${1}:
-	$$(strip rm -f ${TARGET_DIR}/${1} $${${1}_OBJS:%.o=%.[doP]})
-	$${${1}_POSTCLEAN}
-endef
 
-# ADD_OBJECT_RULE - Parameterized "function" that adds a pattern rule for
-#   building object files from source files with the filename extension
-#   specified in the second argument. The first argument must be the name of the
-#   base directory where the object files should reside (such that the portion
-#   of the path after the base directory will match the path to corresponding
-#   source files). The third argument must contain the rules used to compile the
-#   source files into object code form.
-#
-#   USE WITH EVAL
-#
-define ADD_OBJECT_RULE
-${1}/%.o: ${2} utility/src/version.H
-	${3}
-endef
+include Makefile.boilermake
 
-# ADD_TARGET_RULE - Parameterized "function" that adds a new target to the
-#   Makefile. The target may be an executable or a library. The two allowable
-#   types of targets are distinguished based on the name: library targets must
-#   end with the traditional ".a" extension.
 #
-#   USE WITH EVAL
+#  Check that Make and git are compatible, fail if not.
 #
-define ADD_TARGET_RULE
-    ifeq "$$(suffix ${1})" ".a"
-        # Add a target for creating a static library.
-        $${TARGET_DIR}/${1}: $${${1}_OBJS}
-	        @mkdir -p $$(dir $$@)
-	        $$(strip $${AR} $${ARFLAGS} $$@ $${${1}_OBJS})
-	        $${${1}_POSTMAKE}
-    else
-      # Add a target for linking an executable. First, attempt to select the
-      # appropriate front-end to use for linking. This might not choose the
-      # right one (e.g. if linking with a C++ static library, but all other
-      # sources are C sources), so the user makefile is allowed to specify a
-      # linker to be used for each target.
-      ifeq "$$(strip $${${1}_LINKER})" ""
-          # No linker was explicitly specified to be used for this target. If
-          # there are any C++ sources for this target, use the C++ compiler.
-          # For all other targets, default to using the C compiler.
-          ifneq "$$(strip $$(filter $${CXX_SRC_EXTS},$${${1}_SOURCES}))" ""
-              ${1}_LINKER = $${CXX}
-          else
-              ${1}_LINKER = $${CC}
-          endif
-      endif
 
-      $${TARGET_DIR}/${1}: $${${1}_OBJS} $${${1}_PREREQS}
-	      @mkdir -p $$(dir $$@)
-	      $$(strip $${${1}_LINKER} -o $$@ $${LDFLAGS} $${${1}_LDFLAGS} $${${1}_OBJS} $${${1}_LDLIBS} $${LDLIBS})
-	      $${${1}_POSTMAKE}
+define TEST_VERSION
+  path   := $$(shell which ${1})
+  vers   := $$(shell ${1}     --version | head -n 1 | cut -d\  -f ${2})
+  versn  := $$(shell echo $${vers} | sed -e 's/\.\([0-9][0-9]\)/\1/g' -e 's/\.\([0-9]\)/0\1/g' -e 's/^[0-9]\{3,4\}$$$$/&00/')
+  min    := $$(shell echo ${3}     | sed -e 's/\.\([0-9][0-9]\)/\1/g' -e 's/\.\([0-9]\)/0\1/g' -e 's/^[0-9]\{3,4\}$$$$/&00/')
+
+  ifeq ($$(shell expr $${versn} \>= $${min}), 0)
+    $$(error '$${path}' version '$${vers}' too old; at least version $3 is required)
   endif
 endef
 
-# CANONICAL_PATH - Given one or more paths, converts the paths to the canonical
-#   form. The canonical form is the path, relative to the project's top-level
-#   directory (the directory from which "make" is run), and without
-#   any "./" or "../" sequences. For paths that are not  located below the
-#   top-level directory, the canonical form is the absolute path (i.e. from
-#   the root of the filesystem) also without "./" or "../" sequences.
-define CANONICAL_PATH
-$(patsubst ${CURDIR}/%,%,$(abspath ${1}))
-endef
+$(eval $(call TEST_VERSION, git,     3, 2.12))
+$(eval $(call TEST_VERSION, ${MAKE}, 3, 3.81))
 
-# COMPILE_C_CMDS - Commands for compiling C source code.
-define COMPILE_C_CMDS
-	@mkdir -p $(dir $@)
-	$(strip ${CC} -o $@ -c -MD ${CFLAGS} ${SRC_CFLAGS} ${INCDIRS} \
-	    ${SRC_INCDIRS} ${SRC_DEFS} ${DEFS} $<)
-	@cp ${@:%$(suffix $@)=%.d} ${@:%$(suffix $@)=%.P}; \
-	 sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
-	     -e '/^$$/ d' -e 's/$$/ :/' < ${@:%$(suffix $@)=%.d} \
-	     >> ${@:%$(suffix $@)=%.P}; \
-	 rm -f ${@:%$(suffix $@)=%.d}
-endef
-
-# COMPILE_CXX_CMDS - Commands for compiling C++ source code.
-define COMPILE_CXX_CMDS
-	@mkdir -p $(dir $@)
-	$(strip ${CXX} -o $@ -c -MD ${CXXFLAGS} ${SRC_CXXFLAGS} ${INCDIRS} \
-	    ${SRC_INCDIRS} ${SRC_DEFS} ${DEFS} $<)
-	@cp ${@:%$(suffix $@)=%.d} ${@:%$(suffix $@)=%.P}; \
-	 sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
-	     -e '/^$$/ d' -e 's/$$/ :/' < ${@:%$(suffix $@)=%.d} \
-	     >> ${@:%$(suffix $@)=%.P}; \
-	 rm -f ${@:%$(suffix $@)=%.d}
-endef
-
-# INCLUDE_SUBMAKEFILE - Parameterized "function" that includes a new
-#   "submakefile" fragment into the overall Makefile. It also recursively
-#   includes all submakefiles of the specified submakefile fragment.
 #
-#   USE WITH EVAL
+#  Initialize submodules if they aren't here yet.
+#   - if the submodule directory exists and it is empty, then have
+#     git fetch the submodule (with some fancy logging).
 #
-define INCLUDE_SUBMAKEFILE
-    # Initialize all variables that can be defined by a makefile fragment, then
-    # include the specified makefile fragment.
-    TARGET        :=
-    TGT_CFLAGS    :=
-    TGT_CXXFLAGS  :=
-    TGT_DEFS      :=
-    TGT_INCDIRS   :=
-    TGT_LDFLAGS   :=
-    TGT_LDLIBS    :=
-    TGT_LINKER    :=
-    TGT_POSTCLEAN :=
-    TGT_POSTMAKE  :=
-    TGT_PREREQS   :=
 
-    SOURCES       :=
-    SRC_CFLAGS    :=
-    SRC_CXXFLAGS  :=
-    SRC_DEFS      :=
-    SRC_INCDIRS   :=
-
-    SUBMAKEFILES  :=
-
-    # A directory stack is maintained so that the correct paths are used as we
-    # recursively include all submakefiles. Get the makefile's directory and
-    # push it onto the stack.
-    DIR := $(call CANONICAL_PATH,$(dir ${1}))
-    DIR_STACK := $$(call PUSH,$${DIR_STACK},$${DIR})
-
-    include ${1}
-
-    # Initialize internal local variables.
-    OBJS :=
-
-    # Determine which target this makefile's variables apply to. A stack is
-    # used to keep track of which target is the "current" target as we
-    # recursively include other submakefiles.
-    ifneq "$$(strip $${TARGET})" ""
-        # This makefile defined a new target. Target variables defined by this
-        # makefile apply to this new target. Initialize the target's variables.
-
-        ifeq "$$(suffix $${TARGET})" ".a"
-          TGT := $$(addprefix lib/, $$(strip $${TARGET}))
-        else
-          TGT := $$(addprefix bin/, $$(strip $${TARGET}))
-        endif
-        ALL_TGTS += $${TGT}
-        $${TGT}_CFLAGS    := $${TGT_CFLAGS}
-        $${TGT}_CXXFLAGS  := $${TGT_CXXFLAGS}
-        $${TGT}_DEFS      := $${TGT_DEFS}
-        $${TGT}_DEPS      :=
-        TGT_INCDIRS       := $$(call QUALIFY_PATH,$${DIR},$${TGT_INCDIRS})
-        TGT_INCDIRS       := $$(call CANONICAL_PATH,$${TGT_INCDIRS})
-        $${TGT}_INCDIRS   := $${TGT_INCDIRS}
-        $${TGT}_LDFLAGS   := $${TGT_LDFLAGS}
-        $${TGT}_LDLIBS    := $${TGT_LDLIBS}
-        $${TGT}_LINKER    := $${TGT_LINKER}
-        $${TGT}_OBJS      :=
-        $${TGT}_POSTCLEAN := $${TGT_POSTCLEAN}
-        $${TGT}_POSTMAKE  := $${TGT_POSTMAKE}
-        $${TGT}_PREREQS   := $$(addprefix $${TARGET_DIR}/lib/,$${TGT_PREREQS})
-        $${TGT}_SOURCES   :=
-    else
-        # The values defined by this makefile apply to the the "current" target
-        # as determined by which target is at the top of the stack.
-        TGT := $$(strip $$(call PEEK,$${TGT_STACK}))
-        $${TGT}_CFLAGS    += $${TGT_CFLAGS}
-        $${TGT}_CXXFLAGS  += $${TGT_CXXFLAGS}
-        $${TGT}_DEFS      += $${TGT_DEFS}
-        TGT_INCDIRS       := $$(call QUALIFY_PATH,$${DIR},$${TGT_INCDIRS})
-        TGT_INCDIRS       := $$(call CANONICAL_PATH,$${TGT_INCDIRS})
-        $${TGT}_INCDIRS   += $${TGT_INCDIRS}
-        $${TGT}_LDFLAGS   += $${TGT_LDFLAGS}
-        $${TGT}_LDLIBS    += $${TGT_LDLIBS}
-        $${TGT}_POSTCLEAN += $${TGT_POSTCLEAN}
-        $${TGT}_POSTMAKE  += $${TGT_POSTMAKE}
-        $${TGT}_PREREQS   += $${TGT_PREREQS}
-    endif
-
-    # Push the current target onto the target stack.
-    TGT_STACK := $$(call PUSH,$${TGT_STACK},$${TGT})
-
-    ifneq "$$(strip $${SOURCES})" ""
-        # This makefile builds one or more objects from source. Validate the
-        # specified sources against the supported source file types.
-        BAD_SRCS := $$(strip $$(filter-out $${ALL_SRC_EXTS},$${SOURCES}))
-        ifneq "$${BAD_SRCS}" ""
-            $$(error Unsupported source file(s) found in ${1} [$${BAD_SRCS}])
-        endif
-
-        # Qualify and canonicalize paths.
-        SOURCES     := $$(call QUALIFY_PATH,$${DIR},$${SOURCES})
-        SOURCES     := $$(call CANONICAL_PATH,$${SOURCES})
-        SRC_INCDIRS := $$(call QUALIFY_PATH,$${DIR},$${SRC_INCDIRS})
-        SRC_INCDIRS := $$(call CANONICAL_PATH,$${SRC_INCDIRS})
-
-        # Save the list of source files for this target.
-        $${TGT}_SOURCES += $${SOURCES}
-
-        # Convert the source file names to their corresponding object file
-        # names.
-        OBJS := $$(addprefix $${BUILD_DIR}/$$(call CANONICAL_PATH,$${TGT})/,\
-                   $$(addsuffix .o,$$(basename $${SOURCES})))
-
-        # Add the objects to the current target's list of objects, and create
-        # target-specific variables for the objects based on any source
-        # variables that were defined.
-        $${TGT}_OBJS += $${OBJS}
-        $${TGT}_DEPS += $${OBJS:%.o=%.P}
-        $${OBJS}: SRC_CFLAGS   := $${$${TGT}_CFLAGS} $${SRC_CFLAGS}
-        $${OBJS}: SRC_CXXFLAGS := $${$${TGT}_CXXFLAGS} $${SRC_CXXFLAGS}
-        $${OBJS}: SRC_DEFS     := $$(addprefix -D,$${$${TGT}_DEFS} $${SRC_DEFS})
-        $${OBJS}: SRC_INCDIRS  := $$(addprefix -I,\
-                                     $${$${TGT}_INCDIRS} $${SRC_INCDIRS})
-    endif
-
-    ifneq "$$(strip $${SUBMAKEFILES})" ""
-        # This makefile has submakefiles. Recursively include them.
-        $$(foreach MK,$${SUBMAKEFILES},\
-           $$(eval $$(call INCLUDE_SUBMAKEFILE,\
-                      $$(call CANONICAL_PATH,\
-                         $$(call QUALIFY_PATH,$${DIR},$${MK})))))
-    endif
-
-    # Reset the "current" target to it's previous value.
-    TGT_STACK := $$(call POP,$${TGT_STACK})
-    TGT := $$(call PEEK,$${TGT_STACK})
-
-    # Reset the "current" directory to it's previous value.
-    DIR_STACK := $$(call POP,$${DIR_STACK})
-    DIR := $$(call PEEK,$${DIR_STACK})
-endef
-
-
-# MIN - Parameterized "function" that results in the minimum lexical value of
-#   the two values given.
-define MIN
-$(firstword $(sort ${1} ${2}))
-endef
-
-# PEEK - Parameterized "function" that results in the value at the top of the
-#   specified colon-delimited stack.
-define PEEK
-$(lastword $(subst :, ,${1}))
-endef
-
-# POP - Parameterized "function" that pops the top value off of the specified
-#   colon-delimited stack, and results in the new value of the stack. Note that
-#   the popped value cannot be obtained using this function; use peek for that.
-define POP
-${1:%:$(lastword $(subst :, ,${1}))=%}
-endef
-
-# PUSH - Parameterized "function" that pushes a value onto the specified colon-
-#   delimited stack, and results in the new value of the stack.
-define PUSH
-${2:%=${1}:%}
-endef
-
-# QUALIFY_PATH - Given a "root" directory and one or more paths, qualifies the
-#   paths using the "root" directory (i.e. appends the root directory name to
-#   the paths) except for paths that are absolute.
-define QUALIFY_PATH
-$(addprefix ${1}/,$(filter-out /%,${2})) $(filter /%,${2})
-endef
-
-###############################################################################
-#
-# Start of Makefile Evaluation
-#
-###############################################################################
-
-# Older versions of GNU Make lack capabilities needed by boilermake.
-# With older versions, "make" may simply output "nothing to do", likely leading
-# to confusion. To avoid this, check the version of GNU make up-front and
-# inform the user if their version of make doesn't meet the minimum required.
-
-MIN_MAKE_VERSION := 3.81
-MIN_MAKE_VER_MSG := boilermake requires GNU Make ${MIN_MAKE_VERSION} or greater
-ifeq "${MAKE_VERSION}" ""
-    $(info GNU Make not detected)
-    $(error ${MIN_MAKE_VER_MSG})
-endif
-ifneq "${MIN_MAKE_VERSION}" "$(call MIN,${MIN_MAKE_VERSION},${MAKE_VERSION})"
-    $(info This is GNU Make version ${MAKE_VERSION})
-    $(error ${MIN_MAKE_VER_MSG})
-endif
-
-# Define the source file extensions that we know how to handle.
-
-C_SRC_EXTS := %.c
-CXX_SRC_EXTS := %.C %.cc %.cp %.cpp %.CPP %.cxx %.c++
-JAVA_EXTS    := %.jar %.tar
-ALL_SRC_EXTS := ${C_SRC_EXTS} ${CXX_SRC_EXTS} ${JAVA_EXTS}
-
-# Initialize global variables.
-
-ALL_TGTS :=
-DEFS :=
-DIR_STACK :=
-INCDIRS :=
-TGT_STACK :=
-
-# Discover our OS and architecture.  These were previously used to set
-# BUILD_DIR and TARGET_DIR to allow multi-platform builds.  DESTDIR will do
-# that for us too.
-
-OSTYPE      := $(shell echo `uname`)
-OSVERSION   := $(shell echo `uname -r`)
-MACHINETYPE := $(shell echo `uname -m`)
-
-ifeq (${MACHINETYPE}, x86_64)
-  MACHINETYPE = amd64
-endif
-
-ifeq (${MACHINETYPE}, Power Macintosh)
-  MACHINETYPE = ppc
-endif
-
-ifeq (${OSTYPE}, SunOS)
-  MACHINETYPE = ${shell echo `uname -p`}
-  ifeq (${MACHINETYPE}, sparc)
-    ifeq (${shell /usr/bin/isainfo -b}, 64)
-      MACHINETYPE = sparc64
-    else
-      MACHINETYPE = sparc32
-    endif
+define INIT_SUBMODULE
+  ifeq ($$(wildcard ${1}),${1})
+  ifeq ($$(wildcard ${1}/*),)
+    $$(info Fetching submodule '${1}')
+    $$(shell git submodule update --init ${2} ${1} 2>&1 | awk '{ print " - "$$$$0 }' 1>&2)
+    $$(info )
   endif
-endif
+  endif
+endef
 
-#  Set paths for building and installing.  If DESTDIR doesn't exist, use the
-#  directory just above us.
-
-ifeq "$(strip ${DESTDIR})" ""
-  BUILD_DIR    := $(realpath .)/build/obj
-  TARGET_DIR   := $(realpath .)/build
-  OBSOLETE_DIR := $(realpath .)/${OSTYPE}-${MACHINETYPE}
-else
-  BUILD_DIR    := $(DESTDIR)/$(MODULE)/build/obj
-  TARGET_DIR   := $(DESTDIR)/$(MODULE)/build
-  OBSOLETE_DIR := $(DESTDIR)/$(MODULE)/${OSTYPE}-${MACHINETYPE}
-endif
+$(eval $(call INIT_SUBMODULE,canu,))
+$(eval $(call INIT_SUBMODULE,canu/src/utility,))
+$(eval $(call INIT_SUBMODULE,canu/src/meryl,))
+$(eval $(call INIT_SUBMODULE,canu/src/seqrequester,))
+$(eval $(call INIT_SUBMODULE,rukki,))
+$(eval $(call INIT_SUBMODULE,MBG,--recursive))
+$(eval $(call INIT_SUBMODULE,hifioverlapper,--recursive))
 
 #
-#  Set compiler and flags based on discovered hardware
+#  Set compiler and flags based on operating system and compiler toolchain.
+#  This must be called AFTER the compiler is chosen, and after the decision
+#  to include stack trace support is make.
 #
-#  By default, debug symbols are included in all builds (even optimized).
+#  User-supplied flags are handled:
+#    If a parameter to make ("make CXXFLAGS=whatever"):
+#      flags are used exclusively; no default flags are supplied
+#    If an environment variable ("CXXFLAGS=whatever make"):
+#      flags are appended to the end of the default flags.
 #
-#  BUILDOPTIMIZED  will disable debug symbols (leaving it just optimized)
-#  BUILDDEBUG      will disable optimization  (leaving it just with debug symbols)
-#  BUILDSTACKTRACE will enable stack trace on crashes, only works for Linux
-#                  set to 0 on command line to disable (it's enabled by default for Linux)
+#  Parameters to the function:
+#    $1 - extra flags for CFLAGS/CXXFLAGS (e.g., -I/path)
+#    $2 - extra flags for LDFLAGS (e.g., -L/path)
+#
+#  Options:
+#    BUILDOPTIMIZED  will disable debug symbols (leaving it just optimized)
+#    BUILDDEBUG      will disable optimization  (leaving it just with debug symbols)
+#    BUILDSTACKTRACE will enable stack trace on crashes, only works for Linux
+#                    set to 0 on command line to disable (it's enabled by default for Linux)
 #
 #  BUILDPROFILE used to add -pg to LDFLAGS, and remove -D_GLIBCXX_PARALLE from CXXFLAGS and LDFLAGS,
 #  and remove -fomit-frame-pointer from CXXFLAGS.  It added a bunch of complication and wasn't
@@ -459,539 +93,378 @@ endif
 #
 #  BUILDJEMALLOC will enable jemalloc library support.
 #
+define SET_DEFAULT_FLAGS
+  CFLAGSUSER   := $${CFLAGS}
+  CXXFLAGSUSER := $${CXXFLAGS}
+  LDFLAGSUSER  := $${LDFLAGS}
 
-ifeq ($(origin CXXFLAGS), undefined)
-  ifeq ($(BUILDOPTIMIZED), 1)
+  #  Figure out which tool chain we're using and set up initial flags.
+  #   - GCC seems to want '-dumpfullversion' instead of '-dumpversion'
+  #     to return the full X.Y.Z version number.
+  #   - GCC has deprecated c++2a but gcc-9 doesn't know the correct
+  #     option c++20.
+
+  ifeq ($$(shell echo `$$(CXX) --version 2>&1 | grep -c clang`), 0)
+    TOOLCHAIN  := GNU
+    TOOLCHAINV := $$(shell ${CXX} -dumpfullversion)
+    CFLAGS     := -pthread -fopenmp -fPIC -std=c17   ${1}
+    CXXFLAGS   := -pthread -fopenmp -fPIC -std=c++2a ${1}
+    LDFLAGS    := -pthread -fopenmp                  ${2} -lm
   else
-    CXXFLAGS += -g3
+    TOOLCHAIN  := LLVM
+    TOOLCHAINV := $$(shell ${CXX} -dumpversion)
+    CFLAGS     := -pthread -fopenmp -fPIC -std=c17   ${1}
+    CXXFLAGS   := -pthread -fopenmp -fPIC -std=c++20 ${1}
+    LDFLAGS    := -pthread -fopenmp                  ${2} -lm
   endif
 
-  ifeq ($(BUILDDEBUG), 1)
-  else
-    CXXFLAGS += -O4 -funroll-loops -fexpensive-optimizations -finline-functions -fomit-frame-pointer
+  #  Build up our preferred set of flags.
+
+  ifeq ($$(BUILDOPTIMIZED), 1)   #  Enable debugging and add debug-aware
+  else                           #  optimization unless BUILDOPTIMIZED is set.
+    CXXFLAGS += -Og -g3
+    CFLAGS   += -Og -g3
   endif
 
-  ifeq ($(BUILDJEMALLOC), 1)
+  ifeq ($$(BUILDDEBUG), 1)       #  Add full optimization unless BUILDDEBUG is set.
+  else ifeq ($$(TOOLCHAIN), GNU)
+    CXXFLAGS += -O4 -funroll-loops -finline-functions -fomit-frame-pointer -fexpensive-optimizations
+    CFLAGS   += -O4 -funroll-loops -finline-functions -fomit-frame-pointer -fexpensive-optimizations
+  else ifeq ($$(TOOLCHAIN), LLVM)
+    CXXFLAGS += -O3 -funroll-loops -finline-functions -fomit-frame-pointer
+    CFLAGS   += -O3 -funroll-loops -finline-functions -fomit-frame-pointer
+  else
+    CXXFLAGS += -O3
+    CFLAGS   += -O3
+  endif
+
+  ifeq ($${BUILDSTACKTRACE}, 1)  #  Add (or disable) stacktrace support.
+    CXXFLAGS += -DLIBBACKTRACE
+    CFLAGS   += -DLIBBACKTRACE
+  else
+    CXXFLAGS += -DNOBACKTRACE
+    CFLAGS   += -DNOBACKTRACE
+  endif
+
+  ifeq ($$(BUILDJEMALLOC), 1)    #  Add jemalloc support.
     CXXFLAGS += -DJEMALLOC -I`jemalloc-config --includedir`
     LDFLAGS  += -L`jemalloc-config --libdir` -Wl,-rpath,`jemalloc-config --libdir` -ljemalloc `jemalloc-config --libs`
   endif
 
-  #  Enable some warnings.
-  #     gcc7:  -Wno-format-truncation  - sprintf() into possibly smaller buffer
-  #            -Wno-parentheses
-  CXXFLAGS += -Wall -Wextra -Wformat
-  CXXFLAGS += -Wno-char-subscripts
-  CXXFLAGS += -Wno-sign-compare
-  CXXFLAGS += -Wno-unused-function
-  CXXFLAGS += -Wno-unused-parameter
-  CXXFLAGS += -Wno-unused-variable
-  CXXFLAGS += -Wno-deprecated-declarations
-  CXXFLAGS += -Wno-format-truncation
-  CXXFLAGS += -std=c++14
+  ifeq ($$(MACHINETYPE), amd64)  #  Add SIMD support (htslib and meryl-utility need this)
+    CFLAGS   += -mxsave
+    CXXFLAGS += -mxsave
+  endif
 
-  CFLAGS += -Wall -Wextra -Wformat
-  CFLAGS += -Wno-char-subscripts
-  CFLAGS += -Wno-sign-compare
-  CFLAGS += -Wno-unused-function
-  CFLAGS += -Wno-unused-parameter
-  CFLAGS += -Wno-unused-variable
-  CFLAGS += -Wno-deprecated-declarations
-  CFLAGS += -Wno-format-truncation
-else
-  CXXFLAGSUSER := ${CXXFLAGS}
-endif
+  #  Enable gobs of warnings, but then disable some of the annoying ones, a
+  #  few of which are compiler dependent.
+
+  DEFAULTWARNINGS  =
+  #EFAULTWARNINGS += -DMACHINETYPE_${MACHINETYPE}
+  #EFAULTWARNINGS += -pedantic
+  DEFAULTWARNINGS += -Wall -Wextra -Wformat
+  DEFAULTWARNINGS += -Wno-char-subscripts
+  DEFAULTWARNINGS += -Wno-sign-compare
+  DEFAULTWARNINGS += -Wno-unused-function
+  DEFAULTWARNINGS += -Wno-unused-parameter
+  DEFAULTWARNINGS += -Wno-unused-variable
+  DEFAULTWARNINGS += -Wno-deprecated-declarations
+  #EFAULTWARNINGS += -Wno-format -Wno-format-truncation  #  Disable 'sprintf() into possibly smaller buffer'
+
+  ifeq ($$(TOOLCHAIN), LLVM)
+    CFLAGS   += $${DEFAULTWARNINGS} -Wno-format
+    CXXFLAGS += $${DEFAULTWARNINGS} -Wno-format
+  endif
+
+  ifeq ($$(TOOLCHAIN), GNU)
+    CFLAGS   += $${DEFAULTWARNINGS} -Wno-format-truncation
+    CXXFLAGS += $${DEFAULTWARNINGS} -Wno-format-truncation
+  endif
+
+  DEFAULTWARNINGS =
+
+  #  Append user-supplied flags, if any exist.
+
+  ifneq ($${CFLAGSUSER}, )
+    CFLAGS   += $${CFLAGSUSER}
+  endif
+  ifneq ($${CXXFLAGSUSER}, )
+    CXXFLAGS += $${CXXFLAGSUSER}
+  endif
+  ifneq ($${LDFLAGSUSER}, )
+    LDFLAGS += $${LDFLAGSUSER}
+  endif
+endef
 
 
-
-
+#
+#  Linux config.
+#
 ifeq (${OSTYPE}, Linux)
   CC        ?= gcc
   CXX       ?= g++
 
-  CXXFLAGS  += -pthread -fopenmp -fPIC
-  LDFLAGS   += -pthread -fopenmp -lm
-
   BUILDSTACKTRACE ?= 1
+
+  $(eval $(call SET_DEFAULT_FLAGS,,))
 endif
 
 
-#  The default MacOS compiler - even as of 10.13 High Sierra - doesn't support OpenMP.
-#  Clang 6.0 installed from MacPorts supports OpenMP, but fails to compile Canu.
-#  So, we require gcc9 (from MacPorts) or gcc8 (from hommebrew).
 #
-#  If from MacPorts:
-#    port install gcc9
-#    port select gcc mp-gcc9
+#  FreeBSD config.
 #
-#  If CC is set to 'cc', the GNU make default, we'll automagically search for other
-#  versions and use those if found.
+#  If building in the FreeBSD ports system, use the architecture as defined
+#  there (technically, -p, not -m) and assume compiler and most options are
+#  already defined correctly.
 #
+#  We used to (for non-ports builds) default to gcc, mostly because the rpath
+#  was necessary.  But clang is working well, and rpath doesn't seem to be
+#  necessary on FreeBSD13.
+#    ifeq ($(origin CXX), default)
+#      CC    = gcc9
+#      CXX   = g++9
+#      CCLIB = -rpath /usr/local/lib/gcc9
+#    endif
+#
+ifeq (${OSTYPE}, FreeBSD)
+ifeq (${CANU_BUILD_ENV}, ports)
+  MACHINETYPE=${ARCH}
 
-define TEST_COMPILER
-  ifeq ($${CC}, cc)
-    CCTEST  := $$(shell echo `which gcc-${1}`)
-    CXXTEST := $$(shell echo `which g++-${1}`)
+  CXXFLAGS  += -pthread -fopenmp -fPIC
+  CFLAGS    += -pthread -fopenmp -fPIC
+  LDFLAGS   += -pthread -fopenmp -lm
+else
+  CC        ?= cc
+  CXX       ?= c++
 
-    ifdef CXXTEST
-      CC  := $${CCTEST}
-      CXX := $${CXXTEST}
-    endif
+  BUILDSTACKTRACE ?= 1
+
+  $(eval $(call SET_DEFAULT_FLAGS,-I/usr/local/include,-L/usr/local/lib -lexecinfo))
+endif
+endif
+
+
+#
+#  MacOS config.
+#
+#  The default compiler in MacOS _still_ doesn't support OpenMP, so
+#  we try a bunch of common alternate compiler names and use the first
+#  one that exists.
+#
+#  If from MacPorts:             If from homebrew:
+#    port install gcc9             brew install gcc
+#    port select gcc mp-gcc9       brew install llvm
+#
+#  Homebrew calls its binaries clang and clang++ and uses directories to
+#  differentiate.  (While there is clang-16, there is no clang++-16, and we
+#  use clang/clang++ for consistency.)
+#    /opt/homebrew/opt/gcc@11/bin/gcc-12   /opt/homebrew/opt/llvm@16/bin/clang
+#    /opt/homebrew/opt/gcc@11/bin/g++-12   /opt/homebrew/opt/llvm@16/bin/clang++
+#
+#  MacPorts puts its binaries in the global bin directory with a suffix to
+#  differentiate.
+#    /opt/local/bin/gcc-mp-16           /opt/local/bin/clang-mp-16
+#    /opt/local/bin/g++-mp-16           /opt/local/bin/clang++-mp-16
+#
+define FIND_MACOS_COMPILER
+  ifeq ($$(CC), cc)
+  ifneq ($$(wildcard $${BREW}/opt/gcc@${1}/bin/gcc-${1}), )
+  ifneq ($$(wildcard $${BREW}/opt/gcc@${1}/bin/g++-${1}), )
+    #$$(info Detected gcc-${1} installed via Homebrew.)
+    CC=$$(abspath $${BREW}/opt/gcc@${1}/bin/gcc-${1})
+    CXX=$$(abspath $${BREW}/opt/gcc@${1}/bin/g++-${1})
+  endif
+  endif
+  endif
+
+  ifeq ($$(CC), cc)
+  ifneq ($$(wildcard $${BREW}/opt/llvm@${1}/bin/clang), )
+  ifneq ($$(wildcard $${BREW}/opt/llvm@${1}/bin/clang++), )
+    #$$(info Detected llvm-${1} installed via Homebrew.)
+    CC=$$(abspath $${BREW}/opt/llvm@${1}/bin/clang)
+    CXX=$$(abspath $${BREW}/opt/llvm@${1}/bin/clang++)
+  endif
+  endif
+  endif
+
+  ifeq ($$(CC), cc)
+  ifneq ($$(wildcard $${PORT}/bin/gcc-mp-${1}), )
+  ifneq ($$(wildcard $${PORT}/bin/g++-mp-${1}), )
+    #$$(info Detected gcc-${1} installed via MacPorts.)
+    CC=$$(abspath $${PORT}/bin/gcc-mp-${1})
+    CXX=$$(abspath $${PORT}/bin/g++-mp-${1})
+  endif
+  endif
+  endif
+
+  ifeq ($$(CC), cc)
+  ifneq ($$(wildcard $${PORT}/bin/clang-mp-${1}), )
+  ifneq ($$(wildcard $${PORT}/bin/clang++-mp-${1}), )
+    #$$(info Detected llvm-${1} installed via MacPorts.)
+    CC=$$(abspath $${PORT}/bin/clang-mp-${1})
+    CXX=$$(abspath $${PORT}/bin/clang++-mp-${1})
+  endif
+  endif
   endif
 endef
 
 ifeq (${OSTYPE}, Darwin)
-  $(foreach suffix,mp-9 9  mp-8 8  mp-7 7,$(eval $(call TEST_COMPILER,${suffix})))
+  BREW := $(abspath $(lastword $(shell brew 2>/dev/null config | grep HOMEBREW_PREFIX)))
+  PORT := $(abspath $(dir $(abspath $(dir $(shell which port)))))
 
-  ifneq ($(shell echo `$(CXX) --version 2>&1 | grep -c Apple`), 0)
-     CPATH := $(shell echo `which $(CXX)`)
-     CLANG := $(shell echo `$(CXX) --version 2>&1 | grep clang`)
-     space := 
+  #$(info Detected Homebrew in '${BREW}')
+  #$(info Detected MacPorts in '${PORT}')
 
-     $(warning )
-     ifeq ($(CXX), $(CPATH))
-       $(warning Compiler '$(CXX)' reports version '$(CLANG)'.)
-     else
-       $(warning Compiler '$(CXX)' at '$(CPATH)' reports version '$(CLANG)'.)
-     endif
-     $(warning )
-     $(warning Canu cannot be compiled with this compiler.  Please install GCC and/or)
-     $(warning specify a non-Clang compiler on the command line, e.g.,)   #  Quite the evil trick to get
-     $(warning $(space)    make CC=/path/to/gcc CXX=/path/to/g++);        #  this line indented!
-     $(warning )
-     $(error unsupported compiler)
-  endif
+  $(eval $(call FIND_MACOS_COMPILER,20))
+  $(eval $(call FIND_MACOS_COMPILER,19))
+  $(eval $(call FIND_MACOS_COMPILER,18))
+  $(eval $(call FIND_MACOS_COMPILER,17))
+  $(eval $(call FIND_MACOS_COMPILER,16))
+  $(eval $(call FIND_MACOS_COMPILER,15))
+  $(eval $(call FIND_MACOS_COMPILER,14))
+  $(eval $(call FIND_MACOS_COMPILER,13))
+  $(eval $(call FIND_MACOS_COMPILER,12))
+  $(eval $(call FIND_MACOS_COMPILER,11))
+  $(eval $(call FIND_MACOS_COMPILER,10))
+  $(eval $(call FIND_MACOS_COMPILER,9))
+  $(eval $(call FIND_MACOS_COMPILER,8))
 
-  CXXFLAGS += -fopenmp -pthread -fPIC -m64 -Wno-format
-  LDFLAGS  += -fopenmp -pthread -lm
+  $(eval $(call SET_DEFAULT_FLAGS,,))
 endif
 
 
-ifeq (${OSTYPE}, FreeBSD)
-ifeq (${CANU_BUILD_ENV}, ports)
-
-  # If building in the FreeBSD ports system, use the architecture as defined
-  # there (technically, -p, not -m) and assume compiler and most options
-  # are already defined correctly.
-
-  MACHINETYPE=${ARCH}
-
-  CXXFLAGS  += -pthread -fopenmp -fPIC
-  LDFLAGS   += -pthread -fopenmp
-
-else
-
-  # Ignore the gmake default 'c++' and force g++9.
-  ifeq ($(origin CXX), default)
-    CC    = gcc9
-    CXX   = g++9
-    CCLIB = -rpath /usr/local/lib/gcc9
-  endif
-
-  #  GCC
-  CXXFLAGS  += -I/usr/local/include -pthread -fopenmp -fPIC
-  LDFLAGS   += -L/usr/local/lib     -pthread -fopenmp ${CCLIB} -lm -lexecinfo
-
-  #  CLANG
-  #CXXFLAGS  += -I/usr/local/include -pthread -fPIC
-  #LDFLAGS   += -L/usr/local/lib     -pthread -lm -lexecinfo -lgomp
-
-  #  Google Performance Tools malloc and heapchecker (HEAPCHECK=normal)
-  #CXXFLAGS  +=
-  #LDFLAGS   += -ltcmalloc
-
-  #  Google Performance Tools cpu profiler (CPUPROFILE=/path)
-  #CXXFLAGS  +=
-  #LDFLAGS   += -lprofiler
-
-  #  callgrind
-  #CXXFLAGS  += -g3 -Wa,--gstabs -save-temps
-endif
-endif
-
-
+#
+#  Cygwin config.
+#
 ifneq (,$(findstring CYGWIN, ${OSTYPE}))
   CC        ?= gcc
   CXX       ?= g++
 
-  CXXFLAGS  := -fopenmp -pthread
-  LDFLAGS   := -fopenmp -pthread -lm
+  $(eval $(call SET_DEFAULT_FLAGS,,))
 endif
 
 
-#  Stack tracing support.  Wow, what a pain.  Only Linux is supported.  This is just documentation,
-#  don't actually enable any of this stuff!
 #
-#  backward-cpp looks very nice, only a single header file.  But it needs libberty (-liberty) and
-#  libbfd (-lbfd).  The former should be installed with gcc, and the latter is in elfutils.  On
-#  three out of our three development machines, it fails for various reasons.
+#  Test a small compile.
 #
-#  libunwind is pretty basic.
+#  This has only failed on MacOS with default compilers that do not support
+#  -fopenmp.
 #
-#  libbacktrace works (on Linux) and is simple enough to include in our tree.
+#  Note that .SHELLSTATUS was introduced in Make 4.2 but stupid MacOS ships
+#  with make 3.81, so we need to do the success/fail test the hard way.  On
+#  the otherhand, this does mean we can clean up temporary files right after.
 #
-#  None of these give any useful information on BSDs (which includes OS X aka macOS).
-#
-#
-#  Backtraces with libunwind.  Not informative on FreeBSD.
-#CXXFLAGS  += -DLIBUNWIND
-#LDFLAGS   +=
-#LDLIBS    += -lunwind -lunwind-x86_64
-#
-#
-#  Backtraces with libbacktrace.  FreeBSD works, but trace is empty.
-#BUILDSTACK = 1
-#CXXFLAGS  += -DLIBBACKTRACE
-#LDFLAGS   +=
-#LDLIBS    +=
-#
-#
-#  Backtraces with backward-cpp.
-#
-#  Stack walking:
-#    BACKWARD_HAS_UNWIND    - used by gcc/clang for exception handling
-#    BACKWARD_HAS_BACKTRACE - part of glib, not as accurate, more portable
-#
-#  Stack interpretation:
-#    BACKWARE_HAS_DW               - most information, libdw, (elfutils or libdwarf)
-#    BACKWARD_HAS_BFD              - some information, libbfd
-#    BACKWARD_HAS_BACKTRACE_SYMBOL - minimal information (file and function), portable
-#
-#  helix   fails with: cannot find -liberty
-#  gryphon fails with: cannot find -lbfd
-#  freebsd can't install a working elfutils, needed for libdw"
-#    In file included from AS_UTL/AS_UTL_stackTrace.C:183:0:
-#    AS_UTL/backward.hpp:241:30: fatal error: elfutils/libdw.h: No such file or directory
-#     #  include <elfutils/libdw.h>
-#
-#CXXFLAGS  += -DBACKWARDCPP -DBACKWARD_HAS_BFD
-#LDFLAGS   +=
-#LDLIBS    += -lbfd -liberty -ldl -lz
-#
-#  Needs libdw, elfutils
-#CXXFLAGS  += -DBACKWARDCPP -DBACKWARD_HAS_DW
-#LDFLAGS   +=
-#LDLIBS    += -ldl -lz
-#
-#  Generates nothing useful, no function names, just binary names
-#CXXFLAGS  += -DBACKWARDCPP
-#LDFLAGS   +=
-#LDLIBS    += -ldl -lz
-#
-#
-#  No backtrace support.
-#CXXFLAGS   += -DNOBACKTRACE
 
-#  But, if we we have an old GCC, stack tracing support isn't there.  The
-#  second test is because gcc7 (and only gcc7) reports '7' for -dumpversion.
+COMPILETEST := $(shell echo "int main(void) { return 0; }" | ${CXX} ${CXXFLAGS} ${LDFLAGS} -x c++ -o /tmp/test-fopenmp - && echo pass ; rm -f /tmp/test-fopenmp /tmp/test-fopenmp.C)
 
-GXX_45 := $(shell expr `${CXX} -dumpversion     | sed -e 's/\.\([0-9][0-9]\)/\1/g' -e 's/\.\([0-9]\)/0\1/g' -e 's/^[0-9]\{3,4\}$$/&00/'` \>= 40500)
-GXX_VV := $(shell ${CXX} -dumpversion)
-
-ifneq (,$(filter ${GXX_VV}, 7 8 9))
-GXX_45 := $(shell expr `${CXX} -dumpfullversion | sed -e 's/\.\([0-9][0-9]\)/\1/g' -e 's/\.\([0-9]\)/0\1/g' -e 's/^[0-9]\{3,4\}$$/&00/'` \>= 40500)
-GXX_VV := $(shell ${CXX} -dumpfullversion)
+ifneq ($(COMPILETEST), pass)
+  $(warning )
+  $(warning Unable to compile OpenMP programs with with:)
+  $(warning $_    ${TOOLCHAIN} ${CXX} ${TOOLCHAINV}.)
+  $(warning $_  CXXFLAGS flags:)
+  $(foreach FLAG,${CXXFLAGS},$(warning $_    ${FLAG}))
+  $(warning $_  LDFLAGS flags:)
+  $(foreach FLAG,${LDFLAGS},$(warning $_    ${FLAG}))
+  $(warning Please install GCC or LLVM with OpenMP support and)
+  $(warning specify this compiler on the command line, e.g.,)
+  $(warning $_    make CC=/path/to/gcc CXX=/path/to/g++)
+  $(warning )
+  $(error Unsupported compiler)
 endif
 
-ifeq (${BUILDSTACKTRACE}, 1)
-ifeq (${GXX_45}, 0)
-$(info WARNING:)
-$(info WARNING: ${CXX} ${GXX_VV} detected, disabling stack trace support.  Please upgrade to GCC 4.7 or higher.)
-$(info WARNING:)
-BUILDSTACKTRACE = 0
-endif
-endif
-
-ifeq (${BUILDSTACKTRACE}, 1)
-CXXFLAGS  += -DLIBBACKTRACE
-else
-CXXFLAGS  += -DNOBACKTRACE
-endif
-
-
-# Include the main user-supplied submakefile. This also recursively includes
-# all other user-supplied submakefiles.
-$(eval $(call INCLUDE_SUBMAKEFILE,main.mk))
-
-# Perform post-processing on global variables as needed.
-DEFS := $(addprefix -D,${DEFS})
-INCDIRS := $(addprefix -I,$(call CANONICAL_PATH,${INCDIRS}))
-VERSION := verkko branch $(shell git rev-parse --abbrev-ref HEAD) commit $(shell git rev-parse HEAD) $(shell git show -s --format=%ci)
-
-# Define the "all" target (which simply builds all user-defined targets) as the
-# default goal.
-
-RUK=../lib/verkko/bin/rukki
-MBG=../lib/verkko/bin/MBG
-HOV=../lib/verkko/bin/matchchains_index ../lib/verkko/bin/matchchains_matchindex
-
-ifneq (${WITHOUT_RUKKI},)
-RUK=
-endif
-
-ifneq (${WITHOUT_MBG},)
-MBG=
-endif
-
-ifneq (${WITHOUT_HIFIOVERLAPPER},)
-HOV=
-endif
+#
+# Define the two exported targets, 'all' and 'clean' as phony rules that
+# point to the real rules.  This is done before including main.mk so that it
+# can define any weird one-off special-case targets without them becoming the
+# first (and thus default) rule.
+#
+# Then recursively include user-supplied submakefiles.
+#
+# Then define the real 'all' and 'clean' targets.
+#
+# Targets 'doall' and 'doclean' are used internally to add more targets to
+# the global build.  'doclean-final' is a trouble maker because it needs to
+# run after all the other 'doclean' steps, and the only way to ensure that is
+# to give it a new target.
+#
 
 .PHONY: all
-all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
-     ../bin/verkko \
-     \
-     ../lib/verkko/bin/findErrors \
-     ../lib/verkko/bin/fixErrors \
-     ../lib/verkko/bin/layoutToPackage \
-     ../lib/verkko/bin/meryl \
-     ../lib/verkko/bin/meryl-lookup \
-     ../lib/verkko/bin/ovStoreBuild \
-     ../lib/verkko/bin/ovStoreConfig \
-     ../lib/verkko/bin/overlapImport \
-     ../lib/verkko/bin/sqStoreCreate \
-     ../lib/verkko/bin/sqStoreDumpMetaData \
-     ../lib/verkko/bin/sqStoreDumpFASTQ \
-     ../lib/verkko/bin/utgcns \
-     ../lib/verkko/bin/alignGFA \
-     ../lib/verkko/bin/seqrequester \
-     \
-     ${RUK} ${MBG} ${HOV} \
-     \
-     ../lib/verkko/data/human-ebv-AJ507799.2.fasta.gz \
-     ../lib/verkko/data/human-mito-NC_012920.1.fasta.gz \
-     ../lib/verkko/data/human-rdna-KY962518.1.fasta.gz \
-     ../lib/verkko/data/chm13_rDNAs.fa \
-     \
-     ../lib/verkko/scripts/add_fake_alignments.py \
-     ../lib/verkko/scripts/add_fake_bridging_paths.py \
-     ../lib/verkko/scripts/add_hairpin_uniques.py \
-     ../lib/verkko/scripts/add_hom_node_scaffold_edges.py \
-     ../lib/verkko/scripts/find_tips.py \
-     ../lib/verkko/scripts/unroll_simple_loops.py \
-     ../lib/verkko/scripts/select_best_alignment.py \
-     ../lib/verkko/scripts/select_unused_reads.py \
-     ../lib/verkko/scripts/filter_alignments_by_column.py \
-     ../lib/verkko/scripts/calculate_coverage.py \
-     ../lib/verkko/scripts/check_layout_gaps.py \
-     ../lib/verkko/scripts/chop_misassemblies.py \
-     ../lib/verkko/scripts/connect_uniques.py \
-     ../lib/verkko/scripts/estimate_unique_local.py \
-     ../lib/verkko/scripts/fasta_combine.py \
-     ../lib/verkko/scripts/fasta_extract.py \
-     ../lib/verkko/scripts/fasta_filter.py \
-     ../lib/verkko/scripts/fasta_partition.py \
-     ../lib/verkko/scripts/fasta_util.py \
-     ../lib/verkko/scripts/find_bridges.py \
-     ../lib/verkko/scripts/fix_diploid_paths.py \
-     ../lib/verkko/scripts/fix_diploid_unique_nodes.py \
-     ../lib/verkko/scripts/fix_haplogaps.py \
-     ../lib/verkko/scripts/forbid_unbridged_tangles.py \
-     ../lib/verkko/scripts/get_bridge_mapping.py \
-     ../lib/verkko/scripts/get_layout_from_mbg.py \
-     ../lib/verkko/scripts/get_original_coverage.py \
-     ../lib/verkko/scripts/get_unroll_mapping.py \
-     ../lib/verkko/scripts/inject_coverage.py \
-     ../lib/verkko/scripts/insert_aln_gaps.py \
-     ../lib/verkko/scripts/maybe_trim_alignment.py \
-     ../lib/verkko/scripts/merge_unresolved_dbg_nodes.py \
-     ../lib/verkko/scripts/pick_majority_bridge.py \
-     ../lib/verkko/scripts/pop_bubbles_coverage_based.py \
-     ../lib/verkko/scripts/pop_bubbles_keep_longest.py \
-     ../lib/verkko/scripts/remove_contained_spurious_uniques.py \
-     ../lib/verkko/scripts/remove_crosslink_paths.py \
-     ../lib/verkko/scripts/remove_wrong_connections_2.py \
-     ../lib/verkko/scripts/resolve_triplets_kmerify.py \
-     ../lib/verkko/scripts/screen-assembly.pl \
-     ../lib/verkko/scripts/trim_dbg_alignment.py \
-     ../lib/verkko/scripts/unitigify.py \
-     ../lib/verkko/scripts/unroll_tip_loops.py \
-     ../lib/verkko/scripts/untip_relative.py \
-     ../lib/verkko/scripts/circularize_ctgs.py \
-     ../lib/verkko/scripts/cluster.py \
-     ../lib/verkko/scripts/graph_functions.py \
-     ../lib/verkko/scripts/hicverkko.py \
-     ../lib/verkko/scripts/parse_sam_pairs.py \
-     ../lib/verkko/scripts/graph_functions.py \
-     ../lib/verkko/scripts/rdna_scaff_functions.py \
-     ../lib/verkko/scripts/rdna_scaff.py \
-     \
-     ../lib/verkko/Snakefile \
-     ../lib/verkko/Snakefiles/1-buildGraph.sm \
-     ../lib/verkko/Snakefiles/2-processGraph.sm \
-     ../lib/verkko/Snakefiles/3-alignONT.sm \
-     ../lib/verkko/Snakefiles/3-combineONT.sm \
-     ../lib/verkko/Snakefiles/3-splitONT.sm \
-     ../lib/verkko/Snakefiles/3-alignTips.sm \
-     ../lib/verkko/Snakefiles/4-processONT.sm \
-     ../lib/verkko/Snakefiles/5-untip.sm \
-     ../lib/verkko/Snakefiles/6-rukki.sm \
-     ../lib/verkko/Snakefiles/6-layoutContigs.sm \
-     ../lib/verkko/Snakefiles/7-buildPackage.sm \
-     ../lib/verkko/Snakefiles/7-combineConsensus.sm \
-     ../lib/verkko/Snakefiles/7-extractONT.sm \
-     ../lib/verkko/Snakefiles/7-generateConsensus.sm \
-     ../lib/verkko/Snakefiles/8-hicPipeline.sm \
-     ../lib/verkko/Snakefiles/c1-buildStore.sm \
-     ../lib/verkko/Snakefiles/c2-findOverlaps.sm \
-     ../lib/verkko/Snakefiles/c4-findErrors.sm \
-     ../lib/verkko/Snakefiles/functions.sm \
-     ../lib/verkko/Snakefiles/get-coverage.sm \
-     \
-     ../lib/verkko/profiles/config.yaml \
-     ../lib/verkko/profiles/jobscript.sh \
-     ../lib/verkko/profiles/slurm-sge-status.sh \
-     ../lib/verkko/profiles/slurm-sge-submit.sh
-	@rm  -f gfa meryl overlapErrorAdjustment overlapInCore overlapBasedTrimming seqrequester stores utgcns utility
+all: doall
+
+.PHONY: clean
+clean: doclean-final
+
+$(eval $(call INCLUDE_SUBMAKEFILE,main.mk))
+
+.PHONY: doall
+doall: $(addprefix ${TARGET_DIR}/,${ALL_TGTS})
 	@echo ""
 	@echo "Success!"
 	@echo "${MODULE} installed in ${TARGET_DIR}/bin/${MODULE}"
 	@echo ""
 
-# Add a new target rule for each user-defined target.
-$(foreach TGT,${ALL_TGTS},\
-  $(eval $(call ADD_TARGET_RULE,${TGT})))
+.PHONY: doclean-final
+doclean-final: doclean
+	if [ -d ${TARGET_DIR} ] ; then find ${TARGET_DIR} -type d -print | sort -r | xargs -n 100 rmdir ; fi
+	@echo ""
+	@echo "Cleaned."
+	@echo ""
 
-# Add pattern rule(s) for creating compiled object code from C source.
-$(foreach TGT,${ALL_TGTS},\
-  $(foreach EXT,${C_SRC_EXTS},\
-    $(eval $(call ADD_OBJECT_RULE,${BUILD_DIR}/$(call CANONICAL_PATH,${TGT}),\
-             ${EXT},$${COMPILE_C_CMDS}))))
+.PHONY: doclean
+doclean:
 
-# Add pattern rule(s) for creating compiled object code from C++ source.
-$(foreach TGT,${ALL_TGTS},\
-  $(foreach EXT,${CXX_SRC_EXTS},\
-    $(eval $(call ADD_OBJECT_RULE,${BUILD_DIR}/$(call CANONICAL_PATH,${TGT}),\
-             ${EXT},$${COMPILE_CXX_CMDS}))))
-
-# Add "clean" rules to remove all build-generated files.
-.PHONY: clean
-$(foreach TGT,${ALL_TGTS},\
-  $(eval $(call ADD_CLEAN_RULE,${TGT})))
-clean:
-	rm -rf rukki/target
-	rm -f gfa meryl overlapErrorAdjustment overlapInCore overlapBasedTrimming seqrequester stores utgcns utility
-	cd MBG ; $(MAKE) clean
-	cd hifioverlapper; $(MAKE) clean
-	find build -type d -print | sort -r | xargs -n 100 rmdir
-
-deinstall:
-	rm  -f ../bin/verkko
-	rm  -f ../lib/verkko/Snakefile
-	rm -rf ../lib/verkko/Snakefiles
-	rm -rf ../lib/verkko/bin
-	rm -rf ../lib/verkko/data
-	rm -rf ../lib/verkko/profiles
-	rm -rf ../lib/verkko/scripts
-	rmdir ../bin
-	rmdir ../lib/verkko
-	rmdir ../lib
-
-# Include generated rules that define additional (header) dependencies.
-$(foreach TGT,${ALL_TGTS},\
-  $(eval -include ${${TGT}_DEPS}))
-
-#  Add rules to 'install' stuff.
-../bin/verkko: verkko.sh
-	@mkdir -p ../bin
-	cat verkko.sh |sed s/'version=""'/'version="$(VERSION)"'/g >  ../bin/verkko
-	chmod +x ../bin/verkko
-
-../lib/verkko/data/%: data/%
-	@mkdir -p ../lib/verkko/data
-	cp -pf $< $@
-
-../lib/verkko/scripts/%: scripts/%
-	@mkdir -p ../lib/verkko/scripts
-	cp -pf $< $@
-
-../lib/verkko/bin/%: ${TARGET_DIR}/bin/%
-	@mkdir -p ../lib/verkko/bin
-	cp -pf $< $@
-
-../lib/verkko/Snakefile: Snakefile
-	cp -pf $< $@
-
-../lib/verkko/Snakefiles/%: Snakefiles/%
-	@mkdir -p ../lib/verkko/Snakefiles
-	cp -pf $< $@
-
-../lib/verkko/profiles/%: profiles/%
-	@mkdir -p ../lib/verkko/profiles
-	cp -pf $< $@
-
-rukki/target/release/rukki: rukki/Cargo.toml \
-                            rukki/src/graph.rs \
-                            rukki/src/lib.rs \
-                            rukki/src/main.rs \
-                            rukki/src/pseudo_hap.rs \
-                            rukki/src/trio.rs \
-                            rukki/src/trio_walk.rs \
-                            rukki/src/graph_algos.rs \
-                            rukki/src/graph_algos/dfs.rs \
-                            rukki/src/graph_algos/scc.rs \
-                            rukki/src/graph_algos/superbubble.rs
-	cargo build --release --manifest-path rukki/Cargo.toml
-
-../lib/verkko/bin/rukki: rukki/target/release/rukki
-	@mkdir -p ../lib/verkko/bin
-	cp -p rukki/target/release/rukki $@
-
-#  MBG and hifioverlapper binaries are implemented as one rule (well, one
-#  pair of rules) so that the compilation is skipped entirely if a newer
-#  binary is present in the output directory.  The usual two-step build-copy
-#  method would always build a local hifioverlap even if a copy in
-#  lib/verkko/bin is newer than the sources - because the local build copy
-#  doesn't exist, as the dependency chain {lib} -> {local-bin} -> {sources}
-#  is missing {local-bin}.
 #
-#  the dependency lists came from their respective makefiles.
+#  Let boilermake do its thing.
+#
 
-MBG_DEPS = $(addprefix MBG/src/,\
-            $(patsubst %.o,%.cpp,\
-                       MBG.o \
-                       fastqloader.h CommonUtils.h MBGCommon.h VectorWithDirection.h FastHasher.h SparseEdgeContainer.h HashList.h UnitigGraph.h BluntGraph.h ReadHelper.h HPCConsensus.h ErrorMaskHelper.h CompressedSequence.h ConsensusMaker.h StringIndex.h LittleBigVector.h MostlySparse2DHashmap.h RankBitvector.h TwobitLittleBigVector.h UnitigResolver.h CumulativeVector.h UnitigHelper.h BigVectorSet.h              Serializer.h DumbSelect.h MsatValueVector.h Node.h KmerMatcher.h \
-                       fastqloader.o CommonUtils.o MBGCommon.o                       FastHasher.o SparseEdgeContainer.o HashList.o UnitigGraph.o BluntGraph.o              HPCConsensus.o ErrorMaskHelper.o CompressedSequence.o ConsensusMaker.o StringIndex.o                                           RankBitvector.o                         UnitigResolver.o                    UnitigHelper.o BigVectorSet.o ReadHelper.o Serializer.o DumbSelect.o MsatValueVector.o Node.o KmerMatcher.o))
+$(eval $(call BOILERMAKE))
 
-MBG/bin/MBG: $(MBG_DEPS)
-	cd MBG ; $(MAKE) all
+#
+#  Generate a version number.  This needs to come AFTER submakefiles are
+#  included (so we know what ${MODULE} is) but before we build anything
+#  (because this generates 'version.H' and also prints information about
+#  submodule versions).
+#
+#  But, because make helpfully squashes all the lines to a single line we
+#  need to do something funky and write the version information for C++ and
+#  for make to one file - which then is included here and in source files.
+#  Makefile.boilermake adds this file as a dependency to ALL source files.
+#
+#  For projects that include meryl-utility as a submodule (the usual case)
+#  write version.H in the submodule src/ directory; for meryl-utility itself,
+#  write in the current directory.
+#   - This _should_ be indentifying if the submodule exists in
+#     utility/src, but on the very first build (when the submodules
+#     are initialized above) a file-based detection was reliably failing,
+#     as if `ifeq ($(wildcard utility/src), utility/src)` was tested
+#     before the submodule was init'd.  Rather than deal with all
+#     that baloney, we just assume that any build using this build
+#     system is either meryl-utility itself or something that uses it.
+#
 
-../lib/verkko/bin/MBG: MBG/bin/MBG
-	@mkdir -p ../lib/verkko/bin
-	cp -p MBG/bin/MBG $@
+#$(info Calling  ./${VERSION_H:.H=.pl} ${MODULE} ${VERSION} ${VERSION_H})
+VERSION_H := $(shell ./${VERSION_H:.H=.pl} ${MODULE} ${VERSION} ${VERSION_H})
 
+ifeq (${VERSION_H}, )
+$(error Failed to create version.H, possibly missing the 'meryl-utility' submodule)
+endif
 
-HIFIOVERLAP_DEPS = $(addprefix hifioverlapper/src/,\
-                    $(patsubst %.o,%.cpp,\
-                               matchchains_index.o matchchains_matchindex.o \
-                               MatchIndex.h MinimizerIterator.h TwobitString.h ReadStorage.h UnitigKmerCorrector.h UnitigStorage.h ReadMatchposStorage.h \
-                               MatchIndex.o MinimizerIterator.o TwobitString.o ReadStorage.o UnitigKmerCorrector.o UnitigStorage.o ReadMatchposStorage.o))
+include ${VERSION_H}
 
-hifioverlapper/lib/hifioverlapper.a: $(HIFIOVERLAP_DEPS)
-	cd hifioverlapper ; $(MAKE) lib/hifioverlapper.a MBG/lib/mbg.a
+#
+#  Log what compiler we're using and start the build.
+#
 
-../lib/verkko/bin/matchchains_index: hifioverlapper/lib/hifioverlapper.a
-	cd hifioverlapper ; $(MAKE) bin/matchchains_index
-	@mkdir -p ../lib/verkko/bin
-	cp -p hifioverlapper/bin/matchchains_index $@
-
-../lib/verkko/bin/matchchains_matchindex: hifioverlapper/lib/hifioverlapper.a
-	cd hifioverlapper ; $(MAKE) bin/matchchains_matchindex
-	@mkdir -p ../lib/verkko/bin
-	cp -p hifioverlapper/bin/matchchains_matchindex $@
-
-
-#  Makefile processed.  Regenerate the version number file, make some
-#  directories, and report that we're starting the build.
-
-$(eval $(shell cd canu/src ; ../../scripts/version_update.pl $(MODULE) utility/src/version.H))
-
-$(shell mkdir -p ${TARGET_DIR}/lib/site_perl/canu)
-$(shell mkdir -p ${TARGET_DIR}/share/java/classes)
-$(shell mkdir -p ${TARGET_DIR}/bin)
-
+$(info ${BUILDING})
 $(info For '${OSTYPE}' '${OSVERSION}' as '${MACHINETYPE}' into '${TARGET_DIR}/{bin,obj}'.)
-$(info Using '$(shell which ${CXX})' version '${GXX_VV}'.)
-ifneq ($(origin CXXFLAGSUSER), undefined)
+$(info Using ${TOOLCHAIN} '$(shell which ${CXX})' version '${TOOLCHAINV}'.)
+ifneq (${CFLAGSUSER},)
+$(info Using user-supplied CFLAGS   '${CFLAGSUSER}'.)
+endif
+ifneq (${CXXFLAGSUSER},)
 $(info Using user-supplied CXXFLAGS '${CXXFLAGSUSER}'.)
+endif
+ifneq (${LDFLAGSUSER},)
+$(info Using user-supplied LDFLAGS  '${LDFLAGSUSER}'.)
 endif
 $(info )
