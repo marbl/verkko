@@ -17,6 +17,7 @@ layout_output = sys.argv[6]
 layscf_output = sys.argv[7]
 
 min_read_len_fraction = 0.5
+min_read_fromend_fraction = min_read_len_fraction/1.5
 
 def revnode(n):
 	assert len(n) >= 2
@@ -89,7 +90,7 @@ def get_leafs(path, mapping, edge_overlaps, raw_node_lens):
 
 #this gives us matches of individual read to contigs(= rukki paths or isolated utig4 node)
 #path is an alignment of read (for most cases, hifi read to utig1 graph)
-#node_poses - map from nodes to the list of contigs and their positions in contigs 
+#node_poses - map from nodes to the list of contigs and their positions in contigs
 def get_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_overlaps, pathleftclip, pathrightclip, readleftclip, readrightclip, readlen, readstart, readend, gap):
 	longest = None
 	result = []
@@ -346,10 +347,12 @@ for readname in matches_per_read:
 	for match in matches_per_read[readname]:
 		(match_bp_size, contig, contigstart, fw, pathstart, node_start_offset, node_end_offset, readstart, readend, readlen, gap) = match
 		assert readstart < readend
+
 		if fw:
 			contigpos = contig_node_offsets[contig][contigstart]
 			contigpos += node_start_offset
 			contigpos -= readstart
+
 			if contig not in contig_contains_reads: contig_contains_reads[contig] = {}
 			if readname not in contig_contains_reads[contig]: contig_contains_reads[contig][readname] = []
 			len_readstart = readstart
@@ -366,6 +369,7 @@ for readname in matches_per_read:
 			contigpos -= node_start_offset
 			contigpos += readstart
 			contigpos -= readlen
+
 			if contig not in contig_contains_reads: contig_contains_reads[contig] = {}
 			if readname not in contig_contains_reads[contig]: contig_contains_reads[contig][readname] = []
 			len_readstart = readstart
@@ -403,13 +407,13 @@ for contig in contig_contains_reads:
 		assert len(lines) > 0
 		readlen = lines[0][4]
 
-		#lets not ban gap containing reads 
+		#lets not ban gap containing reads
 		if not readname_to_paths[readname][1]:
 			to_ban = False
 			near_contig_end = False
 			#if read_end not in contig, then something likely went wrong..
 			#can be replaced by more accurate check to exclude case where read end is somewhere else, but it should not make big sense.
-			
+
 			to_ban_left = False
 			to_ban_right = False
 			if not (readname_to_paths[readname][0][0][1:] in contig_nodes_no_dir):
@@ -425,18 +429,18 @@ for contig in contig_contains_reads:
 						contains_contig_ends[i] = True
 						#read going different direction with contig, so should switch ban logic
 						#rc loop may confuse this logic, but it would be weird anyway.
-						'''if node[0] != contig_ends[i][0]:							
+						'''if node[0] != contig_ends[i][0]:
 							tmp = to_ban_left
 							to_ban_left = to_ban_right
 							to_ban_right = tmp
 							print ("switching")
 							print (readname_to_paths[readname][0]) '''
-							
-						
+
+
 			if to_ban_left and not(contains_contig_ends[0]):
 				to_ban = True
 			if to_ban_right and not(contains_contig_ends[1]):
-				to_ban = True	
+				to_ban = True
 			if to_ban:
 #				print(f" {to_ban_left} {to_ban_right} banning")
 #				print (readname_to_paths[readname][0])
@@ -448,6 +452,8 @@ for contig in contig_contains_reads:
 		lines.sort(key=lambda x: min(x[0], x[1]))
 		fwcluster = None
 		bwcluster = None
+		from_end  = 0
+
 		for line in lines:
 			fw = line[1] > line[0]
 			contigstart = min(line[0], line[1])
@@ -473,14 +479,24 @@ for contig in contig_contains_reads:
 				elif contigstart < bwcluster[0] + 50 and contigend < bwcluster[1] + 50:
 					bwcluster = (contigstart, contigend, min(bwcluster[2], readstart), max(bwcluster[3], readend), bwcluster[4] + [(real_readstart, real_readend)])
 				else:
-					if bwcluster[3] - bwcluster[2] >= readlen * min_read_len_fraction: 
+					if bwcluster[3] - bwcluster[2] >= readlen * min_read_len_fraction:
 						read_clusters[readname].append((contig, bwcluster[1], bwcluster[0], get_exact_match_length(bwcluster[4])))
 					bwcluster = (contigstart, contigend, readstart, readend, [(real_readstart, real_readend)])
 		if fwcluster is not None:
-			if fwcluster[3] - fwcluster[2] >= readlen * min_read_len_fraction: 
+			if fwcluster[0] < 0: from_end = fwcluster[1] - (fwcluster[3] - fwcluster[2])
+			if fwcluster[1] > contig_lens[contig]: from_end = contig_lens[contig] - (fwcluster[0] + (fwcluster[3] - fwcluster[2]))
+			if from_end > min_read_fromend_fraction * readlen:
+				total_banned += 1
+
+			if fwcluster[3] - fwcluster[2] >= readlen * min_read_len_fraction and from_end <= min_read_fromend_fraction * readlen:
 				read_clusters[readname].append((contig, fwcluster[0], fwcluster[1], get_exact_match_length(fwcluster[4])))
 		if bwcluster is not None:
-			if bwcluster[3] - bwcluster[2] >= readlen * min_read_len_fraction: 
+			if bwcluster[0] < 0: from_end = bwcluster[1] - (bwcluster[3] - bwcluster[2])
+			if bwcluster[1] > contig_lens[contig]: from_end = contig_lens[contig] - (bwcluster[0] + (bwcluster[3] - bwcluster[2]))
+			if from_end > min_read_fromend_fraction * readlen:
+				total_banned += 1
+
+			if bwcluster[3] - bwcluster[2] >= readlen * min_read_len_fraction and from_end <= min_read_fromend_fraction * readlen:
 				read_clusters[readname].append((contig, bwcluster[1], bwcluster[0], get_exact_match_length(bwcluster[4])))
 print (f"Banned {total_banned} allowed {total_notbanned} read-paths")
 contig_actual_lines = {}
@@ -512,7 +528,7 @@ nul_layout_file = open(f"{layscf_output}.dropped", mode="w")
 #  a warning (that probably nobody will see).  On the other hand, if the
 #  contig actually has pieces, output the scaffold map.  (The header line
 #  output from rukki looks like a contig with no pieces.)
-#  
+#
 nameid = 1
 for contig in sorted(contig_pieces.keys()):
 	npieces = ngaps = nempty = 0
