@@ -22,7 +22,7 @@ for line in input_stream:
     spltd[0] = spltd[1]
     spltd[1] = line.split()
     if spltd[0][0] == spltd[1][0]:
-        if spltd[0][2] != spltd[1][2]:
-            print (f"{spltd[0][0]}\t{spltd[0][2]}\t{spltd[1][2]}")
+        #if spltd[0][2] != spltd[1][2]:
+        print (f"{spltd[0][0]}\t{spltd[0][2]}\t{spltd[1][2]}")
 #            print (f"{spltd[0][0]}\t{spltd[0][2]}\t{spltd[1][2]}\t{spltd[0][4]}\t{spltd[1][4]}")
 

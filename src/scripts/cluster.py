@@ -396,8 +396,8 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
         if len(line) < 3:
             continue
 
-        if line[1] == line[2]:
-            continue
+        #if line[1] == line[2]:
+        #    continue
 
         hicGraph.add_node(line[1])
         hicGraph.add_node(line[2])
