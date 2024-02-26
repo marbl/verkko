@@ -279,7 +279,6 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
     component_colors = {}
     next_comps = {}
     current_color = 0
-    match_links = []
 
     phased_nodes = set()
     for current_component in sorted(nx.connected_components(G), key=len, reverse=True):
@@ -316,8 +315,12 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
             else:
                 best_match[line[1]] = [line[0], int(line[2]), best_match[line[1]][1]]
 
-        mashmap_weights[line[0] + line[1]] = int(line[2])
-        mashmap_weights[line[1] + line[0]] = int(line[2])
+        #only debug purpose        
+        upd_weight = int(line[2])
+        if line[0] + line[1] in mashmap_weights:
+            upd_weight = max(upd_weight, mashmap_weights[line[0] + line[1]])
+        mashmap_weights[line[0] + line[1]] = upd_weight
+        mashmap_weights[line[1] + line[0]] = upd_weight
 
         if int(line[2]) > CLEAR_HOMOLOGY:
             color_sum = 0
@@ -329,7 +332,6 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                 continue
 
             matchGraph.add_edge(line[0], line[1])
-            match_links.append([line[0], line[1]])
             for id in range(0, 2):
                 phased_nodes.add(line[id])
 #Adding info about potential gaps in graph, only large homology taken in account.
@@ -361,24 +363,37 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
         #possibly check whether we have something already phased nearby?
             if int(line[2]) > len_cutoff:
                 matchGraph.add_edge(line[0], line[1])
-                match_links.append([line[0], line[1]])
 
-        #Adding link between matched edges to include separated sequence to main component
+    #Adding link between matched edges to include separated sequence to main component
 
-    for line in match_links:
-        if line[0] in G.nodes and line[1] in G.nodes:
-            if component_colors[line[0]] != component_colors[line[1]]:
-                if old_colors[line[0]] == old_colors[line[1]]:
-                    logging_f.write(f"Attempt to restore removed link in former rDNA component between {line[0]} {line[1]} forbidden\n")
-                else:
-                    for id in range(0, 2):
-                        if len(next_comps[component_colors[line[id]]]) > 1:
-                            logging_f.write(f"Connected component of node {line[id]} color {component_colors[line[id]]} connected to:\n")
-                            for j in next_comps[component_colors[line[id]]]:
-                                logging_f.write(f"connection {j}\n")
-                    logging_f.write(f"Adding graph link between homologous {line[0]} {line[1]}, components {component_colors[line[0]]} "
-                          f" and {component_colors[line[1]]}\n")
-                    G.add_edge(line[0], line[1])
+    for ec in matchGraph.edges():
+        neighbours = False
+        for p0 in ['<', '>']:
+            for p1 in ['<', '>']:
+                if (p0 + ec[0] in edges_save) and (p1 + ec[1]) in edges_save[p0 + ec[0]]:
+                    neighbours = True
+#tandem near repeats in consequtive edges
+        if neighbours:
+            sys.stderr.write(f"Not adding homology information between {ec[0]} and {ec[1]} - neighbouring looplike something\n")
+            matchGraph.remove_edge(ec[0], ec[1])
+            continue
+        # while we build the initial partition give a big bonus edge for putting the homologous nodes into different partitions             
+        # Adding an edge that already exists updates the edge data (in networkX graph)
+
+        #At least one in the pair is the best similarity match for other (and second best is not too close to the best)
+        if (ec[0] in best_match and ec[1] == best_match[ec[0]][0] and best_match[ec[0]][2]/best_match[ec[0]][1]< 0.8) or (ec[1] in best_match and ec[0] == best_match[ec[1]][0] and best_match[ec[1]][2]/best_match[ec[1]][1]< 0.8):
+            matchGraph.add_edge(ec[0], ec[1], weight=-10 * FIXED_WEIGHT)
+        else:
+        #not really look like homologous node pair but still suspicious, lets just wipe the hi-c links but not prioritize splitting them to different partitions.                                
+            matchGraph.add_edge(ec[0], ec[1], weight=0)
+
+#reconnecting homologous nodes
+    for [v1,v2] in matchGraph.edges():
+        if v1 in G.nodes and v2 in G.nodes and matchGraph[v1][v2]['weight'] < 0:    
+            if component_colors[v1] != component_colors[v2]:
+                logging_f.write(f"Adding graph link between homologous {v1} {v2}, components {component_colors[v1]} and {component_colors[v2]}\n")
+                G.add_edge(v1, v2)
+         
 
 
 
@@ -501,33 +516,13 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                             break
         logging_f.write(f'Currently {C.number_of_nodes()} in current component\n')
 
-
+        
         if C.number_of_nodes() > 1:
-    #TODO: why not just iterate on matchGraph.edges()?
-            for n in C.nodes():
-                if n in matchGraph:
-                    for ec in matchGraph.edges(n):
-                        neighbours = False
-                        for p0 in ['<', '>']:
-                            for p1 in ['<', '>']:
-                                if (p0 + ec[0] in edges_save) and (p1 + ec[1]) in edges_save[p0 + ec[0]]:
-                                    neighbours = True
-#tandem near repeats in consequtive edges
-                        if neighbours:
-                            sys.stderr.write(f"Not adding homology information between {ec[0]} and {ec[1]} - neighbouring looplike something\n")
-                            continue
-                        # while we build the initial partition give a big bonus edge for putting the homologous nodes into different partitions             
-                        # Adding an edge that already exists updates the edge data (in networkX graph)
-          
-                        if ec[0] in C and ec[1] in C and ec[0] < ec[1]:
-                            #At least one in the pair is the best similarity match for other (and second best is not too close to the best)
-                            if (ec[0] in best_match and ec[1] == best_match[ec[0]][0] and best_match[ec[0]][2]/best_match[ec[0]][1]< 0.8) or (ec[1] in best_match and ec[0] == best_match[ec[1]][0] and best_match[ec[1]][2]/best_match[ec[1]][1]< 0.8):
-                                C.add_edge(ec[0], ec[1], weight=-10 * FIXED_WEIGHT)
-                                C.add_edge(ec[1], ec[0], weight=-10 * FIXED_WEIGHT)
-                            else:
-                            #not really look like homologous node pair but still suspicious, lets just wipe the hi-c links but not prioritize splitting them to different partitions.                                
-                                C.add_edge(ec[0], ec[1], weight=0)
-                                C.add_edge(ec[1], ec[0], weight=0)
+            for u, v, w in matchGraph.edges.data("weight"):
+                if u in C and v in C:
+                    if w != None:
+                        C.add_edge(u, v, weight=w)
+
 
 
             res = checkXYcomponent(current_component, matchGraph, G, edges)
