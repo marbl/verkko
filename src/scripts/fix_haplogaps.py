@@ -105,6 +105,12 @@ extra_edges = []
 extra_nocut_edges = []
 for key in tip_support:
 	if len(tip_support[key]) < 1: continue
+	if (key[1], key[0]) in tip_support and len(tip_support[(key[1], key[0])]) > len(tip_support[key]):
+		sys.stderr.write("conflicting fixes at " + key[0] + " " + key[1] + ", skipping lower support" + "\n")
+		continue
+	if (key[1], key[0]) in tip_support and len(tip_support[(key[1], key[0])]) == len(tip_support[key]):
+		sys.stderr.write("ambiguous fix at " + key[0] + " " + key[1] + ", skipping" + "\n")
+		continue
 	wanted_cut_pos = -1
 	wanted_gap_length = 0
 	for t in tip_support[key]:
