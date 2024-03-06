@@ -37,8 +37,8 @@ if you prefer to install verkko in a separate environment. Alternatively, you ca
 To install Verkko from github (for developers only) run:
 
     git clone https://github.com/marbl/verkko.git
-    git checkout <desired branch> (optional if you want to use a branch for development/compilation and not master)
     cd verkko/src
+    git checkout <desired branch> (optional if you want to use a branch for development/compilation and not master)
     make -j32
 
 This will create the folder `verkko/bin` and `verkko/lib/verkko`. You can move the contents of these folders to a central installation location or you can add `verkko/bin` to your path. If any of the dependencies (e.g. GraphAligner, winnowmap, mashmap, etc) are not available in your path you may also symlink them under `verkko/lib/verkko/bin/`.
