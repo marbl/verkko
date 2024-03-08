@@ -41,7 +41,7 @@ rule untip:
         int(config['utp_n_cpus'])
     resources:
         job_id = 1,
-        n_cpus = config['utp_n_cpus'],
+        n_cpus = int(config['utp_n_cpus']),
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'utp'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'utp')
     shell:

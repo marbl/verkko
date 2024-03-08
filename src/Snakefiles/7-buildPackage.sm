@@ -30,7 +30,7 @@ checkpoint buildPackages:
         int(config['par_n_cpus'])
     resources:
         job_id = 1,
-        n_cpus = config['par_n_cpus'],
+        n_cpus = int(config['par_n_cpus']),
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'par'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'par')
     shell:

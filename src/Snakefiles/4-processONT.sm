@@ -47,7 +47,7 @@ rule processONT:
         int(config['pop_n_cpus'])
     resources:
         job_id = 1,
-        n_cpus = config['pop_n_cpus'],
+        n_cpus = int(config['pop_n_cpus']),
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'pop'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'pop')
     shell:

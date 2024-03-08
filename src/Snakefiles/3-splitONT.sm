@@ -36,7 +36,7 @@ checkpoint splitONT:
         int(config['spl_n_cpus'])
     resources:
         job_id = 1,
-        n_cpus = config['spl_n_cpus'],
+        n_cpus = int(config['spl_n_cpus']),
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'spl'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'spl')
     shell:

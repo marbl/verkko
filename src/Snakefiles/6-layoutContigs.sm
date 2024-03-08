@@ -65,7 +65,7 @@ rule generateLayoutContigsInputs:
         #n_cpus = 1,
         #mem_gb = 8,
         #time_h = 2
-        n_cpus = config['lay_n_cpus'],
+        n_cpus = int(config['lay_n_cpus']),
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'lay'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'lay')
     group:
@@ -144,7 +144,7 @@ rule layoutContigs:
         int(config['lay_n_cpus'])
     resources:
         job_id = 1,
-        n_cpus = config['lay_n_cpus'],
+        n_cpus = int(config['lay_n_cpus']),
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'lay'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'lay')
     group:

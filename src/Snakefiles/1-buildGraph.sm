@@ -56,7 +56,7 @@ rule buildGraph:
         int(config['mbg_n_cpus'])
     resources:
         job_id = 1,
-        n_cpus = config['mbg_n_cpus'],
+        n_cpus = int(config['mbg_n_cpus']),
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'mbg'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'mbg')
     shell:

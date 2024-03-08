@@ -95,7 +95,7 @@ rule computeOverlaps:
         int(config['ovb_n_cpus']),
     resources:
         job_id = '{nnnn}',
-        n_cpus = config['ovb_n_cpus'],
+        n_cpus = int(config['ovb_n_cpus']),
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'ovb'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ovb')
     shell:

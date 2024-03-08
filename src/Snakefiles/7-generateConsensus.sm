@@ -33,7 +33,7 @@ rule generateConsensus:
         int(config['cns_n_cpus']),
     resources:
         job_id = '{nnnn}',
-        n_cpus = config['cns_n_cpus'],
+        n_cpus = int(config['cns_n_cpus']),
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'cns'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'cns')
     shell:
