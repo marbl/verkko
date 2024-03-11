@@ -1186,7 +1186,7 @@ else
     echo >> ${outd}/snakemake.sh "  --profile ${verkko}/profiles \\"
     echo >> ${outd}/snakemake.sh "  --restart-times 1 \\"
     echo >> ${outd}/snakemake.sh "  --max-jobs-per-second 10 \\"
-    echo >> ${outd}/snakemake.sh "  --max-status-checks-per-second 0.02 \\"
+    echo >> ${outd}/snakemake.sh "  --max-status-checks-per-second 1 \\"
     echo >> ${outd}/snakemake.sh "  --local-cores 1 \\"
 fi
 echo >> ${outd}/snakemake.sh "  ${snakeopts}"
