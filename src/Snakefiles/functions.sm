@@ -105,12 +105,7 @@ def getMBGMemoryRequest(attempt):              #  Sum the input size, divide by 
    if mem < 2.0:
       mem = 0
 
-      if config['correction_enabled'] == "True" and os.path.exists(rules.correctHiFi.output.fasta):
-         mem += getFileBP(rules.correctHiFi.output.fasta)
-      else:
-         for f in HIFI_READS:
-            mem += getFileBP(f)
-
+      mem += getFileBP(rules.correctHiFi.output.fasta)
       mem = mem * 1.10    #  Expand by 10%
       mem = mem / 2       #  MBG is expected to use 1 byte for each 2 bytes of input
       mem = mem / gib     #  Convert to GB

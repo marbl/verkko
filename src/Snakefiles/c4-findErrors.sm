@@ -153,16 +153,17 @@ def fixErrorsP(wildcards):
 rule fixErrors:
     input:
         seqstore  = {rules.buildStore.output.seqstore},
-        ovlstore  = {rules.combineOverlaps.output.ovlstore},
-        reds      = fixErrorsI,
-        finished  = {rules.configureFindErrors.output.finished}
+        ovlstore  = {rules.combineOverlaps.output.ovlstore} if config['correction_enabled'] == "True" else {rules.emptyfile.output},
+        reds      = fixErrorsI if config['correction_enabled'] == "True" else {rules.emptyfile.output},
+        finished  = {rules.configureFindErrors.output.finished} if config['correction_enabled'] == "True" else {rules.emptyfile.output}
     output:
         red       = '0-correction/red.red',
         fasta     = '0-correction/hifi-corrected.fasta.gz'
     log:
         err       = "0-correction/fixErrors.err"
     params:
-        paths     = fixErrorsP
+        paths     = fixErrorsP,
+        corenable = config['correction_enabled']
     threads:
         1
     resources:
@@ -181,8 +182,15 @@ echo ""
 echo Combine corrections.
 echo ""
 
+if [ "{params.corenable}" = "False" ] ; then
+   prefix=\\$(echo ../{output.fasta} | sed s/.fasta//)
+   {VERKKO}/bin/sqStoreDumpFASTQ -S ../{input.seqstore} -corrected -compressed -fasta -o \$prefix -nolibname
+   touch ../{output.red}
+   exit 0
+fi
+
 #  red files MUST be in sorted order, which fixErrorsP doesn't return.
-cat find-errors-jobs/*red > red.red
+cat find-errors-jobs/*red > ../{output.red}
 
 #  Use those corrections to correct the reads.
 {VERKKO}/bin/fixErrors \\\\
