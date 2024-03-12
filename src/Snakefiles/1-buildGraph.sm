@@ -35,7 +35,7 @@ def toFloat(val):
 
 rule buildGraph:
     input:
-        reads     = {rules.correctHiFi.output.fasta} if config['correction_enabled'] == "True" else HIFI_READS,
+        reads     = {rules.correctHiFi.output.fasta},
     output:
         graph     = '1-buildGraph/hifi-resolved.gfa',
         hificov   = '1-buildGraph/hifi_nodecov.csv',
@@ -44,7 +44,6 @@ rule buildGraph:
         err       = '1-buildGraph/buildGraph.err'
     params:
         MBG       = config['MBG'],
-        corenable = config['correction_enabled'],
 
         baseK             = config['mbg_baseK'],
         maxK              = config['mbg_maxK'],
@@ -77,15 +76,8 @@ iopt=""
 
 echo "Building graph with reads:"
 
-if [ "{params.corenable}" = "True" ] ; then
-  echo "  ../{input.reads}"
-  iopt="-i ../{input.reads}"
-else
-  for rf in {HIFI_READS} ; do
-    echo "  \$rf"
-    iopt="\$iopt -i \$rf"
-  done
-fi
+echo "  ../{input.reads}"
+iopt="-i ../{input.reads}"
 
 echo ""
 echo ""
