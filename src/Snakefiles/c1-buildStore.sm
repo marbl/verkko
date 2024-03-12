@@ -52,6 +52,14 @@ echo "Building seqStore."
 
 {VERKKO}/bin/sqStoreDumpMetaData -stats -S ../{output.seqstore}
 
+# make sure we weren't given compressed reads
+numTotBP=\`grep  -w "corrected\$" ../{output.seqstore}/info.txt |awk '{{print \$2}}'\`
+numCompBP=\`grep -w "corrected-compressed\$" ../{output.seqstore}/info.txt |awk '{{print \$2}}'\`
+if [ \$numTotBP -eq \$numCompBP ]; then
+   echo "Error, it looks like you provided HPC sequences, please input uncompressed data"
+   exit -1
+fi
+
 # check that the store has no duplicate read names, correction only keeps the read name up to the first space
 count=\`wc -l ../{output.seqstore}/readNames.txt |awk '{{print \$1}}'\`
 count_unique=\`cat ../{output.seqstore}/readNames.txt|awk '{{print \$2}}' |sort |uniq |wc -l\`
