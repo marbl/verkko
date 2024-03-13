@@ -32,7 +32,7 @@ rule generateConsensus:
     threads:
         int(config['cns_n_cpus']),
     resources:
-        job_id = '{nnnn}',
+        job_id = lambda wildcards, input, attempt: int(wildcards.nnnn),
         n_cpus = int(config['cns_n_cpus']),
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'cns'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'cns')
