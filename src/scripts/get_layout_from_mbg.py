@@ -543,9 +543,43 @@ for contig in sorted(contig_pieces.keys()):
 			npieces += 1   #  Piece with reads assigned.
 		elif line != "end":
 			nempty  += 1   #  Piece with no reads assigned.
+
+			if contig_lens[line] > 100000:
+				sys.stderr.write(f"ERROR: empty entry for piece {line} in scaffold {contig} of LARGE expected length {contig_lens[line]}\n")
+				exit(1)				
 			contig_pieces[contig][i] = "[N%dN]"%(contig_lens[line])
 			if npieces > 0:
 				print(f"Warning: empty entry for piece {line} in scaffold {contig} of expected length {contig_lens[line]}, using Ns {contig_pieces[contig][i]} instead", file=nul_layout_file)
+	#postprocessing to avoid consecutive empty pieces
+	i = 0
+	new_pieces = []
+	previous = "NONE"
+	while i < len(contig_pieces[contig]):
+		line = contig_pieces[contig][i]
+		i += 1
+		is_gap = re.match(r"\[N\d+N\]", line)
+		if is_gap:
+			#just ignoring leading gaps
+			if previous == "NONE":
+				continue			
+			elif previous == "piece":
+				new_pieces.append(line)
+				previous = "gap"
+			else:
+				#merging consecutive gaps
+				previous = "gap"
+				last = new_pieces.pop()
+				last_int = int(last[2:-2])
+				cur_int = int(line[2:-2])
+				new_pieces.append("[N%dN]"%(last_int + cur_int))
+		else:
+			new_pieces.append(line)
+			# it can actually be 'end' but who cares then
+			previous = "piece"
+	#removing trailing gaps
+	while len(new_pieces) > 0 and re.match(r"\[N\d+N\]", new_pieces[-1]):
+		new_pieces.pop()
+	contig_pieces[contig] = new_pieces
 
 	if npieces > 0:
 		if nempty > 0:
