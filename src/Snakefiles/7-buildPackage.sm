@@ -20,7 +20,8 @@ checkpoint buildPackages:
     input:
         hifi       = HIFI_READS,
         layout     = {rules.layoutContigs.output.layout},
-        ont_subset = {rules.extractONT.output.ont_subset} if config['withONT'] == "True" else {rules.emptyfile.output}
+        ont_subset = {rules.extractONT.output.ont_subset} if config['withONT'] == "True" else {rules.emptyfile.output},
+        ont_id_file = {rules.extractONT.output.ont_subset_id} if config['withONT'] == "True" else {rules.emptyfile.output}
     output:
         tigmap     = "7-consensus/packages.tigName_to_ID.map",
         finished   = "7-consensus/packages.finished",
