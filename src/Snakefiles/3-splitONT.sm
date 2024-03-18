@@ -37,7 +37,7 @@ checkpoint splitONT:
     input:
         ont            = ONT_READS if config['withONT'] == "True" else {rules.emptyfile.output}
     output:
-        split_finished = '3-align/splitONT.finished'
+        split_finished = '3-align/split/splitONT.finished'
     log:
         err            = '3-align/splitONT.err'
     params:

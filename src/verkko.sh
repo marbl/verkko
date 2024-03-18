@@ -771,6 +771,8 @@ echo >> ${outd}/snakemake.sh "  --configfile verkko.yml \\"
 echo >> ${outd}/snakemake.sh "  --reason \\"
 echo >> ${outd}/snakemake.sh "  --keep-going \\"
 echo >> ${outd}/snakemake.sh "  --rerun-incomplete \\"
+echo >> ${outd}/snakemake.sh "  --rerun-triggers mtime \\"
+
 if [ $grid = "local" ] ; then
     echo >> ${outd}/snakemake.sh "  --latency-wait 2 \\"
     echo >> ${outd}/snakemake.sh "  --cores ${local_cpus} \\"
