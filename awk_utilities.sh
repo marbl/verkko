@@ -36,7 +36,7 @@ for i in $(cat test.cov | awk '{ print $3 }'); \
                 do if [[ $i -ge "${lengthselectionsort}" ]] then; \ 
                                         echo $i; fi; done | youplot histogram  
                                         
-# genome assembled following length filter and the filtered uitigs
+# genome assembled following length filter and the filtered uitigs greater than 10000
 cat test.cov | awk '$3 > 10000 { print $3 }' | gawk '{ sum += $1 }; \
                       END { print sum }' && cat test.cov | \
                                             awk '$3 > 10000 { print  $1"\t"$2"\t"$3 }'
