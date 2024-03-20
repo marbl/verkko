@@ -2,6 +2,7 @@
 # Universitat Potsdam
 # Date: 2024-3-11
 # for preparing the data for the visualization of the coverage or the length of the assembled unitigs from the pacbiohifi assembly. 
+# test.cov is the coverage file coming from the Verkko assembly.
 gem install youplot
 # coverage 
 for i in $(ls *.cov); \ 
@@ -33,4 +34,9 @@ for i in $(cat test.cov | awk '{ print $3 }'); \
 # binning them according to the length filter and then making the sense of the assembled unitigs
  for i in $(cat test.cov | awk '{ print $3 }'); \
                 do if [[ $i -ge "${lengthselectionsort}" ]] then; \ 
-                                        echo $i; fi; done | youplot histogram
+                                        echo $i; fi; done | youplot histogram  
+                                        
+# genome assembled following length filter and the filtered uitigs
+cat test.cov | awk '$3 > 10000 { print $3 }' | gawk '{ sum += $1 }; \
+                      END { print sum }' && cat test.cov | \
+                                            awk '$3 > 10000 { print  $1"\t"$2"\t"$3 }'
