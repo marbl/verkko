@@ -376,6 +376,8 @@ def get_best_path(short_id, path_container, paths, longarm_to_component, multipl
     best_arms.sort(key=lambda x: path_scores[x], reverse=True)
     if len(best_arms) == 1:
         return best_arms[0]
+    if len(best_arms) == 0:
+        return "Unclear"
     background_score = get_background_score(paths.getPathById(short_id), weights_map, G)
     if path_scores[best_arms[0]] - (path_length(path_container[best_arms[0]], G) * background_score) < 2 * (path_scores[best_arms[1]] - path_length(path_container[best_arms[1]], G) * background_score):
         print (f"No evident majority, best options are {best_arms[0]} and {best_arms[1]}, checking further")
