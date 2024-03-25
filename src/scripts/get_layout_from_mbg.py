@@ -544,9 +544,11 @@ for contig in sorted(contig_pieces.keys()):
 		elif line != "end":
 			nempty  += 1   #  Piece with no reads assigned.
 
-			if contig_lens[line] > 100000:
-				sys.stderr.write(f"ERROR: empty entry for piece {line} in scaffold {contig} of LARGE expected length {contig_lens[line]}\n")
-				exit(1)				
+			#This is not normal but still may happen, switching off for now.
+
+			#if contig_lens[line] > 100000:
+			#	sys.stderr.write(f"ERROR: empty entry for piece {line} in scaffold {contig} of LARGE expected length {contig_lens[line]}\n")
+			#	exit(1)				
 			contig_pieces[contig][i] = "[N%dN]"%(contig_lens[line])
 			if npieces > 0:
 				print(f"Warning: empty entry for piece {line} in scaffold {contig} of expected length {contig_lens[line]}, using Ns {contig_pieces[contig][i]} instead", file=nul_layout_file)
