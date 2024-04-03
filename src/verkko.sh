@@ -474,7 +474,7 @@ while [ $# -gt 0 ] ; do
           screen="$screen rdna human-rdna-KY962518.1.fasta.gz"
           shift
       else
-          if [ "x$arg" == 'x' ] || [ "x$arh" == 'x' ]; then
+          if [ "x$arg" = 'x' ] || [ "x$arh" = 'x' ]; then
               errors="${errors}Invalid screen option: '$arg', '$arh'. Provide both contaminant name and contaminant file.\n"
           fi
           screen="$screen $arg $arh"
