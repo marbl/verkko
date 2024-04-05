@@ -628,11 +628,19 @@ if [ "x$ruk_enable" = "xTrue" -a -e "$verkko/bin/meryl" ] ; then
         if [ $? -ne 1 ] ; then
             errors="${errors}Meryl database '$ruk_hap1' appears to be built using non-homopolymer compressed kmers.\n"
         fi
+        $verkko/bin/meryl print threads=1 $ruk_hap1 2> /dev/null | head | grep -q A
+        if [ $? -ne 0 ]; then
+            errors="${errors}Meryl database '$ruk_hap1' appears to be an invalid DB.\n"
+        fi
     fi
     if [ "x$ruk_hap2}" != "x" ] ; then
         $verkko/bin/meryl print threads=1 $ruk_hap2 2> /dev/null | head | grep -q AA
         if [ $? -ne 1 ] ; then
             errors="${errors}Meryl database '$ruk_hap2' appears to be built using non-homopolymer compressed kmers.\n"
+        fi
+        $verkko/bin/meryl print threads=1 $ruk_hap2 2> /dev/null | head | grep -q A
+        if [ $? -ne 0 ]; then
+           errors="${errors}Meryl database '$ruk_hap2' appears to be an invalid DB.\n"
         fi
     fi
 fi
