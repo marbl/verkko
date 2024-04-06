@@ -346,10 +346,10 @@ def get_background_score(short_path, weights_map, G):
                 if short_node in weights_map[node]:
                     sum_link += weights_map[node][short_node]
             avg_links.append(sum_link / G.nodes[node]['length'])
-    print (f"path {short_path} avg links {len(avg_links)} {avg_links[int(len(avg_links)/2)]}")
     if len(avg_links) == 0:
         return 0
     avg_links.sort()
+    print (f"path {short_path} avg links {len(avg_links)} {avg_links[int(len(avg_links)/2)]}")
     return avg_links[int(len(avg_links)/2)]
 
 #for components we allow to use nodes present in multiple paths, for haplo paths we do not
@@ -373,12 +373,23 @@ def get_best_path(short_id, path_container, paths, longarm_to_component, multipl
     for long_arm in path_container.keys():
         path_scores[long_arm] = scorepath(paths.getPathById(short_id), path_container[long_arm], multiplicities, weights_map, True)
         best_arms.append(long_arm)
-    best_arms.sort(key=lambda x: path_scores[x], reverse=True)
-    if len(best_arms) == 1:
-        return best_arms[0]
+    best_arms.sort(key=lambda x: path_scores[x], reverse=True)    
+    background_score = get_background_score(paths.getPathById(short_id), weights_map, G)
+
     if len(best_arms) == 0:
         return "Unclear"
-    background_score = get_background_score(paths.getPathById(short_id), weights_map, G)
+    if len(best_arms) == 1:
+        if path_scores[best_arms[0]] > max (min(background_score * path_length(path_container[best_arms[0]], G)*3, 100), 10):
+            return best_arms[0]
+        else:
+            print (f"One available path but score small or too close to background noise {path_scores[best_arms[0]]} and {background_score * path_length(path_container[best_arms[0]], G)}, skipping")
+            return "Unclear"
+
+    print (f"id {short_id}: best options are {best_arms[0]} and {best_arms[1]}, scores {path_scores[best_arms[0]]}  {path_scores[best_arms[1]]} background {background_score} {path_length(path_container[best_arms[0]], G) * background_score} {path_length(path_container[best_arms[1]], G) * background_score}")
+    if path_scores[best_arms[0]] <= max(min(background_score * path_length(path_container[best_arms[0]], G)*3, 100), 10):
+        print (f"Best score is small or too close to background noise: {path_scores[best_arms[0]]} and {background_score * path_length(path_container[best_arms[0]], G)}, skipping")
+        return "Unclear"
+
     if path_scores[best_arms[0]] - (path_length(path_container[best_arms[0]], G) * background_score) < 2 * (path_scores[best_arms[1]] - path_length(path_container[best_arms[1]], G) * background_score):
         print (f"No evident majority, best options are {best_arms[0]} and {best_arms[1]}, checking further")
         if longarm_to_component[best_arms[0]] != longarm_to_component[best_arms[1]]:
