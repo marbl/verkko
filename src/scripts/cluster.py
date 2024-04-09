@@ -363,40 +363,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
         #possibly check whether we have something already phased nearby?
             if int(line[2]) > len_cutoff:
                 matchGraph.add_edge(line[0], line[1])
-
-    #Adding link between matched edges to include separated sequence to main component
-
-    for ec in matchGraph.edges():
-        neighbours = False
-        for p0 in ['<', '>']:
-            for p1 in ['<', '>']:
-                if (p0 + ec[0] in edges_save) and (p1 + ec[1]) in edges_save[p0 + ec[0]]:
-                    neighbours = True
-#tandem near repeats in consequtive edges
-        if neighbours:
-            sys.stderr.write(f"Not adding homology information between {ec[0]} and {ec[1]} - neighbouring looplike something\n")
-            matchGraph.remove_edge(ec[0], ec[1])
-            continue
-        # while we build the initial partition give a big bonus edge for putting the homologous nodes into different partitions             
-        # Adding an edge that already exists updates the edge data (in networkX graph)
-
-        #At least one in the pair is the best similarity match for other (and second best is not too close to the best)
-        if (ec[0] in best_match and ec[1] == best_match[ec[0]][0] and best_match[ec[0]][2]/best_match[ec[0]][1]< 0.8) or (ec[1] in best_match and ec[0] == best_match[ec[1]][0] and best_match[ec[1]][2]/best_match[ec[1]][1]< 0.8):
-            matchGraph.add_edge(ec[0], ec[1], weight=-10 * FIXED_WEIGHT)
-        else:
-        #not really look like homologous node pair but still suspicious, lets just wipe the hi-c links but not prioritize splitting them to different partitions.                                
-            matchGraph.add_edge(ec[0], ec[1], weight=0)
-
-#reconnecting homologous nodes
-    for [v1,v2] in matchGraph.edges():
-        if v1 in G.nodes and v2 in G.nodes and matchGraph[v1][v2]['weight'] < 0:    
-            if component_colors[v1] != component_colors[v2]:
-                logging_f.write(f"Adding graph link between homologous {v1} {v2}, components {component_colors[v1]} and {component_colors[v2]}\n")
-                G.add_edge(v1, v2)
-         
-
-
-
+     
     sys.stderr.write("Loaded match info with %d nodes and %d edges\n" % (matchGraph.number_of_nodes(), matchGraph.number_of_edges()))
     translate.close()
 
@@ -434,6 +401,32 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
         compressed_file.write(f'X {node1} {node2} {hicGraph[node1][node2]["weight"]}\n')
     FIXED_WEIGHT = max_w
     sys.stderr.write(f'Constant for neighbouring edges set to be  {FIXED_WEIGHT} (but not used), for homologous edges {-10 * FIXED_WEIGHT} \n')
+
+    #Adding link between matched edges to include separated sequence to main component
+
+    for ec in matchGraph.edges():
+        neighbours = False
+        for p0 in ['<', '>']:
+            for p1 in ['<', '>']:
+                if (p0 + ec[0] in edges_save) and (p1 + ec[1]) in edges_save[p0 + ec[0]]:
+                    neighbours = True
+        # while we build the initial partition give a big bonus edge for putting the homologous nodes into different partitions             
+        # Adding an edge that already exists updates the edge data (in networkX graph)
+
+        #At least one in the pair is the best similarity match for other (and second best is not too close to the best)
+        if (not neighbours) and ((ec[0] in best_match and ec[1] == best_match[ec[0]][0] and best_match[ec[0]][2]/best_match[ec[0]][1]< 0.8) or (ec[1] in best_match and ec[0] == best_match[ec[1]][0] and best_match[ec[1]][2]/best_match[ec[1]][1]< 0.8)):
+            matchGraph.add_edge(ec[0], ec[1], weight=-10 * FIXED_WEIGHT)
+        else:
+        #not really look like homologous node pair but still suspicious, lets just wipe the hi-c links but not prioritize splitting them to different partitions.                                
+            matchGraph.add_edge(ec[0], ec[1], weight=0)
+
+#reconnecting homologous nodes
+    for [v1,v2] in matchGraph.edges():
+        if v1 in G.nodes and v2 in G.nodes and matchGraph[v1][v2]['weight'] < 0:    
+            if component_colors[v1] != component_colors[v2]:
+                logging_f.write(f"Adding graph link between homologous {v1} {v2}, components {component_colors[v1]} and {component_colors[v2]}\n")
+                G.add_edge(v1, v2)
+                
 
 
     sys.stderr.write("Loaded hic info with %d nodes and %d edges\n" % (hicGraph.number_of_nodes(), hicGraph.number_of_edges()))
@@ -537,6 +530,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
 
             best_score = FIXED_WEIGHT * C.number_of_nodes() * C.number_of_nodes()
 
+            #Just debug information about homology link structure
             debug_neighbors = {}              
             for debug_node in C.nodes():
                 debug_neighbors[debug_node] = set()
@@ -547,7 +541,6 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                         debug_neighbors[edge_pair[1]].add(edge_pair[0]) 
                         if edge_pair[0] == edge_pair[1]:
                             sys.stderr.write(f"loop {edge_pair} {C.edges[edge_pair]}\n")
-
             for node1 in debug_neighbors:
                 for node2 in debug_neighbors[node1]:
                     for node3 in debug_neighbors[node2]:
@@ -555,13 +548,19 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                             sys.stderr.write(f"Found a triangle {node1} {node2} {node3}\n")
                         if node1 < node3:
                             sys.stderr.write (f"Multiple homology from {node2}, {node1} with {mashmap_weights[node1+node2]} and {node3} with {mashmap_weights[node3+node2]}\n")
+
+
+
             for seed in range(0, KLIN_STARTS):  # iterate on starting partition
                 random.seed(seed)
                 p1 = []
                 p2 = []
                 for n in C.nodes():
-                    if n in matchGraph:
-                        for ec in matchGraph.edges(n):
+                    if n in matchGraph and len(matchGraph.edges(n)) > 0:
+                        #TODO: replace with something reasonable! multiple nodes will not work here. Transform each homology component into one node before?.. Anyway, it still should be fixed later with K-L iterations.
+                        for ec in matchGraph.edges(n): 
+                            if matchGraph.edges[ec]['weight'] >= 0:
+                                continue
                             if ec[0] == n and ec[1] in p1:
                                 if n not in p1:
                                     p2.append(n)
@@ -579,6 +578,12 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                                     p1.append(n)
                                 else:
                                     p2.append(n)
+
+                        if n not in p1 and n not in p2:
+                            if random.random() <= 0.5:
+                                p1.append(n)
+                            else:
+                                p2.append(n)
                     else:
                         if random.random() <= 0.5:
                             p1.append(n)
@@ -586,6 +591,15 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                             p2.append(n)
     #            print("Initial partitions are %s and %s" % (set(p1), set(p2)))
                 if len(p1) * len(p2) > 0:
+#                    logging_f.write (f"{len(p1)} {len(p2)} {len(C.nodes())}\n")
+                    #Debug for weird crashes
+                    inter = list(set(p1).intersection(p2))
+                    missing = set(C.nodes()) - set(p1) - set(p2)
+                    if len(inter) > 0:
+                        logging_f.write (f"Intersecting {inter}\n")
+                    if len(missing) > 0:
+                        logging_f.write (f"Missing {missing}\n")
+
                     part = community.kernighan_lin.kernighan_lin_bisection(C, partition=[set(p1), set(p2)], max_iter=KLIN_ITER,
                                                                            weight='weight', seed=seed)
                     sum_w = 0
