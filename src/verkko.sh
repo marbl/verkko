@@ -172,6 +172,7 @@ ruk_fract="0.9"
 
 #  HiC heuristics
 haplo_divergence=0.05
+rdna_scaff_ref="chm13_rDNAs.fa"
 #possibly this should be used not only for hic
 uneven_depth="False"
 no_rdna_tangle="False"
@@ -459,6 +460,7 @@ while [ $# -gt 0 ] ; do
 
     elif [ "$opt" = "--no-rdna-tangle" ];       then no_rdna_tangle="True";
     elif [ "$opt" = "--rdna-scaff" ];           then rdna_scaff="True";
+    elif [ "$opt" = "--rdna-scaff-reference" ]; then rdna_scaff_ref=$arg; shift
     elif [ "$opt" = "--uneven-depth" ];         then uneven_depth="True";
     elif [ "$opt" = "--haplo-divergence" ];     then haplo_divergence=$arg;     shift
 
@@ -729,6 +731,24 @@ fi
 
 # bwa samtools and seqtk required for HiC data
 if [ "x$withhic" = "xTrue" ] ; then
+   # check that ref for rdna is present and can be found
+   if [ "x$rdna_scaff" = "xTrue" ] ; then
+      if [ ! -z "$rdna_scaff_ref" ] ; then
+         dtpath="$verkko/data/$rdna_scaff_ref"
+         if [ -e "$rdna_scaff_ref" ] ; then
+            if [ ! -e "/$rdna_scaff_ref" ] ; then
+                screen="`pwd`/$rdna_scaff_ref"
+            fi
+         elif [ -e "$dtpath" ] ; then
+            rdna_scaff_ref=$dtpath
+         else
+            errors=${errors}"ERROR: Can't find screen '$rdna_scaff_ref' rDNA reference data file.  Looked for:\n"
+            errors=${errors}"  user-supplied:   '$rdna_scaff_ref' and\n"
+            errors=${errors}"  verkko-supplied: '$dtpath'\n"
+         fi
+       fi
+    fi
+
     if   [ "x$bwa" = "x" ] ; then
         errors="${errors}Can't find BWA executable in \$PATH or \$VERKKO/bin/bwa.\n"
     elif [ ! -e "$bwa" ] ; then
@@ -745,7 +765,7 @@ if [ "x$withhic" = "xTrue" ] ; then
         errors="${errors}Can't find seqtk executable in \$PATH or \$VERKKO/bin/seqtk.\n"
     elif [ ! -e "$seqtk" ] ; then
         errors="${errors}Can't find seqtk executable at '$seqtk'.\n"
-    fi    
+    fi
 fi
 
 #
@@ -779,7 +799,8 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "                             uncompressed or gzip/bzip2/xz compressed.  Any"
     echo "                             number of files can be supplied; *.gz works."
     echo "    --no-rdna-tangle         Switch off option that helps to proceed large rDNA tangles which may connect multiple chromosomes."
-    echo "    --rdna-scaff             Switch on experimental HiC scaffolding over rDNA clusters for acrocentric chromosomes. Tested only on primates!"    
+    echo "    --rdna-scaff             Switch on experimental HiC scaffolding over rDNA clusters for acrocentric chromosomes. Tested only on primates!"
+    echo "    --rdna-scaff-ref         Switch to user-supplied reference for HiC scaffolding rather than human rDNA, experimental use to scaffold across other repeat classes"
     echo "    --uneven-depth           Disable coverage-based heuristics in homozygous nodes detection for phasing."
     echo "    --haplo-divergence       Estimation on maximum divergence between haplotypes, is used only with hic data. Should be increased for species with divergence significantly higher than in human. Default: 0.05, min 0, max 0.2"
     echo ""
@@ -993,6 +1014,7 @@ echo >> ${outd}/verkko.yml "#  HiC algo options"
 echo >> ${outd}/verkko.yml "no_rdna_tangle:      '${no_rdna_tangle}'"
 echo >> ${outd}/verkko.yml "uneven_depth:        '${uneven_depth}'"
 echo >> ${outd}/verkko.yml "haplo_divergence:    '${haplo_divergence}'"
+echo >> ${outd}/verkko.yml "rdna_scaff_ref:      '${rdna_scaff_ref}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  Aligning hic reads"
 echo >> ${outd}/verkko.yml "shc_bases:           '${shc_bases}'"
@@ -1105,7 +1127,7 @@ target="verkko"
 
 if [ "x$withhic" = "xTrue" ] ; then
     if [ "x$rdna_scaff" = "xTrue" ] ; then
-        target="HiC_rdnascaff"    
+        target="HiC_rdnascaff"
     else
         target="runRukkiHIC"
     fi

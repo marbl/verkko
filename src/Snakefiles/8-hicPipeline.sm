@@ -121,7 +121,8 @@ rule runRDNAMashMap:
         err    = '8-hicPipeline/run_rdnamashmap.err'
     params:
         MASHMAP   = config.get('MASHMAP', "{VERKKO}/bin/mashmap"),
-        MASHMAP_DIV = 100 - 100*float(config['haplo_divergence'])
+        MASHMAP_DIV = 100 - 100*float(config['haplo_divergence']),
+        RDNA_REF    = config['rdna_scaff_ref']
     threads:
         int(config['fhc_n_cpus'])
 
@@ -138,7 +139,7 @@ cat > ./run_rdnamashmap.sh <<EOF
 #!/bin/sh
 set -e
 echo "---Running MashMap"
-{params.MASHMAP} -r {VERKKO}/data/chm13_rDNAs.fa  -q ../{input.unitigs} -t {threads} --pi 95.0 -s 5000 -o ../{output.unitigs_rdnamatches}
+{params.MASHMAP} -r {params.RDNA_REF}  -q ../{input.unitigs} -t {threads} --pi 95.0 -s 5000 -o ../{output.unitigs_rdnamatches}
 EOF
 
 chmod +x ./run_rdnamashmap.sh
