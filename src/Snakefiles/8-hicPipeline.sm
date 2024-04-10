@@ -451,6 +451,7 @@ params="\$params --issue-ratio 1."
 params="\$params --solid-homozygous-cov-coeff 1.1"
 params="\$params --solid-ratio 1.5"
 params="\$params --hap-names haplotype1,haplotype2"
+params="\$params --max-homozygous-len=25000000"
 
 {VERKKO}/bin/rukki trio -g ../{input.graph} -m ../{input.binning}              -p ../{output.tsv_path} \$params
 {VERKKO}/bin/rukki trio -g ../{input.graph} -m ../{input.binning} --gaf-format -p ../{output.gaf_path} \$params
