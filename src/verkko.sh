@@ -737,7 +737,7 @@ if [ "x$withhic" = "xTrue" ] ; then
          dtpath="$verkko/data/$rdna_scaff_ref"
          if [ -e "$rdna_scaff_ref" ] ; then
             if [ ! -e "/$rdna_scaff_ref" ] ; then
-                screen="`pwd`/$rdna_scaff_ref"
+                rdna_scaff_ref="`pwd`/$rdna_scaff_ref"
             fi
          elif [ -e "$dtpath" ] ; then
             rdna_scaff_ref=$dtpath
