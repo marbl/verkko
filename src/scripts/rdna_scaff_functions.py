@@ -375,6 +375,7 @@ def get_best_path(short_id, path_container, paths, longarm_to_component, multipl
         best_arms.append(long_arm)
     best_arms.sort(key=lambda x: path_scores[x], reverse=True)    
     background_score = get_background_score(paths.getPathById(short_id), weights_map, G)
+    print (short_id + " best arms " + str(best_arms) + " scores " + str([path_scores[x] for x in best_arms]))
 
     if len(best_arms) == 0:
         return "Unclear"
@@ -384,12 +385,14 @@ def get_best_path(short_id, path_container, paths, longarm_to_component, multipl
         else:
             print (f"One available path but score small or too close to background noise {path_scores[best_arms[0]]} and {background_score * path_length(path_container[best_arms[0]], G)}, skipping")
             return "Unclear"
-
     print (f"id {short_id}: best options are {best_arms[0]} and {best_arms[1]}, scores {path_scores[best_arms[0]]}  {path_scores[best_arms[1]]} background {background_score} {path_length(path_container[best_arms[0]], G) * background_score} {path_length(path_container[best_arms[1]], G) * background_score}")
+    print (f"best updated scores {path_scores[best_arms[0]] - (path_length(path_container[best_arms[0]], G) * background_score)}  {(path_scores[best_arms[1]] - path_length(path_container[best_arms[1]], G) * background_score)}")
+    print (f"best lengths  {path_length(path_container[best_arms[0]], G)}    {path_length(path_container[best_arms[1]], G)}")
+    print (f"noise levels {(path_length(path_container[best_arms[0]], G) * background_score)} {(path_length(path_container[best_arms[1]], G) * background_score)}")
+    
     if path_scores[best_arms[0]] <= max(min(background_score * path_length(path_container[best_arms[0]], G)*3, 100), 10):
         print (f"Best score is small or too close to background noise: {path_scores[best_arms[0]]} and {background_score * path_length(path_container[best_arms[0]], G)}, skipping")
         return "Unclear"
-
     if path_scores[best_arms[0]] - (path_length(path_container[best_arms[0]], G) * background_score) < 2 * (path_scores[best_arms[1]] - path_length(path_container[best_arms[1]], G) * background_score):
         print (f"No evident majority, best options are {best_arms[0]} and {best_arms[1]}, checking further")
         if longarm_to_component[best_arms[0]] != longarm_to_component[best_arms[1]]:
