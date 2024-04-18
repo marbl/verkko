@@ -505,6 +505,8 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--sub-run" ] ;  then sub_n_cpus=$1; sub_mem_gb=$2; sub_time_h=$3; shift; shift; shift;
     elif [ "$opt" = "--par-run" ] ;  then par_n_cpus=$1; par_mem_gb=$2; par_time_h=$3; shift; shift; shift;
     elif [ "$opt" = "--cns-run" ] ;  then cns_n_cpus=$1; cns_mem_gb=$2; cns_time_h=$3; shift; shift; shift;
+    elif [ "$opt" = "--ahc-run" ] ;  then ahc_n_cpus=$1; ahc_mem_gb=$2; ahc_time_h=$3; shift; shift; shift;
+    elif [ "$opt" = "--fhc-run" ] ;  then fhc_n_cpus=$1; fhc_mem_gb=$2; fhc_time_h=$3; shift; shift; shift;
 
     #
     #  unknown options
@@ -843,9 +845,8 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "                             snakemake command.  Options MUST be quoted."
     echo ""
     echo "    --sto-run                Set resource limits for various stages."
-    echo "    --mer-run                Format: number-of-cpus memory-in-gb time-in-hours"
-    echo "    --ovb-run                  --cns-run 8 32 2"
-    echo "    --ovs-run"
+    echo "    --ovb-run                Format: number-of-cpus memory-in-gb time-in-hours" 
+    echo "    --ovs-run                  --cns-run 8 32 2"
     echo "    --red-run"
     echo "    --mbg-run"
     echo "    --utg-run"
@@ -857,6 +858,8 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --sub-run"
     echo "    --par-run"
     echo "    --cns-run"
+    echo "    --ahc-run"
+    echo "    --fhc-run"
     echo ""
     echo "ADVANCED MODULE PARAMETERS (expert users):"
     echo "HiFi read correction:"
