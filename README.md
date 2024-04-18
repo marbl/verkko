@@ -59,6 +59,7 @@ To run in trio mode, you must first generate [merqury](https://github.com/marbl/
     $MERQURY/_submit_build.sh -c 30 maternal.fofn maternal_compress
     $MERQURY/_submit_build.sh -c 30 paternal.fofn paternal_compress
     $MERQURY/_submit_build.sh -c 30 child.fofn    child_compress
+_submit_build.sh scripts should not be run from the same directory at the same time since Merqury uses temporary files with common names.
     
 if not, you can run
 
@@ -90,7 +91,31 @@ To run in Hi-C mode, reads should be provided using the --hic1 and --hic2 option
       --hic1 hic/*R1*fastq.gz  \
       --hic2 hic/*R2*fastq.gz
 
-Hi-C integration is a beta release and tested mostly on human and primate genomes. Please see the --rdna-tangle, --uneven-depth and --haplo-divergence options if you want to assemble something distant from human and/or have uneven coverage. If you encounter issues or have questions about appropriate parameters, please open an [issue](https://github.com/marbl/verkko/issues).
+Hi-C integration was tested mostly on human and primate genomes. Please see the --rdna_scaff_ref, --rdna-tangle, --uneven-depth and --haplo-divergence options if you want to assemble something distant from human and/or have uneven coverage. If you encounter issues or have questions about appropriate parameters, please open an [issue](https://github.com/marbl/verkko/issues).
+
+For slurm/sge cluster runs verkko uses different cpu/memory/time options for different parts of the pipeline. Usually user is not supposed to change them, however advanced tuning is possible with --<stage_code>-run options.
+<details>
+<summary>Here we list those options and briefly describe of corresponding verkko pipeline stages and affected scripts </summary>
+ 
+    --sto-run                Creating read storage, 0-correction/buildStore.sh
+    --ovb-run                HiFi/Duplex read overlapping,  0-correction/matchchains-index.sh & 0-correction/overlap-jobs/*.sh
+    --ovs-run                Combining overlap info, 0-correction/combineOverlapsConfigure.sh & 0-correction/combineOverlaps.sh
+    --red-run                Read correction, 0-correction/configureFindErrors.sh, 0-correction/find-errors-jobs/*.sh & 0-correction/fixErrors.sh
+    --mbg-run                Multiplex de Bruijn graph construction, 1-buildGraph/buildGraph.sh
+    --utg-run                Initial graph simplification, 2-processGraph/processGraph.sh
+    --spl-run                ONT reads splitting, 3-alignTips/splitONT.sh & 3-align/splitONT.sh
+    --ali-run                ONT reads alignment, 3-align/aligned*.sh & 3-alignTips/aligned*.sh
+    --pop-run                ONT-based graph simplification, 4-processONT/processONT.sh
+    --utp-run                Final graph simplification(tip clipping), 5-untip/untip.sh
+    --lay-run                Contigs preprocessing for consensus, 6-layoutContigs/createLayoutInputs.sh & 6-layoutContigs/createLayout.sh
+    --sub-run                Extraction of the read subset for consensus,  7-consensus/extractONT.sh
+    --par-run                Reads preprocessing for consensus, 7-consensus/buildPackages.sh
+    --cns-run                Reads consenus, 7-consensus/packages/part*.sh
+    --ahc-run                HiC alignment, 8-hicPipeline/align_bwa*.sh
+    --fhc-run                All scripts in HiC pipeline other than alignment,  8-hicPipeline/*.sh
+
+Default values can be found in verkko bash script, i.e.  `grep par_ bin/verkko`. Values used for verkko runs are listed in verkko.yml in the run directory.
+</details> 
 
 You can pass through snakemake options to restrict CPU/memory/cluster resources by adding the `--snakeopts` option to verkko. For example, `--snakeopts "--dry-run"` will print what jobs will run while `--snakeopts "--cores 1000"` would restrict grid runs to at most 1000 cores across all submited jobs.
 
