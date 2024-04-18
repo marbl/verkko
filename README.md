@@ -113,8 +113,9 @@ For slurm/sge cluster runs verkko uses different cpu/memory/time options for dif
     --cns-run                Reads consenus, 7-consensus/packages/part*.sh
     --ahc-run                HiC alignment, 8-hicPipeline/align_bwa*.sh
     --fhc-run                All scripts in HiC pipeline other than alignment,  8-hicPipeline/*.sh
-
-Default values can be found in verkko bash script, i.e.  `grep par_ bin/verkko`. Values used for verkko runs are listed in verkko.yml in the run directory.
+    
+Command line format of all those options is the same: number-of-cpus memory-in-gb time-in-hours, i.e.   `--cns-run 8 32 2`. 
+Default values can be found in verkko bash script, i.e.  `grep par_ bin/verkko`. Values used for each verkko run are listed in verkko.yml in the run directory.
 </details> 
 
 You can pass through snakemake options to restrict CPU/memory/cluster resources by adding the `--snakeopts` option to verkko. For example, `--snakeopts "--dry-run"` will print what jobs will run while `--snakeopts "--cores 1000"` would restrict grid runs to at most 1000 cores across all submited jobs.
