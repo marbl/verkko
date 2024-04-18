@@ -46,11 +46,15 @@ This will create the folder `verkko/bin` and `verkko/lib/verkko`. You can move t
 ## Run:
 
 Verkko is implemented as a Snakemake workflow, launched by a wrapper script to parse options
-and create a config.yml file.
+and create a `verkko.yml` file.
 
     verkko -d <work-directory> --hifi <hifi-read-files> [--nano <ont-read-files>]
 
 You can provide any combination of PacBio HiFi/Oxford Nanopore duplex/both to the --hifi parameter. By default, verkko will run the snakemake workflow and all compute on the local machine. Support for SGE, Slurm and LSF (untested) can be enabled with options `--sge`, `--slurm` and `--lsf`, respectively. This will run the snakemake workflow on the local machine but submit all compute to the grid. To launch the both the snakemake workflow and compute on the grid, wrap the verkko command in a shell script and submit using your scheduler.  You may need to set the environment variable VERKKO to the installation directory of Verkko if there are errors that component scripts are not found.
+
+
+List of all available options with brief descriptions is available by running `verkko` without any options.
+
 
 Verkko supports extended phasing using using [rukki](https://github.com/marbl/rukki) using either trio or Hi-C information.
 
@@ -93,7 +97,7 @@ To run in Hi-C mode, reads should be provided using the --hic1 and --hic2 option
 
 Hi-C integration was tested mostly on human and primate genomes. Please see the --rdna_scaff_ref, --rdna-tangle, --uneven-depth and --haplo-divergence options if you want to assemble something distant from human and/or have uneven coverage. If you encounter issues or have questions about appropriate parameters, please open an [issue](https://github.com/marbl/verkko/issues).
 
-For slurm/sge cluster runs verkko uses different cpu/memory/time options for different parts of the pipeline. Usually user is not supposed to change them, however advanced tuning is possible with --<stage_code>-run options.
+For cluster runs verkko uses different cpu/memory/time options for different parts of the pipeline. Usually user is not supposed to change them, however advanced tuning is possible with --<stage_code>-run options.
 <details>
 <summary>Here we list those options and briefly describe of corresponding verkko pipeline stages and affected scripts </summary>
  
@@ -115,7 +119,7 @@ For slurm/sge cluster runs verkko uses different cpu/memory/time options for dif
     --fhc-run                All scripts in HiC pipeline other than alignment,  8-hicPipeline/*.sh
     
 Command line format of all those options is the same: number-of-cpus memory-in-gb time-in-hours, i.e.   `--cns-run 8 32 2`. 
-Default values can be found in verkko bash script, i.e.  `grep par_ bin/verkko`. Values used for each verkko run are listed in verkko.yml in the run directory.
+Default values can be found in verkko bash script, i.e.  `grep par_ bin/verkko`. Values used for each verkko run are listed in `verkko.yml` in the run directory.
 </details> 
 
 You can pass through snakemake options to restrict CPU/memory/cluster resources by adding the `--snakeopts` option to verkko. For example, `--snakeopts "--dry-run"` will print what jobs will run while `--snakeopts "--cores 1000"` would restrict grid runs to at most 1000 cores across all submited jobs.
