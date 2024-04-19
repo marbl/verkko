@@ -113,7 +113,7 @@ To run in Hi-C mode, reads should be provided using the --hic1 and --hic2 option
       --hic1 hic/*R1*fastq.gz  \
       --hic2 hic/*R2*fastq.gz
 
-Hi-C integration was tested mostly on human and primate genomes. Please see the --rdna_scaff_ref, --rdna-tangle, --uneven-depth and --haplo-divergence options if you want to assemble something distant from human and/or have uneven coverage. If you encounter issues or have questions about appropriate parameters, please open an [issue](https://github.com/marbl/verkko/issues).
+Hi-C integration was tested mostly on human and primate genomes. Please see the --rdna-scaff-ref, --rdna-tangle, --uneven-depth and --haplo-divergence options if you want to assemble something distant from human and/or have uneven coverage. If you encounter issues or have questions about appropriate parameters, please open an [issue](https://github.com/marbl/verkko/issues).
 
 ### Running on a grid
 By default, verkko will run the snakemake workflow and all compute on the local machine. Support for SGE, Slurm and LSF (untested) can be enabled with options `--sge`, `--slurm` and `--lsf`, respectively. This will run the snakemake workflow on the local machine but submit all compute to the grid. To launch the both the snakemake workflow and compute on the grid, wrap the verkko command in a shell script and submit using your scheduler.
