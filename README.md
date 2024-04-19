@@ -11,10 +11,10 @@ the HiFi reads then with the aligned Oxford Nanopore reads, and finally
 creates contig consensus sequences using Canu's consensus module.
 
 ## Table of contents
-- [Install](##install)
+- [Install](#install)
 - [Getting Started](#getting-started)
-- [Outputs](#output)
-- [Test data](##test-data)
+- [Outputs](#outputs)
+- [Test data](#test-data)
   
 ## Install:
 
