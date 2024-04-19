@@ -139,7 +139,7 @@ For cluster runs verkko uses different cpu/memory/time options for different par
     --ahc-run                HiC alignment, 8-hicPipeline/align_bwa*.sh
     --fhc-run                All scripts in HiC pipeline other than alignment,  8-hicPipeline/*.sh
     
-The mommand line format of all these options is the same: number-of-cpus memory-in-gb time-in-hours, i.e.   `--cns-run 8 32 2`. 
+The command line format of all these options is the same: number-of-cpus memory-in-gb time-in-hours, i.e.   `--cns-run 8 32 2`. 
 Default values can be found in verkko bash script, i.e.  `grep par_ bin/verkko`. Values used for each verkko run are listed in `verkko.yml` in the run directory.
 </details> 
 
