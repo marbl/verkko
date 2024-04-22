@@ -4,6 +4,7 @@ import gzip
 import bz2
 import lzma
 import re
+import subprocess
 
 #
 #  Reasonably simple methods for reading FASTA and FASTQ files, munging
@@ -24,6 +25,10 @@ def openInput(filename):
     inf = lzma.open(filename, mode='rt')
   elif (filename[-4:] == ".bz2"):
     inf = bz2.open(filename, mode='rt')
+  elif ((filename[-4:] == ".bam") or
+        (filename[-5:] == ".cram")):
+    pipe = subprocess.Popen(["samtools", "fasta", filename], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    inf  = pipe.stdout
   else:
     inf = open(filename, mode='rt')
 
