@@ -245,8 +245,8 @@ with open(gap_aln_file_out, "w") as f:
 			for j in range(1, len(current_path)):
 				path_length += len(node_seqs[current_path[j][1:]])
 				path_length -= edge_overlaps[canontip(current_path[j-1], revnode(current_path[j]))]
-			assert path_length > current_left_clip + current_right_clip
-			f.write(name + "\t" + str(alns[i][6]) + "\t" + str(current_read_start) + "\t" + str(current_read_end) + "\t+\t" + "".join(current_path) + "\t" + str(path_length) + "\t" + str(current_left_clip) + "\t" + str(path_length - current_right_clip) + "\t0\t0\t60\n")
+			if path_length > current_left_clip + current_right_clip:
+				f.write(name + "\t" + str(alns[i][6]) + "\t" + str(current_read_start) + "\t" + str(current_read_end) + "\t+\t" + "".join(current_path) + "\t" + str(path_length) + "\t" + str(current_left_clip) + "\t" + str(path_length - current_right_clip) + "\t0\t0\t60\n")
 
 with open(nongap_aln_file_out, "w") as f2:
 	with open(input_aln_file) as f:
