@@ -181,6 +181,7 @@ params="\$params --solid-homozygous-cov-coeff 1.1"
 params="\$params --solid-ratio 1.01"
 params="\$params --hap-names \$label1,\$label2"
 params="\$params --max-homozygous-len=25000000"
+params="\$params --trusted-len 325000"
 
 if [ x{params.haptype} = xtrio ]; then
    params="\$params --marker-ratio 5."
