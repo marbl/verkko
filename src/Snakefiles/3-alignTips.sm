@@ -47,6 +47,7 @@ checkpoint splitTipsONT:
         bases          = config['spl_bases'],
         reads          = config['spl_reads'],
         length         = config['spl_min_length'],
+        max_distance   = 3000000,
         ext_files       = lambda wildcards: expand("ont{nnnn}.fasta.gz", nnnn = splitONToutputs(wildcards))
     threads:
         int(config['spl_n_cpus'])
@@ -67,7 +68,7 @@ mkdir -p split
 
 {PYTHON} {VERKKO}/scripts/find_tips.py ../{input.graph} > tips.fasta 2> find_tips.err
 awk '/^>/ {{ print substr(\$1, 2) }}' < tips.fasta > tips.ids
-cat ../{input.ont_paths} | {PYTHON} {VERKKO}/scripts/filter_alignments_by_column.py tips.ids 5 false | awk -F "\\t" '{{ if (\$12 >= 20) print \$1;}}' | sort |uniq > tip_reads.ids
+cat ../{input.ont_paths} | {PYTHON} {VERKKO}/scripts/filter_alignments_by_column.py tips.ids 5 false | awk -v D={params.max_distance} -F "\\t" '{{ if (\$12 >= 20  && (\$8 < D || \$9+D > \$7)) print \$1;}}' | sort |uniq > tip_reads.ids
 
 for fn in {params.ext_files} ; do
   echo >> tip_reads.extract extract \\$fn tip_reads.ids ../3-align/split/\\$fn
