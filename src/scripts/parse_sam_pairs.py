@@ -13,9 +13,9 @@ def print_results(names):
             print("Error: name read %s and %s don't match"%(i_split, j_split), file=sys.stderr)
             sys.exit(1)
          if (i_split[1] < j_split[1]):
-            print (f"{i_split[0]}\t{i_split[1]}\t{j_split[1]}")
+            print (f"{i_split[0]}\t{i_split[1]}\t{j_split[1]\t1\t{i_split[2]}\t{j_split[2]}")
          elif (i_split[1] > j_split[1]):
-            print (f"{i_split[0]}\t{j_split[1]}\t{i_split[1]}")
+            print (f"{i_split[0]}\t{j_split[1]}\t{i_split[1]}\t1\t{j_split[2]}\t{j_split[2]")
          # if they are equal we don't want to print anything, not informative 
 
 if not sys.stdin.isatty():
@@ -42,6 +42,9 @@ for line in input_stream:
       print_results(names)
       name = line[0]
       names = [ ]
-   names.append("%s\t%s"%(line[0], line[2]))
+   if name in seen:
+      print("Warning: read %s already seen but encountered it again, please confirm your bam file is sorted by read."%(name), file=sys.stderr)
+      out_of_order += 1
+   names.append("%s\t%s\t%s"%(line[0], line[2], line[3]))
 
 print_results(names)
