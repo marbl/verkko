@@ -51,6 +51,14 @@ class pathStorage:
         self.paths[arr[0]] = edges
         self.path_lengths[arr[0]] = total_l
 
+    def addPath(self, id, path, G):
+        total_l = 0
+        for edge in path:
+            node = edge
+            if node in G.nodes:
+                total_l += G.nodes[node]['length']
+        self.paths[id] = path
+        self.paths_lengths[id] = total_l
 
 #Actyally should be processed the same way as telos, with fake nodes of zero length
 #This will reduce code duplication and will allow to use "one-sided" rdna nodes that may be useful
@@ -163,6 +171,25 @@ def read_rukki_paths(rukki_file, G):
         if arr[0] == "name":
             continue
         res.addPath(line.strip(), G)
+    return res
+
+def get_paths_to_scaff(paths, tel_nodes, G, long_enough=200000):
+    res = pathStorage()
+    for id in paths.paths:
+        total_l = paths.path_lengths[id]
+        tel_start = False
+        tel_end = False    
+        for telomere in tel_nodes:
+            if G.has_edge(telomere, paths.paths[id][0]):
+                tel_start = True
+            if G.has_edge(paths.paths[id][-1], telomere):
+                tel_end = True
+
+        if tel_start and tel_end:
+            continue
+        #all long enough AND containing telomere
+        if tel_start or tel_end or total_l > long_enough:
+            res.addPath(id, paths.paths[id], G)
     return res
 
 
