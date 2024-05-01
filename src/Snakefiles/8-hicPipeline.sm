@@ -332,7 +332,7 @@ cat > ./mergeBWA.sh <<EOF
 #!/bin/sh
 set -e
 
-{params.SAMTOOLS} merge -@ {threads}  ../{output.alignments} {params.alignments}
+{params.SAMTOOLS} merge -n -@ {threads}  ../{output.alignments} {params.alignments}
 
 if [ {params.keepinter} = False ] ; then
   rm -f {params.alignments}
