@@ -238,16 +238,18 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
         if arr[0] == "L":
             if not(arr[1] in delete_set) and not(arr[3] in delete_set):
                 filtered_graph.write(line)
+    
+    translate.close()
+
     #loading oriented graph
     #TODO: only place which used it is likely outdated
-    nodelines = []
-    nodelens = []
+    #Also we have special function...
+    nodelines = []    
     edges = {}
     for l in open(graph_gfa, 'r'):
         parts = l.strip().split('\t')
         if parts[0] == 'S':
             nodelines.append((parts[1], l.strip()))
-    #        nodelens[parts[1]] = len(parts[2])
         elif parts[0] == 'L':
             fromnode = (">" if parts[2] == "+" else "<") + parts[1]
             tonode = (">" if parts[4] == "+" else "<") + parts[3]
@@ -259,8 +261,6 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
             edges[fromnode].add(tonode)
             edges[revnode(tonode)].add(revnode(fromnode))
 
-#let's save original graph somewhere
-    edges_save = copy.deepcopy(edges)
 
 #let's find that nodes that have multiple extension
     multiple_ext = set()
@@ -278,127 +278,9 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
     else:
         sys.stderr.write(f"Will use coverage based homozygous nodes detection, cutoff: {MAX_COV}\n")
         
-    # no reason for this to be a graph but meh, why not
-    # load pairs of matching nodes based on self-similarity
-    matchGraph = nx.Graph()
-
-    component_colors = {}
-    next_comps = {}
-    current_color = 0
-
-    phased_nodes = set()
-    for current_component in sorted(nx.connected_components(G), key=len, reverse=True):
-        for e in current_component:
-            component_colors[e] = current_color
-        current_color += 1
-    mashmap_weights = {}
-
-    #from node to [best_match, weight, second_best_weight], second best to other node!
-    #Possibly will have to unite different matches between same node pairs splitted by mashmap
-    best_match = {}
-    for line in open(mashmap_sim, 'r'):
-        if "#" in line:
-            continue
-        line = line.strip().split()
-        if len(line) < 3:
-            continue
-        if line[0] == line[1]:
-            continue
-        if not line[0] in best_match:
-            best_match[line[0]] = [line[1], int(line[2]), 1]
-        if not line[1] in best_match:
-            best_match[line[1]] = [line[0], int(line[2]), 1]       
-        if int(line[2]) > best_match[line[0]][1]:
-            if best_match[line[0]][0] == line[1]:
-                #not updating second best match
-                best_match[line[0]] = [line[1], int(line[2]), best_match[line[0]][2]]
-            else:
-                best_match[line[0]] = [line[1], int(line[2]), best_match[line[0]][1]]
-
-        if int(line[2]) > best_match[line[1]][1]:
-            if best_match[line[1]][0] == line[0]:
-                best_match[line[1]] = [line[0], int(line[2]), best_match[line[1]][2]]
-            else:
-                best_match[line[1]] = [line[0], int(line[2]), best_match[line[1]][1]]
-
-        #only debug purpose        
-        upd_weight = int(line[2])
-        if line[0] + line[1] in mashmap_weights:
-            upd_weight = max(upd_weight, mashmap_weights[line[0] + line[1]])
-        mashmap_weights[line[0] + line[1]] = upd_weight
-        mashmap_weights[line[1] + line[0]] = upd_weight
-
-        if int(line[2]) > CLEAR_HOMOLOGY:
-            color_sum = 0
-            for id in range(0, 2):
-                if line[id] in component_colors:
-                    color_sum += 1
-            if color_sum != 2:
-                sys.stderr.write(f"Weird deleted node pair {line[0]} {line[1]}\n")
-                continue
-
-            matchGraph.add_edge(line[0], line[1])
-            for id in range(0, 2):
-                phased_nodes.add(line[id])
-#Adding info about potential gaps in graph, only large homology taken in account.
-            for id in range(0, 2):
-                cur_comp = component_colors[line[id]]
-                next_comp = component_colors[line[1 - id]]
-                if cur_comp == next_comp:
-                    continue
-                if (not (cur_comp in next_comps)):
-                    next_comps[cur_comp] = set()
-                next_comps[cur_comp].add(next_comp)
-
-    #Now let's add links for shorter nodes
-    for line in open(mashmap_sim, 'r'):
-        if "#" in line:
-            continue
-        line = line.strip().split()
-        if len(line) < 3:
-            continue
-        neighbours = [set(), set()]
-        for id in range (0, 2):
-            for edge in G.edges(line[id]):
-                neighbours[id].add(edge[0])
-                neighbours[id].add(edge[1])
-        common = neighbours[0].intersection(neighbours[1])
-        if len(common) > 0:
-            #we are in somethiing bulge-like
-            len_cutoff = min(G.nodes[line[0]]['length'], G.nodes[line[1]]['length'], CLEAR_HOMOLOGY) / 2
-        #possibly check whether we have something already phased nearby?
-            if int(line[2]) > len_cutoff:
-                matchGraph.add_edge(line[0], line[1])
-     
-    sys.stderr.write("Loaded match info with %d nodes and %d edges\n" % (matchGraph.number_of_nodes(), matchGraph.number_of_edges()))
-    translate.close()
-
+ 
     # load hic connections based on mappings, weight corresponds to number of times we see a connection
-    hicGraph = nx.Graph()
-    hic_file = open(hic_byread, 'r')
-    for line in hic_file:
-        if "#" in line:
-            continue
-        line = line.strip().split()
-
-        if len(line) < 3:
-            continue
-
-        if line[1] == line[2]:
-            continue
-
-        hicGraph.add_node(line[1])
-        hicGraph.add_node(line[2])
-        if len(line) > 3:
-            add_w = int(line[3])
-        else:
-            add_w = 1
-        w = hicGraph.get_edge_data(line[1], line[2], 0)
-        if w == 0:
-            hicGraph.add_edge(line[1], line[2], weight=add_w)
-        else:
-            w = w['weight'] + add_w
-            hicGraph[line[1]][line[2]]['weight'] = w
+    hicGraph = graph_functions.loadHiCGraph(hic_byread)
     compressed_file = open(os.path.join(output_dir, HIC_COMPRESSED_FILENAME), 'w')
     max_w = 0
     for node1, node2 in hicGraph.edges():
@@ -410,21 +292,8 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
 
     #Adding link between matched edges to include separated sequence to main component
 
-    for ec in matchGraph.edges():
-        neighbours = False
-        for p0 in ['<', '>']:
-            for p1 in ['<', '>']:
-                if (p0 + ec[0] in edges_save) and (p1 + ec[1]) in edges_save[p0 + ec[0]]:
-                    neighbours = True
-        # while we build the initial partition give a big bonus edge for putting the homologous nodes into different partitions             
-        # Adding an edge that already exists updates the edge data (in networkX graph)
-
-        #At least one in the pair is the best similarity match for other (and second best is not too close to the best)
-        if (not neighbours) and ((ec[0] in best_match and ec[1] == best_match[ec[0]][0] and best_match[ec[0]][2]/best_match[ec[0]][1]< 0.8) or (ec[1] in best_match and ec[0] == best_match[ec[1]][0] and best_match[ec[1]][2]/best_match[ec[1]][1]< 0.8)):
-            matchGraph.add_edge(ec[0], ec[1], weight=-10 * FIXED_WEIGHT)
-        else:
-        #not really look like homologous node pair but still suspicious, lets just wipe the hi-c links but not prioritize splitting them to different partitions.                                
-            matchGraph.add_edge(ec[0], ec[1], weight=0)
+    matchGraph = graph_functions.loadMatchGraph(mashmap_sim, G, -10*FIXED_WEIGHT, CLEAR_HOMOLOGY)
+    component_colors = graph_functions.getComponentColors(G)
 
 #reconnecting homologous nodes
     for [v1,v2] in matchGraph.edges():
@@ -551,24 +420,6 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
 
             best_score = FIXED_WEIGHT * C.number_of_nodes() * C.number_of_nodes()
 
-            #Just debug information about homology link structure
-            debug_neighbors = {}              
-            for debug_node in C.nodes():
-                debug_neighbors[debug_node] = set()
-            for debug_node in C.nodes():
-                for edge_pair in C.edges(debug_node):  
-                    if C.edges[edge_pair]['weight'] < 0:                      
-                        debug_neighbors[edge_pair[0]].add(edge_pair[1])
-                        debug_neighbors[edge_pair[1]].add(edge_pair[0]) 
-                        if edge_pair[0] == edge_pair[1]:
-                            sys.stderr.write(f"loop {edge_pair} {C.edges[edge_pair]}\n")
-            for node1 in debug_neighbors:
-                for node2 in debug_neighbors[node1]:
-                    for node3 in debug_neighbors[node2]:
-                        if node3 in debug_neighbors[node1] and node1 < node2 and node2 < node3:
-                            sys.stderr.write(f"Found a triangle {node1} {node2} {node3}\n")
-                        if node1 < node3:
-                            sys.stderr.write (f"Multiple homology from {node2}, {node1} with {mashmap_weights[node1+node2]} and {node3} with {mashmap_weights[node3+node2]}\n")
 
 
 
