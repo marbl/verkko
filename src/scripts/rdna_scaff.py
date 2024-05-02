@@ -9,6 +9,10 @@ import networkx as nx
 from numpy import argmax
 import graph_functions as gf 
 import rdna_scaff_functions as sf
+import os
+import networkx as nx
+import graph_functions as gf
+import rdna_scaff_functions as sf
 
 #get all rdna nodes from mashmap
 #get nodes from seqtk telo 
@@ -44,6 +48,14 @@ rdna_file = os.path.join(hicrun_dir, os.pardir, "rdnanodes.txt")
 hic_byread = os.path.join(hicrun_dir, "hic.byread.compressed")
 
 hicverkko_log = os.path.join(hicrun_dir, "hicverkko.log")
+
+G = nx.DiGraph()
+gf.load_direct_graph(gfa_file, G)
+indirectG = nx.Graph()
+rukki_paths = sf.read_rukki_paths(scaff_rukki_tsv_file, G)
+gf.load_indirect_graph(gfa_file, indirectG)
+sf.try_to_scaff(rukki_paths, telomere_locations_file, hic_byread, os.path.join(hicrun_dir, "unitigs.matches"), G, indirectG)
+exit()
 
 #read graph
 #add_telomeric_nodes
@@ -132,14 +144,7 @@ for long_arm in sorted(experimental_long_arm_path_ids.keys()):
 print (f"Total long arms found {len(experimental_long_arm_path_ids.keys())}")
 
 
-multiplicities = {}
-for path_id in paths.getPathIds():
-    for edge in paths.getEdgeSequenceById(path_id):
-        for dir in ["+", "-"]:
-            node = edge + dir      
-            if not node in multiplicities:
-                multiplicities[node] = 0
-            multiplicities[node] += 1
+multiplicities = sf.get_multiplicities(paths)
 
 
 
