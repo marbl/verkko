@@ -20,7 +20,7 @@ HIC_READS2  = config.get('HIC_READS2')
 HAPLO_DIV = float(config.get('haplo_divergence'))
 VERKKO = config.get('VERKKO')
 
-        
+
 rule copyFiles:
     input:
         unitig_scfmap = '6-layoutContigs/unitig-popped.layout.scfmap',
@@ -75,7 +75,7 @@ chmod +x ./prepare_hic.sh
 
 ./prepare_hic.sh > ../{log.err} 2>&1
         '''
-       
+
 rule runMashMap:
     input:
         unitigs_hpc = '8-hicPipeline/unitigs.hpc.fasta'
@@ -323,7 +323,7 @@ rule mergeBWA:
         split_finished = rules.splitHIC.output.split_finished,
         index          = '8-hicPipeline/unitigs.fasta.bwt',
         alignments     = lambda wildcards: expand("8-hicPipeline/mapped{nnnn}.bam", nnnn = splitHICoutputs(wildcards))
-        
+
     output:
         alignments     = '8-hicPipeline/hic_to_assembly.sorted_by_read.bam'
     log:
@@ -339,7 +339,7 @@ rule mergeBWA:
         n_cpus = int(config['fhc_n_cpus']),
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
-    shell:    
+    shell:
         '''
 cd 8-hicPipeline
 
@@ -416,7 +416,7 @@ rule hicPhasing:
         n_cpus = int(config['fhc_n_cpus']),
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
-    shell: 
+    shell:
         '''
 cd 8-hicPipeline
 
@@ -430,7 +430,7 @@ chmod +x ./hic_phasing.sh
 
 ./hic_phasing.sh > ../{log.err} 2>&1
         '''
-        
+
 rule runRukkiHIC:
     input:
         graph = '8-hicPipeline/unitigs.hpc.noseq.gfa',
@@ -439,7 +439,7 @@ rule runRukkiHIC:
         tsv_path = '8-hicPipeline/rukki.paths.tsv',
         gaf_path = '8-hicPipeline/rukki.paths.gaf',
         final_paths_tsv = 'assembly.paths.tsv'
-    log:                                                                                                                                                                                                                                                     
+    log:
         err    = '8-hicPipeline/rukki_hic.err'
     threads:
         int(config['fhc_n_cpus'])
@@ -452,7 +452,7 @@ rule runRukkiHIC:
         '''
 cd 8-hicPipeline
 
-cat > ./rukki_hic.sh <<EOF                                                                                                                                                                                                                                 
+cat > ./rukki_hic.sh <<EOF
 #!/bin/sh
 set -e
 echo "---Running rukki on the resulting clustering"
@@ -485,17 +485,17 @@ chmod +x ./rukki_hic.sh
 
 rule HiC_rdnascaff:
     input:
-        graph = '8-hicPipeline/unitigs.hpc.noseq.gfa',        
+        graph = '8-hicPipeline/unitigs.hpc.noseq.gfa',
         tsv_path = '8-hicPipeline/rukki.paths.tsv',
         gaf_path = '8-hicPipeline/rukki.paths.gaf',
         unitigs_telo = '8-hicPipeline/unitigs.telo',
-        unitigs_rdnamatches = '8-hicPipeline/rdna_mashmap.out'        
+        unitigs_rdnamatches = '8-hicPipeline/rdna_mashmap.out'
     output:
         scaff_tsv_path = '8-hicPipeline/scaff_rukki.paths.tsv',
         scaff_gaf_path = '8-hicPipeline/scaff_rukki.paths.gaf',
         prescaf_tsv_path = '8-hicPipeline/prescaf_rukki.paths.tsv',
         prescaf_gaf_path = '8-hicPipeline/prescaf_rukki.paths.gaf',
-    log:                                                                                                                                                                                                                                                     
+    log:
         err    = '8-hicPipeline/hic_scaff.err'
     threads:
         int(config['fhc_n_cpus'])
@@ -514,11 +514,11 @@ set -e
 {PYTHON} {VERKKO}/scripts/rdna_scaff.py .
 
 
-cp ../{input.tsv_path} ../{output.prescaf_tsv_path} 
-cp ../{input.gaf_path} ../{output.prescaf_gaf_path} 
+cp ../{input.tsv_path} ../{output.prescaf_tsv_path}
+cp ../{input.gaf_path} ../{output.prescaf_gaf_path}
 
-cp ../{output.scaff_tsv_path} ../{input.tsv_path} 
-cp ../{output.scaff_gaf_path} ../{input.gaf_path} 
+cp ../{output.scaff_tsv_path} ../{input.tsv_path}
+cp ../{output.scaff_gaf_path} ../{input.gaf_path}
 
 cp ../{input.tsv_path} ../{rules.runRukkiHIC.output.final_paths_tsv}
 EOF
