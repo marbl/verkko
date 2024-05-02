@@ -194,15 +194,15 @@ def splitHICoutputs(wildcards):
 checkpoint splitHIC:
     input:
         hic1           = HIC_READS1,
-        hic2           = HIC_READS2 
+        hic2           = HIC_READS2	if config['withPOREC'] == "False" else rules.emptyfile.output[0]
     output:
         split_finished = '8-hicPipeline/splitHIC.finished'
     log:
         err            = '8-hicPipeline/splitHIC.err'
     params:
-        bases          = config['shc_bases'],
+        bases          = config['shc_bases'] if config['withPOREC'] == "False" else config['spl_bases'],
         reads          = config['shc_reads'],
-        length         = config['shc_min_length']
+        length         = config['shc_min_length'],
     threads:
         int(config['fhc_n_cpus'])
     resources:
@@ -219,16 +219,23 @@ cat > ./splitHIC.sh <<EOF
 set -e
 
 mkdir -p split
-
-{PYTHON} {VERKKO}/scripts/fasta_partition.py \\\\
-  partition split/hic1 {params.bases} {params.reads} {params.length} \\\\
-  {input.hic1} \\\\
-&& \\\\
-{PYTHON} {VERKKO}/scripts/fasta_partition.py \\\\
-  partition split/hic2 {params.bases} {params.reads} {params.length} \\\\
-  {input.hic2} \\\\
-&& \\\\
-touch ../{output.split_finished}
+if [ "{input.hic2}" = "emptyfile" ]; then
+   {PYTHON} {VERKKO}/scripts/fasta_partition.py \\\\
+     partition split/hic1 {params.bases} {params.reads} {params.length} \\\\
+     {input.hic1} \\\\
+    && \\\\
+    touch ../{output.split_finished}
+else
+   {PYTHON} {VERKKO}/scripts/fasta_partition.py \\\\
+     partition split/hic1 {params.bases} {params.reads} {params.length} \\\\
+     {input.hic1} \\\\
+    && \\\\
+    {PYTHON} {VERKKO}/scripts/fasta_partition.py \\\\
+      partition split/hic2 {params.bases} {params.reads} {params.length} \\\\
+      {input.hic2} \\\\
+    && \\\\
+    touch ../{output.split_finished}
+fi
 EOF
 
 chmod +x ./splitHIC.sh
@@ -265,20 +272,22 @@ chmod +x ./index_bwa.sh
 ./index_bwa.sh > ../{log.err} 2>&1
 
         '''
-            
+
 rule alignBWA:
     input:
         unitigs = '8-hicPipeline/unitigs.fasta',
         hic1    = '8-hicPipeline/split/hic1{nnnn}.fasta.gz',
-        hic2    = '8-hicPipeline/split/hic2{nnnn}.fasta.gz',
-        index   = '8-hicPipeline/unitigs.fasta.bwt'
+        hic2    = '8-hicPipeline/split/hic2{nnnn}.fasta.gz' if config['withPOREC'] == "False" else rules.emptyfile.output[0],
+        index   = '8-hicPipeline/unitigs.fasta.bwt'         if config['withPOREC'] == "False" else rules.emptyfile.output[0]
     output:
         bwa_mapping = '8-hicPipeline/mapped{nnnn}.bam'
     log:
         err    = '8-hicPipeline/align_bwa{nnnn}.err'
     params:
-        BWA      = config.get('BWA', "{VERKKO}/bin/bwa"),
-        SAMTOOLS = config.get('SAMTOOLS', "{VERKKO}/bin/samtools")
+        BWA       = config.get('BWA', "{VERKKO}/bin/bwa"),
+        SAMTOOLS  = config.get('SAMTOOLS', "{VERKKO}/bin/samtools"),
+        WINNOWMAP = config.get('WINNOWMAP', "{VERKKO}/bin/winnowmap"),
+        withporec = config['withPOREC']
     threads:
         int(config['ahc_n_cpus'])
     resources:
@@ -293,13 +302,19 @@ cd 8-hicPipeline
 cat > ./align_bwa{wildcards.nnnn}.sh <<EOF
 #!/bin/sh
 set -e
-echo "---Mapping {input.hic1} and {input.hic2} to {input.unitigs} with BWA"
-{params.BWA} mem -t {threads} -5 -S -P ../{input.unitigs} ../{input.hic1} ../{input.hic2} | {params.SAMTOOLS} view -bh -@ {threads} -q 1 -F 0x800 - | {params.SAMTOOLS} sort -n -@ {threads} - -o ../{output.bwa_mapping} 
+if [ {params.withporec} = "False" ] ; then
+   echo "---Mapping {input.hic1} and {input.hic2} to {input.unitigs} with BWA"
+   {params.BWA} mem -t {threads} -5 -S -P ../{input.unitigs} ../{input.hic1} ../{input.hic2} | {params.SAMTOOLS} view -bh -@ {threads} -q 1 -F 0x900 - | {params.SAMTOOLS} sort -n -@ {threads} - -o ../{output.bwa_mapping}
+else
+   echo "--Mapping {input.hic1} to {input.unitigs} with winnowmap"
+   mem=\`expr {resources.mem_gb} \/ {threads} | awk '{{print \$1"G"}}' \`
+   {params.WINNOWMAP} -ax map-ont -t {threads} -K \$mem ../{input.unitigs} ../{input.hic1} | {params.SAMTOOLS} view -T ../{input.unitigs} -bh -@ {threads} -q 3 -F 0x100 - | {params.SAMTOOLS} sort -n -@ {threads} - -o ../{output.bwa_mapping}
+fi
 EOF
 
 chmod +x ./align_bwa{wildcards.nnnn}.sh
 
-./align_bwa{wildcards.nnnn}.sh > ../{log.err} 2>&1 
+./align_bwa{wildcards.nnnn}.sh > ../{log.err} 2>&1
         '''
 
 #TODO: bwa and mashmap and samtools bins
@@ -332,7 +347,7 @@ cat > ./mergeBWA.sh <<EOF
 #!/bin/sh
 set -e
 
-{params.SAMTOOLS} merge -@ {threads}  ../{output.alignments} {params.alignments}
+{params.SAMTOOLS} merge -n -@ {threads}  ../{output.alignments} {params.alignments}
 
 if [ {params.keepinter} = False ] ; then
   rm -f {params.alignments}
@@ -373,7 +388,7 @@ cd 8-hicPipeline
 cat > ./transform_bwa.sh <<EOF
 #!/bin/sh
 set -e
-{params.SAMTOOLS} view -F 0x800 -q 1 ../{input.bwa_mapping} | {PYTHON} {VERKKO}/scripts/parse_sam_pairs.py  > ../{output.byread_mapping}
+{params.SAMTOOLS} view -q 1 ../{input.bwa_mapping} | {PYTHON} {VERKKO}/scripts/parse_sam_pairs.py  > ../{output.byread_mapping}
 EOF
 
 chmod +x ./transform_bwa.sh

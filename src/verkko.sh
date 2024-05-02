@@ -50,6 +50,7 @@ hic2=""
 
 withont="False"
 withhic="False"
+withporec="False"
 
 keepinter="True"
 
@@ -378,6 +379,17 @@ while [ $# -gt 0 ] ; do
             fi
             shift
             arg=$1
+        done
+    elif [ "$opt" = "--porec" ] ; then
+        withporec="True"
+        while [ -e "$arg" ]; do
+           if [ -e "/$arg" ]; then
+              hic1="$hic1 $arg"
+           else
+              hic1="$hic1 `pwd`/$arg"
+           fi
+           shift
+           arg=$1
         done
     elif [ "$opt" = "--hic1" ] ; then
         withhic="True"
@@ -709,7 +721,7 @@ elif [ ! -e "$mbg" ] ; then
 fi
 
 # graphaligner and winnowmap are required when we have ONT data
-if [ "x$withont" = "xTrue" ] ; then
+if [ "x$withont" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
     if   [ "x$graphaligner" = "x" ] ; then
         errors="${errors}Can't find GraphAligner executable in \$PATH or \$VERKKO/bin/GraphAligner.\n"
     elif [ ! -e "$graphaligner" ] ; then
@@ -733,7 +745,15 @@ if [ ! -z "$screen" -o "x$withhic" = "xTrue" ] ; then
 fi
 
 # bwa samtools and seqtk required for HiC data
-if [ "x$withhic" = "xTrue" ] ; then
+if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
+   if [ "x$withhic" = "xTrue" ]; then
+      if [ "x$hic1" = "x" -o "x$hic2" = "x" ]; then
+         errors="${errors}Only one of --hic1 and --hic2 specified, both must be specified to run with Hi-C\n"
+       fi
+   fi
+   if [ "x$withhic" = "xTrue" -a "x$withporec" = "xTrue" ]; then
+      errors="${errors}Both --hic1/--hic2 and --porec cannot be specified at the same time, please only specify one\n"
+   fi
    # check that ref for rdna is present and can be found
    if [ ! -z "$rdna_scaff_ref" ] ; then
       dtpath="$verkko/data/$rdna_scaff_ref"
@@ -781,9 +801,12 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    -d <output-directory>    Directory to use for verkko intermediate and final results."
     echo "                             Will be created if needed."
     echo "    --hifi <files ...>       List of files containing PacBio HiFi reads."
+    echo "                             Input reads can be any combination of FASTA/FASTQ,"
+    echo "                             uncompressed or gzip/bzip2/xz compressed.  Any"
+    echo "                             number of files can be supplied; *.gz works."
     echo "    --nano <files ...>       List of files containing Oxford Nanopore reads."
     echo ""
-    echo "                             Input reads can be any combination of FASTA/FASTQ,"
+    echo "                             Input reads can be any combination of FASTA/FASTQ/SAM/BAM,"
     echo "                             uncompressed or gzip/bzip2/xz compressed.  Any"
     echo "                             number of files can be supplied; *.gz works."
     echo ""
@@ -798,11 +821,15 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --hic1 <files ...>       List of files containing left hic reads."
     echo "    --hic2 <files ...>       List of files containing right hic reads."
     echo "                             Order of left and right files should be same, no interlaced files allowed."
-    echo "                             Input reads can be any combination of FASTA/FASTQ,"
+    echo "                             Input reads can be any combination of FASTA/FASTQ/SAM/BAM,"
+    echo "                             uncompressed or gzip/bzip2/xz compressed.  Any"
+    echo "                             number of files can be supplied; *.gz works."
+    echo ""
+    echo "   --porec <files>           List of files containing Pore-C reads."
+    echo "                             Input reads can be any combination of FASTA/FASTQ/SAM/BAM,"
     echo "                             uncompressed or gzip/bzip2/xz compressed.  Any"
     echo "                             number of files can be supplied; *.gz works."
     echo "    --no-rdna-tangle         Switch off option that helps to proceed large rDNA tangles which may connect multiple chromosomes."
-#    echo "    --rdna-scaff             Switch on experimental HiC scaffolding over rDNA clusters for acrocentric chromosomes. Tested only on primates!"
     echo "    --rdna-scaff-ref         Switch to user-supplied reference for HiC scaffolding rather than human rDNA, experimental use to scaffold across other repeat classes."
     echo "                             By default, rDNA representatives from CHM13 human assembly are used"
     echo "                             Use '--rdna-scaff-ref none' to switch off scaffolding over rdna or other large repeat clusters"
@@ -848,7 +875,7 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "                             snakemake command.  Options MUST be quoted."
     echo ""
     echo "    --sto-run                Set resource limits for various stages."
-    echo "    --ovb-run                Format: number-of-cpus memory-in-gb time-in-hours" 
+    echo "    --ovb-run                Format: number-of-cpus memory-in-gb time-in-hours"
     echo "    --ovs-run                  --cns-run 8 32 2"
     echo "    --red-run"
     echo "    --mbg-run"
@@ -960,6 +987,8 @@ echo >> ${outd}/verkko.yml "HIC_READS2:"
 for o in ${hic2} ; do
   echo >> ${outd}/verkko.yml " - '$o'"
 done
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "withPOREC:           '${withporec}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  Algorithm parameters."
 echo >> ${outd}/verkko.yml ""
@@ -1131,7 +1160,7 @@ echo >> ${outd}/verkko.yml "#  This is the end."
 
 target="verkko"
 
-if [ "x$withhic" = "xTrue" ] ; then
+if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
     if [ "x$rdna_scaff" = "xTrue" ] ; then
         target="HiC_rdnascaff"
     else
@@ -1239,7 +1268,7 @@ cd ${outd}
 
 
 #Failed to do it with snakemake
-if [ "x$withhic" = "xTrue" ] ; then
+if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
     if [ ! -e "8-hicPipeline/rukki.paths.gaf" ]; then
         echo "ERROR!"
         echo "Not running final consensus since no rukki paths provided!"
