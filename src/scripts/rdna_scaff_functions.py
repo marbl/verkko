@@ -51,14 +51,14 @@ class pathStorage:
         self.paths[arr[0]] = edges
         self.path_lengths[arr[0]] = total_l
 
-    def addPath(self, id, path, G):
+    def addPathWithId(self, id, path, G):
         total_l = 0
         for edge in path:
             node = edge
             if node in G.nodes:
                 total_l += G.nodes[node]['length']
         self.paths[id] = path
-        self.paths_lengths[id] = total_l
+        self.path_lengths[id] = total_l
 
 #Actyally should be processed the same way as telos, with fake nodes of zero length
 #This will reduce code duplication and will allow to use "one-sided" rdna nodes that may be useful
@@ -166,31 +166,137 @@ def get_telomeric_nodes(telomere_locations_file, G):
 
 def read_rukki_paths(rukki_file, G):
     res = pathStorage()
-    for line in open (rukki_file):
+    for line in open(rukki_file):
         arr = line.strip().split()
         if arr[0] == "name":
             continue
         res.addPath(line.strip(), G)
     return res
 
-def get_paths_to_scaff(paths, tel_nodes, G, long_enough=200000):
-    res = pathStorage()
+def get_multiplicities(paths):
+    multiplicities = {}
+    for path_id in paths.getPathIds():
+        for edge in paths.getEdgeSequenceById(path_id):
+            for dir in ["+", "-"]:
+                node = edge + dir      
+                if not node in multiplicities:
+                    multiplicities[node] = 0
+                multiplicities[node] += 1
+    return multiplicities
+
+#returns dict, {id:[present_start_relo, present_end_telo]}
+def get_paths_to_scaff(paths, tel_nodes, dirG, long_enough=200000):
+    res = {}
     for id in paths.paths:
         total_l = paths.path_lengths[id]
         tel_start = False
         tel_end = False    
         for telomere in tel_nodes:
-            if G.has_edge(telomere, paths.paths[id][0]):
+            if dirG.has_edge(telomere, paths.paths[id][0]):
                 tel_start = True
-            if G.has_edge(paths.paths[id][-1], telomere):
+            if dirG.has_edge(paths.paths[id][-1], telomere):
                 tel_end = True
-
         if tel_start and tel_end:
             continue
         #all long enough AND containing telomere
-        if tel_start or tel_end or total_l > long_enough:
-            res.addPath(id, paths.paths[id], G)
+        if total_l > long_enough:
+            res[id] = [tel_start, tel_end]
+            print (f"will use path {paths.paths[id]} {tel_start} {tel_end}")
     return res
+
+# {node: path_id}
+def get_nodes_in_unscaffed(all_paths, to_scaff):
+    res = {}
+    for id in to_scaff.keys():
+        for node in all_paths.getPathById(id):
+#            if node in multiplicities and multiplicities[node] == 1 and G.nodes[node]['length'] > long_enough:
+            res[node] = id
+    return res
+
+# FIRST uniques where telomere is missing, {node: path_id}
+def get_nodes_to_scaff(all_paths, to_scaff, multiplicities, G, long_enough=100000):
+    res = {}
+    for id in to_scaff.keys():
+        path = all_paths.getPathById(id)
+        if not (to_scaff[id][0]):
+            for node in path:
+                if node in multiplicities and multiplicities[node] == 1 and G.nodes[node]['length'] > long_enough:
+                    res[node] = id
+                    break
+        if not (to_scaff[id][1]):    
+            path.reverse()
+            for node in path:
+                if node in multiplicities and multiplicities[node] == 1 and G.nodes[node]['length'] > long_enough:
+                    res[node] = id
+                    break
+
+    return res
+
+def try_to_scaff(rukki_paths, telomere_locations_file, alignment_file, matches_file, G, indirectG):
+    multiplicities = get_multiplicities(rukki_paths)
+    tel_nodes, upd_G = get_telomeric_nodes(telomere_locations_file, G)
+    to_scaff = get_paths_to_scaff(rukki_paths, tel_nodes, upd_G)
+    nodes_unscaffed = get_nodes_in_unscaffed(rukki_paths, to_scaff)
+    nodes_to_scaff = get_nodes_to_scaff(rukki_paths, to_scaff, multiplicities, G, 500000)
+
+    connections = get_connections(alignment_file, nodes_to_scaff)
+    HiCGraph = graph_functions.loadHiCGraph(alignment_file)
+    matchGraph = graph_functions.loadMatchGraph(matches_file, indirectG, -239239239, 200000)
+
+    for node in nodes_to_scaff.keys():
+        print (f"\nChecking extensions from {node}")
+        connections = []
+        shortened_node = node[:-1]
+        if not shortened_node in HiCGraph.nodes():
+            print (f"Node {node} not in hicGraph")
+            continue
+        if not node in nodes_unscaffed:
+            print (f"Node {node} not in nodes_unscaffed")
+            continue
+        for nbr, datadict in HiCGraph.adj[shortened_node].items():
+            connections.append([nbr, datadict['weight']])
+        connections = sorted(connections, key=lambda x: x[1],reverse=True)
+
+        for conn in connections:
+            #no orientation from HiCGraph
+            next_node = conn[0]
+            next_path_id = "NONE"
+            if next_node+"+" in nodes_unscaffed:
+                next_path_id = nodes_unscaffed[next_node+"+"]
+            if next_node+"-" in nodes_unscaffed:
+                next_path_id = nodes_unscaffed[next_node+"-"]
+            if next_path_id != "NONE" and next_path_id != nodes_unscaffed[node]:
+                print (f"Connection looks valid, from {node} to {next_node} {nodes_to_scaff[node]} {next_path_id}")
+                if next_node+"+" in nodes_to_scaff or next_node+"-" in nodes_to_scaff:
+                    print ("Two borderline connected")
+                else:
+                    print ("NOT borderline connected")
+                break
+            if [shortened_node, next_node] in matchGraph.edges:
+                if matchGraph.edges[shortened_node, next_node]['weight'] < 0:
+                    print (f"Skipping valid homology to {next_node}")
+                else:
+                    print (f"Skipping not valid homology to {next_node}!")
+            elif next_path_id == nodes_unscaffed[node]:
+                print (f"Skipping node {next_node} from same path")
+            else:
+                print (f"UNEXPECTED top connections from {node} to {next_node}")
+                break
+                    
+
+#returns: dict {[start_id, end_id]:[[start_pos1, end_pos1]]}
+def get_connections(alignment_file, interesting_nodes):
+    res = {}
+    #A01660:39:HNYM7DSX3:1:1101:1696:29982   utig4-73        utig4-1056      1       16949880        78591191
+    for line in open (alignment_file):
+        arr = line.split()
+        if arr[1] in interesting_nodes and arr[2] in interesting_nodes:
+            if not (arr[1], arr[2]) in res:
+                res[(arr[1], arr[2])] = []
+            res[(arr[1], arr[2])].append([int(arr[3]), int(arr[4])])
+            if not (arr[2], arr[1]) in res:
+                res[(arr[2], arr[1])] = []
+            res[(arr[2], arr[1])].append([int(arr[4]), int(arr[3])])    
 
 
 #return paths that are reachable from any of the rdna nodes and within length limits
@@ -234,6 +340,7 @@ def get_same_component_paths(short_arm_path_ids, G, paths, min_path_len, max_pat
             elif to_short_arm:
                 res[id] = True
     return res
+
 #Map from path-id to direction (suspected telomere left, rdna right - true - otherwise false) 
 def get_arm_paths_ids(telomere_locations_file, old_G, paths, rdna_nodes, min_path_len, max_path_len, ignore_telomeres):
     arm_paths_ids = {}
