@@ -308,7 +308,7 @@ if [ {params.withporec} = "False" ] ; then
 else
    echo "--Mapping {input.hic1} to {input.unitigs} with winnowmap"
    mem=\`expr {resources.mem_gb} \/ {threads} | awk '{{print \$1"G"}}' \`
-   {params.WINNOWMAP} -ax map-ont -t {threads} -K \$mem ../{input.unitigs} ../{input.hic1} | {params.SAMTOOLS} view -T ../{input.unitigs} -bh -@ {threads} -q 3 -F 0x100 - | {params.SAMTOOLS} sort -n -@ {threads} - -o ../{output.bwa_mapping}
+   {params.WINNOWMAP} -ax map-ont -t {threads} -f 0.0002 -K \$mem ../{input.unitigs} ../{input.hic1} | {params.SAMTOOLS} view -T ../{input.unitigs} -bh -@ {threads} -q 5 -F 0x100 - | {params.SAMTOOLS} sort -n -@ {threads} - -o ../{output.bwa_mapping}
 fi
 EOF
 
