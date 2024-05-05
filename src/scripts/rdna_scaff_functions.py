@@ -265,13 +265,6 @@ def try_to_scaff(rukki_paths, telomere_locations_file, alignment_file, matches_f
                 next_path_id = nodes_unscaffed[next_node+"+"]
             if next_node+"-" in nodes_unscaffed:
                 next_path_id = nodes_unscaffed[next_node+"-"]
-            if next_path_id != "NONE" and next_path_id != nodes_unscaffed[node]:
-                print (f"Connection looks valid, from {node} to {next_node} {nodes_to_scaff[node]} {next_path_id}")
-                if next_node+"+" in nodes_to_scaff or next_node+"-" in nodes_to_scaff:
-                    print ("Two borderline connected")
-                else:
-                    print ("NOT borderline connected")
-                break
             if [shortened_node, next_node] in matchGraph.edges:
                 if matchGraph.edges[shortened_node, next_node]['weight'] < 0:
                     print (f"Skipping valid homology to {next_node}")
@@ -279,6 +272,13 @@ def try_to_scaff(rukki_paths, telomere_locations_file, alignment_file, matches_f
                     print (f"Skipping not valid homology to {next_node}!")
             elif next_path_id == nodes_unscaffed[node]:
                 print (f"Skipping node {next_node} from same path")
+            elif next_path_id != "NONE" and next_path_id != nodes_unscaffed[node]:
+                print (f"Connection looks valid, from {node} to {next_node} {nodes_to_scaff[node]} {next_path_id}")
+                if next_node+"+" in nodes_to_scaff or next_node+"-" in nodes_to_scaff:
+                    print ("Two borderline top connected")
+                else:
+                    print ("NOT borderline top connected")
+                break
             else:
                 print (f"UNEXPECTED top connections from {node} to {next_node}")
                 break
@@ -297,7 +297,14 @@ def get_connections(alignment_file, interesting_nodes):
             if not (arr[2], arr[1]) in res:
                 res[(arr[2], arr[1])] = []
             res[(arr[2], arr[1])].append([int(arr[4]), int(arr[3])])    
+    return res
 
+def get_pair_orientation(pair, connections):
+    if pair in connections:
+        return 1
+    if (pair[1], pair[0]) in connections:
+        return -1
+    return 0
 
 #return paths that are reachable from any of the rdna nodes and within length limits
 def get_same_component_paths(short_arm_path_ids, G, paths, min_path_len, max_path_len):
