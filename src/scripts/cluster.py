@@ -178,7 +178,8 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
     MAX_COV = 100  # tempora# ry coverage cutoff, currently replaced by median coverage from gfa
     FIXED_WEIGHT = 100000  # best result so far with 100000 #currently replaced with max pairwise weight among datasets
 
-
+    MAX_RDNA_COMPONENT = 10000000 # maximal size of rDNA component, used for filtering out rDNA cluster only
+    MIN_RDNA_COMPONENT = 500000 
     # load the assembly gfa
     G = nx.Graph()
     logging_f = open (os.path.join(output_dir, LOGGING_FILENAME), 'w')
@@ -202,9 +203,9 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
 
     if not (no_rdna):
         #Store rDNA component, not to add additional links from matchGraph
-        sys.stderr.write(f"Found an rDNA huge component of {len(largest_component)} edges\n")
+        #sys.stderr.write(f"Found an rDNA huge component of {len(largest_component)} edges\n")
         #Here we remove large connected components of short edge, just to exclude rDNA cluster
-        delete_set = graph_functions.remove_large_tangles(G, MAX_SHORT_LEN, MAX_SHORT_COMPONENT)
+        delete_set = graph_functions.remove_large_tangles(G, MAX_SHORT_LEN, MAX_SHORT_COMPONENT,MIN_RDNA_COMPONENT, MAX_RDNA_COMPONENT)
     else:
         sys.stderr.write(f"Not using rDNA component removal heuristics\n")
     filtered_graph = open(os.path.join(output_dir, FILTERED_GFA_FILENAME), 'w')
