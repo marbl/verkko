@@ -239,7 +239,7 @@ def try_to_scaff(rukki_paths, telomere_locations_file, alignment_file, matches_f
     nodes_unscaffed = get_nodes_in_unscaffed(rukki_paths, to_scaff)
     nodes_to_scaff = get_nodes_to_scaff(rukki_paths, to_scaff, multiplicities, G, 500000)
 
-    connections = get_connections(alignment_file, nodes_to_scaff)
+    coorded_connections = get_connections(alignment_file, nodes_to_scaff)
     HiCGraph = graph_functions.loadHiCGraph(alignment_file)
     matchGraph = graph_functions.loadMatchGraph(matches_file, indirectG, -239239239, 200000)
 
@@ -259,6 +259,7 @@ def try_to_scaff(rukki_paths, telomere_locations_file, alignment_file, matches_f
 
         for conn in connections:
             #no orientation from HiCGraph
+            #for orientation in ("+", "-"):
             next_node = conn[0]
             next_path_id = "NONE"
             if next_node+"+" in nodes_unscaffed:
@@ -274,6 +275,7 @@ def try_to_scaff(rukki_paths, telomere_locations_file, alignment_file, matches_f
                 print (f"Skipping node {next_node} from same path")
             elif next_path_id != "NONE" and next_path_id != nodes_unscaffed[node]:
                 print (f"Connection looks valid, from {node} to {next_node} {nodes_to_scaff[node]} {next_path_id}")
+                print(coorded_connections[node[:-1], next_node])
                 if next_node+"+" in nodes_to_scaff or next_node+"-" in nodes_to_scaff:
                     print ("Two borderline top connected")
                 else:
@@ -287,24 +289,38 @@ def try_to_scaff(rukki_paths, telomere_locations_file, alignment_file, matches_f
 #returns: dict {[start_id, end_id]:[[start_pos1, end_pos1]]}
 def get_connections(alignment_file, interesting_nodes):
     res = {}
+    undirected_interesting = {}
+    for node in interesting_nodes:
+        undirected_interesting[node[:-1]] = interesting_nodes[node]
     #A01660:39:HNYM7DSX3:1:1101:1696:29982   utig4-73        utig4-1056      1       16949880        78591191
     for line in open (alignment_file):
         arr = line.split()
-        if arr[1] in interesting_nodes and arr[2] in interesting_nodes:
+        if arr[1] in undirected_interesting and arr[2] in undirected_interesting:
             if not (arr[1], arr[2]) in res:
                 res[(arr[1], arr[2])] = []
-            res[(arr[1], arr[2])].append([int(arr[3]), int(arr[4])])
+            print (arr[1], arr[2])
+            print (arr)
+            next = [int(arr[4]), int(arr[5])]
+            res[(arr[1], arr[2])].append(next)
             if not (arr[2], arr[1]) in res:
                 res[(arr[2], arr[1])] = []
-            res[(arr[2], arr[1])].append([int(arr[4]), int(arr[3])])    
+            res[(arr[2], arr[1])].append([int(arr[5]), int(arr[4])])    
     return res
 
-def get_pair_orientation(pair, connections):
-    if pair in connections:
-        return 1
-    if (pair[1], pair[0]) in connections:
+#return either -1  or 4 scores, ++, -+, +-, --,  - whether should be swapped. -1 - do not scaffold
+def get_pair_orientation(pair, connections, lens):
+    if not pair in connections:
         return -1
-    return 0
+    scores = [0,0,0,0]
+    for conn in connections[pair]:
+        best = 0 # no swap
+        if conn[0] > lens[pair[0]] - conn[0]:
+            best += 1
+        if conn[1] < lens[pair[1]] - conn[1]:
+            best += 2
+        scores[best] += 1
+    return scores
+                
 
 #return paths that are reachable from any of the rdna nodes and within length limits
 def get_same_component_paths(short_arm_path_ids, G, paths, min_path_len, max_path_len):
