@@ -20,7 +20,7 @@ HIC_READS2  = config.get('HIC_READS2')
 HAPLO_DIV = float(config.get('haplo_divergence'))
 VERKKO = config.get('VERKKO')
 
-        
+
 rule copyFiles:
     input:
         unitig_scfmap = '6-layoutContigs/unitig-popped.layout.scfmap',
@@ -75,7 +75,7 @@ chmod +x ./prepare_hic.sh
 
 ./prepare_hic.sh > ../{log.err} 2>&1
         '''
-       
+
 rule runMashMap:
     input:
         unitigs_hpc = '8-hicPipeline/unitigs.hpc.fasta'
@@ -194,15 +194,15 @@ def splitHICoutputs(wildcards):
 checkpoint splitHIC:
     input:
         hic1           = HIC_READS1,
-        hic2           = HIC_READS2 
+        hic2           = HIC_READS2	if config['withPOREC'] == "False" else rules.emptyfile.output[0]
     output:
         split_finished = '8-hicPipeline/splitHIC.finished'
     log:
         err            = '8-hicPipeline/splitHIC.err'
     params:
-        bases          = config['shc_bases'],
+        bases          = config['shc_bases'] if config['withPOREC'] == "False" else config['spl_bases'],
         reads          = config['shc_reads'],
-        length         = config['shc_min_length']
+        length         = config['shc_min_length'],
     threads:
         int(config['fhc_n_cpus'])
     resources:
@@ -219,16 +219,23 @@ cat > ./splitHIC.sh <<EOF
 set -e
 
 mkdir -p split
-
-{PYTHON} {VERKKO}/scripts/fasta_partition.py \\\\
-  partition split/hic1 {params.bases} {params.reads} {params.length} \\\\
-  {input.hic1} \\\\
-&& \\\\
-{PYTHON} {VERKKO}/scripts/fasta_partition.py \\\\
-  partition split/hic2 {params.bases} {params.reads} {params.length} \\\\
-  {input.hic2} \\\\
-&& \\\\
-touch ../{output.split_finished}
+if [ "{input.hic2}" = "emptyfile" ]; then
+   {PYTHON} {VERKKO}/scripts/fasta_partition.py \\\\
+     partition split/hic1 {params.bases} {params.reads} {params.length} \\\\
+     {input.hic1} \\\\
+    && \\\\
+    touch ../{output.split_finished}
+else
+   {PYTHON} {VERKKO}/scripts/fasta_partition.py \\\\
+     partition split/hic1 {params.bases} {params.reads} {params.length} \\\\
+     {input.hic1} \\\\
+    && \\\\
+    {PYTHON} {VERKKO}/scripts/fasta_partition.py \\\\
+      partition split/hic2 {params.bases} {params.reads} {params.length} \\\\
+      {input.hic2} \\\\
+    && \\\\
+    touch ../{output.split_finished}
+fi
 EOF
 
 chmod +x ./splitHIC.sh
@@ -265,20 +272,22 @@ chmod +x ./index_bwa.sh
 ./index_bwa.sh > ../{log.err} 2>&1
 
         '''
-            
+
 rule alignBWA:
     input:
         unitigs = '8-hicPipeline/unitigs.fasta',
         hic1    = '8-hicPipeline/split/hic1{nnnn}.fasta.gz',
-        hic2    = '8-hicPipeline/split/hic2{nnnn}.fasta.gz',
-        index   = '8-hicPipeline/unitigs.fasta.bwt'
+        hic2    = '8-hicPipeline/split/hic2{nnnn}.fasta.gz' if config['withPOREC'] == "False" else rules.emptyfile.output[0],
+        index   = '8-hicPipeline/unitigs.fasta.bwt'         if config['withPOREC'] == "False" else rules.emptyfile.output[0]
     output:
         bwa_mapping = '8-hicPipeline/mapped{nnnn}.bam'
     log:
         err    = '8-hicPipeline/align_bwa{nnnn}.err'
     params:
-        BWA      = config.get('BWA', "{VERKKO}/bin/bwa"),
-        SAMTOOLS = config.get('SAMTOOLS', "{VERKKO}/bin/samtools")
+        BWA       = config.get('BWA', "{VERKKO}/bin/bwa"),
+        SAMTOOLS  = config.get('SAMTOOLS', "{VERKKO}/bin/samtools"),
+        WINNOWMAP = config.get('WINNOWMAP', "{VERKKO}/bin/winnowmap"),
+        withporec = config['withPOREC']
     threads:
         int(config['ahc_n_cpus'])
     resources:
@@ -293,13 +302,19 @@ cd 8-hicPipeline
 cat > ./align_bwa{wildcards.nnnn}.sh <<EOF
 #!/bin/sh
 set -e
-echo "---Mapping {input.hic1} and {input.hic2} to {input.unitigs} with BWA"
-{params.BWA} mem -t {threads} -5 -S -P ../{input.unitigs} ../{input.hic1} ../{input.hic2} | {params.SAMTOOLS} view -bh -@ {threads} -q 1 -F 0x800 - | {params.SAMTOOLS} sort -n -@ {threads} - -o ../{output.bwa_mapping} 
+if [ {params.withporec} = "False" ] ; then
+   echo "---Mapping {input.hic1} and {input.hic2} to {input.unitigs} with BWA"
+   {params.BWA} mem -t {threads} -5 -S -P ../{input.unitigs} ../{input.hic1} ../{input.hic2} | {params.SAMTOOLS} view -bh -@ {threads} -q 1 -F 0x900 - | {params.SAMTOOLS} sort -n -@ {threads} - -o ../{output.bwa_mapping}
+else
+   echo "--Mapping {input.hic1} to {input.unitigs} with winnowmap"
+   mem=\`expr {resources.mem_gb} \/ {threads} | awk '{{print \$1"G"}}' \`
+   {params.WINNOWMAP} -ax map-ont -t {threads} -f 0.0002 -K \$mem ../{input.unitigs} ../{input.hic1} | {params.SAMTOOLS} view -T ../{input.unitigs} -bh -@ {threads} -q 5 -F 0x100 - | {params.SAMTOOLS} sort -n -@ {threads} - -o ../{output.bwa_mapping}
+fi
 EOF
 
 chmod +x ./align_bwa{wildcards.nnnn}.sh
 
-./align_bwa{wildcards.nnnn}.sh > ../{log.err} 2>&1 
+./align_bwa{wildcards.nnnn}.sh > ../{log.err} 2>&1
         '''
 
 #TODO: bwa and mashmap and samtools bins
@@ -308,7 +323,7 @@ rule mergeBWA:
         split_finished = rules.splitHIC.output.split_finished,
         index          = '8-hicPipeline/unitigs.fasta.bwt',
         alignments     = lambda wildcards: expand("8-hicPipeline/mapped{nnnn}.bam", nnnn = splitHICoutputs(wildcards))
-        
+
     output:
         alignments     = '8-hicPipeline/hic_to_assembly.sorted_by_read.bam'
     log:
@@ -324,7 +339,7 @@ rule mergeBWA:
         n_cpus = int(config['fhc_n_cpus']),
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
-    shell:    
+    shell:
         '''
 cd 8-hicPipeline
 
@@ -373,7 +388,7 @@ cd 8-hicPipeline
 cat > ./transform_bwa.sh <<EOF
 #!/bin/sh
 set -e
-{params.SAMTOOLS} view -F 0x800 -q 1 ../{input.bwa_mapping} | {PYTHON} {VERKKO}/scripts/parse_sam_pairs.py  > ../{output.byread_mapping}
+{params.SAMTOOLS} view -q 1 ../{input.bwa_mapping} | {PYTHON} {VERKKO}/scripts/parse_sam_pairs.py  > ../{output.byread_mapping}
 EOF
 
 chmod +x ./transform_bwa.sh
@@ -401,7 +416,7 @@ rule hicPhasing:
         n_cpus = int(config['fhc_n_cpus']),
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
-    shell: 
+    shell:
         '''
 cd 8-hicPipeline
 
@@ -415,7 +430,7 @@ chmod +x ./hic_phasing.sh
 
 ./hic_phasing.sh > ../{log.err} 2>&1
         '''
-        
+
 rule runRukkiHIC:
     input:
         graph = '8-hicPipeline/unitigs.hpc.noseq.gfa',
@@ -424,7 +439,7 @@ rule runRukkiHIC:
         tsv_path = '8-hicPipeline/rukki.paths.tsv',
         gaf_path = '8-hicPipeline/rukki.paths.gaf',
         final_paths_tsv = 'assembly.paths.tsv'
-    log:                                                                                                                                                                                                                                                     
+    log:
         err    = '8-hicPipeline/rukki_hic.err'
     threads:
         int(config['fhc_n_cpus'])
@@ -437,7 +452,7 @@ rule runRukkiHIC:
         '''
 cd 8-hicPipeline
 
-cat > ./rukki_hic.sh <<EOF                                                                                                                                                                                                                                 
+cat > ./rukki_hic.sh <<EOF
 #!/bin/sh
 set -e
 echo "---Running rukki on the resulting clustering"
@@ -470,17 +485,17 @@ chmod +x ./rukki_hic.sh
 
 rule HiC_rdnascaff:
     input:
-        graph = '8-hicPipeline/unitigs.hpc.noseq.gfa',        
+        graph = '8-hicPipeline/unitigs.hpc.noseq.gfa',
         tsv_path = '8-hicPipeline/rukki.paths.tsv',
         gaf_path = '8-hicPipeline/rukki.paths.gaf',
         unitigs_telo = '8-hicPipeline/unitigs.telo',
-        unitigs_rdnamatches = '8-hicPipeline/rdna_mashmap.out'        
+        unitigs_rdnamatches = '8-hicPipeline/rdna_mashmap.out'
     output:
         scaff_tsv_path = '8-hicPipeline/scaff_rukki.paths.tsv',
         scaff_gaf_path = '8-hicPipeline/scaff_rukki.paths.gaf',
         prescaf_tsv_path = '8-hicPipeline/prescaf_rukki.paths.tsv',
         prescaf_gaf_path = '8-hicPipeline/prescaf_rukki.paths.gaf',
-    log:                                                                                                                                                                                                                                                     
+    log:
         err    = '8-hicPipeline/hic_scaff.err'
     threads:
         int(config['fhc_n_cpus'])
@@ -499,11 +514,11 @@ set -e
 {PYTHON} {VERKKO}/scripts/rdna_scaff.py .
 
 
-cp ../{input.tsv_path} ../{output.prescaf_tsv_path} 
-cp ../{input.gaf_path} ../{output.prescaf_gaf_path} 
+cp ../{input.tsv_path} ../{output.prescaf_tsv_path}
+cp ../{input.gaf_path} ../{output.prescaf_gaf_path}
 
-cp ../{output.scaff_tsv_path} ../{input.tsv_path} 
-cp ../{output.scaff_gaf_path} ../{input.gaf_path} 
+cp ../{output.scaff_tsv_path} ../{input.tsv_path}
+cp ../{output.scaff_gaf_path} ../{input.gaf_path}
 
 cp ../{input.tsv_path} ../{rules.runRukkiHIC.output.final_paths_tsv}
 EOF

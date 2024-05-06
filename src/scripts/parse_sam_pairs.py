@@ -4,7 +4,20 @@ import sys
 import re
 import os
 
-spltd =[['no_read'],['no_read']]
+def print_results(names):
+   for i in range(len(names)):
+      for j in range(i+1, len(names)):
+         i_split = names[i].split()
+         j_split = names[j].split()
+         if (i_split[0] != j_split[0]):
+            print("Error: name read %s and %s don't match"%(i_split, j_split), file=sys.stderr)
+            sys.exit(1)
+         if (i_split[1] < j_split[1]):
+            print (f"{i_split[0]}\t{i_split[1]}\t{j_split[1]}")
+         elif (i_split[1] > j_split[1]):
+            print (f"{i_split[0]}\t{j_split[1]}\t{i_split[1]}")
+         # if they are equal we don't want to print anything, not informative 
+
 if not sys.stdin.isatty():
     input_stream = sys.stdin
 
@@ -18,11 +31,27 @@ else:
     else:
         input_stream = open(input_filename, 'rU')
 
-for line in input_stream:
-    spltd[0] = spltd[1]
-    spltd[1] = line.split()
-    if spltd[0][0] == spltd[1][0]:
-        if spltd[0][2] != spltd[1][2]:
-            print (f"{spltd[0][0]}\t{spltd[0][2]}\t{spltd[1][2]}")
-#            print (f"{spltd[0][0]}\t{spltd[0][2]}\t{spltd[1][2]}\t{spltd[0][4]}\t{spltd[1][4]}")
+name = ""
+names = [ ]
+seen = {}
+out_of_order = 0
 
+for line in input_stream:
+   line=line.split()
+   if name == "":
+      name = line[0]
+   if name != line[0]:
+      seen[name] = 1
+      print_results(names)
+      name = line[0]
+      names = [ ]
+   if name in seen:
+      print("Warning: read %s already seen but encountered it again, please confirm your bam file is sorted by read."%(name), file=sys.stderr)
+      out_of_order += 1
+   names.append("%s\t%s"%(line[0], line[2]))
+
+if out_of_order > 1000:
+   print("Error: encountered too many unsorted reads (%d), exiting. Please confirm the input bam is sorted by read."%(out_of_order), file=sys.stderr)
+   sys.exit(1)
+
+print_results(names)
