@@ -28,7 +28,12 @@ if you prefer to install verkko in a separate environment. Alternatively, you ca
 
 <details>
 <summary><b>Compile from source</b></summary>
-* Compilation from source requires [GCC 9](https://gcc.gnu.org/) or newer and [Rust 1.74](https://www.rust-lang.org/) or newer.  (Do NOT download the .zip source code.  It is missing files and will not compile.  This is a [known flaw](https://github.com/dear-github/dear-github/issues/214) with git itself.)
+ 
+* Compilation from source requires:
+  * [GCC 9](https://gcc.gnu.org/) or newer
+  * [Rust 1.74](https://www.rust-lang.org/) or newer.  
+ 
+(Do NOT download the .zip source code.  It is missing files and will not compile.  This is a [known flaw](https://github.com/dear-github/dear-github/issues/214) with git itself.)
 
 * Running verkko requires:
   * [Python](https://www.python.org) (v3.5+)
@@ -39,7 +44,7 @@ if you prefer to install verkko in a separate environment. Alternatively, you ca
 * Running verkko with hi-c/porec data also requires
   * [Samtools](http://www.htslib.org/)
   * [BWA](https://bio-bwa.sourceforge.net/)
-  * [Minimap2] (https://github.com/lh3/minimap2)
+  * [Minimap2](https://github.com/lh3/minimap2)
   * [seqtk](https://github.com/lh3/seqtk)
   * [networkx](https://networkx.org/documentation/stable/install.html) python library
 
@@ -114,7 +119,7 @@ To run in Hi-C mode, reads should be provided using the --hic1 and --hic2 option
       --hic1 hic/*R1*fastq.gz  \
       --hic2 hic/*R2*fastq.gz
 
-To run in PoreC, reads should be provided using the --porec option. For example:
+To run in PoreC mode, reads should be provided using the --porec option. For example:
 
     verkko -d asm \
       --hifi hifi/*.fastq.gz \
