@@ -65,6 +65,7 @@ graphaligner=""
 mashmap=""
 seqtk=""
 winnowmap=""
+minimap=""
 bwa=""
 samtools=""
 python=
@@ -318,8 +319,9 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--mbg" ] ;                then mbg=$arg;           shift
     elif [ "$opt" = "--graphaligner" ] ;       then graphaligner=$arg;  shift
     elif [ "$opt" = "--mashmap" ] ;            then mashmap=$arg;       shift
-    elif [ "$opt" = "--seqtk" ] ;              then seqtk=$arg;       shift
+    elif [ "$opt" = "--seqtk" ] ;              then seqtk=$arg;         shift
     elif [ "$opt" = "--winnowmap" ] ;          then winnowmap=$arg;     shift
+    elif [ "$opt" = "--minimap" ] ;            then minimap=$arg;       shift
     elif [ "$opt" = "--bwa" ] ;                then bwa=$arg;           shift
     elif [ "$opt" = "--samtools" ] ;           then samtools=$arg;      shift
     elif [ "$opt" = "--local" ] ;              then grid="local";
@@ -574,6 +576,16 @@ if [ "x$seqtk" != "x" ]; then
   seqtk=$(fullpath $seqtk)
 fi
 
+if [ "x$minimap" = "x" ] ; then
+  minimap=${verkko}/bin/minimap2
+fi
+if [ ! -e $minimap ] ; then
+  minimap=$(which minimap2 2>/dev/null)
+fi
+if [ "x$minimap" != "x" ]; then
+  minimap=$(fullpath $minimap)
+fi
+
 if [ "x$winnowmap" = "x" ] ; then
   winnowmap=${verkko}/bin/winnowmap
 fi
@@ -721,7 +733,7 @@ elif [ ! -e "$mbg" ] ; then
 fi
 
 # graphaligner and winnowmap are required when we have ONT data
-if [ "x$withont" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
+if [ "x$withont" = "xTrue" ] ; then
     if   [ "x$graphaligner" = "x" ] ; then
         errors="${errors}Can't find GraphAligner executable in \$PATH or \$VERKKO/bin/GraphAligner.\n"
     elif [ ! -e "$graphaligner" ] ; then
@@ -750,6 +762,18 @@ if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
       if [ "x$hic1" = "x" -o "x$hic2" = "x" ]; then
          errors="${errors}Only one of --hic1 and --hic2 specified, both must be specified to run with Hi-C\n"
        fi
+
+       if   [ "x$bwa" = "x" ] ; then
+         errors="${errors}Can't find BWA executable in \$PATH or \$VERKKO/bin/bwa.\n"
+       elif [ ! -e "$bwa" ] ; then
+         errors="${errors}Can't find BWA executable at '$bwa'.\n"
+       fi
+   elif [ "x$withporec" = "xTrue" ]; then
+       if   [ "x$minimap" = "x" ] ; then
+         errors="${errors}Can't find MINIMAP2 executable in \$PATH or \$VERKKO/bin/minimap2.\n"
+       elif [ ! -e "$minimap" ] ; then
+         errors="${errors}Can't find MINIMAP2 executable at '$bwa'.\n"
+       fi
    fi
    if [ "x$withhic" = "xTrue" -a "x$withporec" = "xTrue" ]; then
       errors="${errors}Both --hic1/--hic2 and --porec cannot be specified at the same time, please only specify one\n"
@@ -770,12 +794,6 @@ if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
          errors=${errors}"  user-supplied:   '$rdna_scaff_ref' and\n"
          errors=${errors}"  verkko-supplied: '$dtpath'\n"
       fi
-    fi
-
-    if   [ "x$bwa" = "x" ] ; then
-        errors="${errors}Can't find BWA executable in \$PATH or \$VERKKO/bin/bwa.\n"
-    elif [ ! -e "$bwa" ] ; then
-        errors="${errors}Can't find BWA executable at '$bwa'.\n"
     fi
 
     if   [ "x$samtools" = "x" ] ; then
@@ -857,6 +875,7 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --mashmap <path>         Path to MashMap."
     echo "    --seqtk <path>           Path to seqtk."
     echo "    --winnowmap <path>       Path to Winnowmap."
+    echo "    --minimap   <path>       Path to minimap2."
     echo "    --bwa <path>             Path to BWA."
     echo "    --samtools <path>        Path to Samtools."
     echo ""
@@ -960,6 +979,7 @@ echo >> ${outd}/verkko.yml "GRAPHALIGNER:        '${graphaligner}'"
 echo >> ${outd}/verkko.yml "MASHMAP:             '${mashmap}'"
 echo >> ${outd}/verkko.yml "SEQTK:               '${seqtk}'"
 echo >> ${outd}/verkko.yml "WINNOWMAP:           '${winnowmap}'"
+echo >> ${outd}/verkko.yml "MINIMAP:             '${minimap}'"
 echo >> ${outd}/verkko.yml "BWA:                 '${bwa}'"
 echo >> ${outd}/verkko.yml "SAMTOOLS:            '${samtools}'"
 echo >> ${outd}/verkko.yml ""
