@@ -76,7 +76,7 @@ def checkXYcomponent(current_component, matchgraph, G, edges):
 #cutoff for additional fake homozygocity
     MIN_NEAR_PAR = 3000000
 #TODO these constants are ABSOLUTELY human focused, and even if we'll save the function should be reconsidered.
-
+#TODO: right way with new matchGraph...
     total_l = 0
     total_hom_len = 0
     for node in current_component:
@@ -305,8 +305,6 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
 
 
     sys.stderr.write("Loaded hic info with %d nodes and %d edges\n" % (hicGraph.number_of_nodes(), hicGraph.number_of_edges()))
-    # for node1, node2 in hicGraph.edges():
-    #    sys.stderr.write("Edge from %s to %s of weight %s\n"%(node1, node2, hicGraph.get_edge_data(node1, node2)))
     compressed_file.close()
 
     dists = dict(nx.all_pairs_dijkstra_path_length(G, weight=lambda u, v, d: G.nodes[v]['length']))
@@ -315,9 +313,15 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
 
     # connected components decomposition and log the IDs and partition each one
     # currently not going to do the right thing on rDNA component
-    long_colors = [set(), set()]
     for current_component in sorted(nx.connected_components(G), key=len, reverse=True):
         logging_f.write("Connected component with %d nodes is: %s\n" % (len(current_component), current_component))
+
+        total_l = 0
+        for n in current_component:
+            total_l += G.nodes[n]['length']
+        if total_l > 1000000 and not graph_functions.isDiploid(matchGraph, G, current_component):
+            logging_f.write(f"Component is not diploid!\n")
+            
 
         C = nx.Graph()
         # rebuild the graph from this component using only edges in the hic graph
@@ -340,8 +344,6 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
             if n not in G:
                 sys.stderr.write("Error got a node not in original graph %s !" % (n))
                 sys.exit()
-    #        if not (n in matchGraph):
-            
             if G.nodes[n]['coverage'] > local_max_cov and (not uneven_depth):
                 logging_f.write("While partitoning dropping node %s coverage too high\n" % (n))
                 short.append(n)
