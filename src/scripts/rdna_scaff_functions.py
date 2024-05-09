@@ -32,6 +32,8 @@ class pathStorage:
             if edge[0] != "N":
                 res.append(edge[:-1])
         return res
+    def getPathString(self, path_id):
+        return ",".join(self.paths[path_id])
 
     def addPath(self, line, G):
 #        print (line)
@@ -59,7 +61,7 @@ class pathStorage:
                 total_l += G.nodes[node]['length']
         self.paths[id] = path
         self.path_lengths[id] = total_l
-
+    
 #Actyally should be processed the same way as telos, with fake nodes of zero length
 #This will reduce code duplication and will allow to use "one-sided" rdna nodes that may be useful
 def get_rdna_mashmap(hicrun_dir):
@@ -185,7 +187,7 @@ def get_multiplicities(paths):
     return multiplicities
 
 #returns dict, {id:[present_start_relo, present_end_telo]}
-def get_paths_to_scaff(paths, tel_nodes, dirG, long_enough=200000):
+def get_paths_to_scaff(paths, tel_nodes, dirG, long_enough=1000000):
     res = {}
     for id in paths.paths:
         total_l = paths.path_lengths[id]
@@ -218,31 +220,40 @@ def get_nodes_to_scaff(all_paths, to_scaff, multiplicities, G, long_enough=10000
     res = {}
     for id in to_scaff.keys():
         path = all_paths.getPathById(id)
+        
         if not (to_scaff[id][0]):
             for node in path:
                 if node in multiplicities and multiplicities[node] == 1 and G.nodes[node]['length'] > long_enough:
                     res[node] = id
                     break
         if not (to_scaff[id][1]):    
-            path.reverse()
-            for node in path:
+            for node in reversed(path):
                 if node in multiplicities and multiplicities[node] == 1 and G.nodes[node]['length'] > long_enough:
                     res[node] = id
                     break
-
+    return res
+def get_lengths(fasta_file):
+    res = {}
+    cur = ""
+    for line in open(fasta_file):
+        if line[0] == ">":
+            cur = line.strip()[1:]
+        else:
+            res[cur] = len(line.strip())
+            cur = ""
     return res
 
-def try_to_scaff(rukki_paths, telomere_locations_file, alignment_file, matches_file, G, indirectG):
+def try_to_scaff(rukki_paths, telomere_locations_file, alignment_file, matches_file, G, indirectG, uncompressed_fasta):
     multiplicities = get_multiplicities(rukki_paths)
     tel_nodes, upd_G = get_telomeric_nodes(telomere_locations_file, G)
     to_scaff = get_paths_to_scaff(rukki_paths, tel_nodes, upd_G)
     nodes_unscaffed = get_nodes_in_unscaffed(rukki_paths, to_scaff)
-    nodes_to_scaff = get_nodes_to_scaff(rukki_paths, to_scaff, multiplicities, G, 500000)
+    nodes_to_scaff = get_nodes_to_scaff(rukki_paths, to_scaff, multiplicities, G, 300000)
 
-    coorded_connections = get_connections(alignment_file, nodes_to_scaff)
+    coorded_connections = get_connections(alignment_file, nodes_unscaffed)
     HiCGraph = graph_functions.loadHiCGraph(alignment_file)
-    matchGraph = graph_functions.loadMatchGraph(matches_file, indirectG, -239239239, 200000)
-
+    matchGraph = graph_functions.loadMatchGraph(matches_file, indirectG, -239239239, 500000, 100000)
+    lens = get_lengths(uncompressed_fasta)
     for node in nodes_to_scaff.keys():
         print (f"\nChecking extensions from {node}")
         connections = []
@@ -266,16 +277,15 @@ def try_to_scaff(rukki_paths, telomere_locations_file, alignment_file, matches_f
                 next_path_id = nodes_unscaffed[next_node+"+"]
             if next_node+"-" in nodes_unscaffed:
                 next_path_id = nodes_unscaffed[next_node+"-"]
-            if [shortened_node, next_node] in matchGraph.edges:
-                if matchGraph.edges[shortened_node, next_node]['weight'] < 0:
-                    print (f"Skipping valid homology to {next_node}")
-                else:
-                    print (f"Skipping not valid homology to {next_node}!")
+            if [shortened_node, next_node] in matchGraph.edges and matchGraph.edges[shortened_node, next_node]['weight'] < 0:
+                print (f"Skipping valid homology to {next_node}")
             elif next_path_id == nodes_unscaffed[node]:
                 print (f"Skipping node {next_node} from same path")
             elif next_path_id != "NONE" and next_path_id != nodes_unscaffed[node]:
                 print (f"Connection looks valid, from {node} to {next_node} {nodes_to_scaff[node]} {next_path_id}")
-                print(coorded_connections[node[:-1], next_node])
+                print(get_pair_orientation((node[:-1], next_node), coorded_connections , lens))
+                print (f"Path {nodes_unscaffed[node]} {rukki_paths.getPathString(nodes_unscaffed[node])}")
+                print (f"aand {next_path_id} {rukki_paths.getPathString(next_path_id)}")
                 if next_node+"+" in nodes_to_scaff or next_node+"-" in nodes_to_scaff:
                     print ("Two borderline top connected")
                 else:
@@ -286,7 +296,7 @@ def try_to_scaff(rukki_paths, telomere_locations_file, alignment_file, matches_f
                 break
                     
 
-#returns: dict {[start_id, end_id]:[[start_pos1, end_pos1]]}
+#returns: dict {(start_id, end_id):[[start_pos1, end_pos1]]}. Coords not compressed!
 def get_connections(alignment_file, interesting_nodes):
     res = {}
     undirected_interesting = {}
@@ -298,32 +308,41 @@ def get_connections(alignment_file, interesting_nodes):
         if arr[1] in undirected_interesting and arr[2] in undirected_interesting:
             if not (arr[1], arr[2]) in res:
                 res[(arr[1], arr[2])] = []
-            print (arr[1], arr[2])
-            print (arr)
+#            print (arr[1], arr[2])
+#            print (arr)
             next = [int(arr[4]), int(arr[5])]
             res[(arr[1], arr[2])].append(next)
             if not (arr[2], arr[1]) in res:
                 res[(arr[2], arr[1])] = []
-            res[(arr[2], arr[1])].append([int(arr[5]), int(arr[4])])    
+            res[(arr[2], arr[1])].append([int(arr[5]), int(arr[4])])  
     return res
 
 #return either -1  or 4 scores, ++, -+, +-, --,  - whether should be swapped. -1 - do not scaffold
-def get_pair_orientation(pair, connections, lens):
+#lens not compressed
+def get_pair_orientation(pair, connections, lens, middle=2000000):
     if not pair in connections:
         return -1
     scores = [0,0,0,0]
     for conn in connections[pair]:
         best = 0 # no swap
-        if conn[0] > lens[pair[0]] - conn[0]:
+        
+        #filter "middle" nodes
+        use_pair = False
+        if (conn[0] < middle or  lens[pair[0]] - conn[0] < middle) and (conn[1] < middle or lens[pair[1]] - conn[1] < middle):
+            use_pair = True
+
+        if conn[0] < lens[pair[0]] - conn[0]:
             best += 1
-        if conn[1] < lens[pair[1]] - conn[1]:
+        if conn[1] > lens[pair[1]] - conn[1]:
             best += 2
-        scores[best] += 1
+        if use_pair:
+            scores[best] += 1
     return scores
                 
 
 #return paths that are reachable from any of the rdna nodes and within length limits
 def get_same_component_paths(short_arm_path_ids, G, paths, min_path_len, max_path_len):
+
     res = {}
     dists = dict(nx.all_pairs_dijkstra_path_length(G, weight='mid_length'))
     #nodes near short arm telomeres

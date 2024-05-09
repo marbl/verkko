@@ -54,7 +54,7 @@ gf.load_direct_graph(gfa_file, G)
 indirectG = nx.Graph()
 rukki_paths = sf.read_rukki_paths(scaff_rukki_tsv_file, G)
 gf.load_indirect_graph(gfa_file, indirectG)
-sf.try_to_scaff(rukki_paths, telomere_locations_file, os.path.join(hicrun_dir, " "), os.path.join(hicrun_dir, "unitigs.matches"), G, indirectG)
+sf.try_to_scaff(rukki_paths, telomere_locations_file, os.path.join(hicrun_dir, "hic_mapping.byread.output"), os.path.join(hicrun_dir, "unitigs.matches"), G, indirectG, uncompressed_nodes)
 exit()
 
 #read graph
