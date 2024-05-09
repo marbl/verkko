@@ -391,8 +391,6 @@ class HomologyStorage:
 # homology_weight - large negative something, min_big_homology - minimal length of homology to be taken in account. 
 # Some shorter ones can still sometimes be used if they are in regular bulge_like structure
 def loadMatchGraph(mashmap_sim, G, homology_weight, min_big_homology, min_alignment):
-    # from node to [best_match, weight, second_best_weight], second best to other node!
-    # Possibly will have to unite different matches between same node pairs splitted by mashmap
     matchGraph = nx.Graph()
     hom_storage = HomologyStorage()
     for line in open(mashmap_sim, 'r'):
@@ -409,8 +407,8 @@ def loadMatchGraph(mashmap_sim, G, homology_weight, min_big_homology, min_alignm
             exit()
         #utig4-0 2145330 0       990000  +       utig4-0 2145330 12      994065  37      994053  51      id:f:0.999992   kc:f:0.874893
         hom_storage.addHomology(arr[0], arr[5], int(arr[1]), int(arr[6]), [[int(arr[2]), int(arr[3])], [int(arr[7]), int(arr[8])]])
-        
     hom_storage.fillCoverage()
+
     for node1 in hom_storage.homologies:
         for node2 in hom_storage.homologies[node1]:
             #we deleted some nodes after mashmap
@@ -431,17 +429,15 @@ def loadMatchGraph(mashmap_sim, G, homology_weight, min_big_homology, min_alignm
                     # possibly check whether we have something already phased nearby?
                     # very strict bulge-like condition
                     if cur_homology > len_cutoff and neighbours[0] == neighbours[1] and len(neighbours[0]) > 0:
-                        #len(common) > 0:
                         sys.stderr.write(f"Adding bulge-like {node1} {node2} {cur_homology} {len_cutoff}\n")
                         matchGraph.add_edge(node1, node2, homology_len = cur_homology)
    
-    for ec in matchGraph.edges():
         # while we build the initial partition give a big bonus edge for putting the homologous nodes into different partitions             
         # Adding an edge that already exists updates the edge data (in networkX graph)
         # At least one in the pair is the best similarity match for other (and second best is not too close to the best)
-        #,consecutive edges never assigned to be homologous
+        # Consecutive edges are used to check but never assigned to be homologous
+    for ec in matchGraph.edges():
         clear_best_match = False
-        #using neighbour homology to detect best, but never adding it to matchgraph
         if (not G.has_edge(ec[0], ec[1])):
             for i in range (0, 2):
                 best_homology = True
@@ -450,7 +446,6 @@ def loadMatchGraph(mashmap_sim, G, homology_weight, min_big_homology, min_alignm
                     if adj_node != ec[1 - i] and  best_len * 0.8 < matchGraph.edges[ec[i], adj_node]['homology_len']:
                         best_homology = False
                 clear_best_match = clear_best_match or best_homology
-    
             if clear_best_match:
                 matchGraph.add_edge(ec[0], ec[1], weight = homology_weight, homology_len = best_len)
             else:
@@ -461,10 +456,23 @@ def loadMatchGraph(mashmap_sim, G, homology_weight, min_big_homology, min_alignm
 
     sys.stderr.write("Loaded match info with %d nodes and %d edges\n" % (matchGraph.number_of_nodes(), matchGraph.number_of_edges()))
 
-    #TODO move to logging?
-    sys.stderr.write(f"Debug edges\n")
+    #TODO move to logging
+    sys.stderr.write(f"MatchGraph edges\n")
     for d in sorted(matchGraph.edges()):
-        sys.stderr.write(f"debug_edge {matchGraph.edges[d]}  \n")
+        sys.stderr.write(f"match_graph edge {d} : {matchGraph.edges[d]}  \n")
 
     return matchGraph
 
+def isDiploid(matchGraph, G, component):
+    hom_length = 0
+    total_length = 0
+    for node in component:
+        total_length += G.nodes[node]['length']
+        if node in matchGraph.nodes():
+            for adj_node in matchGraph.neighbors(node):
+                if adj_node in component and matchGraph.edges[node, adj_node]['weight'] < 0:
+                    hom_length += matchGraph.edges[node, adj_node]['homology_len']
+    if hom_length * 2 > total_length:
+        return True
+    else:
+        return False
