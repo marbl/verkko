@@ -184,8 +184,8 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
     HIC_COMPRESSED_FILENAME = "hic.byread.compressed"
     LOGGING_FILENAME = "hicverkko.log"
 
-    CLEAR_HOMOLOGY = 500000
-
+    CLEAR_HOMOLOGY = 500000 #for clear bulge like structures this limmit is decreased
+    MIN_ALIGNMENT = 100000 #smaller alingments will be filtered out
     MAX_COV = 100  # tempora# ry coverage cutoff, currently replaced by median coverage from gfa
     FIXED_WEIGHT = 100000  # best result so far with 100000 #currently replaced with max pairwise weight among datasets
 
@@ -288,7 +288,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
 
     #Adding link between matched edges to include separated sequence to main component
 
-    matchGraph = graph_functions.loadMatchGraph(mashmap_sim, G, -10*FIXED_WEIGHT, CLEAR_HOMOLOGY)
+    matchGraph = graph_functions.loadMatchGraph(mashmap_sim, G, -10*FIXED_WEIGHT, CLEAR_HOMOLOGY, MIN_ALIGNMENT)
     component_colors = graph_functions.getComponentColors(G)
 
 #reconnecting homologous nodes

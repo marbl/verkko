@@ -334,110 +334,137 @@ def getComponentColors(G):
         current_color += 1
     return component_colors
 
-# homology_weight - large negative something, homology_len - minimal length of homology to be taken in account. 
+
+#classes for matchGraph construction
+class HomologyInfo:
+    def __init__(self, node1, node2, len1, len2):
+        self.nodes = [node1, node2]
+        self.len = [len1, len2]
+        self.covered = [0, 0]
+        #two lists for each nodes, each list constains [st_i, 1] and [end_i, -11]
+        self.intervals = [[],[]]
+
+    def addInterval(self, intervals):
+        for i in range(0, 2):
+            self.intervals[i].append([intervals[i][0],1])
+            self.intervals[i].append([intervals[i][1],-1])
+
+    def fillCoverage(self):
+        for i in range(0, 2):
+            total_c = 0
+            self.intervals[i].sort()
+            state = 0
+            prev = 0
+            for coord_pair in self.intervals[i]:
+                if state > 0:
+                    total_c += coord_pair[0] - prev
+                prev = coord_pair[0]
+                state += coord_pair[1]
+            self.covered[i] = total_c   
+    
+    def getMinCovered(self):
+#in weird case matches can be larger than seq, avoiding
+
+        return min(self.covered[0], self.covered[1], self.len[0], self.len[1])
+    
+    def getMinLength(self):
+        return min(self.len[0], self.len[1])
+
+class HomologyStorage:
+    #{node1: {node2: HomologyInfo(node_1, node_2)}}
+    def __init__(self):
+        self.homologies = {}
+
+    def addHomology(self, node1, node2, len1, len2, intervals):
+        if not node1 in self.homologies:
+            self.homologies[node1] = {}
+        if not node2 in self.homologies[node1]:
+            self.homologies[node1][node2] = HomologyInfo(node1, node2, len1, len2)
+        self.homologies[node1][node2].addInterval(intervals)
+    
+    def fillCoverage(self):
+        for node1 in self.homologies:
+            for node2 in self.homologies[node1]:    
+                self.homologies[node1][node2].fillCoverage()
+
+
+# homology_weight - large negative something, min_big_homology - minimal length of homology to be taken in account. 
 # Some shorter ones can still sometimes be used if they are in regular bulge_like structure
-def loadMatchGraph(mashmap_sim, G, homology_weight, homology_len):
+def loadMatchGraph(mashmap_sim, G, homology_weight, min_big_homology, min_alignment):
     # from node to [best_match, weight, second_best_weight], second best to other node!
     # Possibly will have to unite different matches between same node pairs splitted by mashmap
-    best_match = {}
-    mashmap_weights = {}
     matchGraph = nx.Graph()
-    component_colors = getComponentColors(G)
-
+    hom_storage = HomologyStorage()
     for line in open(mashmap_sim, 'r'):
-        if "#" in line:
+        arr = line.strip().split()
+        if len(arr) < 11:
             continue
-        line = line.strip().split()
-        if len(line) < 3:
+        if int(arr[10]) < min_alignment:
             continue
-        if line[0] == line[1]:
+        #self mapping
+        if arr[0] == arr[5]:
             continue
-        if not line[0] in best_match:
-            best_match[line[0]] = [line[1], int(line[2]), 1]
-        if not line[1] in best_match:
-            best_match[line[1]] = [line[0], int(line[2]), 1]
-        if int(line[2]) > best_match[line[0]][1]:
-            if best_match[line[0]][0] == line[1]:
-                # not updating second best match
-                best_match[line[0]] = [line[1], int(line[2]), best_match[line[0]][2]]
-            else:
-                best_match[line[0]] = [line[1], int(line[2]), best_match[line[0]][1]]
-
-        if int(line[2]) > best_match[line[1]][1]:
-            if best_match[line[1]][0] == line[0]:
-                best_match[line[1]] = [line[0], int(line[2]), best_match[line[1]][2]]
-            else:
-                best_match[line[1]] = [line[0], int(line[2]), best_match[line[1]][1]]
-
-        # only debug purpose
-        upd_weight = int(line[2])
-        if line[0] + line[1] in mashmap_weights:
-            upd_weight = max(upd_weight, mashmap_weights[line[0] + line[1]])
-        mashmap_weights[line[0] + line[1]] = upd_weight
-        mashmap_weights[line[1] + line[0]] = upd_weight
-
-        if int(line[2]) > homology_len:
-            color_sum = 0
-            for id in range(0, 2):
-                if line[id] in component_colors:
-                    color_sum += 1
-            if color_sum != 2:
-                sys.stderr.write(f"Weird deleted node pair {line[0]} {line[1]}\n")
-                continue
-
-            matchGraph.add_edge(line[0], line[1])
-
-    # Now let's add links for shorter nodes
-    for line in open(mashmap_sim, 'r'):
-        if "#" in line:
-            continue
-        line = line.strip().split()
-        if len(line) < 3:
-            continue
-        neighbours = [set(), set()]
-        for id in range(0, 2):
-            for edge in G.edges(line[id]):
-                neighbours[id].add(edge[0])
-                neighbours[id].add(edge[1])
-        common = neighbours[0].intersection(neighbours[1])
-        if len(common) > 0:
-            # we are in somethiing bulge-like
-            len_cutoff = min(G.nodes[line[0]]['length'], G.nodes[line[1]]['length'], homology_len) / 2
-        # possibly check whether we have something already phased nearby?
-            if int(line[2]) > len_cutoff:
-                matchGraph.add_edge(line[0], line[1])
-
-
-
+        if len(arr[0]) < 3:
+            print (line)
+            exit()
+        #utig4-0 2145330 0       990000  +       utig4-0 2145330 12      994065  37      994053  51      id:f:0.999992   kc:f:0.874893
+        hom_storage.addHomology(arr[0], arr[5], int(arr[1]), int(arr[6]), [[int(arr[2]), int(arr[3])], [int(arr[7]), int(arr[8])]])
+        
+    hom_storage.fillCoverage()
+    for node1 in hom_storage.homologies:
+        for node2 in hom_storage.homologies[node1]:
+            #we deleted some nodes after mashmap
+            #sys.stderr.write(f"Checking {node1} {node2} {hom_storage.homologies[node1][node2].getMinCovered()} {min_big_homology}\n")
+            if node1 in G.nodes() and node2 in G.nodes():
+                cur_homology = hom_storage.homologies[node1][node2].getMinCovered()
+                if cur_homology > min_big_homology:
+                    matchGraph.add_edge(node1, node2, homology_len = cur_homology)
+                else:
+                    #less strict condition for bulge-like structure
+                    nodes = [node1, node2]
+                    neighbours = [set(), set()]
+                    for i in range(0, 2):
+                        for adj_node in G.neighbors(nodes[i]):
+                            neighbours[i].add(adj_node)
+                    #common = neighbours[0].intersection(neighbours[1])
+                    len_cutoff = min(hom_storage.homologies[node1][node2].getMinLength(), min_big_homology)/2
+                    # possibly check whether we have something already phased nearby?
+                    # very strict bulge-like condition
+                    if cur_homology > len_cutoff and neighbours[0] == neighbours[1] and len(neighbours[0]) > 0:
+                        #len(common) > 0:
+                        sys.stderr.write(f"Adding bulge-like {node1} {node2} {cur_homology} {len_cutoff}\n")
+                        matchGraph.add_edge(node1, node2, homology_len = cur_homology)
+   
     for ec in matchGraph.edges():
         # while we build the initial partition give a big bonus edge for putting the homologous nodes into different partitions             
         # Adding an edge that already exists updates the edge data (in networkX graph)
         # At least one in the pair is the best similarity match for other (and second best is not too close to the best)
         #,consecutive edges never assigned to be homologous
-        if (not G.has_edge(ec[0], ec[1])) and ((ec[0] in best_match and ec[1] == best_match[ec[0]][0] and best_match[ec[0]][2]/best_match[ec[0]][1]< 0.8) or (ec[1] in best_match and ec[0] == best_match[ec[1]][0] and best_match[ec[1]][2]/best_match[ec[1]][1]< 0.8)):
-            matchGraph.add_edge(ec[0], ec[1], weight = homology_weight)
-        else:
+        clear_best_match = False
+        #using neighbour homology to detect best, but never adding it to matchgraph
+        if (not G.has_edge(ec[0], ec[1])):
+            for i in range (0, 2):
+                best_homology = True
+                best_len = matchGraph.edges[ec]['homology_len']
+                for adj_node in matchGraph.neighbors(ec[i]):
+                    if adj_node != ec[1 - i] and  best_len * 0.8 < matchGraph.edges[ec[i], adj_node]['homology_len']:
+                        best_homology = False
+                clear_best_match = clear_best_match or best_homology
+    
+            if clear_best_match:
+                matchGraph.add_edge(ec[0], ec[1], weight = homology_weight, homology_len = best_len)
+            else:
         #not really look like homologous node pair but still suspicious, lets just wipe the hi-c links but not prioritize splitting them to different partitions.                                
-            matchGraph.add_edge(ec[0], ec[1], weight=0)
-            
-    #Just debug information about homology link structure
-    debug_neighbors = {}              
-    for debug_node in matchGraph.nodes():
-        debug_neighbors[debug_node] = set()
-    for debug_node in matchGraph.nodes():
-        for edge_pair in matchGraph.edges(debug_node):  
-            if matchGraph.edges[edge_pair]['weight'] < 0:                      
-                debug_neighbors[edge_pair[0]].add(edge_pair[1])
-                debug_neighbors[edge_pair[1]].add(edge_pair[0]) 
-                if edge_pair[0] == edge_pair[1]:
-                    sys.stderr.write(f"loop {edge_pair} {matchGraph.edges[edge_pair]}\n")
-    for node1 in debug_neighbors:
-        for node2 in debug_neighbors[node1]:
-            for node3 in debug_neighbors[node2]:
-                if node3 in debug_neighbors[node1] and node1 < node2 and node2 < node3:
-                    sys.stderr.write(f"Found a triangle {node1} {node2} {node3}\n")
-                if node1 < node3:
-                    sys.stderr.write (f"Multiple homology from {node2}, {node1} with {mashmap_weights[node1+node2]} and {node3} with {mashmap_weights[node3+node2]}\n")
+                matchGraph.add_edge(ec[0], ec[1], weight=0, homology_len = best_len)
+        else:
+            matchGraph.remove_edge(ec[0],ec[1])
+
     sys.stderr.write("Loaded match info with %d nodes and %d edges\n" % (matchGraph.number_of_nodes(), matchGraph.number_of_edges()))
+
+    #TODO move to logging?
+    sys.stderr.write(f"Debug edges\n")
+    for d in sorted(matchGraph.edges()):
+        sys.stderr.write(f"debug_edge {matchGraph.edges[d]}  \n")
+
     return matchGraph
 
