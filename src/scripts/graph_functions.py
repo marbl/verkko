@@ -375,6 +375,7 @@ class HomologyStorage:
     def __init__(self):
         self.homologies = {}
 
+#do we want to add other direction of pair?
     def addHomology(self, node1, node2, len1, len2, intervals):
         if not node1 in self.homologies:
             self.homologies[node1] = {}
@@ -390,11 +391,15 @@ class HomologyStorage:
 
 # homology_weight - large negative something, min_big_homology - minimal length of homology to be taken in account. 
 # Some shorter ones can still sometimes be used if they are in regular bulge_like structure
+# G can be both directed and undirected graph
 def loadMatchGraph(mashmap_sim, G, homology_weight, min_big_homology, min_alignment):
     matchGraph = nx.Graph()
     hom_storage = HomologyStorage()
+    total_lines = 0
+    used_lines = 0
     for line in open(mashmap_sim, 'r'):
         arr = line.strip().split()
+        total_lines += 1
         if len(arr) < 11:
             continue
         if int(arr[10]) < min_alignment:
@@ -403,32 +408,40 @@ def loadMatchGraph(mashmap_sim, G, homology_weight, min_big_homology, min_alignm
         if arr[0] == arr[5]:
             continue
         if len(arr[0]) < 3:
-            print (line)
-            exit()
+            continue
+        used_lines +=1
         #utig4-0 2145330 0       990000  +       utig4-0 2145330 12      994065  37      994053  51      id:f:0.999992   kc:f:0.874893
         hom_storage.addHomology(arr[0], arr[5], int(arr[1]), int(arr[6]), [[int(arr[2]), int(arr[3])], [int(arr[7]), int(arr[8])]])
+    sys.stderr.write(f"Loaded {used_lines} out of {total_lines} mashmap lines\n")
     hom_storage.fillCoverage()
+
+    
+    #Do not want to think whether we use diGraph or Graph
+    neighbours = {}
+    indirect_nodes = set()
+    for node in G.nodes():
+        neighbours[node.strip('-+')] = set()
+        indirect_nodes.add(node.strip('-+'))
+    for edge in G.edges():
+        for i in range(0, 2):
+            neighbours[edge[i].strip('-+')].add(edge[1 - i].strip('-+'))    
 
     for node1 in hom_storage.homologies:
         for node2 in hom_storage.homologies[node1]:
             #we deleted some nodes after mashmap
             #sys.stderr.write(f"Checking {node1} {node2} {hom_storage.homologies[node1][node2].getMinCovered()} {min_big_homology}\n")
-            if node1 in G.nodes() and node2 in G.nodes():
+            if node1 in indirect_nodes and node2 in indirect_nodes:
                 cur_homology = hom_storage.homologies[node1][node2].getMinCovered()
                 if cur_homology > min_big_homology:
                     matchGraph.add_edge(node1, node2, homology_len = cur_homology)
                 else:
                     #less strict condition for bulge-like structure
-                    nodes = [node1, node2]
-                    neighbours = [set(), set()]
-                    for i in range(0, 2):
-                        for adj_node in G.neighbors(nodes[i]):
-                            neighbours[i].add(adj_node)
+
                     #common = neighbours[0].intersection(neighbours[1])
                     len_cutoff = min(hom_storage.homologies[node1][node2].getMinLength(), min_big_homology)/2
                     # possibly check whether we have something already phased nearby?
-                    # very strict bulge-like condition
-                    if cur_homology > len_cutoff and neighbours[0] == neighbours[1] and len(neighbours[0]) > 0:
+                    # strict bulge-like condition, either R1[A/B]R2 or R1[A/B] or [A/B]R2. Digraph can be more precise here but anyway
+                    if cur_homology > len_cutoff and neighbours[node1] == neighbours[node2] and len(neighbours[node1]) > 0:
                         sys.stderr.write(f"Adding bulge-like {node1} {node2} {cur_homology} {len_cutoff}\n")
                         matchGraph.add_edge(node1, node2, homology_len = cur_homology)
    
