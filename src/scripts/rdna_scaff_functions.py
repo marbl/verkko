@@ -14,13 +14,18 @@ import graph_functions
 
 #path nodes stored with orientation, "utig4-234+" tsv format
 class pathStorage:
-    #from IDs to array of oriented+- nodes
-    paths = {}
-    #ignoring overlaps but who cares
-    path_lengths = {}
+    def __init__(self):        
+        #from IDs to array of oriented+- nodes
+        self.paths = {}
+        #ignoring overlaps but who cares
+        self.path_lengths = {}
+
     def getPathById(self, path_id):
         return self.paths[path_id]
     
+    def getLength(self, path_id):
+        return self.path_lengths[path_id]
+
     def getPathIds(self):
         return self.paths.keys()
 
@@ -187,7 +192,7 @@ def get_multiplicities(paths):
     return multiplicities
 
 #returns dict, {id:[present_start_relo, present_end_telo]}
-def get_paths_to_scaff(paths, tel_nodes, dirG, long_enough=1000000):
+def get_paths_to_scaff(paths, tel_nodes, dirG, long_enough=500000):
     res = {}
     for id in paths.paths:
         total_l = paths.path_lengths[id]
@@ -215,13 +220,26 @@ def get_nodes_in_unscaffed(all_paths, to_scaff):
             res[node] = id
     return res
 
+
 # FIRST uniques where telomere is missing, {node: path_id}
+
+def get_node_to_scaff(path, direction, multiplicities, G, long_enough=100000):
+    if direction == "+":
+        new_p = path
+    else:
+        new_p = reversed(path)
+    for node in path:
+        if node in multiplicities and multiplicities[node] == 1 and G.nodes[node]['length'] > long_enough:
+            return node
+    return "NONE"
+
 def get_nodes_to_scaff(all_paths, to_scaff, multiplicities, G, long_enough=100000):
     res = {}
     for id in to_scaff.keys():
         path = all_paths.getPathById(id)
-        
+       
         if not (to_scaff[id][0]):
+            node = get_node_to_scaff(path, "+", multiplicities, G, long_enough)
             for node in path:
                 if node in multiplicities and multiplicities[node] == 1 and G.nodes[node]['length'] > long_enough:
                     res[node] = id
@@ -243,15 +261,16 @@ def get_lengths(fasta_file):
             cur = ""
     return res
 
-def try_to_scaff(rukki_paths, telomere_locations_file, alignment_file, matches_file, G, indirectG, uncompressed_fasta):
+
+def try_to_scaff(rukki_paths, telomere_locations_file, hic_alignment_file, matches_file, G, indirectG, uncompressed_fasta):
     multiplicities = get_multiplicities(rukki_paths)
     tel_nodes, upd_G = get_telomeric_nodes(telomere_locations_file, G)
     to_scaff = get_paths_to_scaff(rukki_paths, tel_nodes, upd_G)
     nodes_unscaffed = get_nodes_in_unscaffed(rukki_paths, to_scaff)
     nodes_to_scaff = get_nodes_to_scaff(rukki_paths, to_scaff, multiplicities, G, 300000)
 
-    coorded_connections = get_connections(alignment_file, nodes_unscaffed)
-    HiCGraph = graph_functions.loadHiCGraph(alignment_file)
+    coorded_connections = get_connections(hic_alignment_file, nodes_unscaffed)
+    HiCGraph = graph_functions.loadHiCGraph(hic_alignment_file)
     matchGraph = graph_functions.loadMatchGraph(matches_file, indirectG, -239239239, 500000, 100000)
     lens = get_lengths(uncompressed_fasta)
     for node in nodes_to_scaff.keys():
@@ -294,7 +313,248 @@ def try_to_scaff(rukki_paths, telomere_locations_file, alignment_file, matches_f
             else:
                 print (f"UNEXPECTED top connections from {node} to {next_node}")
                 break
+
+def isHomologous (match_graph, paths, ids):
+    hom_size = 0
+    for p0 in paths.getPathById(ids[0]):
+        for p1 in paths.getPathById(ids[1]):
+            nor_p0 = p0.strip("-+")
+            nor_p1 = p1.strip("-+")
+            if match_graph.has_edge(nor_p0, nor_p1):
+                if match_graph.edges[nor_p0, nor_p1]['weight'] < 0:
                     
+                    hom_size += match_graph.edges[nor_p0, nor_p1]['homology_len']
+    if hom_size * 2> paths.getLength(ids[0])  or hom_size * 2> paths.getLength(ids[1]):
+        print (f"Found homo paths {ids}")
+        return True
+    else:
+        return False
+#TODO: or inherit from nx.Digraph??
+class ScaffoldGraph:
+    def rc_orientation(self, c):
+        if c == "+":
+            return "-"
+        if c == "-":
+            return "+"
+        return c
+    
+    CLOSE_TO_BORDER = 500000
+    #we already know that htat node is first or last reliable enough node in the path
+    def isPotentialNextPath(self, or_path_id, next_node):
+        nor_path_id = or_path_id[:-1]
+        path_orientation = or_path_id[-1]
+        to_border = [0,0]
+        path = self.rukki_paths.getPathById(nor_path_id)        
+        for node in path:
+            if node == next_node:
+                break
+            if not (node in self.compressed_lens):
+                continue
+            to_border[0] += self.compressed_lens[node]
+        for node in reversed(path):
+            if node == next_node:
+                break
+            if not (node in self.compressed_lens):
+                continue
+            to_border[1] += self.compressed_lens[node]
+        sys.stderr.write (f"Checking path {or_path_id}, conn_node {next_node} dists to border {to_border} tels {self.scaffold_graph.nodes[or_path_id]['telomere']}\n")
+        if path_orientation == "-":
+            to_border.reverse()            
+        
+        if self.scaffold_graph.nodes[or_path_id]["telomere"][0]:
+            sys.stderr.write (f" Trying to connect but telomere at the end!\n")            
+            return False
+        elif ((to_border[0] <= to_border[1]) or to_border[0] <= ScaffoldGraph.CLOSE_TO_BORDER):
+            sys.stderr.write(f" Looks valid\n")
+            return True
+        else:
+            sys.stderr.write(f"tried to connect, wrong direction\n")
+            return False
+    
+    def fill_outgoing(self, nodes_unscaffed, or_path_id):
+        #outgoing checks!
+        print (or_path_id)
+        print (self.scaffold_graph.nodes[or_path_id])
+        if not (self.scaffold_graph.nodes[or_path_id]["telomere"][1]):
+            path = self.rukki_paths.getPathById(or_path_id[:-1])
+            direction = or_path_id[-1]
+            or_last_node = get_node_to_scaff(path, direction, self.multiplicities, self.G, long_enough=500000)
+            if or_last_node == "NONE":
+                or_last_node = get_node_to_scaff(path, direction, self.multiplicities, self.G, long_enough=100000)
+            if or_last_node == "NONE":
+                sys.stderr.write(f"PATH {or_path_id} failed to find last node\n")
+                return        
+            if direction == "+":
+                expected_orientation = or_last_node[-1]
+            else:
+                expected_orientation = self.rc_orientation(or_last_node[-1])
+            nor_last_node = or_last_node[:-1]
+            print (f"\nChecking extensions from {or_last_node}, expected best orientation {expected_orientation}")
+            if not nor_last_node in self.HiCGraph.nodes():
+                print (f"Node {nor_last_node} not in hicGraph")
+                return
+            if not or_last_node in nodes_unscaffed:
+                print (f"Node {or_last_node} not in nodes_unscaffed")
+                return
+            connections = []                
+            for nbr, datadict in self.HiCGraph.adj[nor_last_node].items():
+                connections.append([nbr, datadict['weight']])
+            connections = sorted(connections, key=lambda x: x[1],reverse=True)
+            for conn in connections:
+                #no orientation from HiCGraph
+                #for orientation in ("+", "-"):
+                next_node = conn[0]
+                next_path_id = "NONE"
+                #only one of those present, cause multiplicity= 1
+                for next_orientation in ('-', '+'):
+                    or_next_node = next_node + next_orientation
+                    if or_next_node in nodes_unscaffed:
+                        next_path_id = nodes_unscaffed[or_next_node]
+                        break
+                next_orientation = or_next_node[:-1]
+
+                if [nor_last_node, next_node] in self.matchGraph.edges and self.matchGraph.edges[nor_last_node, next_node]['weight'] < 0:
+                    print (f"Skipping valid homology to {next_node}")
+                elif next_path_id == nodes_unscaffed[or_last_node]:
+                    print (f"Skipping node {next_node} from same path")
+                elif next_path_id != "NONE" and next_path_id != nodes_unscaffed[or_last_node]:
+                    print (f"Connection looks valid, from {or_last_node} to {next_node} {or_path_id} {next_path_id}")
+                    orientation_coints = get_pair_orientation((nor_last_node, next_node), self.coorded_connections , self.uncompressed_lens)
+                    print (orientation_coints)
+                    max_orient = max(orientation_coints, key=orientation_coints.get)
+                    next_path_orientation = "+"
+                    if max_orient[1] != next_orientation:
+                        next_path_orientation = "-"
+                    or_next_path_id = next_path_id + next_path_orientation
+                    if self.isPotentialNextPath(or_next_path_id, or_next_node):
+                        print (f"Path orientation check passed")
+                        self.scaffold_graph.add_edge(or_path_id, or_next_path_id)
+                    else:
+                        print (f"Path orientation check failed!!")
+
+#                    print (f"Path {nodes_unscaffed[last_or_node]} {rukki_paths.getPathString(nodes_unscaffed[last_or_node])}")
+#                    print (f"aand {next_path_id} {rukki_paths.getPathString(next_path_id)}")
+                    if next_node+"+" in self.nodes_to_scaff or next_node+"-" in self.nodes_to_scaff:
+                        print ("Two borderline top connected")
+                    else:
+                        print ("NOT borderline top connected")
+                    break
+                else:
+                    print (f"UNEXPECTED top connections from {nor_last_node} to {next_node}")
+                    break
+    
+    def __init__(self, rukki_paths, telomere_locations_file, hic_alignment_file, matches_file, G, uncompressed_fasta):
+        self.multiplicities = get_multiplicities(rukki_paths)
+        self.tel_nodes, self.upd_G = get_telomeric_nodes(telomere_locations_file, G)
+
+        to_scaff = get_paths_to_scaff(rukki_paths, self.tel_nodes, self.upd_G)   
+        nodes_unscaffed = get_nodes_in_unscaffed(rukki_paths, to_scaff)
+
+#to be avoided
+        self.nodes_to_scaff = get_nodes_to_scaff(rukki_paths, to_scaff, self.multiplicities, G, 300000)        
+        self.coorded_connections = get_connections(hic_alignment_file, nodes_unscaffed)
+ 
+        self.HiCGraph = graph_functions.loadHiCGraph(hic_alignment_file)
+        self.matchGraph = graph_functions.loadMatchGraph(matches_file, G, -239239239, 500000, 100000)
+        self.uncompressed_lens = get_lengths(uncompressed_fasta)
+        self.compressed_lens = {}
+        for node in G.nodes:
+            self.compressed_lens[node] = G.nodes[node]['length']      
+ 
+        self.rukki_paths = rukki_paths
+        self.G = G
+
+        self.scaffold_graph = nx.DiGraph()
+
+        for id in rukki_paths.getPathIds():
+            #connection between rc nodes?
+            for dir in ('-', '+'):
+                or_id = id + dir
+                #TODO: what about shorter without  telomere
+                tels_ends = [True, True]
+                if id in to_scaff.keys():
+                    if dir == '+':
+                        tels_ends = to_scaff[id]
+                    else:
+                        tels_ends = [to_scaff[id][1], to_scaff[id][0]]
+                self.scaffold_graph.add_node(or_id, telomere = tels_ends)    
+
+
+        #possilby unefficient but whelp
+        scores = {}
+        all_connections = get_connections(hic_alignment_file, G.nodes)
+        #naming, it's not outgoing!
+        for outgoing_path_id in rukki_paths.getPathIds():
+            scores[outgoing_path_id] = {}
+            for incoming_path_id in rukki_paths.getPathIds():
+                if incoming_path_id == outgoing_path_id:
+                    continue
+                #outgoing_path_id = "haplotype1_from_utig4-130"
+                #incoming_path_id = "haplotype1_from_utig4-412"
+                path_pair = [rukki_paths.getPathById(outgoing_path_id), rukki_paths.getPathById(incoming_path_id)]                
+                scores[outgoing_path_id][incoming_path_id] = get_paths_connections(path_pair, all_connections, self.uncompressed_lens)
+               
+        for outgoing_path_id in rukki_paths.getPathIds():
+            for incoming_path_id in rukki_paths.getPathIds():       
+                if incoming_path_id == outgoing_path_id:
+                    continue 
+                if isHomologous(self.matchGraph, rukki_paths, [incoming_path_id, outgoing_path_id]):
+                    continue
+                for out_dir in ('-', '+'):
+                    for in_dir in ('-', '+'):
+                        or_out_id = outgoing_path_id + out_dir
+                        or_in_id = incoming_path_id + in_dir
+
+                        self.scaffold_graph.add_edge(or_out_id, or_in_id, weight = scores[outgoing_path_id][incoming_path_id][out_dir + in_dir])
+                if outgoing_path_id in to_scaff and incoming_path_id in to_scaff:
+                    print (f"Counted scores {outgoing_path_id} {incoming_path_id} {scores[outgoing_path_id][incoming_path_id]}")
+        for outgoing_path_id in to_scaff:
+            for out_dir in ('-', '+'):
+                or_out_dir = outgoing_path_id + out_dir
+                #telomere on the end - not interested
+                if self.scaffold_graph.nodes[or_out_dir]['telomere'][1] == True:
+                    continue
+
+                local_scores = []
+                for next_node in self.scaffold_graph.successors(or_out_dir):
+                    local_scores.append([next_node, self.scaffold_graph.edges[or_out_dir, next_node]['weight']])
+                print (f"Counting next from {or_out_dir}")
+                local_scores.sort(key=lambda x: x[1], reverse=True)
+                if len(local_scores) == 0:
+                    print (f"Nothing next")  
+                elif local_scores[0][1] <= 10:
+                    print (f"very few links, best candidate {local_scores[0]}")                 
+                elif len(local_scores) == 1:
+                    print (f"Only next one, {local_scores[0]}")                
+                elif local_scores[0][1] <  local_scores[1][1] * 1.5:
+                    print (f"Not found next, first {local_scores[0]}, second best {local_scores[1]}")
+                elif self.scaffold_graph.nodes[local_scores[0][0]]['telomere'][0]:
+                    print (f"Best {local_scores[0]}, is good count but actually are in telomere!")
+                else:
+                    print (f"Really best {local_scores[0]}, second best {local_scores[1]}")
+
+                
+
+        
+                #exit(0)
+        '''
+        for id in to_scaff:
+            #connection between rc nodes?
+            for dir in ('-', '+'):
+                or_id = id + dir
+                if dir == '+':
+                    tels_ends = to_scaff[id]
+                else:
+                    tels_ends = [to_scaff[id][1], to_scaff[id][0]]
+                
+                self.scaffold_graph.add_node(or_id, telomere = tels_ends)    
+
+
+
+        for or_path_id in self.scaffold_graph.nodes():
+            print (f"checking node {or_path_id} {self.scaffold_graph.nodes[or_path_id]['telomere']}")
+            self.fill_outgoing(nodes_unscaffed, or_path_id)
+        '''
 
 #returns: dict {(start_id, end_id):[[start_pos1, end_pos1]]}. Coords not compressed!
 def get_connections(alignment_file, interesting_nodes):
@@ -317,28 +577,78 @@ def get_connections(alignment_file, interesting_nodes):
             res[(arr[2], arr[1])].append([int(arr[5]), int(arr[4])])  
     return res
 
-#return either -1  or 4 scores, ++, -+, +-, --,  - whether should be swapped. -1 - do not scaffold
-#lens not compressed
-def get_pair_orientation(pair, connections, lens, middle=2000000):
-    if not pair in connections:
-        return -1
-    scores = [0,0,0,0]
-    for conn in connections[pair]:
-        best = 0 # no swap
-        
-        #filter "middle" nodes
-        use_pair = False
-        if (conn[0] < middle or  lens[pair[0]] - conn[0] < middle) and (conn[1] < middle or lens[pair[1]] - conn[1] < middle):
-            use_pair = True
+#TODO: this should actually be paths pair and not node pair!
+#return scores for each of the orientations, ++, -+, +-, --,
 
+#orientation within the path, it is not changing!
+def get_pair_orientation(pair, orientations, connections, shift_before, shift_after, lens, middle):    
+    scores = {"++":0, "-+":0, "+-":0, "--":0, "middle":0}
+    for conn in connections[pair]:        
+        #filter "middle" nodes
+        near_ends = [False, False]
+        dists_to_end =[[0,0],[0,0]]
+        for i in range (0, 2):
+            fixed_coords = [conn[i], lens[pair[i]] - conn[i]]
+            if orientations[i] == "-":
+                fixed_coords.reverse()            
+            dists_to_end[i][0] = shift_before[i]
+            dists_to_end[i][1] = shift_after[i]
+            for j in range(0, 2):
+                dists_to_end[i][j] += fixed_coords[j]
+            for j in range (0, 2):
+                if (dists_to_end[i][j]< middle):
+                    near_ends[i] = True        
+        str = ""
         if conn[0] < lens[pair[0]] - conn[0]:
-            best += 1
+            str += "-"
+        else:
+            str += "+"
         if conn[1] > lens[pair[1]] - conn[1]:
-            best += 2
-        if use_pair:
-            scores[best] += 1
+            str += "-"
+        else:
+            str += "+"
+        if near_ends[0] and near_ends[1]:
+            scores[str] += 1
+        else:
+            scores["middle"] += 1
+    #print (f"scores for {pair} {scores} {orientations}")
+    #print (f"shifts {shift_before} {shift_after}")
     return scores
                 
+#TODO: this should actually be paths pair and not node pair!
+#return scores for each of the orientations, ++, -+, +-, --,
+def get_paths_connections(paths, connections, lens, middle=2000000, ignore_short = 50000):
+    #from start to occurance of node exclusive, do not care about multiplicity > 1 (possibly should filter)
+    length_before = [{}, {}]
+    total_len = [0, 0]
+    for i in range (0, 2):
+        for or_node in paths[i]:
+            length_before[i][or_node.strip('-+')] = total_len[i]
+            if or_node.strip('-+') in lens:
+                total_len[i] += lens[or_node.strip('-+')]
+    scores = {"++":0, "-+":0, "+-":0, "--":0, "middle":0}
+    for first in paths[0]:
+        nor_f = first.strip('-+')
+        if not (nor_f in lens) or lens[nor_f] < ignore_short:
+            continue
+        for second in paths[1]:
+            nor_s = second.strip('-+')
+            if not (nor_s in lens) or lens[nor_s] < ignore_short:
+                continue
+            pair = (nor_f, nor_s)
+            orientations = (first[-1], second[-1])
+            if not pair in connections:
+                continue
+            shift_before = []
+            shift_after = []
+            for i in range (0, 2):
+                shift_before.append(length_before[i][pair[i]])
+                shift_after.append(total_len[i] - shift_before[i] - lens[pair[i]])
+            scores_pair = get_pair_orientation(pair, orientations, connections, shift_before, shift_after, lens, middle)
+            for key in scores_pair:
+                scores[key] += scores_pair[key] 
+
+    return scores
 
 #return paths that are reachable from any of the rdna nodes and within length limits
 def get_same_component_paths(short_arm_path_ids, G, paths, min_path_len, max_path_len):
