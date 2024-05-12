@@ -211,15 +211,6 @@ def get_paths_to_scaff(paths, tel_nodes, dirG, long_enough=500000):
             print (f"will use path {paths.paths[id]} {tel_start} {tel_end}")
     return res
 
-# {node: path_id}
-def get_nodes_in_unscaffed(all_paths, to_scaff):
-    res = {}
-    for id in to_scaff.keys():
-        for node in all_paths.getPathById(id):
-#            if node in multiplicities and multiplicities[node] == 1 and G.nodes[node]['length'] > long_enough:
-            res[node] = id
-    return res
-
 def get_lengths(fasta_file):
     res = {}
     cur = ""
@@ -248,27 +239,66 @@ def isHomologous (match_graph, paths, ids):
         return False
 #TODO: or inherit from nx.Digraph??
 class ScaffoldGraph:
+
     def rc_orientation(self, c):
         if c == "+":
             return "-"
         if c == "-":
             return "+"
-        return c
+        return c    
+
+    def rc_path_id(self, path_id):
+        return path_id[:-1] + self.rc_orientation(path_id[-1])
+    
+    def getHaploidPaths(self):
+        haploids = set()
+        nodes_to_path_ids = {}        
+        for nor_path_id in self.rukki_paths.getPathIds():
+            for or_node in self.rukki_paths.getPathById(nor_path_id):
+                nor_node = or_node.strip("-+")
+                if not (nor_node in nodes_to_path_ids):
+                    nodes_to_path_ids[nor_node] = []
+                nodes_to_path_ids[nor_node].append(nor_path_id)
+        #possibly we'll need that graph but not now
+        #homGraph = nx.Graph()
+        for nor_path_id in self.rukki_paths.getPathIds():
+            #let's leave for the graph.
+            homs = {}
+            total_hom = 0
+            for or_node in self.rukki_paths.getPathById(nor_path_id):
+                nor_node = or_node.strip("-+")
+                if not (nor_node in self.matchGraph.nodes):
+                    continue
+                for next in self.matchGraph.neighbors(nor_node):
+                    if self.matchGraph.edges[nor_node, next]['weight'] < 0:
+                        if len (nodes_to_path_ids[next]) > 1:
+                            #soemthing weird, ignoring
+                            continue
+                        next_id = nodes_to_path_ids[next][0]
+                        if not (next_id in homs):
+                            homs[next_id] = 0
+                        homs[next_id] += self.matchGraph.edges[nor_node, next]['homology_len']
+                        total_hom += self.matchGraph.edges[nor_node, next]['homology_len']
+            path_len = self.rukki_paths.getLength(nor_path_id)
+            if total_hom * 2 < path_len:
+                haploids.add(nor_path_id)
+                if path_len > 2000000:
+                    print (f"Found haploid path {nor_path_id} with homology {total_hom} and len {path_len} ")
+        return haploids
     
     def __init__(self, rukki_paths, telomere_locations_file, hic_alignment_file, matches_file, G, uncompressed_fasta):
         self.multiplicities = get_multiplicities(rukki_paths)
         self.tel_nodes, self.upd_G = get_telomeric_nodes(telomere_locations_file, G)
-        to_scaff = get_paths_to_scaff(rukki_paths, self.tel_nodes, self.upd_G)   
-
+        self.to_scaff = get_paths_to_scaff(rukki_paths, self.tel_nodes, self.upd_G)   
+        self.hic_alignment_file = hic_alignment_file
         self.matchGraph = graph_functions.loadMatchGraph(matches_file, G, -239239239, 500000, 100000)
         self.uncompressed_lens = get_lengths(uncompressed_fasta)
         self.compressed_lens = {}
         for node in G.nodes:
             self.compressed_lens[node] = G.nodes[node]['length']      
- 
         self.rukki_paths = rukki_paths
         self.G = G
-
+        self.haploids = self.getHaploidPaths()
         self.scaffold_graph = nx.DiGraph()
 
         for id in rukki_paths.getPathIds():
@@ -276,19 +306,18 @@ class ScaffoldGraph:
                 or_id = id + dir
                 #TODO: what about shorter without  telomere
                 tels_ends = [True, True]
-                if id in to_scaff.keys():
+                if id in self.to_scaff.keys():
                     if dir == '+':
-                        tels_ends = to_scaff[id]
+                        tels_ends = self.to_scaff[id]
                     else:
-                        tels_ends = [to_scaff[id][1], to_scaff[id][0]]
+                        tels_ends = [self.to_scaff[id][1], self.to_scaff[id][0]]
                 self.scaffold_graph.add_node(or_id, telomere = tels_ends)    
-
         #possilby unefficient but whelp
         scores = {}
-        all_connections = get_connections(hic_alignment_file, G.nodes)
-        for from_path_id in rukki_paths.getPathIds():
+        all_connections = get_connections(self.hic_alignment_file, self.G.nodes)
+        for from_path_id in self.rukki_paths.getPathIds():
             scores[from_path_id] = {}
-            for to_path_id in rukki_paths.getPathIds():
+            for to_path_id in self.rukki_paths.getPathIds():
                 if to_path_id == from_path_id:
                     continue
                 path_pair = [rukki_paths.getPathById(from_path_id), rukki_paths.getPathById(to_path_id)]                
@@ -304,33 +333,100 @@ class ScaffoldGraph:
                     for to_dir in ('-', '+'):
                         or_from_path_id = from_path_id + from_dir
                         or_to_path_id = to_path_id + to_dir
-
                         self.scaffold_graph.add_edge(or_from_path_id, or_to_path_id, weight = scores[from_path_id][to_path_id][from_dir + to_dir])
-                if from_path_id in to_scaff and to_path_id in to_scaff:
+                if from_path_id in self.to_scaff and to_path_id in self.to_scaff:
                     print (f"Counted scores {from_path_id} {to_path_id} {scores[from_path_id][to_path_id]}")
-        for from_path_id in to_scaff:
+
+    def forbiddenPair(self, from_path_id, to_path_id):    
+        nor_from_path_id = from_path_id.strip('-+')
+        nor_to_path_id = to_path_id.strip('-+')
+        #Heterogametic chromosomes get more links since there is no homologous one to absorb multiple alignments, so no connection of diploid and long enough ahploids    
+        if nor_from_path_id in self.haploids and self.rukki_paths.getLength(nor_from_path_id) > 3000000 and not (nor_to_path_id in self.haploids):
+            return True
+        if nor_to_path_id in self.haploids and self.rukki_paths.getLength(nor_to_path_id) > 3000000 and not (nor_from_path_id in self.haploids):
+            return True
+        #relatively short fragments with telomere are special case, we may fail to detect orientation there but belive in telomere.
+        if self.rukki_paths.getLength(nor_to_path_id) <= 3000000 and self.scaffold_graph.nodes[to_path_id]['telomere'][0]:
+            return True
+        return False
+    
+    #Main logic is here!        
+    def findExtension(self, cur_path_id):
+        local_scores = []
+        print (f"Checking {cur_path_id}")
+        if self.scaffold_graph.nodes[cur_path_id]['telomere'][1]:
+            print (f"Stopped at the telomere")
+            return "NONE"
+        for next_node in self.scaffold_graph.successors(cur_path_id):
+            #specific hacks to avoid
+            local_scores.append([next_node, self.scaffold_graph.edges[cur_path_id, next_node]['weight']])            
+
+        local_scores.sort(key=lambda x: x[1], reverse=True)
+        best_ind = -1
+        second_best_ind = -1        
+        for i in range (0, len(local_scores)):
+            if not self.forbiddenPair(cur_path_id, local_scores[i][0]):
+                best_ind = i
+                break
+        for j in range (i+1, len(local_scores)):
+            if not self.forbiddenPair(cur_path_id, local_scores[j][0]):
+                second_best_ind = j
+                break
+        if len(local_scores) == 0:            
+            print (f"Nothing next")  
+            return "NONE"
+        elif local_scores[best_ind][1] <= 10:
+            print (f"very few links, best valid candidate {local_scores[best_ind]}")                 
+            return "NONE"
+        #not valid but waay best solution exists
+        elif len(local_scores) == 1:
+            print (f"Only next one, {local_scores[best_ind]}") 
+            return local_scores[best_ind][0]                       
+        elif local_scores[best_ind][1] <  local_scores[second_best_ind][1] * 1.5:
+            print (f"Not found next, first {local_scores[best_ind]}, second best {local_scores[second_best_ind]}")
+            return "NONE"
+        elif self.scaffold_graph.nodes[local_scores[best_ind][0]]['telomere'][0]:
+            print (f"Best {local_scores[best_ind]}, is good count but actually are in telomere!")            
+            return "NONE"
+        else:
+            print (f"Really best {local_scores[best_ind]}, second best {local_scores[second_best_ind]}")            
+            return local_scores[best_ind][0]
+        
+    def generateScaffolds(self):
+        res = []
+        #will grow to right these paths in length order 
+        starting_paths = []        
+        #to avoid outputing same path twice
+        nor_used_path_ids = set()
+        for from_path_id in self.to_scaff:
             for from_dir in ('-', '+'):
                 or_from_path_id = from_path_id + from_dir
-                #telomere on the end - not interested
-                if self.scaffold_graph.nodes[or_from_path_id]['telomere'][1] == True:
-                    continue
-                local_scores = []
-                for next_node in self.scaffold_graph.successors(or_from_path_id):
-                    local_scores.append([next_node, self.scaffold_graph.edges[or_from_path_id, next_node]['weight']])
-                print (f"Counting next from {or_from_path_id}")
-                local_scores.sort(key=lambda x: x[1], reverse=True)
-                if len(local_scores) == 0:
-                    print (f"Nothing next")  
-                elif local_scores[0][1] <= 10:
-                    print (f"very few links, best candidate {local_scores[0]}")                 
-                elif len(local_scores) == 1:
-                    print (f"Only next one, {local_scores[0]}")                
-                elif local_scores[0][1] <  local_scores[1][1] * 1.5:
-                    print (f"Not found next, first {local_scores[0]}, second best {local_scores[1]}")
-                elif self.scaffold_graph.nodes[local_scores[0][0]]['telomere'][0]:
-                    print (f"Best {local_scores[0]}, is good count but actually are in telomere!")
-                else:
-                    print (f"Really best {local_scores[0]}, second best {local_scores[1]}")
+                if not self.scaffold_graph.nodes[or_from_path_id]['telomere'][1]:
+                    starting_paths.append(or_from_path_id)
+
+        starting_paths.sort(key=lambda x: self.rukki_paths.getLength(x.strip('-+')), reverse=True)        
+        for or_from_path_id in starting_paths:
+            if or_from_path_id.strip('-+') in nor_used_path_ids:
+                continue            
+            cur_scaffold = [or_from_path_id]
+            cur_path_id = or_from_path_id            
+            nor_used_path_ids.add(or_from_path_id.strip('-+'))
+            while True:
+                next_path_id = self.findExtension(cur_path_id)
+                if next_path_id == "NONE":
+                    break
+                elif next_path_id.strip('-+') in nor_used_path_ids:
+                    print (f"Extention {next_path_id} looks good but already used")
+                    break
+                if self.rc_path_id(self.findExtension(self.rc_path_id(next_path_id))) != cur_path_id:
+                    print (f"backward check failed for {next_path_id}")
+                    break
+                print (f"Extending {cur_path_id} with {next_path_id}")
+                cur_scaffold.append(next_path_id)
+                nor_used_path_ids.add(next_path_id.strip('-+'))
+                cur_path_id = next_path_id
+            res.append(cur_scaffold)
+        return res
 
 #returns: dict {(start_id, end_id):[[start_pos1, end_pos1]]}. Coords not compressed!
 def get_connections(alignment_file, interesting_nodes):
