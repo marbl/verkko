@@ -33,25 +33,15 @@ else:
 
 name = ""
 names = [ ]
-seen = {}
-out_of_order = 0
 
 for line in input_stream:
    line=line.split()
    if name == "":
       name = line[0]
    if name != line[0]:
-      seen[name] = 1
       print_results(names)
       name = line[0]
       names = [ ]
-   if name in seen:
-      print("Warning: read %s already seen but encountered it again, please confirm your bam file is sorted by read."%(name), file=sys.stderr)
-      out_of_order += 1
    names.append("%s\t%s"%(line[0], line[2]))
-
-if out_of_order > 1000:
-   print("Error: encountered too many unsorted reads (%d), exiting. Please confirm the input bam is sorted by read."%(out_of_order), file=sys.stderr)
-   sys.exit(1)
 
 print_results(names)

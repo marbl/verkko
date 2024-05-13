@@ -386,8 +386,8 @@ rule transformBWA:
 cd 8-hicPipeline
 
 cat > ./transform_bwa.sh <<EOF
-#!/bin/sh
-set -e
+#!/usr/bin/env bash
+set -e -o pipefail
 {params.SAMTOOLS} view -q 1 ../{input.bwa_mapping} | {PYTHON} {VERKKO}/scripts/parse_sam_pairs.py  > ../{output.byread_mapping}
 EOF
 
