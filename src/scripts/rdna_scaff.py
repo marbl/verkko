@@ -52,13 +52,12 @@ hicverkko_log = os.path.join(hicrun_dir, "hicverkko.log")
 G = nx.DiGraph()
 gf.load_direct_graph(gfa_file, G)
 indirectG = nx.Graph()
-rukki_paths = sf.read_rukki_paths(scaff_rukki_tsv_file, G)
+rukki_paths = sf.read_rukki_paths(old_rukki_tsv_file, G)
 gf.load_indirect_graph(gfa_file, indirectG)
 #sf.try_to_scaff(rukki_paths, telomere_locations_file, os.path.join(hicrun_dir, "hic_mapping.byread.output"), os.path.join(hicrun_dir, "unitigs.matches"), G, indirectG, uncompressed_nodes)
-sg = sf.ScaffoldGraph(rukki_paths, telomere_locations_file, os.path.join(hicrun_dir, "hic_mapping.byread.output"), os.path.join(hicrun_dir, "mashmap50.out"), G, uncompressed_nodes)
+sg = sf.ScaffoldGraph(rukki_paths, telomere_locations_file, os.path.join(hicrun_dir, "hic_mapping.byread.output"), os.path.join(hicrun_dir, "mashmap_nonhpc50.out"), G, uncompressed_nodes)
 res = sg.generateScaffolds()
-for sc in res:
-    print (f"scaffold {sc}")
+
 exit()
 
 #read graph

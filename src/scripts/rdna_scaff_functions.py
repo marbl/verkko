@@ -296,8 +296,12 @@ class ScaffoldGraph:
         self.compressed_lens = {}
         for node in G.nodes:
             self.compressed_lens[node] = G.nodes[node]['length']      
+            self.compressed_lens[node.strip("-+")] = G.nodes[node]['length']      
+
         self.rukki_paths = rukki_paths
         self.G = G
+        self.dists = dict(nx.all_pairs_dijkstra_path_length(G, weight=lambda u, v, d: G.edges[u, v]['mid_length']))
+
         self.haploids = self.getHaploidPaths()
         self.scaffold_graph = nx.DiGraph()
 
@@ -314,15 +318,14 @@ class ScaffoldGraph:
                 self.scaffold_graph.add_node(or_id, telomere = tels_ends)    
         #possilby unefficient but whelp
         scores = {}
-        all_connections = get_connections(self.hic_alignment_file, self.G.nodes)
+        all_connections = self.get_connections(self.hic_alignment_file)
         for from_path_id in self.rukki_paths.getPathIds():
             scores[from_path_id] = {}
             for to_path_id in self.rukki_paths.getPathIds():
                 if to_path_id == from_path_id:
-                    continue
-                path_pair = [rukki_paths.getPathById(from_path_id), rukki_paths.getPathById(to_path_id)]                
-                scores[from_path_id][to_path_id] = getPathPairConnections(path_pair, all_connections, self.uncompressed_lens)
-               
+                    continue               
+                scores[from_path_id][to_path_id] = self.getPathPairConnections([from_path_id, to_path_id], all_connections, self.uncompressed_lens)
+                
         for from_path_id in rukki_paths.getPathIds():
             for to_path_id in rukki_paths.getPathIds():       
                 if to_path_id == from_path_id:
@@ -348,6 +351,7 @@ class ScaffoldGraph:
         #relatively short fragments with telomere are special case, we may fail to detect orientation there but belive in telomere.
         if self.rukki_paths.getLength(nor_to_path_id) <= 3000000 and self.scaffold_graph.nodes[to_path_id]['telomere'][0]:
             return True
+        
         return False
     
     #Main logic is here!        
@@ -395,16 +399,24 @@ class ScaffoldGraph:
     def generateScaffolds(self):
         res = []
         #will grow to right these paths in length order 
-        starting_paths = []        
+        tel_starting_paths = []        
+        middle_paths = []
         #to avoid outputing same path twice
         nor_used_path_ids = set()
         for from_path_id in self.to_scaff:
             for from_dir in ('-', '+'):
                 or_from_path_id = from_path_id + from_dir
                 if not self.scaffold_graph.nodes[or_from_path_id]['telomere'][1]:
-                    starting_paths.append(or_from_path_id)
+                    if self.scaffold_graph.nodes[or_from_path_id]['telomere'][0]:
+                        tel_starting_paths.append(or_from_path_id)
+                    else:
+                        middle_paths.append(or_from_path_id)        
 
-        starting_paths.sort(key=lambda x: self.rukki_paths.getLength(x.strip('-+')), reverse=True)        
+        tel_starting_paths.sort(key=lambda x: self.rukki_paths.getLength(x.strip('-+')), reverse=True)        
+        middle_paths.sort(key=lambda x: self.rukki_paths.getLength(x.strip('-+')), reverse=True)
+        starting_paths = tel_starting_paths + middle_paths
+        print ("Starting paths")
+        print (starting_paths)
         for or_from_path_id in starting_paths:
             if or_from_path_id.strip('-+') in nor_used_path_ids:
                 continue            
@@ -425,19 +437,16 @@ class ScaffoldGraph:
                 cur_scaffold.append(next_path_id)
                 nor_used_path_ids.add(next_path_id.strip('-+'))
                 cur_path_id = next_path_id
+            print (f"scaffold {cur_scaffold} \n")
             res.append(cur_scaffold)
         return res
 
-#returns: dict {(start_id, end_id):[[start_pos1, end_pos1]]}. Coords not compressed!
-def get_connections(alignment_file, interesting_nodes):
-    res = {}
-    undirected_interesting = {}
-    for node in interesting_nodes:
-        undirected_interesting[node[:-1]] = interesting_nodes[node]
-    #A01660:39:HNYM7DSX3:1:1101:1696:29982   utig4-73        utig4-1056      1       16949880        78591191
-    for line in open (alignment_file):
-        arr = line.split()
-        if arr[1] in undirected_interesting and arr[2] in undirected_interesting:
+    #returns: dict {(start_id, end_id):[[start_pos1, end_pos1]]}. Coords not compressed!
+    def get_connections(self, alignment_file):
+        res = {}
+        #A01660:39:HNYM7DSX3:1:1101:1696:29982   utig4-73        utig4-1056      1       16949880        78591191
+        for line in open (alignment_file):
+            arr = line.split()
             if not (arr[1], arr[2]) in res:
                 res[(arr[1], arr[2])] = []
 #            print (arr[1], arr[2])
@@ -447,78 +456,220 @@ def get_connections(alignment_file, interesting_nodes):
             if not (arr[2], arr[1]) in res:
                 res[(arr[2], arr[1])] = []
             res[(arr[2], arr[1])].append([int(arr[5]), int(arr[4])])  
-    return res
+        return res
 
-#return scores for each of the orientations, ++, -+, +-, --,
-#orientation within the path, it is not changing!
-def getNodePairConnections(pair, orientations, connections, shift_before, shift_after, lens, middle):    
-    scores = {"++":0, "-+":0, "+-":0, "--":0, "middle":0}
-    for conn in connections[pair]:        
-        #filter "middle" nodes
-        near_ends = [False, False]
-        dists_to_end =[[0,0],[0,0]]
-        for i in range (0, 2):
-            fixed_coords = [conn[i], lens[pair[i]] - conn[i]]
-            if orientations[i] == "-":
-                fixed_coords.reverse()            
-            dists_to_end[i][0] = shift_before[i]
-            dists_to_end[i][1] = shift_after[i]
-            for j in range(0, 2):
-                dists_to_end[i][j] += fixed_coords[j]
-            for j in range (0, 2):
-                if (dists_to_end[i][j]< middle):
-                    near_ends[i] = True        
-        str = ""
-        if conn[0] < lens[pair[0]] - conn[0]:
-            str += "-"
+    #return scores for each of the orientations, ++, -+, +-, --,
+    #orientation within the path, it is not changing!
+    def getNodePairConnections(self, pair, orientations, connections, shift_before, shift_after, lens, middle):    
+        #This is scores for PATH orientation
+        scores = {"++":0, "-+":0, "+-":0, "--":0, "middle":0}    
+        #pair = ("utig4-1799", "utig4-1957")    
+#        print (self.matchGraph.edges[pair[0], pair[1]]['homology_len'])
+#        print (self.matchGraph.edges[pair[0], pair[1]]['intervals'])
+#        exit (0)
+        filtered = 0
+        not_filtered = 0
+        if self.matchGraph.has_edge(pair[0], pair[1]):
+            intervals = self.matchGraph.edges[pair[0], pair[1]]['intervals']
         else:
-            str += "+"
-        if conn[1] > lens[pair[1]] - conn[1]:
-            str += "-"
-        else:
-            str += "+"
-        if near_ends[0] and near_ends[1]:
-            scores[str] += 1
-        else:
-            scores["middle"] += 1
-    #print (f"scores for {pair} {scores} {orientations}")
-    #print (f"shifts {shift_before} {shift_after}")
-    return scores
-                
-#TODO: this should actually be paths pair and not node pair!
-#return scores for each of the orientations, ++, -+, +-, --,
-def getPathPairConnections(paths, connections, lens, middle=2000000, ignore_short = 50000):
-    #from start to occurance of node exclusive, do not care about multiplicity > 1 (possibly should filter)
-    length_before = [{}, {}]
-    total_len = [0, 0]
-    for i in range (0, 2):
-        for or_node in paths[i]:
-            length_before[i][or_node.strip('-+')] = total_len[i]
-            if or_node.strip('-+') in lens:
-                total_len[i] += lens[or_node.strip('-+')]
-    scores = {"++":0, "-+":0, "+-":0, "--":0, "middle":0}
-    for first in paths[0]:
-        nor_f = first.strip('-+')
-        if not (nor_f in lens) or lens[nor_f] < ignore_short:
-            continue
-        for second in paths[1]:
-            nor_s = second.strip('-+')
-            if not (nor_s in lens) or lens[nor_s] < ignore_short:
+            intervals = [[],[]]
+        #print (intervals)
+        for conn in connections[pair]:        
+            #filter "middle" nodes
+            in_homo = False
+            for i in range (0, len(intervals[0])):
+                local_homo = True
+                for j in range (0, 2):
+                    if conn[j] <  intervals[j][i][0] or conn[j] > intervals[j][i][1]:
+                        local_homo = False
+                if not local_homo:
+                    in_homo = True
+                    break
+            if in_homo:
+                filtered+= 1
                 continue
-            pair = (nor_f, nor_s)
-            orientations = (first[-1], second[-1])
-            if not pair in connections:
-                continue
-            shift_before = []
-            shift_after = []
+            else:
+                not_filtered += 1
+
+            near_ends = [False, False]            
+            dists_to_end =[[0,0],[0,0]]
             for i in range (0, 2):
-                shift_before.append(length_before[i][pair[i]])
-                shift_after.append(total_len[i] - shift_before[i] - lens[pair[i]])
-            scores_pair = getNodePairConnections(pair, orientations, connections, shift_before, shift_after, lens, middle)
-            for key in scores_pair:
-                scores[key] += scores_pair[key] 
+                fixed_coords = [conn[i], lens[pair[i]] - conn[i]]
+                if orientations[i] == "-":
+                    fixed_coords.reverse()            
+                dists_to_end[i][0] = shift_before[i]
+                dists_to_end[i][1] = shift_after[i]
+                for j in range(0, 2):
+                    dists_to_end[i][j] += fixed_coords[j]
+                for j in range (0, 2):
+                    if (dists_to_end[i][j]< middle):
+                        near_ends[i] = True        
+            str = ""
+            if dists_to_end[0][0] < dists_to_end[0][1]:
+                str += "-"
+            else:
+                str += "+"
+            if dists_to_end[1][0] > dists_to_end[1][1]:
+                str += "-"
+            else:
+                str += "+"
+            if near_ends[0] and near_ends[1]:
+                scores[str] += 1
+            else:
+                scores["middle"] += 1
+        print (f"scores for {pair} {scores} {orientations}")
+        print (f"shifts {shift_before} {shift_after}")
+        print (f" {intervals}")
+        print (f" {pair} filtered/not_filtered {filtered} {not_filtered}")
+        #exit(0)
+        return scores
+    
+    #TODO: move to matchGraph
+    def homologousOrNodes (self, or_node):
+        nor_node = or_node.strip("-+")
+        if not nor_node in self.matchGraph.nodes:
+            return set()
+        orient = or_node[-1]
+        res = set()
+        for hom_node in self.matchGraph.neighbors(nor_node):
+            if self.matchGraph.edges[nor_node, hom_node]['weight'] < 0:
+                if self.matchGraph.edges[nor_node, hom_node]['orientation'] == '+':
+                    res.add(hom_node + orient)
+                else:
+                    res.add (hom_node+ self.rc_orientation(orient))
+        return res
+    
+    def fixOrientation(self, path_ids, scores):
+        #orientation for telomere-containing short contigs is fixed, but because of filtering (i.e. distal bits) read counts can be misleading
+        #first element should _not_ swapped for telomere on the left, second should.
+        correct_orientations="+-"
+        #path_ids = ["haplotype2_unused_utig4-1963", "haplotype2_unused_utig4-465"]
+        total_score = 0
+        for i in ('-', '+'):
+            for j in ('-', '+'):
+                total_score += scores[i+j]
+        if total_score > 0:
+            for i in range (0, 2):
+                #Do we need length check here at all?
+                if self.rukki_paths.getLength(path_ids[i]) <= 30000000:
+                    if self.scaffold_graph.nodes[path_ids[i]+"+"]['telomere'][0] and not self.scaffold_graph.nodes[path_ids[i]+"+"]['telomere'][1]:
+                        correct_or = correct_orientations[i]
+                    elif self.scaffold_graph.nodes[path_ids[i]+"+"]['telomere'][1] and not self.scaffold_graph.nodes[path_ids[i]+"+"]['telomere'][0]:
+                        correct_or = self.rc_orientation(correct_orientations[i])
+                    else:
+                        #connectivity check
 
-    return scores
+                        #alternative path node set, all orientations
+                        alt_nodes = set()
+                        for node in self.rukki_paths.getEdgeSequenceById(path_ids[1 - i]):
+                            for orient in ('-', '+'):       
+                                if not node+orient in self.G.nodes:
+                                    continue                         
+                                alt_nodes.add(node + orient)
+                                #there can be gap in one of the haplotypes, so using oriented nodes  
+                                for hom_node in self.homologousOrNodes(node + orient):
+                                    alt_nodes.add(hom_node)
+                        check_nodes = {'-':set(), '+':set()}
+                        for node in self.rukki_paths.getPathById(path_ids[i]):
+                            #current_node orientation
+                            if not node in self.G.nodes:
+                                continue
+                            for node_orient in ('-', '+'): 
+                            #different orientations of the PATH!                                    
+                                if node_orient == node[-1]:                                    
+                                    #no rc to path!
+                                    path_orient = "+"
+                                else:
+                                    path_orient = "-"
+                                to_check = node.strip("-+") + node_orient
+                                check_nodes[path_orient].add(to_check)
+                                #again, to work with gaps    
+                                for hom_node in self.homologousOrNodes(to_check):
+                                    check_nodes[path_orient].add(hom_node)
+
+                        print (f" path_pair {path_ids} counting dists") 
+                        shortest_paths = {'-':1000000000, '+':1000000000}
+                        for orient in ('-', '+'):
+                            for alt_node in alt_nodes:
+                                for check_node in check_nodes[orient]:
+                                    check_dist = 1000000000
+                                    if i == 0 and alt_node in self.dists[check_node]:
+                                        check_dist = self.dists[check_node][alt_node] 
+                                    elif i == 1 and check_node in self.dists[alt_node]: 
+                                        check_dist = self.dists[alt_node][check_node]
+                                    if check_dist == 1000000000:
+                                        continue
+                                #distance is between centers of the nodes, G is compressed:(
+                                    tuned_dist = (check_dist - self.compressed_lens[check_node.strip('-+')] - self.compressed_lens[alt_node.strip('-+')])/ 2
+                                    #print (f"Pairlens: {alt_node}  {check_node} {i} {check_dist} {self.compressed_lens[check_node.strip('-+')]} {self.compressed_lens[alt_node.strip('-+')]} {tuned_dist}")
+
+                                    check_dist = tuned_dist
+                                    if check_dist < shortest_paths[orient]:
+                                        shortest_paths[orient] = check_dist
+                        print (f" path_pair {path_ids} swapping {i} shortest paths {shortest_paths}")
+                        #One orientation is close in graph, second is not
+                        min_cutoff = min(500000, self.rukki_paths.getLength(path_ids[i]) / 4)                        
+                        max_cutoff = self.rukki_paths.getLength(path_ids[i]) * 3 / 4
+                        if shortest_paths['-'] < min_cutoff and shortest_paths['+'] > max_cutoff:
+                            correct_or = "-"    
+                        elif shortest_paths['+'] < min_cutoff / 4 and shortest_paths['-'] > max_cutoff:
+                            correct_or = "+"
+                        else:
+                            correct_or = ""
+                    if correct_or != "":            
+                        pair_or = ["",""]
+                        pair_or[i] = correct_or
+                        
+                        print (f"tuning pair {path_ids}, i {i} scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}")                    
+                        for second_or in ('-', '+'):
+                            correct_pair = pair_or.copy()                       
+                            correct_pair[1 - i] = second_or
+                            incorrect_pair = correct_pair.copy()
+                            incorrect_pair[i] = self.rc_orientation(correct_or)
+                            correct_pair = "".join(correct_pair)
+                            incorrect_pair = "".join(incorrect_pair)
+                            print (f"moving {incorrect_pair} to {correct_pair}")
+                            scores[correct_pair] += scores[incorrect_pair]
+                            scores[incorrect_pair] = 0
+                        print (f"tuned pair {path_ids}, scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}")                    
+        
+        return scores
+    
+    #TODO: this should actually be paths pair and not node pair!
+    #return scores for each of the orientations, ++, -+, +-, --,
+    def getPathPairConnections(self, path_ids, connections, lens, middle=5000000, ignore_short = 50000):
+        #from start to occurance of node exclusive, do not care about multiplicity > 1 (possibly should filter)
+        length_before = [{}, {}]
+        total_len = [0, 0]
+        paths = [self.rukki_paths.getPathById(path_ids[0]), self.rukki_paths.getPathById(path_ids[1])]
+        for i in range (0, 2):
+            for or_node in paths[i]:
+                length_before[i][or_node.strip('-+')] = total_len[i]
+                if or_node.strip('-+') in lens:
+                    total_len[i] += lens[or_node.strip('-+')]
+        scores = {"++":0, "-+":0, "+-":0, "--":0, "middle":0}
+        for first in paths[0]:
+            nor_f = first.strip('-+')
+            if not (nor_f in lens) or lens[nor_f] < ignore_short:
+                continue
+            for second in paths[1]:
+                nor_s = second.strip('-+')
+                if not (nor_s in lens) or lens[nor_s] < ignore_short:
+                    continue
+                pair = (nor_f, nor_s)
+                orientations = (first[-1], second[-1])
+                if not pair in connections:
+                    continue
+                shift_before = []
+                shift_after = []
+                for i in range (0, 2):
+                    shift_before.append(length_before[i][pair[i]])
+                    shift_after.append(total_len[i] - shift_before[i] - lens[pair[i]])
+                scores_pair = self.getNodePairConnections(pair, orientations, connections, shift_before, shift_after, lens, middle)
+                for key in scores_pair:
+                    scores[key] += scores_pair[key] 
+        scores = self.fixOrientation(path_ids, scores)
+        return scores
 
 #return paths that are reachable from any of the rdna nodes and within length limits
 def get_same_component_paths(short_arm_path_ids, G, paths, min_path_len, max_path_len):
@@ -591,7 +742,6 @@ def get_arm_paths_ids(telomere_locations_file, old_G, paths, rdna_nodes, min_pat
 #                print (id + " in telomeres check")
 #                close_telo = True
 #oriented ones, so telnodes
-            
             for tels in aux_tel_nodes:
                 if start == 0:
                     order = [tels, pathend]

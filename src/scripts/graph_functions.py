@@ -199,10 +199,32 @@ class HomologyInfo:
         #two lists for each nodes, each list constains [st_i, 1] and [end_i, -11]
         self.intervals = [[],[]]
 
-    def addInterval(self, intervals):
+        #orientation defined as orientation of the largest match
+        self.largest_interval = 0
+        self.orientation = ""
+
+        #TODO: should be used for homology check in scaffolding, with specific IDY cutoff and not sorted
+        self.filtered_intervals = [[],[]]        
+
+    def parseIDY(self, idy):
+        return float(idy.split(":")[2])
+    
+    def addInterval(self, intervals, orientation, idy):
+        real_idy = self.parseIDY(idy)
+        #Constant not depending on genome, intervals too similar for hi-c alignment to use
+        if real_idy > 0.995:
+            for i in range(0, 2):
+                self.filtered_intervals[i].append(intervals[i])
+
+        #do we need to check here bad matches?
         for i in range(0, 2):
             self.intervals[i].append([intervals[i][0],1])
             self.intervals[i].append([intervals[i][1],-1])
+                
+        int_len = min(intervals[0][1] - intervals[0][0], intervals[1][1] - intervals[1][0])
+        if self.largest_interval < int_len:
+            self.largest_interval = int_len
+            self.orientation = orientation
 
     def fillCoverage(self):
         for i in range(0, 2):
@@ -219,7 +241,6 @@ class HomologyInfo:
     
     def getMinCovered(self):
 #in weird case matches can be larger than seq, avoiding
-
         return min(self.covered[0], self.covered[1], self.len[0], self.len[1])
     
     def getMinLength(self):
@@ -231,18 +252,23 @@ class HomologyStorage:
         self.homologies = {}
 
 #do we want to add other direction of pair?
-    def addHomology(self, node1, node2, len1, len2, intervals):
+    def addHomology(self, node1, node2, len1, len2, intervals, orientation, idy):
         if not node1 in self.homologies:
             self.homologies[node1] = {}
         if not node2 in self.homologies[node1]:
             self.homologies[node1][node2] = HomologyInfo(node1, node2, len1, len2)
-        self.homologies[node1][node2].addInterval(intervals)
+        self.homologies[node1][node2].addInterval(intervals, orientation, idy)
     
     def fillCoverage(self):
         for node1 in self.homologies:
             for node2 in self.homologies[node1]:    
                 self.homologies[node1][node2].fillCoverage()
 
+    def isValid(self, node1, node2):
+        if node1 in self.homologies and node2 in self.homologies[node1]:
+            return True
+        else:
+            return False
 
 # homology_weight - large negative something, min_big_homology - minimal length of homology to be taken in account. 
 # Some shorter ones can still sometimes be used if they are in regular bulge_like structure
@@ -266,7 +292,7 @@ def loadMatchGraph(mashmap_sim, G, homology_weight, min_big_homology, min_alignm
             continue
         used_lines +=1
         #utig4-0 2145330 0       990000  +       utig4-0 2145330 12      994065  37      994053  51      id:f:0.999992   kc:f:0.874893
-        hom_storage.addHomology(arr[0], arr[5], int(arr[1]), int(arr[6]), [[int(arr[2]), int(arr[3])], [int(arr[7]), int(arr[8])]])
+        hom_storage.addHomology(arr[0], arr[5], int(arr[1]), int(arr[6]), [[int(arr[2]), int(arr[3])], [int(arr[7]), int(arr[8])]], arr[4], arr[12])
     sys.stderr.write(f"Loaded {used_lines} out of {total_lines} mashmap lines\n")
     hom_storage.fillCoverage()
 
@@ -280,7 +306,6 @@ def loadMatchGraph(mashmap_sim, G, homology_weight, min_big_homology, min_alignm
     for edge in G.edges():
         for i in range(0, 2):
             neighbours[edge[i].strip('-+')].add(edge[1 - i].strip('-+'))    
-
     for node1 in hom_storage.homologies:
         for node2 in hom_storage.homologies[node1]:
             #we deleted some nodes after mashmap
@@ -306,7 +331,9 @@ def loadMatchGraph(mashmap_sim, G, homology_weight, min_big_homology, min_alignm
         # Consecutive edges are used to check but never assigned to be homologous
     for ec in matchGraph.edges():
         clear_best_match = False
-        if (not G.has_edge(ec[0], ec[1])):
+        #homology storage may be asymetric, mashmap do not guararntee anything        
+        #possibly should forcely symmetrize... 
+        if hom_storage.isValid(ec[0], ec[1]) and (not G.has_edge(ec[0], ec[1])):
             for i in range (0, 2):
                 best_homology = True
                 best_len = matchGraph.edges[ec]['homology_len']
@@ -315,10 +342,12 @@ def loadMatchGraph(mashmap_sim, G, homology_weight, min_big_homology, min_alignm
                         best_homology = False
                 clear_best_match = clear_best_match or best_homology
             if clear_best_match:
-                matchGraph.add_edge(ec[0], ec[1], weight = homology_weight, homology_len = best_len)
+                matchGraph.add_edge(ec[0], ec[1], weight = homology_weight, homology_len = best_len, intervals = hom_storage.homologies[ec[0]][ec[1]].filtered_intervals, 
+                                    orientation = hom_storage.homologies[ec[0]][ec[1]].orientation)
             else:
         #not really look like homologous node pair but still suspicious, lets just wipe the hi-c links but not prioritize splitting them to different partitions.                                
-                matchGraph.add_edge(ec[0], ec[1], weight=0, homology_len = best_len)
+                matchGraph.add_edge(ec[0], ec[1], weight = 0, homology_len = best_len, intervals = hom_storage.homologies[ec[0]][ec[1]].filtered_intervals,
+                                    orientation = hom_storage.homologies[ec[0]][ec[1]].orientation)
         else:
             matchGraph.remove_edge(ec[0],ec[1])
 
