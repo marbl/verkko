@@ -15,7 +15,7 @@ def print_results(names):
          if (i_split[1] < j_split[1]):
             print (f"{i_split[0]}\t{i_split[1]}\t{j_split[1]}\t1\t{i_split[2]}\t{j_split[2]}")
          elif (i_split[1] > j_split[1]):
-            print (f"{i_split[0]}\t{j_split[1]}\t{i_split[1]}\t1\t{j_split[2]}\t{j_split[2]}")
+            print (f"{i_split[0]}\t{j_split[1]}\t{i_split[1]}\t1\t{j_split[2]}\t{i_split[2]}")
          # if they are equal we don't want to print anything, not informative 
 
 if not sys.stdin.isatty():
