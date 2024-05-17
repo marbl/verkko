@@ -315,7 +315,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
         total_l = 0
         for n in current_component:
             total_l += G.nodes[n]['length']
-        if total_l > 1000000 and not graph_functions.isDiploid(matchGraph, G, current_component):
+        if total_l > 1000000 and not matchGraph.isDiploid(current_component):
             logging_f.write(f"Component is not diploid!\n")
             
 
