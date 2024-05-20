@@ -304,7 +304,7 @@ cat > ./align_bwa{wildcards.nnnn}.sh <<EOF
 set -e -o pipefail
 if [ {params.withporec} = "False" ] ; then
    echo "---Mapping {input.hic1} and {input.hic2} to {input.unitigs} with BWA"
-   {params.BWA} mem -t {threads} -5 -S -P ../{input.unitigs} ../{input.hic1} ../{input.hic2} | {params.SAMTOOLS} view -bh -@ {threads} -q 1 -F 0x900 - | {params.SAMTOOLS} sort -n -@ {threads} - -o ../{output.bwa_mapping}
+   {params.BWA} mem -t {threads} -5 -S -P ../{input.unitigs} ../{input.hic1} ../{input.hic2} | {params.SAMTOOLS} view -bh -@ {threads} -F 0x900 - | {params.SAMTOOLS} sort -n -@ {threads} - -o ../{output.bwa_mapping}
 else
    echo "--Mapping {input.hic1} to {input.unitigs} with minimap2"
    mem=\`expr {resources.mem_gb} \/ {threads} | awk '{{print \$1"G"}}' \`
@@ -370,6 +370,8 @@ rule transformBWA:
         bwa_mapping = '8-hicPipeline/hic_to_assembly.sorted_by_read.bam'
     output:
         byread_mapping = '8-hicPipeline/hic_mapping.byread.output'
+        byread_mapping_all = '8-hicPipeline/hic_mapping_all.byread.output'
+
     log:
         err    = '8-hicPipeline/transform_bwa.err'
     params:
@@ -389,6 +391,8 @@ cat > ./transform_bwa.sh <<EOF
 #!/usr/bin/env bash
 set -e -o pipefail
 {params.SAMTOOLS} view -q 1 ../{input.bwa_mapping} | {PYTHON} {VERKKO}/scripts/parse_sam_pairs.py  > ../{output.byread_mapping}
+{params.SAMTOOLS} view ../{input.bwa_mapping} | {PYTHON} {VERKKO}/scripts/parse_sam_pairs.py  > ../{output.byread_mapping_all}
+
 EOF
 
 chmod +x ./transform_bwa.sh
