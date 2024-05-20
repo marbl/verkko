@@ -6,6 +6,7 @@ import os
 import graph_functions
 import copy
 from networkx.algorithms import community
+from scaffolding import match_graph, logger_wrap
 
 def check_non_empty(part, G):
     for p in part:
@@ -195,6 +196,8 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
 
     MAX_RDNA_COMPONENT = 10000000 # maximal size of rDNA component, used for filtering out rDNA cluster only
     MIN_RDNA_COMPONENT = 500000 
+    logger = logger_wrap.initLogger("phasing.log")
+
     # load the assembly gfa
     G = nx.Graph()
     logging_f = open (os.path.join(output_dir, LOGGING_FILENAME), 'w')
@@ -292,7 +295,11 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
 
     #Adding link between matched edges to include separated sequence to main component
 
-    matchGraph = graph_functions.loadMatchGraph(mashmap_sim, G, -10*FIXED_WEIGHT, CLEAR_HOMOLOGY, MIN_ALIGNMENT)
+    #TODO: only one of those should be used
+    mg = match_graph.MatchGraph(mashmap_sim, G, -10*FIXED_WEIGHT, CLEAR_HOMOLOGY, MIN_ALIGNMENT, logger)
+    matchGraph = mg.getMatchGraph()
+    
+#    matchGraph = graph_functions.loadMatchGraph(mashmap_sim, G, -10*FIXED_WEIGHT, CLEAR_HOMOLOGY, MIN_ALIGNMENT)
     component_colors = graph_functions.getComponentColors(G)
 
 #reconnecting homologous nodes
@@ -319,7 +326,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
         total_l = 0
         for n in current_component:
             total_l += G.nodes[n]['length']
-        if total_l > 1000000 and not matchGraph.isDiploid(current_component):
+        if total_l > 1000000 and not mg.isDiploid(current_component):
             logging_f.write(f"Component is not diploid!\n")
             
 
