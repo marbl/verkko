@@ -251,7 +251,13 @@ class ScaffoldGraph:
             if len(scf) > 1:
                 total_scf += 1
             total_jumps += len(scf) - 1
+            largest_label = "NA"
+            largest_len = 0
             for or_path_id in scf:
+                nor_path_id = or_path_id.strip('-+')
+                if self.rukki_paths.getLength(nor_path_id) > largest_len and self.rukki_paths.getLabel(nor_path_id) != "NA":
+                    largest_len = self.rukki_paths.getLength(nor_path_id)
+                    largest_label = or_path_id
                 if or_path_id[-1] == "+":
                     scf_path.extend(self.rukki_paths.getPathById(or_path_id.strip('-+')))
                 else:
