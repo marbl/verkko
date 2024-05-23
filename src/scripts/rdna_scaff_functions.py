@@ -20,6 +20,7 @@ class pathStorage:
         self.paths = {}
         #ignoring overlaps but who cares
         self.path_lengths = {}
+        self.hap_labels = {}
 
     def getPathById(self, path_id):
         return self.paths[path_id]
@@ -38,6 +39,7 @@ class pathStorage:
             if edge[0] != "N":
                 res.append(edge[:-1])
         return res
+    
     def getPathString(self, path_id):
         return ",".join(self.paths[path_id])
 
@@ -49,6 +51,7 @@ class pathStorage:
             exit()
         separators = ">|<|,"
         edges = re.split(separators, arr[1])
+        self.hap_labels[arr[0]] = arr[2]
         total_l = 0
         for edge in edges:
             node = edge
@@ -67,6 +70,9 @@ class pathStorage:
                 total_l += G.nodes[node]['length']
         self.paths[id] = path
         self.path_lengths[id] = total_l
+    
+    def getLabel(self, path_id):
+        return self.hap_labels[path_id]
     
 #Actyally should be processed the same way as telos, with fake nodes of zero length
 #This will reduce code duplication and will allow to use "one-sided" rdna nodes that may be useful
