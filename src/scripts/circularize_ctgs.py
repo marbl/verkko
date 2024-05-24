@@ -22,7 +22,7 @@ else:
     i_handle = sys.stdin
 
 penalty = args.penalty
-flank = args.flank
+flank_percent = args.flank
 
 print('Mismatch/indel penalty', penalty, file=sys.stderr)
 print('Using Parasail', file=sys.stderr)
@@ -64,7 +64,7 @@ if args.contigs:
 records = []
 for n in contig_dict:
     print('=======================================', file=sys.stderr)
-    flank = int(len(contig_dict[n]) * flank)
+    flank = int(len(contig_dict[n]) * flank_percent)
     print('Processing', n, 'with flank set to', flank, 'and length', len(contig_dict[n]), file=sys.stderr)
     seq = make_sequence(contig_dict[n])
     records.append(SeqRecord(seq, id=n, description=''))
