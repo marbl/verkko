@@ -283,13 +283,11 @@ class ScaffoldGraph:
         for line in open (alignment_file):
             arr = line.split()
 
-            #TODO: just bug, should be removed
-            if int(arr[5]) == int(arr[4]):
-                continue
             if not (arr[1], arr[2]) in res:
                 res[(arr[1], arr[2])] = []
             next = [int(arr[4]), int(arr[5])]
             res[(arr[1], arr[2])].append(next)
+
             if not (arr[2], arr[1]) in res:
                 res[(arr[2], arr[1])] = []
             res[(arr[2], arr[1])].append([int(arr[5]), int(arr[4])])  
