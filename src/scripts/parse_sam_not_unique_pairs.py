@@ -7,7 +7,7 @@ import os
 def print_results(names):
    for i in range(len(names)):
       for j in range(i+1, len(names)):
-         aln_split = [names[i].split(), names[j].split()]
+         aln_split = [names[i], names[j]]
 
          if (aln_split[0][0] != aln_split[1][0]):
             print("Error: name read %s and %s don't match"%(aln_split[0], aln_split[1]), file=sys.stderr)
@@ -28,8 +28,8 @@ def print_results(names):
                tags[i][tag_split[0]] = tag_split[2]
          sams = [aln_split[0][5], aln_split[1][5]]
          for i in range(0, 2):
-            # if we do not have alternative alignments and mapping quality is 0 - skip
-            if not ("XA" in tags[i]) and aln_split[4] == "0":
+            # if we do not have alternative alignments and mapping quality is 0 - skip, too bad or too much alternatives
+            if not ("XA" in tags[i]) and aln_split[i][4] == "0":
                valid = False
             #need sam and edit distance to compare reported second bests. Not using XS because of multiple suboptimals
             if not ("NM" in tags[i]):
@@ -52,24 +52,15 @@ def print_results(names):
          if not valid:
             continue
          #if we have alignment to the same contig, then it's likely the answer and no multimappers needed
+         #should be faster than sets comparisons for small arrays
          for first_id in matched_ids[0]:
             for second_id in matched_ids[1]:
                if first_id == second_id:
                   valid = False
          if not valid:
             continue
-         len0 = len(matched_ids[0])
-         len1 = len(matched_ids[1])
-         inv_weight = len0 * len1
-         for i in range(0, len0):
-            for j in range(0, len1):
-               ids = [matched_ids[0][i], matched_ids[1][j]]
-               coords = [matched_coords[0][i], matched_coords[1][j]]
-               if ids[0] > ids[1]:
-                  ids.reverse()
-                  coords.reverse()
-               print (f"{aln_split[0][0]}\t{ids[0]}\t{ids[1]}\t{inv_weight}\t{coords[0]}\t{coords[1]}")
-
+         print (f'{aln_split[0][0]}\t{",".join(matched_ids[0])}\t{",".join(matched_ids[1])}\t1\t{",".join(matched_coords[0])}\t{",".join(matched_coords[1])}')
+         
 if not sys.stdin.isatty():
     input_stream = sys.stdin
 
