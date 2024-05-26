@@ -1324,8 +1324,8 @@ if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
     fi
     cp -p emptyfile ${newoutd}/emptyfile
     cd $newoutd
-    sed -i 's/runRukkiHIC/cnspath/g' snakemake.sh
-    sed -i 's/HiC_rdnascaff/cnspath/g' snakemake.sh
+    sed -i.bak 's/runRukkiHIC/cnspath/g' snakemake.sh
+    sed -i.bak 's/HiC_rdnascaff/cnspath/g' snakemake.sh
     ./snakemake.sh
     cp *.fasta ../../
     cp *.layout ../../
