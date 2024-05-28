@@ -158,7 +158,7 @@ cat > ./aligned{wildcards.nnnn}.sh <<EOF
 #!/usr/bin/env bash
 set -e -o pipefail
 
-{params.WINNOWMAP} -t {threads} -cx map-ont tips.fasta ../{input.ont_reads} |sed s/de:f://g |awk -F "\\t" '{{ if (\$12 >= 20 && \$4-\$3 > {params.min_aln_len} && 1-\$21 >= {params.min_aln_idy}) {{ if (match(\$5, "-")) print \$1"\\t"\$2"\\t"\$3"\\t"\$4"\\t+\\t<"\$6"\\t"\$7"\\t"\$7-\$9"\\t"\$7-\$8"\\t"\$10"\\t"\$11"\\t"\$12"\\t"\$13"\\t"\$15"\\tdv:f:"\$21"\\tid:f:"1-\$21; else print \$1"\\t"\$2"\\t"\$3"\\t"\$4"\\t"\$5"\\t>"\$6"\\t"\$7"\\t"\$8"\\t"\$9"\\t"\$10"\\t"\$11"\\t"\$12"\\t"\$13"\\t"\$15"\\tdv:f:"\$21"\\tid:f:"1-\$21 }}}}' > ../{params.alignmentstmp} && mv -f ../{params.alignmentstmp} ../{output.alignments}
+{params.WINNOWMAP} -I40G -t {threads} -cx map-ont tips.fasta ../{input.ont_reads} |sed s/de:f://g |awk -F "\\t" '{{ if (\$12 >= 20 && \$4-\$3 > {params.min_aln_len} && 1-\$21 >= {params.min_aln_idy}) {{ if (match(\$5, "-")) print \$1"\\t"\$2"\\t"\$3"\\t"\$4"\\t+\\t<"\$6"\\t"\$7"\\t"\$7-\$9"\\t"\$7-\$8"\\t"\$10"\\t"\$11"\\t"\$12"\\t"\$13"\\t"\$15"\\tdv:f:"\$21"\\tid:f:"1-\$21; else print \$1"\\t"\$2"\\t"\$3"\\t"\$4"\\t"\$5"\\t>"\$6"\\t"\$7"\\t"\$8"\\t"\$9"\\t"\$10"\\t"\$11"\\t"\$12"\\t"\$13"\\t"\$15"\\tdv:f:"\$21"\\tid:f:"1-\$21 }}}}' > ../{params.alignmentstmp} && mv -f ../{params.alignmentstmp} ../{output.alignments}
 EOF
 
 chmod +x ./aligned{wildcards.nnnn}.sh
