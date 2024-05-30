@@ -1,10 +1,10 @@
 # Verkko
 
 Verkko is a hybrid genome assembly pipeline developed for
-telomere-to-telomere assembly of PacBio HiFi or Oxford Nanopore Duplex and Oxford Nanopore simplex reads.
+telomere-to-telomere assembly of accurate long reads (PacBio HiFi, Oxford Nanopore Duplex, [HERRO](https://github.com/lbcb-sci/herro) corrected Oxford Nanopore Simplex) and Oxford Nanopore ultra-long reads.
 Verkko is Finnish for net, mesh and graph.
 
-Verkko uses Canu to correct remaining errors in the HiFi/duplex reads, builds a
+Verkko uses Canu to correct remaining errors in the reads, builds a
 multiplex de Bruijn graph using MBG, aligns the Oxford Nanopore reads to the
 graph using GraphAligner, progressively resolves loops and tangles first with
 the HiFi reads then with the aligned Oxford Nanopore reads, and finally
