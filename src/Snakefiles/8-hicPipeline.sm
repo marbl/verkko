@@ -300,8 +300,8 @@ rule alignBWA:
 cd 8-hicPipeline
 
 cat > ./align_bwa{wildcards.nnnn}.sh <<EOF
-#!/bin/sh
-set -e
+#!/usr/bin/env bash
+set -e -o pipefail
 if [ {params.withporec} = "False" ] ; then
    echo "---Mapping {input.hic1} and {input.hic2} to {input.unitigs} with BWA"
    {params.BWA} mem -t {threads} -5 -S -P ../{input.unitigs} ../{input.hic1} ../{input.hic2} | {params.SAMTOOLS} view -bh -@ {threads} -q 1 -F 0x900 - | {params.SAMTOOLS} sort -n -@ {threads} - -o ../{output.bwa_mapping}
