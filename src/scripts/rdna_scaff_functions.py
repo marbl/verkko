@@ -9,70 +9,9 @@ import networkx as nx
 from numpy import argmax
 import graph_functions
 import logging
+from scaffolding import path_storage
 
 
-#All functions expect directed nodes in utig4-234+ format, paths may contain gapped node
-
-#path nodes stored with orientation, "utig4-234+" tsv format
-class pathStorage:
-    def __init__(self):        
-        #from IDs to array of oriented+- nodes
-        self.paths = {}
-        #ignoring overlaps but who cares
-        self.path_lengths = {}
-        self.hap_labels = {}
-
-    def getPathById(self, path_id):
-        return self.paths[path_id]
-    
-    def getLength(self, path_id):
-        return self.path_lengths[path_id]
-
-    def getPathIds(self):
-        return self.paths.keys()
-
-#should not be used
-    def getEdgeSequenceById(self, path_id):
-        res = []
-        for edge in self.paths[path_id]:
-            #removing +- and gaps
-            if edge[0] != "N":
-                res.append(edge[:-1])
-        return res
-    
-    def getPathString(self, path_id):
-        return ",".join(self.paths[path_id])
-
-    def addPath(self, line, G):
-#        print (line)
-        arr = line.strip().split()
-        if len(arr) < 3:
-            print (f"wrong path {line}")
-            exit()
-        separators = ">|<|,"
-        edges = re.split(separators, arr[1])
-        self.hap_labels[arr[0]] = arr[2]
-        total_l = 0
-        for edge in edges:
-            node = edge
-            if node in G.nodes:
-                total_l += G.nodes[node]['length']
-        edges = list(filter(None, edges))
-#        print (edges)
-        self.paths[arr[0]] = edges
-        self.path_lengths[arr[0]] = total_l
-
-    def addPathWithId(self, id, path, G):
-        total_l = 0
-        for edge in path:
-            node = edge
-            if node in G.nodes:
-                total_l += G.nodes[node]['length']
-        self.paths[id] = path
-        self.path_lengths[id] = total_l
-    
-    def getLabel(self, path_id):
-        return self.hap_labels[path_id]
     
 #Actyally should be processed the same way as telos, with fake nodes of zero length
 #This will reduce code duplication and will allow to use "one-sided" rdna nodes that may be useful
@@ -179,7 +118,7 @@ def get_telomeric_nodes(telomere_locations_file, G):
     return aux_tel_nodes, new_G
 
 def read_rukki_paths(rukki_file, G):
-    res = pathStorage()
+    res = path_storage.PathStorage()
     for line in open(rukki_file):
         arr = line.strip().split()
         if arr[0] == "name":
