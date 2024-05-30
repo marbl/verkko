@@ -32,6 +32,7 @@ class ScaffoldGraph:
     def __init__(self, rukki_paths, telomere_locations_file, hic_alignment_file, matches_file, G, uncompressed_fasta, logger):
         self.logger = logger_wrap.UpdatedAdapter(logger, self.__class__.__name__)
         self.multiplicities = sf.get_multiplicities(rukki_paths)
+        #upd_G - graph with telomeric nodes
         self.tel_nodes, self.upd_G = sf.get_telomeric_nodes(telomere_locations_file, G)
         self.logger.debug("Telomeric nodes")
         self.logger.debug(self.tel_nodes)
@@ -44,17 +45,20 @@ class ScaffoldGraph:
         #TODO: duplicated... self.matchGraph should not be refered directly
         self.mg = match_graph.MatchGraph(matches_file, G, -239239239, ScaffoldGraph.MATCHGRAPH_LONG_NODE, ScaffoldGraph.MATCHGRAPH_MIN_ALIGNMENT, logger)
         self.matchGraph = self.mg.getMatchGraph()
+        
+        #debug purposes
+        self.dangerous_swaps = {}
 
         self.uncompressed_lens = sf.get_lengths(uncompressed_fasta)
         self.compressed_lens = {}
-
-        for node in G.nodes:
-            self.compressed_lens[node] = G.nodes[node]['length']      
-            self.compressed_lens[node.strip("-+")] = G.nodes[node]['length']      
+        for node in self.upd_G.nodes:
+            self.compressed_lens[node] = self.upd_G.nodes[node]['length']      
+            self.compressed_lens[node.strip("-+")] = self.upd_G.nodes[node]['length']  
+            
 
         self.rukki_paths = rukki_paths
         self.G = G
-        self.dists = dict(nx.all_pairs_dijkstra_path_length(G, weight=lambda u, v, d: G.edges[u, v]['mid_length']))
+        self.dists = dict(nx.all_pairs_dijkstra_path_length(self.upd_G, weight=lambda u, v, d: self.upd_G.edges[u, v]['mid_length']))
         self.logger.info("Pairwise distances in assembly graph calculated")
         self.haploids = self.getHaploidPaths()
         self.scaffold_graph = nx.DiGraph()
@@ -141,6 +145,54 @@ class ScaffoldGraph:
         return haploids
 
 
+    def getClosestTelomere(self, path, direction):
+        #From telomere to rc(path_end)
+        if direction == '+':
+            path = sf.rc_path(path)
+        closest = 1000000000
+
+        add_dist = 0
+        #Or use all nodes?
+        shortened_path = [path[0]]
+
+        for tel_node in self.tel_nodes:
+            closest = min(closest, self.nodeToPathDist(tel_node, shortened_path, False) + add_dist)
+        return closest/2
+    
+    #Dist from node end to path. Allowed to go not in the first path node, but then additional length in path is added
+    #Optionally allowing to use homologous nodes (to improve in gaps)
+    def nodeToPathDist(self, node, path, check_homologous):
+        closest = 1000000000
+        add_dist = 0
+        for path_node in path:
+            if path_node in self.upd_G.nodes:
+                if path_node in self.dists[node]:
+                    if path_node == node:
+                        closest = 0
+                    closest = min(closest, self.dists[node][path_node] + add_dist - self.compressed_lens[node.strip("-+")] - self.compressed_lens[path_node.strip("-+")])
+                    if check_homologous:
+                        for hom_node in self.homologousOrNodes(path_node):
+                            if hom_node == node:
+                                closest = 0
+                            if hom_node in self.dists[node]:
+                               closest = min(closest, self.dists[node][hom_node] + add_dist - self.compressed_lens[node.strip("-+")] - self.compressed_lens[hom_node.strip("-+")])
+                add_dist += 2* self.compressed_lens[path_node.strip("-+")]
+        return closest/2
+    #Optionally allowing to use homologous nodes (to improve in gaps)
+
+    def pathDist(self, path_from, path_to, check_homologous):
+        closest = 1000000000
+        add_dist = 0
+        for node in reversed(path_from):
+            if node in self.upd_G.nodes:
+                closest = min(closest, self.nodeToPathDist(node, path_to, check_homologous) + add_dist)
+                if check_homologous:
+                    for hom_node in self.homologousOrNodes(node) :
+                        closest = min(closest, (self.nodeToPathDist(hom_node, path_to, check_homologous) + add_dist))
+                add_dist += 2* self.compressed_lens[node.strip("-+")]
+        return closest
+
+            
     def forbiddenPair(self, from_path_id, to_path_id):    
         nor_from_path_id = from_path_id.strip('-+')
         nor_to_path_id = to_path_id.strip('-+')
@@ -155,7 +207,6 @@ class ScaffoldGraph:
         if self.rukki_paths.getLength(nor_to_path_id) <= ScaffoldGraph.SHORT_TEL_CUTOFF and self.scaffold_graph.nodes[to_path_id]['telomere'][0]:
             self.logger.error(f"Banning link from {from_path_id} into short telomere, should not happen {to_path_id}")
             return True
-        
         return False
     
     #Main logic is here!        
@@ -274,10 +325,15 @@ class ScaffoldGraph:
                     scf_path.extend(sf.rc_path(self.rukki_paths.getPathById(nor_path_id)))
                 if cur_path_count < len(scf):
                     scf_path.append("[N1000001N:scaffold]")
+                    
+            #debugging part
             for or_path_id in scf:
                 nor_path_id = or_path_id.strip('-+')
-                if nor_path_id in self.haploids:
-                    self.logger.info (f"SCAFFOLD {nor_path_id} is haploid")
+                if nor_path_id in self.haploids and len(scf) > 1:
+                    self.logger.info (f"scaffold part {nor_path_id} is haploid")
+            for i in range (0, len(scf) - 1):
+                if (scf[i].strip('-+'), scf[i+1].strip('-+')) in self.dangerous_swaps:
+                    self.logger.warning (f"consecutive pair,  {scf[i]} {scf[i+1]} did signficant changes on hi-c counts based on {self.dangerous_swaps[(scf[i].strip('-+'), scf[i+1].strip('-+'))]}")
             path_str = "\t".join([largest_id, ",".join(scf_path), largest_label])
             final_paths.addPath(path_str, self.G)
             telo_end = False
@@ -347,74 +403,17 @@ class ScaffoldGraph:
         for i in ('-', '+'):
             for j in ('-', '+'):
                 total_score += scores[i+j]
+        paths = [self.rukki_paths.getPathById(path_ids[0]), self.rukki_paths.getPathById(path_ids[1])]
         if total_score > 0:
+            #whether we need to switch orientation for path number i
             for i in range (0, 2):
                 #Do we need length check here at all?
                 if self.rukki_paths.getLength(path_ids[i]) <= self.MAX_REORDERING_LENGTH:
+                    correct_or = ""
                     if self.scaffold_graph.nodes[path_ids[i]+"+"]['telomere'][0] and not self.scaffold_graph.nodes[path_ids[i]+"+"]['telomere'][1]:
                         correct_or = correct_orientations[i]
                     elif self.scaffold_graph.nodes[path_ids[i]+"+"]['telomere'][1] and not self.scaffold_graph.nodes[path_ids[i]+"+"]['telomere'][0]:
                         correct_or = self.rc_orientation(correct_orientations[i])
-                    else:
-                        #connectivity check, separate, be careful with nodes selection
-                        #alternative path node set, all orientations
-                        #TODO: reduce sets, need less.
-                        alt_nodes = set()
-                        for node in self.rukki_paths.getEdgeSequenceById(path_ids[1 - i]):
-                            for orient in ('-', '+'):       
-                                if not node+orient in self.G.nodes:
-                                    continue                         
-                                alt_nodes.add(node + orient)
-                                #there can be gap in one of the haplotypes, so using oriented nodes  
-                                for hom_node in self.homologousOrNodes(node + orient):
-                                    alt_nodes.add(hom_node)
-                        check_nodes = {'-':set(), '+':set()}
-                        for node in self.rukki_paths.getPathById(path_ids[i]):
-                            #current_node orientation
-                            if not node in self.G.nodes:
-                                continue
-                            for node_orient in ('-', '+'): 
-                            #different orientations of the PATH!                                    
-                                if node_orient == node[-1]:                                    
-                                    #no rc to path!
-                                    path_orient = "+"
-                                else:
-                                    path_orient = "-"
-                                to_check = node.strip("-+") + node_orient
-                                check_nodes[path_orient].add(to_check)
-                                #again, to work with gaps    
-                                for hom_node in self.homologousOrNodes(to_check):
-                                    check_nodes[path_orient].add(hom_node)
-
-                        self.logger.debug (f" path_pair {path_ids} counting dists") 
-                        shortest_paths = {'-':1000000000, '+':1000000000}
-                        for orient in ('-', '+'):
-                            for alt_node in alt_nodes:
-                                for check_node in check_nodes[orient]:
-                                    check_dist = 1000000000
-                                    if i == 0 and alt_node in self.dists[check_node]:
-                                        check_dist = self.dists[check_node][alt_node] 
-                                    elif i == 1 and check_node in self.dists[alt_node]: 
-                                        check_dist = self.dists[alt_node][check_node]
-                                    if check_dist == 1000000000:
-                                        continue
-                                #distance is between centers of the nodes, G is compressed:(
-                                    tuned_dist = (check_dist - self.compressed_lens[check_node.strip('-+')] - self.compressed_lens[alt_node.strip('-+')])/ 2
-                                    #print (f"Pairlens: {alt_node}  {check_node} {i} {check_dist} {self.compressed_lens[check_node.strip('-+')]} {self.compressed_lens[alt_node.strip('-+')]} {tuned_dist}")
-
-                                    check_dist = tuned_dist
-                                    if check_dist < shortest_paths[orient]:
-                                        shortest_paths[orient] = check_dist
-                        self.logger.debug (f" path_pair {path_ids} swapping {i} shortest paths {shortest_paths}")
-                        #One orientation is close in graph, second is not
-                        min_cutoff = min(self.CLOSE_IN_GRAPH, self.rukki_paths.getLength(path_ids[i]) / 4)                        
-                        max_cutoff = self.rukki_paths.getLength(path_ids[i]) * 3 / 4
-                        if shortest_paths['-'] < min_cutoff and shortest_paths['+'] > max_cutoff:
-                            correct_or = "-"    
-                        elif shortest_paths['+'] < min_cutoff / 4 and shortest_paths['-'] > max_cutoff:
-                            correct_or = "+"
-                        else:
-                            correct_or = ""
                     if correct_or != "":            
                         pair_or = ["",""]
                         pair_or[i] = correct_or                        
@@ -427,13 +426,59 @@ class ScaffoldGraph:
                             correct_pair = "".join(correct_pair)
                             incorrect_pair = "".join(incorrect_pair)                            
                             #just logging
-                            if scores[incorrect_pair] >= ScaffoldGraph.MIN_LINKS and scores[incorrect_pair] * ScaffoldGraph.CLEAR_MAJORITY > scores[correct_pair]:
-                                self.logger.debug(f"Tuning pair {path_ids}, i {i} scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}")                    
-                                self.logger.debug(f"Moved {scores[incorrect_pair]} from {incorrect_pair} to {correct_pair}")    
+                            if scores[incorrect_pair] >= ScaffoldGraph.MIN_LINKS and scores[incorrect_pair]  > scores[correct_pair]:
+                                self.dangerous_swaps[(path_ids[0], path_ids[1])] = "telomeres"
+
+                                self.logger.debug(f"Dangerous telomeric tuning pair {path_ids}, i {i} scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}")                    
+                                self.logger.debug(f"Dangerous moved {scores[incorrect_pair]} from {incorrect_pair} to {correct_pair}")    
                             self.logger.debug (f"moving {incorrect_pair} to {correct_pair}")
                             scores[correct_pair] += scores[incorrect_pair]
                             scores[incorrect_pair] = 0                            
-                        self.logger.debug (f"tuned pair {path_ids}, scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}")                    
+                        self.logger.debug (f"telomeric tuned pair {path_ids}, scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}") 
+        
+            for i in range (0, 2):
+                #Do we need length check here? Should it be same as for telomeric one
+                if self.rukki_paths.getLength(path_ids[i]) <= self.MAX_REORDERING_LENGTH:                  
+                    for fixed_orientation in ('-', '+'):
+                        shortest_paths = {'-':1000000000, '+':1000000000}
+                        min_cutoff = min(self.CLOSE_IN_GRAPH, self.rukki_paths.getLength(path_ids[i]) / 4)                        
+                        max_cutoff = self.rukki_paths.getLength(path_ids[i]) * 3 / 4
+                        for orient in ('-', '+'):
+                            to_check = paths.copy()
+                            if fixed_orientation == "-":
+                                to_check[1 - i] = sf.rc_path(paths[1-i])
+                            if orient == '-':
+                                to_check[i] = sf.rc_path(paths[i])
+                            shortest_paths[orient] = self.pathDist(to_check[0], to_check[1], True)
+                            self.logger.debug(f"Checking dists {to_check} index {i} dist {shortest_paths[orient]} cutoffs {min_cutoff} {max_cutoff}")
+
+                        if shortest_paths['-'] < min_cutoff and shortest_paths['+'] > max_cutoff:
+                            correct_or = "-"    
+                        elif shortest_paths['+'] < min_cutoff and shortest_paths['-'] > max_cutoff:
+                            correct_or = "+"
+                        else:
+                            correct_or = ""
+                        if correct_or != "":
+                            correct_pair = ["", ""]
+                            incorrect_pair = ["", ""]
+                            correct_pair[i] = correct_or
+                            correct_pair[1 - i] = fixed_orientation
+                            incorrect_pair[i] = self.rc_orientation(correct_or)
+                            incorrect_pair[1 - i] = fixed_orientation   
+                            correct_pair = "".join(correct_pair)
+                            incorrect_pair = "".join(incorrect_pair) 
+                            #just logging
+                            if scores[incorrect_pair] >= ScaffoldGraph.MIN_LINKS and scores[incorrect_pair] > scores[correct_pair]:
+                                self.dangerous_swaps[(path_ids[0], path_ids[1])] = "connectivity"
+
+                                self.logger.debug(f"Dangerous connectivity tuning pair {path_ids}, i {i} scores {scores}")                    
+                                self.logger.debug(f"Dangerous moved {scores[incorrect_pair]} from {incorrect_pair} to {correct_pair}")    
+                        
+                            scores[correct_pair] += scores[incorrect_pair]
+                            scores[incorrect_pair] = 0 
+                            self.logger.debug (f"Connectivity tuned pair {path_ids}, scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}") 
+
+
         return scores
 
     #return scores for each of the orientations, ++, -+, +-, --,
@@ -530,5 +575,6 @@ class ScaffoldGraph:
                 scores_pair = self.getNodePairConnections(pair, orientations, connections, shift_before, shift_after, lens)
                 for key in scores_pair:
                     scores[key] += scores_pair[key] 
+        self.logger.debug (f"Pathscores for {path_ids} {scores}")
         scores = self.fixOrientation(path_ids, scores)
         return scores
