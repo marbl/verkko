@@ -47,7 +47,7 @@ checkpoint splitTipsONT:
         bases          = config['spl_bases'],
         reads          = config['spl_reads'],
         length         = config['spl_min_length'],
-        max_distance   = 3000000,
+        max_distance   = 10000000,
         ext_files       = lambda wildcards: expand("ont{nnnn}.fasta.gz", nnnn = splitONToutputs(wildcards))
     threads:
         int(config['spl_n_cpus'])
