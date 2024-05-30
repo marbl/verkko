@@ -8,7 +8,7 @@ import networkx as nx
 from numpy import argmax
 import graph_functions
 import logging
-from scaffolding import logger_wrap, match_graph
+from scaffolding import logger_wrap, match_graph, path_storage
 import rdna_scaff_functions as sf
 
 #TODO: or inherit from nx.Digraph??
@@ -35,6 +35,7 @@ class ScaffoldGraph:
         self.tel_nodes, self.upd_G = sf.get_telomeric_nodes(telomere_locations_file, G)
         self.logger.debug("Telomeric nodes")
         self.logger.debug(self.tel_nodes)
+        self.output_basename = "scaff_rukki.paths"
 
         #Used for scaffolding starts and debug, 
         self.to_scaff = sf.get_paths_to_scaff(rukki_paths, self.tel_nodes, self.upd_G)   
@@ -43,6 +44,7 @@ class ScaffoldGraph:
         #TODO: duplicated... self.matchGraph should not be refered directly
         self.mg = match_graph.MatchGraph(matches_file, G, -239239239, ScaffoldGraph.MATCHGRAPH_LONG_NODE, ScaffoldGraph.MATCHGRAPH_MIN_ALIGNMENT, logger)
         self.matchGraph = self.mg.getMatchGraph()
+
         self.uncompressed_lens = sf.get_lengths(uncompressed_fasta)
         self.compressed_lens = {}
 
@@ -245,23 +247,39 @@ class ScaffoldGraph:
             res.append(cur_scaffold)
         total_scf = 0
         total_jumps = 0
-        total_new_t2t = 0        
+        total_new_t2t = 0     
+        final_paths = path_storage.PathStorage()   
+        for nor_path_id in self.rukki_paths.getPathIds():
+            if not (nor_path_id in nor_used_path_ids):
+                final_paths.addPath(self.rukki_paths.getPathTsv(nor_path_id) , self.G)
         for scf in res:
             scf_path = []
             if len(scf) > 1:
                 total_scf += 1
             total_jumps += len(scf) - 1
             largest_label = "NA"
+            largest_id = scf[0].strip('-+')
             largest_len = 0
+            cur_path_count = 0
             for or_path_id in scf:
+                cur_path_count += 1
                 nor_path_id = or_path_id.strip('-+')
                 if self.rukki_paths.getLength(nor_path_id) > largest_len and self.rukki_paths.getLabel(nor_path_id) != "NA":
                     largest_len = self.rukki_paths.getLength(nor_path_id)
-                    largest_label = or_path_id
+                    largest_id = nor_path_id
+                    largest_label = self.rukki_paths.getLabel(nor_path_id)
                 if or_path_id[-1] == "+":
-                    scf_path.extend(self.rukki_paths.getPathById(or_path_id.strip('-+')))
+                    scf_path.extend(self.rukki_paths.getPathById(nor_path_id))
                 else:
-                    scf_path.extend(sf.rc_path(self.rukki_paths.getPathById(or_path_id.strip('-+'))))
+                    scf_path.extend(sf.rc_path(self.rukki_paths.getPathById(nor_path_id)))
+                if cur_path_count < len(scf):
+                    scf_path.append("[N1000001N:scaffold]")
+            for or_path_id in scf:
+                nor_path_id = or_path_id.strip('-+')
+                if nor_path_id in self.haploids:
+                    self.logger.info (f"SCAFFOLD {nor_path_id} is haploid")
+            path_str = "\t".join([largest_id, ",".join(scf_path), largest_label])
+            final_paths.addPath(path_str, self.G)
             telo_end = False
             telo_start = False
             for tel_node in self.tel_nodes:
@@ -274,8 +292,20 @@ class ScaffoldGraph:
             if len(scf) > 1:
                 self.logger.info (f"SCAFFOLD {scf} {telo_start} {telo_end} ")
         self.logger.warning (f"Total scaffolds {total_scf} total jumps {total_jumps} new T2T {total_new_t2t}")
+        self.outputScaffolds(final_paths)
         return res
-
+    
+    def outputScaffolds(self, final_paths):
+        output_tsv = self.output_basename + ".tsv"
+        output_gaf = self.output_basename + ".gaf"
+        header = "name\tpath\tassignment"
+        with open(output_tsv, "w") as tsv_file, open(output_gaf, "w") as gaf_file:
+            tsv_file.write(header + "\n")
+            gaf_file.write(header + "\n")
+            for path_id in sorted(final_paths.getPathIds()):
+                tsv_file.write(final_paths.getPathTsv(path_id) + "\n")
+                gaf_file.write(final_paths.getPathGaf(path_id) + "\n")
+        return
     #returns: dict {(start_id, end_id):[[start_pos1, end_pos1]]}. Coords not compressed!
     def get_connections(self, alignment_file):
         res = {}
