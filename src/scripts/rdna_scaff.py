@@ -59,6 +59,6 @@ logger = logger_wrap.initLogger(os.path.join(hicrun_dir, "scaffolding.log"))
 rukki_paths = sf.read_rukki_paths(old_rukki_tsv_file, G)
 gf.load_indirect_graph(gfa_file, indirectG)
 #sf.try_to_scaff(rukki_paths, telomere_locations_file, os.path.join(hicrun_dir, "hic_mapping.byread.output"), os.path.join(hicrun_dir, "unitigs.matches"), G, indirectG, uncompressed_nodes)
-sg = scaffold_graph.ScaffoldGraph(rukki_paths, telomere_locations_file, os.path.join(hicrun_dir, "hic_mapping.byread.output"), os.path.join(hicrun_dir, "mashmap_nonhpc50.out"), G, uncompressed_nodes, logger) 
+sg = scaffold_graph.ScaffoldGraph(rukki_paths, telomere_locations_file, os.path.join(hicrun_dir, "hic_mapping.byread.output"), os.path.join(hicrun_dir, "unitigs_nonhpc50.mashmap"), G, uncompressed_nodes, logger) 
 res = sg.generateScaffolds()
 
