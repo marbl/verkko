@@ -166,17 +166,20 @@ class ScaffoldGraph:
         closest = 1000000000
         add_dist = 0
         for path_node in path:
+            #self.logger.debug (f"Checking nodepair dist from {node} to {path_node}")
             if path_node in self.upd_G.nodes:
                 if path_node in self.dists[node]:
                     if path_node == node:
                         closest = 0
-                    closest = min(closest, self.dists[node][path_node] + add_dist - self.compressed_lens[node.strip("-+")] - self.compressed_lens[path_node.strip("-+")])
-                    if check_homologous:
-                        for hom_node in self.homologousOrNodes(path_node):
-                            if hom_node == node:
-                                closest = 0
-                            if hom_node in self.dists[node]:
-                               closest = min(closest, self.dists[node][hom_node] + add_dist - self.compressed_lens[node.strip("-+")] - self.compressed_lens[hom_node.strip("-+")])
+                    else:
+                        closest = min(closest, self.dists[node][path_node] + add_dist - self.compressed_lens[node.strip("-+")] - self.compressed_lens[path_node.strip("-+")])
+                        if check_homologous:
+                            for hom_node in self.homologousOrNodes(path_node):
+                                #self.logger.debug (f"Checking homologous nodepair dist from {node} to {hom_node}")
+                                if hom_node == node:
+                                    closest = 0
+                                elif hom_node in self.dists[node]:
+                                    closest = min(closest, self.dists[node][hom_node] + add_dist - self.compressed_lens[node.strip("-+")] - self.compressed_lens[hom_node.strip("-+")])
                 add_dist += 2* self.compressed_lens[path_node.strip("-+")]
         return closest/2
     #Optionally allowing to use homologous nodes (to improve in gaps)
@@ -189,6 +192,7 @@ class ScaffoldGraph:
                 closest = min(closest, self.nodeToPathDist(node, path_to, check_homologous) + add_dist)
                 if check_homologous:
                     for hom_node in self.homologousOrNodes(node) :
+                        #self.logger.debug (f"Checking homologous dist from {hom_node} to {path_to} add_dist {add_dist}")
                         closest = min(closest, (self.nodeToPathDist(hom_node, path_to, check_homologous) + add_dist))
                 add_dist += 2* self.compressed_lens[node.strip("-+")]
         return closest
