@@ -106,7 +106,7 @@ set -e
 echo "---Running MashMap"
 {params.MASHMAP} -r ../{input.unitigs_hpc} -q ../{input.unitigs_hpc} -t {threads} -f none --pi {params.MASHMAP_DIV} -s 10000 -o mashmap.out
 cat mashmap.out |awk '{{if (\$4-\$3 > 100000 && \$1 != \$6) print \$1"\\t"\$6"\\t"\$4-\$3}}'|sort |uniq > ../{output.unitigs_matches}
-{params.MASHMAP} -r ../{input.unitigs_hpc} -q ../{input.unitigs_hpc} -t {threads} -f none --pi {params.MASHMAP_DIV} -s 10000 -o unitigs_nonhpc.mashmap 
+{params.MASHMAP} -r ../{input.unitigs} -q ../{input.unitigs} -t {threads} -f none --pi {params.MASHMAP_DIV} -s 10000 -o unitigs_nonhpc.mashmap 
 awk '$11 >= 50000' unitigs_nonhpc.mashmap > ../{output.unitigs_nohpc50}
 EOF
 
