@@ -78,9 +78,11 @@ chmod +x ./prepare_hic.sh
 
 rule runMashMap:
     input:
-        unitigs_hpc = '8-hicPipeline/unitigs.hpc.fasta'
+        unitigs_hpc = '8-hicPipeline/unitigs.hpc.fasta',
+        unitigs = '8-hicPipeline/unitigs.fasta'
     output:
-        unitigs_matches = '8-hicPipeline/unitigs.matches'
+        unitigs_matches = '8-hicPipeline/unitigs.matches',
+        unitigs_nohpc50 = '8-hicPipeline/unitigs_nonhpc50.mashmap'
     log:
         err    = '8-hicPipeline/run_mashmap.err'
     params:
@@ -104,6 +106,8 @@ set -e
 echo "---Running MashMap"
 {params.MASHMAP} -r ../{input.unitigs_hpc} -q ../{input.unitigs_hpc} -t {threads} -f none --pi {params.MASHMAP_DIV} -s 10000 -o mashmap.out
 cat mashmap.out |awk '{{if (\$4-\$3 > 100000 && \$1 != \$6) print \$1"\\t"\$6"\\t"\$4-\$3}}'|sort |uniq > ../{output.unitigs_matches}
+{params.MASHMAP} -r ../{input.unitigs_hpc} -q ../{input.unitigs_hpc} -t {threads} -f none --pi {params.MASHMAP_DIV} -s 10000 -o unitigs_nonhpc.mashmap 
+awk '$11 >= 50000' unitigs_nonhpc.mashmap > ../{output.unitigs_nohpc50}
 EOF
 
 chmod +x ./run_mashmap.sh
