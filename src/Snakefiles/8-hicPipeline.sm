@@ -493,6 +493,7 @@ rule HiC_rdnascaff:
         tsv_path = '8-hicPipeline/rukki.paths.tsv',
         gaf_path = '8-hicPipeline/rukki.paths.gaf',
         unitigs_telo = '8-hicPipeline/unitigs.telo',
+        unitigs_nohpc50 =  '8-hicPipeline/unitigs_nonhpc50.mashmap',
         unitigs_rdnamatches = '8-hicPipeline/rdna_mashmap.out'
     output:
         scaff_tsv_path = '8-hicPipeline/scaff_rukki.paths.tsv',
