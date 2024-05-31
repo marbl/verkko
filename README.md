@@ -65,7 +65,7 @@ and create a `verkko.yml` file.
 
     verkko -d <work-directory> --hifi <hifi-read-files> [--nano <ont-read-files>]
 
-Run `verkko` with no options will list all available options with brief descriptions. At the minimum verkko requires high-accuracy long reads, provided with the `--hifi` option. You can provide any combination of PacBio HiFi/Oxford Nanopore duplex/both to the `--hifi` parameter. However, we strongly recommend including some ultra-long sequence data using the `--nano` parameter and phasing information (see below). The output of verkko will be phased scaffolds. Note that no attempt is made to generate a primary or pseudo-haplotype assembly.
+Run `verkko` with no options will list all available options with brief descriptions. At the minimum verkko requires high-accuracy long reads, provided with the `--hifi` option. You can provide any combination of PacBio HiFi/Oxford Nanopore duplex/both to the `--hifi` parameter. However, we strongly recommend including some ultra-long sequence data using the `--nano` parameter and phasing information (see below). For HERRO corrected reads, provide the corrected reads with the `--hifi` option and the uncorrected reads as `--nano`. The output of verkko will be phased scaffolds. Note that no attempt is made to generate a primary or pseudo-haplotype assembly.
 
 ### Phasing an assembly.
 Verkko supports extended phasing using using [rukki](https://github.com/marbl/rukki) using either trio or Hi-C information.
