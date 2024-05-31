@@ -17,8 +17,9 @@ class ScaffoldGraph:
     #should not be actuallly used, since they'll be reordered with MAX_REORDERING_LENGTH check
     SHORT_TEL_CUTOFF = 5000000
     MIN_LINKS = 10
-    CLEAR_MAJORITY = 1.5    
-    MAX_REORDERING_LENGTH = 30000000
+    CLEAR_MAJORITY = 1.5   
+    #Should it be ignored at all? 
+    MAX_REORDERING_LENGTH = 1000000000
 
     #If not near end, connection is ignored
     NEAR_PATH_END = 5000000
