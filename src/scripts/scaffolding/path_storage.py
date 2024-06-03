@@ -94,3 +94,40 @@ class PathStorage:
                         multiplicities[node] = 0
                     multiplicities[node] += 1
         return multiplicities
+    
+    # Can save seqs from gfa in graph structures to avoid additional input fasta but really do not want to make graphs huge.
+    def writePathAsFasta(self, input_fasta, output_fasta):
+        seqs = {}
+        for line in open(input_fasta):
+            if line[0] == ">":
+                cur = line.strip()[1:]
+            else:
+                seqs[cur] = line.strip()
+        with open(output_fasta, "a") as f:
+            for id in sorted(self.paths.keys()):
+                f.write(f">{id}\n")
+                prev_over = 0
+                for node_id in range (0, len (self.paths[id])):
+                    node = self.paths[id][node_id]
+                    nor_node = node[:-1]
+                    if not nor_node in seqs:
+                        arr = nor_node.split('N')
+                        if len(arr) >= 2:
+                            Nlen = int(arr[1])
+                            N_str = ""
+                            for i in range(Nlen):
+                                N_str += "N"
+                            f.write(N_str)
+                        prev_over = 0
+                        continue
+                    else:
+                        if node[-1] == "+":
+                            f.write(seqs[nor_node][prev_over:])
+                        else:
+                            to_out = gf.rc_seq(seqs[nor_node][prev_over:])
+                            f.write(to_out[prev_over:])
+                        if node_id < len(self.paths[id]) - 1 and self.paths[id][node_id + 1][:-1] in seqs:
+                            overlap = self.G.get_edge_data(nor_node, self.paths[id][node_id + 1][:-1])['overlap']
+                        else:
+                            overlap = 0
+                f.write(f"\n")
