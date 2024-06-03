@@ -115,9 +115,21 @@ def load_indirect_graph(gfa_file, G):
             #Double distance between centers of nodes
             G.add_edge(line[1], line[3], mid_length = G.nodes[line[1]]['length'] + G.nodes[line[3]]['length'] - 2*overlap)
 
+
+def get_lengths(fasta_file):
+    res = {}
+    cur = ""
+    for line in open(fasta_file):
+        if line[0] == ">":
+            cur = line.strip()[1:]
+        else:
+            res[cur] = len(line.strip())
+            cur = ""
+    return res
+
+
 def load_direct_graph(gfa_file, G):
     rc = {"+": "-", "-": "+"}
-    
     
     for line in open(gfa_file, 'r'):
         if "#" in line:
@@ -333,3 +345,36 @@ def getComponentColors(G):
             component_colors[e] = current_color
         current_color += 1
     return component_colors
+
+
+def get_telomeric_nodes(telomere_locations_file, G):
+    aux_tel_nodes = set()
+    new_G = G.copy()
+    with open(telomere_locations_file) as f:
+        for l in f:
+            parts = l.strip().split('\t')
+            telnode = ""
+            graph_node = parts[0]
+            if int(parts[1]) < 20000:
+                telnode="telomere_"+graph_node+"+_start"
+                new_G.add_node(telnode, length=0, coverage=0)
+                new_G.add_edge(telnode, graph_node+'+', mid_length=G.nodes[graph_node+'+']['length'])
+                aux_tel_nodes.add(telnode)
+
+                telnode="telomere_"+graph_node+"-_end"
+                new_G.add_node(telnode, length=0, coverage=0)
+                new_G.add_edge(graph_node+'-', telnode, mid_length=G.nodes[graph_node+'+']['length'])
+                aux_tel_nodes.add(telnode)
+
+            if int(parts[2])+20000 > G.nodes[graph_node + '+']['length']:
+                telnode="telomere_"+graph_node+"+_end"
+                new_G.add_node(telnode, length=0, coverage=0)
+                new_G.add_edge(graph_node+'+', telnode, mid_length=G.nodes[graph_node+'+']['length'])  
+                aux_tel_nodes.add(telnode)
+
+                telnode="telomere_"+graph_node+"-_start"
+                new_G.add_node(telnode, length=0, coverage=0)
+                new_G.add_edge(telnode, graph_node+'-', mid_length=G.nodes[graph_node+'+']['length'])     
+                aux_tel_nodes.add(telnode)
+    return aux_tel_nodes, new_G
+

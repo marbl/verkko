@@ -56,19 +56,6 @@ def get_rdna_mashmap(hicrun_dir):
             print (f"node {node} skipping. coverage {covered} of {node_len[node]}")
     return rdna_nodes
 
-def rc_path(path):
-    res = []
-    path.reverse()
-    for node in path:
-        if node[-1] == "+":
-            res.append(node[:-1]+"-")
-        elif node[-1] == "-":
-            res.append(node[:-1]+"+")   
-        else:
-            res.append(node)
-    path.reverse()
-    return res
-    
 #Should not be run in normal verkko pipeline
 def get_rdna_ribotin(hicrun_dir):
     rdna_file = os.path.join(hicrun_dir, os.pardir, "rdnanodes.txt")     
@@ -84,89 +71,6 @@ def get_rdna_ribotin(hicrun_dir):
             for direction in ["+", "-"]:
                 rdna_nodes.add(e + direction)
     return rdna_nodes
-
-def get_telomeric_nodes(telomere_locations_file, G):
-    aux_tel_nodes = set()
-    new_G = G.copy()
-    with open(telomere_locations_file) as f:
-        for l in f:
-            parts = l.strip().split('\t')
-            telnode = ""
-            graph_node = parts[0]
-            if int(parts[1]) < 20000:
-                telnode="telomere_"+graph_node+"+_start"
-                new_G.add_node(telnode, length=0, coverage=0)
-                new_G.add_edge(telnode, graph_node+'+', mid_length=G.nodes[graph_node+'+']['length'])
-                aux_tel_nodes.add(telnode)
-
-                telnode="telomere_"+graph_node+"-_end"
-                new_G.add_node(telnode, length=0, coverage=0)
-                new_G.add_edge(graph_node+'-', telnode, mid_length=G.nodes[graph_node+'+']['length'])
-                aux_tel_nodes.add(telnode)
-
-            if int(parts[2])+20000 > G.nodes[graph_node + '+']['length']:
-                telnode="telomere_"+graph_node+"+_end"
-                new_G.add_node(telnode, length=0, coverage=0)
-                new_G.add_edge(graph_node+'+', telnode, mid_length=G.nodes[graph_node+'+']['length'])  
-                aux_tel_nodes.add(telnode)
-
-                telnode="telomere_"+graph_node+"-_start"
-                new_G.add_node(telnode, length=0, coverage=0)
-                new_G.add_edge(telnode, graph_node+'-', mid_length=G.nodes[graph_node+'+']['length'])     
-                aux_tel_nodes.add(telnode)
-
-    return aux_tel_nodes, new_G
-
-def read_rukki_paths(rukki_file, G):
-    res = path_storage.PathStorage()
-    for line in open(rukki_file):
-        arr = line.strip().split()
-        if arr[0] == "name":
-            continue
-        res.addPath(line.strip(), G)
-    return res
-
-def get_multiplicities(paths):
-    multiplicities = {}
-    for path_id in paths.getPathIds():
-        for edge in paths.getEdgeSequenceById(path_id):
-            for dir in ["+", "-"]:
-                node = edge + dir      
-                if not node in multiplicities:
-                    multiplicities[node] = 0
-                multiplicities[node] += 1
-    return multiplicities
-
-#returns dict, {id:[present_start_relo, present_end_telo]}
-def get_paths_to_scaff(paths, tel_nodes, dirG, long_enough=500000):
-    res = {}
-    for id in paths.paths:
-        total_l = paths.path_lengths[id]
-        tel_start = False
-        tel_end = False    
-        for telomere in tel_nodes:
-            if dirG.has_edge(telomere, paths.paths[id][0]):
-                tel_start = True
-            if dirG.has_edge(paths.paths[id][-1], telomere):
-                tel_end = True
-        if tel_start and tel_end:
-            continue
-        #all long enough AND containing telomere
-        if total_l > long_enough:
-            res[id] = [tel_start, tel_end]
-            #print (f"will use path {paths.paths[id]} {tel_start} {tel_end}")
-    return res
-
-def get_lengths(fasta_file):
-    res = {}
-    cur = ""
-    for line in open(fasta_file):
-        if line[0] == ">":
-            cur = line.strip()[1:]
-        else:
-            res[cur] = len(line.strip())
-            cur = ""
-    return res
 
 #return paths that are reachable from any of the rdna nodes and within length limits
 def get_same_component_paths(short_arm_path_ids, G, paths, min_path_len, max_path_len):
