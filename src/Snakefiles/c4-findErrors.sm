@@ -205,8 +205,20 @@ chmod +x ./fixErrors.sh
         '''
 
 
+#  Explicitly break the dependency chain if the output of correction exists.
+#
+#   - If 'hifi-corrected.fasta.gz' does not exist, the input to this rule is
+#     the output of fixErrors: we rename the file of corrected reads to
+#     be our output.
+#
+#   - If 'hifi-corrected.fasta.gz' does exist, the input to this rule is
+#     'emptyfile', and that should always be strictly older than any
+#     output file created by Verkko so the dependency chain breaks.
+#
 rule correctHiFi:
     input:
+        #empty    = rules.emptyfile.output,
+        #fasta    = rules.fixErrors.output.fasta if not os.path.exists('hifi-corrected.fasta.gz') else rules.emptyfile.output
         fasta    = {rules.fixErrors.output.fasta}
     output:
         fasta    = 'hifi-corrected.fasta.gz'
