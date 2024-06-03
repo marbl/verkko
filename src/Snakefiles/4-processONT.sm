@@ -29,14 +29,14 @@
 
 rule processONT:
     input:
-       graph            = {rules.processGraph.output.gfa},
-       hificov          = {rules.buildGraph.output.hificov},
-       ont_paths        = {rules.combineONT.output.alignments},
-       tip_paths        = {rules.combineTipsONT.output.alignments}
+       graph            = rules.processGraph.output.gfa,
+       hifi_node_cov    = rules.buildGraph.output.hifi_node_cov,
+       ont_paths        = rules.combineONT.output.alignments,
+       tip_paths        = rules.combineTipsONT.output.alignments
     output:
        graph            = '4-processONT/unitig-unrolled-ont-resolved.gfa',
        ont_gap_align    = '4-processONT/gaps-ont.gaf',
-       ontcov           = '4-processONT/nodecovs-ont.csv'
+       ont_node_cov     = '4-processONT/nodecovs-ont.csv'
     log:
         err             = '4-processONT/processONT.err'
     params:
@@ -104,7 +104,7 @@ echo ""
 echo Step 2c
 {PYTHON} {VERKKO}/scripts/calculate_coverage.py gapped-unitig-unrolled-hifi-resolved.gfa \\\\
   < alns-ont-filter-trim.gaf \\\\
-  > ../{output.ontcov}
+  > ../{output.ont_node_cov}
 
 echo ""
 echo Step 2d
@@ -122,7 +122,7 @@ ont_solid_cov=\`awk '{{ \\\\
      {{ \\\\
         print int({params.cov_fraction} * sum / count); \\\\
      }}' \\\\
-  < ../{output.ontcov}\`
+  < ../{output.ont_node_cov}\`
 
 echo ""
 echo Step 3b
@@ -161,7 +161,7 @@ awk 'BEGIN \\\\
   combined-nodemap-uniques.txt \\\\
   combined-edges-uniques.gfa \\\\
   nodelens-uniques.txt \\\\
-  ../{input.hificov} \\\\
+  ../{input.hifi_node_cov} \\\\
 > hifi-nodecov-gapped-unitig-unrolled-hifi-resolved.csv
 
 hifi_solid_cov=\`awk '{{ \\\\

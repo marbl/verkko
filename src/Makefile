@@ -835,7 +835,6 @@ all: $(addprefix ${TARGET_DIR}/,${ALL_TGTS}) \
      ../lib/verkko/Snakefiles/c2-findOverlaps.sm \
      ../lib/verkko/Snakefiles/c4-findErrors.sm \
      ../lib/verkko/Snakefiles/functions.sm \
-     ../lib/verkko/Snakefiles/get-coverage.sm \
      \
      ../lib/verkko/profiles/config.yaml \
      ../lib/verkko/profiles/jobscript.sh \

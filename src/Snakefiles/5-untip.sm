@@ -26,18 +26,25 @@
 
 rule untip:
     input:
-        graph  = rules.processONT.output.graph if config['withONT'] == "True" else rules.processGraph.output.gfa,
-        hificov= rules.buildGraph.output.hificov
+        graph         = rules.processONT.output.graph if config['withONT'] == "True" else rules.processGraph.output.gfa,
+        hifi_node_cov = rules.buildGraph.output.hifi_node_cov,
+        ont_node_cov  = rules.processONT.output.ont_node_cov   if config['withONT'] == "True" else rules.emptyfile.output
     output:
-        graph  = rules.verkko.input.graph,
-        hificov= "5-untip/nodecov_hifi_fix.csv"
+        graph         = rules.verkko.input.graph,
+        hifi_utg_cov  = rules.verkko.input.hifi5cov,
+        ont_utg_cov   = rules.verkko.input.ont5cov,
     log:
-        err    = '5-untip/untip.err'
+        err           = '5-untip/untip.err'
     params:
-        maps   = getAllMappings(5),
-        graphs = getAllGraphs(5),
-        aligns = getAllAlignments(5),
-        haploid = config['haploid']
+        maps          = getAllMappings(5),
+        graphs        = getAllGraphs(5),
+        aligns        = getAllAlignments(5),
+
+        finalmaps     = getAllMappings(6),
+        finalgraphs   = getAllGraphs(6),
+
+        haploid       = config['haploid']
+
     threads:
         int(config['utp_n_cpus'])
     resources:
@@ -90,19 +97,19 @@ echo Fix coverage
   combined-nodemap-1.txt \\\\
   combined-edges-1.gfa \\\\
   nodelens-1.txt \\\\
-  ../{input.hificov} \\\\
-> ../{output.hificov}
+  ../{input.hifi_node_cov} \\\\
+> ./nodecov_hifi_fix.csv
 
 echo Pop bubbles based on coverage
 {PYTHON} {VERKKO}/scripts/pop_bubbles_coverage_based.py \\\\
-  ../{output.hificov} {params.haploid} \\\\
+  ./nodecov_hifi_fix.csv {params.haploid} \\\\
 < unitig-connected-tip.gfa \\\\
 > popped-connected-tip.gfa \\\\
 2> popinfo_round1.err
 
 # consider doing this in a loop to avoid code redundancy
 echo Unroll simple loops
-{PYTHON} {VERKKO}/scripts/unroll_simple_loops.py popped-connected-tip.gfa ../{output.hificov} > unrolled-popped-connected-tip.gfa 2>> unitig-mapping-3a.txt
+{PYTHON} {VERKKO}/scripts/unroll_simple_loops.py popped-connected-tip.gfa ./nodecov_hifi_fix.csv > unrolled-popped-connected-tip.gfa 2>> unitig-mapping-3a.txt
 
 echo Unitigify 3
 {PYTHON} {VERKKO}/scripts/unitigify.py utig3b- unitig-mapping-3b.txt \\\\
@@ -139,18 +146,18 @@ echo Fix coverage
   combined-nodemap-1.txt \\\\
   combined-edges-1.gfa \\\\
   nodelens-1.txt \\\\
-  ../{input.hificov} \\\\
->> ../{output.hificov}
+  ../{input.hifi_node_cov} \\\\
+>> ./nodecov_hifi_fix.csv
 
 echo Pop bubbles based on coverage round 2
 {PYTHON} {VERKKO}/scripts/pop_bubbles_coverage_based.py \\\\
-  ../{output.hificov} {params.haploid} \\\\
+  ./nodecov_hifi_fix.csv {params.haploid} \\\\
   < unitig-unrolled-popped-connected-tip.gfa \\\\
   > popped-unitig-unrolled-popped-connected-tip.gfa \\\\
   2> popinfo_round2.err
 
 echo Unroll simple loops round 2
-{PYTHON} {VERKKO}/scripts/unroll_simple_loops.py popped-unitig-unrolled-popped-connected-tip.gfa ../{output.hificov} > unrolled-popped-unitig-unrolled-popped-connected-tip.gfa 2>> unitig-mapping-3b.txt
+{PYTHON} {VERKKO}/scripts/unroll_simple_loops.py popped-unitig-unrolled-popped-connected-tip.gfa ./nodecov_hifi_fix.csv > unrolled-popped-unitig-unrolled-popped-connected-tip.gfa 2>> unitig-mapping-3b.txt
 
 echo Unitigify 4
 {PYTHON} {VERKKO}/scripts/unitigify.py utig4- unitig-mapping-4.txt \
@@ -164,6 +171,56 @@ echo Unitigify 4
 #echo Add homozygous node scaffold edges
 #cat combined-nodemap-1.txt unitig-mapping-3a.txt unitig-mapping-3b.txt unitig-mapping-4.txt > combined-nodemap-2.txt
 #{PYTHON} {VERKKO}/scripts/add_hom_node_scaffold_edges.py pregap-popped-unitig-normal-connected-tip.gfa combined-nodemap-2.txt homgap > ../{output.graph}
+
+
+echo Generate Coverage
+
+#
+#   Generates files used to compute coverage tables.  It combines all the
+#   various bits and pieces of the assembly into three outputs.  Which files
+#   are combined depends on which stage we're at in the assembly process
+#   (and if ONT data is included); getAllMappings() and getAllGraphs()
+#   figures this out.
+#      5-untip/combined-edges-final.gfa     #  Edges in the graphs
+#      5-untip/nodelens-final.txt           #  Sequence lines that have actual sequence
+#      5-untip/combined-nodemap-final.txt   #  Maps from nodes to components
+#
+#   Then computes coverage of either HiFi or ONT reads for unitigs at various stages.
+#     hifi2cov = '2-processGraph/unitig-unrolled-hifi-resolved.hifi-coverage.csv',
+#     ont2cov  = '2-processGraph/unitig-unrolled-hifi-resolved.ont-coverage.csv'       if config['withONT'] == "True" else rules.emptyfile.output,
+#     hifi4cov = '4-processONT/unitig-unrolled-ont-resolved.hifi-coverage.csv'         if config['withONT'] == "True" else rules.emptyfile.output,
+#     ont4cov  = '4-processONT/unitig-unrolled-ont-resolved.ont-coverage.csv'          if config['withONT'] == "True" else rules.emptyfile.output,
+#     hifi5cov = '5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.hifi-coverage.csv',
+#     ont5cov  = '5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.ont-coverage.csv'  if config['withONT'] == "True" else rules.emptyfile.output,
+
+cat {params.finalmaps} \\\\
+> ./combined-nodemap-final.txt
+
+cat {params.finalgraphs} \\\\
+| grep '^L' \\\\
+> ./combined-edges-final.gfa
+
+cat {params.finalgraphs} \\\\
+| awk 'BEGIN \\\\
+       {{ \\\\
+          FS="[ \\t]+"; OFS="\\t"; \\\\
+       }} \\\\
+       (\$1 == "S") && (\$3 != "*") \\\\
+       {{ \\\\
+          print \$2, length(\$3); \\\\
+       }}' \\\\
+> ./nodelens-final.txt
+
+for gg in 2-processGraph/unitig-unrolled-hifi-resolved \\\\
+          4-processONT/unitig-unrolled-ont-resolved \\\\
+          5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip ; do
+  if [ -e ../\\$gg.gfa ] ; then
+    {PYTHON} {VERKKO}/scripts/get_original_coverage.py ../\\$gg.gfa ./combined-nodemap-final.txt ./combined-edges-final.gfa ./nodelens-final.txt ../{input.hifi_node_cov} > ../\\$gg.hifi-coverage.csv
+  fi
+  if [ -e ../\\$gg.gfa ] ; then
+    {PYTHON} {VERKKO}/scripts/get_original_coverage.py ../\\$gg.gfa ./combined-nodemap-final.txt ./combined-edges-final.gfa ./nodelens-final.txt ../{input.ont_node_cov}  > ../\\$gg.ont-coverage.csv
+  fi
+done
 
 EOF
 

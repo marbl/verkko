@@ -23,21 +23,21 @@
 
 rule processGraph:
     input:
-        gfa   = rules.buildGraph.output.graph,
-        paths = rules.buildGraph.output.paths,
-        cov   = rules.buildGraph.output.hificov
+        gfa           = rules.buildGraph.output.graph,
+        paths         = rules.buildGraph.output.paths,
+        hifi_node_cov = rules.buildGraph.output.hifi_node_cov
     output:
-        gfa = '2-processGraph/unitig-unrolled-hifi-resolved.gfa',
-        map = '2-processGraph/unitig-mapping-1.txt'
+        gfa           = '2-processGraph/unitig-unrolled-hifi-resolved.gfa',
+        map           = '2-processGraph/unitig-mapping-1.txt'
     log:
-        err = '2-processGraph/process.err'
+        err           = '2-processGraph/process.err'
     threads:
         int(config['utg_n_cpus'])
     resources:
-        job_id = 1,
-        n_cpus = int(config['utg_n_cpus']),
-        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'utg'),
-        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'utg')
+        job_id        = 1,
+        n_cpus        = int(config['utg_n_cpus']),
+        mem_gb        = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'utg'),
+        time_h        = lambda wildcards, input, attempt: getTimeRequest(attempt, 'utg')
     shell:
         '''
 cd 2-processGraph
@@ -90,7 +90,7 @@ awk 'BEGIN \\\\
   haplofix-mapping.txt \
   combined-edges-uniques.gfa \
   nodelens-uniques.txt \
-  ../{input.cov} \
+  ../{input.hifi_node_cov} \
 > hifi-nodecov.fixed-hifi-resolved.csv
 
 cut -f 6 < ../{input.paths} \\\\

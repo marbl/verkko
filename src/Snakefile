@@ -74,12 +74,12 @@ rule verkko:
         cnsunas     = '7-consensus/unitig-popped.unassigned.fasta',
         pathstsv    = '6-rukki/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.paths.tsv'   if config['ruk_enable'] == "True" else {rules.emptyfile.output},
         colorscsv   = '6-rukki/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.colors.csv'  if config['ruk_enable'] == "True" else {rules.emptyfile.output},
-        hifi2cov    = '2-processGraph/unitig-unrolled-hifi-resolved.hifi-coverage.csv',
-        ont2cov     = '2-processGraph/unitig-unrolled-hifi-resolved.ont-coverage.csv'       if config['withONT'] == "True" else {rules.emptyfile.output},
-        hifi4cov    = '4-processONT/unitig-unrolled-ont-resolved.hifi-coverage.csv'         if config['withONT'] == "True" else {rules.emptyfile.output},
-        ont4cov     = '4-processONT/unitig-unrolled-ont-resolved.ont-coverage.csv'          if config['withONT'] == "True" else {rules.emptyfile.output},
+       #hifi2cov    = '2-processGraph/unitig-unrolled-hifi-resolved.hifi-coverage.csv',   #  These are generated at the
+       #ont2cov     = '2-processGraph/unitig-unrolled-hifi-resolved.ont-coverage.csv',    #  end of untip, but are
+       #hifi4cov    = '4-processONT/unitig-unrolled-ont-resolved.hifi-coverage.csv',      #  otherwise unused.
+       #ont4cov     = '4-processONT/unitig-unrolled-ont-resolved.ont-coverage.csv',
         hifi5cov    = '5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.hifi-coverage.csv',
-        ont5cov     = '5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.ont-coverage.csv'  if config['withONT'] == "True" else {rules.emptyfile.output},
+        ont5cov     = '5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.ont-coverage.csv'
     output:
         graph       = 'assembly.homopolymer-compressed.gfa',
         nseqgraph   = 'assembly.homopolymer-compressed.noseq.gfa',
@@ -216,27 +216,19 @@ include: 'Snakefiles/c2-findOverlaps.sm'
 include: 'Snakefiles/c4-findErrors.sm'
 
 include: 'Snakefiles/1-buildGraph.sm'
-
 include: 'Snakefiles/2-processGraph.sm'
-
 include: 'Snakefiles/3-splitONT.sm'
 include: 'Snakefiles/3-alignONT.sm'
 include: 'Snakefiles/3-combineONT.sm'
-
 include: 'Snakefiles/3-alignTips.sm'
-
 include: 'Snakefiles/4-processONT.sm'
-
-include: 'Snakefiles/get-coverage.sm'
 include: 'Snakefiles/5-untip.sm'
-
 include: 'Snakefiles/6-rukki.sm'
-
 include: 'Snakefiles/6-layoutContigs.sm'
-
 include: 'Snakefiles/7-extractONT.sm'
 include: 'Snakefiles/7-buildPackage.sm'
 include: 'Snakefiles/7-generateConsensus.sm'
 include: 'Snakefiles/7-combineConsensus.sm'
+
 if config['withHIC'] == "True" or config['withPOREC'] == 'True':
     include: 'Snakefiles/8-hicPipeline.sm'

@@ -35,23 +35,23 @@ def toFloat(val):
 
 rule buildGraph:
     input:
-        reads     = {rules.correctHiFi.output.fasta},
+        reads            = rules.correctHiFi.output.fasta,
     output:
-        graph     = '1-buildGraph/hifi-resolved.gfa',
-        hificov   = '1-buildGraph/hifi_nodecov.csv',
-        paths     = '1-buildGraph/paths.gaf'
+        graph            = '1-buildGraph/hifi-resolved.gfa',
+        hifi_node_cov    = '1-buildGraph/hifi_nodecov.csv',
+        paths            = '1-buildGraph/paths.gaf'
     log:
-        err       = '1-buildGraph/buildGraph.err'
+        err              = '1-buildGraph/buildGraph.err'
     params:
-        MBG       = config['MBG'],
+        MBG              = config['MBG'],
 
-        baseK             = config['mbg_baseK'],
-        maxK              = config['mbg_maxK'],
-        window            = config['mbg_window'],
-        maxR              = config['mbg_max_resolution'],
-        hifi_coverage     = config['mbg_hifi_coverage'],
-        kmer_abundance    = 1,                   #  MBG default = 1
-        unitig_abundance  = config['mbg_unitig_abundance']
+        baseK            = config['mbg_baseK'],
+        maxK             = config['mbg_maxK'],
+        window           = config['mbg_window'],
+        maxR             = config['mbg_max_resolution'],
+        hifi_coverage    = config['mbg_hifi_coverage'],
+        kmer_abundance   = 1,                   #  MBG default = 1
+        unitig_abundance = config['mbg_unitig_abundance']
     threads:
         int(config['mbg_n_cpus'])
     resources:
@@ -117,7 +117,7 @@ awk 'BEGIN \\\\
         print \$2, length(\$3), substr(\$4, 6); \\\\
      }}' \\\\
 < ../{output.graph} \\\\
-> ../{output.hificov}
+> ../{output.hifi_node_cov}
 EOF
 
 chmod +x ./buildGraph.sh
