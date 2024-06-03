@@ -8,11 +8,6 @@ import os
 import networkx as nx
 from numpy import argmax
 import graph_functions as gf 
-import rdna_scaff_functions as sf
-import os
-import networkx as nx
-import graph_functions as gf
-import rdna_scaff_functions as sf
 import logging
 from scaffolding import scaffold_graph, logger_wrap, path_storage
 
@@ -54,11 +49,9 @@ hicverkko_log = os.path.join(hicrun_dir, "hicverkko.log")
 
 G = nx.DiGraph()
 gf.load_direct_graph(gfa_file, G)
-indirectG = nx.Graph()
 logger = logger_wrap.initLogger(os.path.join(hicrun_dir, "scaffolding.log"))
 rukki_path_storage = path_storage.PathStorage(G)
 rukki_path_storage.readFromFile(old_rukki_tsv_file)
-gf.load_indirect_graph(gfa_file, indirectG)
 #sf.try_to_scaff(rukki_paths, telomere_locations_file, os.path.join(hicrun_dir, "hic_mapping.byread.output"), os.path.join(hicrun_dir, "unitigs.matches"), G, indirectG, uncompressed_nodes)
 sg = scaffold_graph.ScaffoldGraph(rukki_path_storage, telomere_locations_file, os.path.join(hicrun_dir, "hic_mapping.byread.output"), os.path.join(hicrun_dir, "unitigs_nonhpc50.mashmap"), G, uncompressed_nodes, logger) 
 res = sg.generateScaffolds()
