@@ -156,12 +156,12 @@ def load_direct_graph(gfa_file, G):
             if line[1]+"+" not in G or line[3]+"+" not in G:
                 sys.stderr.write("Error while graph loading; link between nodes not in graph:%s" % (line))
                 sys.exit(1)
-            overlap = 0
+            overlp = 0
             if len(line) > 5 and isinstance(line[5][:-1], int):
-                overlap = int(line[5][:-1])
+                overlp = int(line[5][:-1])
             #Double distance between centers of nodes
-            G.add_edge(line[1] + line[2], line[3] + line[4], mid_length = G.nodes[line[1]+line[2]]['length'] + G.nodes[line[3]+line[4]]['length'] - 2*overlap)
-            G.add_edge(line[3] + rc[line[4]], line[1] + rc[line[2]], mid_length = G.nodes[line[1]+line[2]]['length'] + G.nodes[line[3]+line[4]]['length'] - 2*overlap)
+            G.add_edge(line[1] + line[2], line[3] + line[4], overlap = overlp, mid_length = G.nodes[line[1]+line[2]]['length'] + G.nodes[line[3]+line[4]]['length'] - 2*overlp)
+            G.add_edge(line[3] + rc[line[4]], line[1] + rc[line[2]], overlap = overlp, mid_length = G.nodes[line[1]+line[2]]['length'] + G.nodes[line[3]+line[4]]['length'] - 2*overlp)
 
 # https://bioinformatics.stackexchange.com/questions/3583/what-is-the-fastest-way-to-get-the-reverse-complement-of-a-dna-sequence-in-pytho
 trans = str.maketrans("ACTG", "TGAC")
