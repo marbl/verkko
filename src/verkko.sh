@@ -857,7 +857,7 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --screen <option>        Identify common contaminants and remove from the assembly, saving 1 (circularized) exemplar."
     echo "                             For human, '--screen human' will attempt to remove rDNA, mitochondria, and EBV."
     echo "                             Arbitrary contaminants are supported by supplying a name and fasta:"
-    echo "                             'screen contaminant /full/path/to/contaminant.fasta'"
+    echo "                             '--screen contaminant /full/path/to/contaminant.fasta'"
     echo "                             Multiple screen commands are allowed and are additive."
     echo ""
     echo "    --paths <gaf paths>      No assembly, generate consensus given paths and an existing assembly."
