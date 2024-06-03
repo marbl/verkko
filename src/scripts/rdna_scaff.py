@@ -14,7 +14,7 @@ import networkx as nx
 import graph_functions as gf
 import rdna_scaff_functions as sf
 import logging
-from scaffolding import scaffold_graph, logger_wrap
+from scaffolding import scaffold_graph, logger_wrap, path_storage
 
 #get all rdna nodes from mashmap
 #get nodes from seqtk telo 
@@ -56,9 +56,10 @@ G = nx.DiGraph()
 gf.load_direct_graph(gfa_file, G)
 indirectG = nx.Graph()
 logger = logger_wrap.initLogger(os.path.join(hicrun_dir, "scaffolding.log"))
-rukki_paths = sf.read_rukki_paths(old_rukki_tsv_file, G)
+rukki_path_storage = path_storage.PathStorage(G)
+rukki_path_storage.readFromFile(old_rukki_tsv_file)
 gf.load_indirect_graph(gfa_file, indirectG)
 #sf.try_to_scaff(rukki_paths, telomere_locations_file, os.path.join(hicrun_dir, "hic_mapping.byread.output"), os.path.join(hicrun_dir, "unitigs.matches"), G, indirectG, uncompressed_nodes)
-sg = scaffold_graph.ScaffoldGraph(rukki_paths, telomere_locations_file, os.path.join(hicrun_dir, "hic_mapping.byread.output"), os.path.join(hicrun_dir, "unitigs_nonhpc50.mashmap"), G, uncompressed_nodes, logger) 
+sg = scaffold_graph.ScaffoldGraph(rukki_path_storage, telomere_locations_file, os.path.join(hicrun_dir, "hic_mapping.byread.output"), os.path.join(hicrun_dir, "unitigs_nonhpc50.mashmap"), G, uncompressed_nodes, logger) 
 res = sg.generateScaffolds()
 

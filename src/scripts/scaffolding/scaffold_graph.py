@@ -6,41 +6,55 @@ import shutil
 import os
 import networkx as nx
 from numpy import argmax
-import graph_functions
+import graph_functions as gf
 import logging
 from scaffolding import logger_wrap, match_graph, path_storage
-import rdna_scaff_functions as sf
 
 #TODO: or inherit from nx.Digraph??
 class ScaffoldGraph:
     LONG_HAPLOID_CUTOFF = 5000000
     #should not be actuallly used, since they'll be reordered with MAX_REORDERING_LENGTH check
     SHORT_TEL_CUTOFF = 5000000
-    MIN_LINKS = 10
-    CLEAR_MAJORITY = 1.5   
-    #Should it be ignored at all? 
-    MAX_REORDERING_LENGTH = 1000000000
 
-    #If not near end, connection is ignored
+    #Should it be ignored at all? 
+    MAX_REORDERING_LENGTH = 30000000
+
+    #If not near end, hi-c link is ignored
     NEAR_PATH_END = 5000000
+    #<MIN_LINKS - ignore even clear majority
+    MIN_LINKS = 10
+    #Ratio from best to second best. Possibly should be increased.
+    CLEAR_MAJORITY = 1.5   
     SHORT_INGORED_NODE = 20000
 
+    #Distance is defined with respect to homologous paths to allow "gap jumping"
+    #if one of orientation is relatively close in graph(<min(1/4*path_length, CLOSE_IN_GRAPH) and other is really far (>3/4 of the length), we move all connections from far one to close
     CLOSE_IN_GRAPH = 500000
 
+    #If paths are closer than CLOSE_IN_GRAPH, we significantly increase scores. Should be reconsidered when lots of gaps present
+    #can be asymetric because of the 1/4 path_length rule, possibly should reconsider it
+    CONNECTIVITY_MULTIPLICATIVE_BONUS = 2
+
+#default values for MatchGraph construction
     MATCHGRAPH_LONG_NODE = 500000
     MATCHGRAPH_MIN_ALIGNMENT = 100000
 
+    MIN_PATH_TO_SCAFFOLD = 500000
+    
+
     def __init__(self, rukki_paths, telomere_locations_file, hic_alignment_file, matches_file, G, uncompressed_fasta, logger):
         self.logger = logger_wrap.UpdatedAdapter(logger, self.__class__.__name__)
-        self.multiplicities = sf.get_multiplicities(rukki_paths)
+        self.rukki_paths = rukki_paths
+
+        self.multiplicities = rukki_paths.getEdgeMultiplicities()
         #upd_G - graph with telomeric nodes
-        self.tel_nodes, self.upd_G = sf.get_telomeric_nodes(telomere_locations_file, G)
+        self.tel_nodes, self.upd_G = gf.get_telomeric_nodes(telomere_locations_file, G)
         self.logger.debug("Telomeric nodes")
         self.logger.debug(self.tel_nodes)
         self.output_basename = "scaff_rukki.paths"
 
         #Used for scaffolding starts and debug, 
-        self.to_scaff = sf.get_paths_to_scaff(rukki_paths, self.tel_nodes, self.upd_G)   
+        self.to_scaff = self.get_paths_to_scaff(ScaffoldGraph.MIN_PATH_TO_SCAFFOLD)
         self.hic_alignment_file = hic_alignment_file
 
         #TODO: duplicated... self.matchGraph should not be refered directly
@@ -50,14 +64,13 @@ class ScaffoldGraph:
         #debug purposes
         self.dangerous_swaps = {}
 
-        self.uncompressed_lens = sf.get_lengths(uncompressed_fasta)
+        self.uncompressed_lens = gf.get_lengths(uncompressed_fasta)
         self.compressed_lens = {}
         for node in self.upd_G.nodes:
             self.compressed_lens[node] = self.upd_G.nodes[node]['length']      
             self.compressed_lens[node.strip("-+")] = self.upd_G.nodes[node]['length']  
             
 
-        self.rukki_paths = rukki_paths
         self.G = G
         self.dists = dict(nx.all_pairs_dijkstra_path_length(self.upd_G, weight=lambda u, v, d: self.upd_G.edges[u, v]['mid_length']))
         self.logger.info("Pairwise distances in assembly graph calculated")
@@ -99,6 +112,7 @@ class ScaffoldGraph:
                 if from_path_id in self.to_scaff and to_path_id in self.to_scaff:
                     self.logger.debug (f"Counted scores {from_path_id} {to_path_id} {scores[from_path_id][to_path_id]}")
 
+#TODO: move all rc_<smth> somewhere, not right place 
     def rc_orientation(self, c):
         if c == "+":
             return "-"
@@ -108,6 +122,20 @@ class ScaffoldGraph:
 
     def rc_path_id(self, path_id):
         return path_id[:-1] + self.rc_orientation(path_id[-1])
+    
+    def rc_path(self, path):
+        res = []
+        path.reverse()
+        for node in path:
+            if node[-1] == "+":
+                res.append(node[:-1]+"-")
+            elif node[-1] == "-":
+                res.append(node[:-1]+"+")   
+            else:
+                res.append(node)
+        path.reverse()
+        return res
+    
     
     def getHaploidPaths(self):
         haploids = set()
@@ -149,7 +177,7 @@ class ScaffoldGraph:
     def getClosestTelomere(self, path, direction):
         #From telomere to rc(path_end)
         if direction == '+':
-            path = sf.rc_path(path)
+            path = self.rc_path(path)
         closest = 1000000000
 
         add_dist = 0
@@ -304,10 +332,10 @@ class ScaffoldGraph:
         total_scf = 0
         total_jumps = 0
         total_new_t2t = 0     
-        final_paths = path_storage.PathStorage()   
+        final_paths = path_storage.PathStorage(self.upd_G)   
         for nor_path_id in self.rukki_paths.getPathIds():
             if not (nor_path_id in nor_used_path_ids):
-                final_paths.addPath(self.rukki_paths.getPathTsv(nor_path_id) , self.G)
+                final_paths.addPath(self.rukki_paths.getPathTsv(nor_path_id))
         for scf in res:
             scf_path = []
             if len(scf) > 1:
@@ -327,7 +355,7 @@ class ScaffoldGraph:
                 if or_path_id[-1] == "+":
                     scf_path.extend(self.rukki_paths.getPathById(nor_path_id))
                 else:
-                    scf_path.extend(sf.rc_path(self.rukki_paths.getPathById(nor_path_id)))
+                    scf_path.extend(self.rc_path(self.rukki_paths.getPathById(nor_path_id)))
                 if cur_path_count < len(scf):
                     scf_path.append("[N1000001N:scaffold]")
                     
@@ -340,7 +368,7 @@ class ScaffoldGraph:
                 if (scf[i].strip('-+'), scf[i+1].strip('-+')) in self.dangerous_swaps:
                     self.logger.warning (f"consecutive pair,  {scf[i]} {scf[i+1]} did signficant changes on hi-c counts based on {self.dangerous_swaps[(scf[i].strip('-+'), scf[i+1].strip('-+'))]}")
             path_str = "\t".join([largest_id, ",".join(scf_path), largest_label])
-            final_paths.addPath(path_str, self.G)
+            final_paths.addPath(path_str)
             telo_end = False
             telo_start = False
             for tel_node in self.tel_nodes:
@@ -451,9 +479,9 @@ class ScaffoldGraph:
                         for orient in ('-', '+'):
                             to_check = paths.copy()
                             if fixed_orientation == "-":
-                                to_check[1 - i] = sf.rc_path(paths[1-i])
+                                to_check[1 - i] = self.rc_path(paths[1-i])
                             if orient == '-':
-                                to_check[i] = sf.rc_path(paths[i])
+                                to_check[i] = self.rc_path(paths[i])
                             shortest_paths[orient] = self.pathDist(to_check[0], to_check[1], True)
                             self.logger.debug(f"Checking dists {to_check} index {i} dist {shortest_paths[orient]} cutoffs {min_cutoff} {max_cutoff}")
 
@@ -480,6 +508,7 @@ class ScaffoldGraph:
                                 self.logger.debug(f"Dangerous moved {scores[incorrect_pair]} from {incorrect_pair} to {correct_pair}")    
                         
                             scores[correct_pair] += scores[incorrect_pair]
+                            scores[correct_pair] *= self.CONNECTIVITY_MULTIPLICATIVE_BONUS
                             scores[incorrect_pair] = 0 
                             self.logger.debug (f"Connectivity tuned pair {path_ids}, scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}") 
 
@@ -583,3 +612,23 @@ class ScaffoldGraph:
         self.logger.debug (f"Pathscores for {path_ids} {scores}")
         scores = self.fixOrientation(path_ids, scores)
         return scores
+    
+    #returns dict, {id:[present_start_relo, present_end_telo]}
+    def get_paths_to_scaff(self, long_enough):
+        res = {}
+        for id in self.rukki_paths.paths:
+            total_l = self.rukki_paths.path_lengths[id]
+            tel_start = False
+            tel_end = False    
+            for telomere in self.tel_nodes:
+                if self.upd_G.has_edge(telomere, self.rukki_paths.paths[id][0]):
+                    tel_start = True
+                if self.upd_G.has_edge(self.rukki_paths.paths[id][-1], telomere):
+                    tel_end = True
+            if tel_start and tel_end:
+                continue
+            #all long enough AND containing telomere
+            if total_l > long_enough:
+                res[id] = [tel_start, tel_end]
+                #print (f"will use path {paths.paths[id]} {tel_start} {tel_end}")
+        return res
