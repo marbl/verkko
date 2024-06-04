@@ -181,7 +181,7 @@ echo "---Preparing rukki paths fasta"
 {PYTHON} {VERKKO}/scripts/get_paths_fasta.py ../{input.rukki_tsv} ../{input.unitigs_hpc} ../{input.graph_hpc} paths.hpc.fasta
 
 echo "---Running MashMap"
-{params.MASHMAP} -r {params.ref}  -q paths.hpc.fasta -t {threads} --pi 95.0 -s 10000 -o ../{output.path_mashmap}
+{params.MASHMAP} -r {params.ref}  -q paths.hpc.fasta -t {threads}  -f none --pi 95.0 -s 10000 -o ../{output.path_mashmap}
 EOF
 
 chmod +x ./prepare_ref_mashmap.sh
