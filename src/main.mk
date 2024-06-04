@@ -243,6 +243,7 @@ FILES        += \
                 scripts/parse_sam_pairs.py                    -> ../lib/verkko/scripts/parse_sam_pairs.py \
                 scripts/rdna_scaff_functions.py               -> ../lib/verkko/scripts/rdna_scaff_functions.py \
                 scripts/rdna_scaff.py                         -> ../lib/verkko/scripts/rdna_scaff.py \
+                scripts/remove_nodes_add_telomere.py          -> ../lib/verkko/scripts/remove_nodes_add_telomere.py \
                 \
                 Snakefile                                     -> ../lib/verkko/Snakefile \
                 Snakefiles/1-buildGraph.sm                    -> ../lib/verkko/Snakefiles/1-buildGraph.sm \
