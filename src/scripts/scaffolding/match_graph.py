@@ -53,7 +53,7 @@ class HomologyInfo:
                 state += coord_pair[1]
             self.covered[i] = total_c   
     
-    def getMinCovered(self):
+    def getCoveredLen(self):
 #in weird case matches can be larger than seq, avoiding
         return min(self.covered[0], self.covered[1], self.len[0], self.len[1])
     
@@ -106,6 +106,13 @@ class HomologyStorage:
             return True
         else:
             return False
+    #extracting length, sometimes we do not haev this info in other places
+    def getLen(self, node1):
+        if node1 in self.homologies and len (self.homologies[node1]) > 0:
+           for node2 in self.homologies[node1]:
+                return self.homologies[node1][node2].len[0]
+        else:
+            return 0
         
 # homology_weight - large negative something, min_big_homology - minimal length of homology to be taken in account. 
 # Some shorter ones can still sometimes be used if they are in regular bulge_like structure
@@ -133,7 +140,7 @@ class MatchGraph:
                 #we deleted some nodes after mashmap
                 #sys.stderr.write(f"Checking {node1} {node2} {self.hom_storage.homologies[node1][node2].getMinCovered()} {min_big_homology}\n")
                 if node1 in indirect_nodes and node2 in indirect_nodes:
-                    cur_homology = self.hom_storage.homologies[node1][node2].getMinCovered()
+                    cur_homology = self.hom_storage.homologies[node1][node2].getCoveredLen()
                     if cur_homology > min_big_homology:
                         self.logger.debug(f"Adding normal edge {node1} {node2} {cur_homology}")
                         self.matchGraph.add_edge(node1, node2, homology_len = cur_homology)
