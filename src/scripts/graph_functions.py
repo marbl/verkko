@@ -378,3 +378,7 @@ def get_telomeric_nodes(telomere_locations_file, G):
                 aux_tel_nodes.add(telnode)
     return aux_tel_nodes, new_G
 
+
+def rc_seq(seq):
+    rc = {"A": "T", "T": "A", "G": "C", "C": "G", "N": "N"}
+    return "".join([rc[x] for x in seq[::-1]])
