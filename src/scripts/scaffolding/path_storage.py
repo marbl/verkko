@@ -103,7 +103,7 @@ class PathStorage:
                 cur = line.strip()[1:]
             else:
                 seqs[cur] = line.strip()
-        with open(output_fasta, "a") as f:
+        with open(output_fasta, "w") as f:
             for id in sorted(self.paths.keys()):
                 f.write(f">{id}\n")
                 prev_over = 0
@@ -124,10 +124,10 @@ class PathStorage:
                         if node[-1] == "+":
                             f.write(seqs[nor_node][prev_over:])
                         else:
-                            to_out = gf.rc_seq(seqs[nor_node][prev_over:])
+                            to_out = graph_functions.rc_seq(seqs[nor_node][prev_over:])
                             f.write(to_out[prev_over:])
                         if node_id < len(self.paths[id]) - 1 and self.paths[id][node_id + 1][:-1] in seqs:
-                            overlap = self.G.get_edge_data(nor_node, self.paths[id][node_id + 1][:-1])['overlap']
+                            overlap = self.G.get_edge_data(node, self.paths[id][node_id + 1])['overlap']
                         else:
                             overlap = 0
                 f.write(f"\n")
