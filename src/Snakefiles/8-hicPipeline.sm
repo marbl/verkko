@@ -151,6 +151,44 @@ chmod +x ./run_rdnamashmap.sh
 ./run_rdnamashmap.sh > ../{log.err} 2>&1
         '''
 
+rule prepare_reference_mashmap:
+    input:
+        unitigs_hpc = '8-hicPipeline/unitigs.hpc.fasta',
+        graph_hpc = '8-hicPipeline/unitigs.hpc.noseq.gfa',
+        rukki_tsv = '8-hicPipeline/rukki.paths.tsv'
+    output:
+        path_mashmap = '8-hicPipeline/paths2ref.mashmap'
+    log:
+        err    = '8-hicPipeline/prepare_ref_mashmap.err'
+    params:
+        ref = config['ref'] if config['with_ref'] == "True" else '8-hicPipeline/paths.hpc.fasta'
+    threads:
+        int(config['fhc_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = int(config['fhc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
+    shell:
+        '''
+cd 8-hicPipeline
+
+cat > ./prepare_ref_mashmap.sh <<EOF
+#!/bin/sh
+set -e
+echo "---Preparing rukki paths fasta"
+{PYTHON} {VERKKO}/scripts/get_paths_fasta.py ../{input.rukki_tsv} ../{input.unitigs_hpc} ../{input.graph_hpc} paths.hpc.fasta
+
+echo "---Running MashMap"
+{params.MASHMAP} -r {params.ref}  -q paths.hpc.fasta -t {threads} --pi 95.0 -s 10000 -o ../{output.path_mashmap}
+EOF
+
+chmod +x ./prepare_ref_mashmap.sh
+
+./prepare_ref_mashmap.sh > ../{log.err} 2>&1
+        '''
+  
+
 
 rule run_seqtktelo:
     input:
@@ -494,6 +532,7 @@ rule HiC_rdnascaff:
         gaf_path = '8-hicPipeline/rukki.paths.gaf',
         unitigs_telo = '8-hicPipeline/unitigs.telo',
         unitigs_nohpc50 =  '8-hicPipeline/unitigs_nonhpc50.mashmap',
+        path_mashmap = rules.prepare_reference_mashmap.output.path_mashmap,
         unitigs_rdnamatches = '8-hicPipeline/rdna_mashmap.out'
     output:
         scaff_tsv_path = '8-hicPipeline/scaff_rukki.paths.tsv',
