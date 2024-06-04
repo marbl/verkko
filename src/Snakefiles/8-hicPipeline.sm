@@ -161,6 +161,7 @@ rule prepare_reference_mashmap:
     log:
         err    = '8-hicPipeline/prepare_ref_mashmap.err'
     params:
+        MASHMAP   = config.get('MASHMAP', "{VERKKO}/bin/mashmap"),
         ref = config['ref'] if config['with_ref'] == "True" else '8-hicPipeline/paths.hpc.fasta'
     threads:
         int(config['fhc_n_cpus'])
