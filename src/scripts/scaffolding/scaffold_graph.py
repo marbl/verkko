@@ -26,6 +26,8 @@ class ScaffoldGraph:
     #Ratio from best to second best. Possibly should be increased.
     CLEAR_MAJORITY = 1.5   
     SHORT_INGORED_NODE = 20000
+    #ignore shorter paths, TODO change for iterative runs
+    MIN_PATH_TO_SCAFFOLD = 500000
 
     #Distance is defined with respect to homologous paths to allow "gap jumping"
     #if one of orientation is relatively close in graph(<min(1/4*path_length, CLOSE_IN_GRAPH) and other is really far (>3/4 of the length), we move all connections from far one to close
@@ -35,12 +37,22 @@ class ScaffoldGraph:
     #can be asymetric because of the 1/4 path_length rule, possibly should reconsider it
     CONNECTIVITY_MULTIPLICATIVE_BONUS = 2
 
-#default values for MatchGraph construction
+
+
+    #default values for MatchGraph construction
     MATCHGRAPH_LONG_NODE = 500000
     MATCHGRAPH_MIN_ALIGNMENT = 100000
-
-    MIN_PATH_TO_SCAFFOLD = 500000
     
+    #reference-based/haplotype-reference based params
+    #shorter homologies will be ignored, possibly can be tuned in mashmap options?
+    MIN_HOMOLOGY_REF = 100000
+    #Quite conservative here, best homology contig should be twice longer than second best
+    RATIO_HOMOLOGY_REF = 2.0
+
+    #If best is not covered by homologous intervals good enough - ignore TODO not sure whether we need it
+    LEN_FRAC_REF = 0.8
+    
+
 
     def __init__(self, rukki_paths, telomere_locations_file, hic_alignment_file, matches_file, G, uncompressed_fasta, logger):
         self.logger = logger_wrap.UpdatedAdapter(logger, self.__class__.__name__)
@@ -225,7 +237,24 @@ class ScaffoldGraph:
                 add_dist += 2* self.compressed_lens[node.strip("-+")]
         return closest
 
-            
+    def getPathPositions(self, path_mashmap):
+        hom_storage = match_graph.HomologyStorage(path_mashmap, ScaffoldGraph.MIN_HOMOLOGY_REF)
+        for node1 in hom_storage.homologies:
+            best_nodes = []
+            for node2 in hom_storage.homologies[node1]:
+                best_nodes.append([hom_storage[node1][node2].getCoveredLen(node1, node2), node2])
+            best_nodes.sort(reverse=True)
+            if len(best_nodes) == 1 or best_nodes[0][0] > ScaffoldGraph.RATIO_HOMOLOGY_REF * best_nodes[1][0]:
+                best_node = best_nodes[0][1]
+                self.logger.debug(f"Clearly best homology for {node1} is {best_node} with size{best_nodes[0][0]}")
+                if best_nodes[0][0] > ScaffoldGraph.LEN_FRAC_REF * self.hom_storage.getLength(node1):
+                    self.logger.debug(f"Best homology for {node1} is {best_node} with size{best_nodes[0][0]}")
+
+                    #TODO:
+                else:
+                    self.logger.debug(f"Best homology for {node1} is {best_node} not covered enough frac {best_nodes[0][0] / self.hom_storage.getLength(node1)}")
+                    
+
     def forbiddenPair(self, from_path_id, to_path_id):    
         nor_from_path_id = from_path_id.strip('-+')
         nor_to_path_id = to_path_id.strip('-+')
