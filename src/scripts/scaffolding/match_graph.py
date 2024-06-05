@@ -15,6 +15,7 @@ class HomologyInfo:
 
         #orientation defined as orientation of the largest match
         self.largest_interval = 0
+        self.largest_interval_center = [0, 0]
         self.orientation = ""
 
         #TODO: should be used for homology check in scaffolding, with specific IDY cutoff and not sorted
@@ -39,6 +40,7 @@ class HomologyInfo:
         if self.largest_interval < int_len:
             self.largest_interval = int_len
             self.orientation = orientation
+            self.largest_interval_center = [(intervals[0][1] + intervals[0][0])/2, (intervals[1][1] + intervals[1][0])/2]
 
     def fillCoverage(self):
         for i in range(0, 2):
@@ -85,6 +87,7 @@ class HomologyStorage:
             self.addHomology(arr[0], arr[5], int(arr[1]), int(arr[6]), [[int(arr[2]), int(arr[3])], [int(arr[7]), int(arr[8])]], arr[4], arr[12])
         self.logger.info(f"Loaded {used_lines} out of {total_lines} mashmap lines")
         self.logger.info(f"{len(self.homologies)} nodes have at least one used homology")
+        self.lens = {}
         self.fillCoverage()
 
 #do we want to add other direction of pair?
@@ -94,7 +97,8 @@ class HomologyStorage:
         if not node2 in self.homologies[node1]:
             self.homologies[node1][node2] = HomologyInfo(node1, node2, len1, len2)
         self.homologies[node1][node2].addInterval(intervals, orientation, idy)
-    
+        self.lens[node1] = len1
+        self.lens[node2] = len2
     #covered length of homology
     def fillCoverage(self):
         for node1 in self.homologies:
@@ -107,12 +111,8 @@ class HomologyStorage:
         else:
             return False
     #extracting length, sometimes we do not haev this info in other places
-    def getLen(self, node1):
-        if node1 in self.homologies and len (self.homologies[node1]) > 0:
-           for node2 in self.homologies[node1]:
-                return self.homologies[node1][node2].len[0]
-        else:
-            return 0
+    def getLength(self, node):
+        return self.lens(node)
         
 # homology_weight - large negative something, min_big_homology - minimal length of homology to be taken in account. 
 # Some shorter ones can still sometimes be used if they are in regular bulge_like structure
