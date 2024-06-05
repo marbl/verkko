@@ -66,6 +66,8 @@ class HomologyStorage:
     #{node1: {node2: HomologyInfo(node_1, node_2)}}
     def __init__(self, logger, mashmap_file, min_alignment):
         self.homologies = {}   
+        self.lens = {}
+
         self.logger = logger_wrap.UpdatedAdapter(logger, self.__class__.__name__)
 
         total_lines = 0
@@ -87,7 +89,6 @@ class HomologyStorage:
             self.addHomology(arr[0], arr[5], int(arr[1]), int(arr[6]), [[int(arr[2]), int(arr[3])], [int(arr[7]), int(arr[8])]], arr[4], arr[12])
         self.logger.info(f"Loaded {used_lines} out of {total_lines} mashmap lines")
         self.logger.info(f"{len(self.homologies)} nodes have at least one used homology")
-        self.lens = {}
         self.fillCoverage()
 
 #do we want to add other direction of pair?
@@ -112,7 +113,7 @@ class HomologyStorage:
             return False
     #extracting length, sometimes we do not haev this info in other places
     def getLength(self, node):
-        return self.lens(node)
+        return self.lens[node]
         
 # homology_weight - large negative something, min_big_homology - minimal length of homology to be taken in account. 
 # Some shorter ones can still sometimes be used if they are in regular bulge_like structure
