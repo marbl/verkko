@@ -66,7 +66,7 @@ class ScaffoldGraph:
     
 
 
-    def __init__(self, rukki_paths, telomere_locations_file, hic_alignment_file, matches_file, G, uncompressed_fasta, logger):
+    def __init__(self, rukki_paths, telomere_locations_file, hic_alignment_file, matches_file, G, uncompressed_fasta, path_mashmap, logger):
         self.logger = logger_wrap.UpdatedAdapter(logger, self.__class__.__name__)
         self.rukki_paths = rukki_paths
 
@@ -97,6 +97,7 @@ class ScaffoldGraph:
         #positions on refence or other haplotype  
         self.reference_positions = {}
         self.assigned_reference = {}
+        self.getPathPositions(path_mashmap)
         self.G = G
         self.dists = dict(nx.all_pairs_dijkstra_path_length(self.upd_G, weight=lambda u, v, d: self.upd_G.edges[u, v]['mid_length']))
         self.logger.info("Pairwise distances in assembly graph calculated")
@@ -253,29 +254,30 @@ class ScaffoldGraph:
         return closest
 
     def getPathPositions(self, path_mashmap):
-        hom_storage = match_graph.HomologyStorage(path_mashmap, ScaffoldGraph.MIN_HOMOLOGY_REF)
+        hom_storage = match_graph.HomologyStorage(self.logger, path_mashmap, ScaffoldGraph.MIN_HOMOLOGY_REF)
         for path_id in hom_storage.homologies:
             all_refs = []
             for ref_id in hom_storage.homologies[path_id]:
-                all_refs.append([hom_storage[path_id][ref_id].getCoveredLen(path_id, ref_id), ref_id])
+                all_refs.append([hom_storage.homologies[path_id][ref_id].getCoveredLen(), ref_id])
             all_refs.sort(reverse=True)
             if len(all_refs) == 1 or all_refs[0][0] > ScaffoldGraph.RATIO_HOMOLOGY_REF * all_refs[1][0]:
                 best_ref = all_refs[0][1]
                 self.logger.debug(f"Clearly best homology for {path_id} is {best_ref} with size{all_refs[0][0]}")
-                if all_refs[0][0] > ScaffoldGraph.LEN_FRAC_REF * self.hom_storage.getLength(path_id):
+                if all_refs[0][0] > ScaffoldGraph.LEN_FRAC_REF * hom_storage.getLength(path_id):
                     self.logger.debug(f"Best homology for {path_id} is {best_ref} with size{all_refs[0][0]}")
                     if not best_ref in self.reference_positions:
-                        self.reference_positions[best_ref] = []
-                    hom_info = hom_storage[path_id][best_ref] 
-                    self.assigned_reference[path_id + '+'] = best_ref + hom_info.orientaion
-                    self.assigned_reference[path_id + '-'] = best_ref + self.rc_orientation(hom_info.orientaion)
+                        self.reference_positions[best_ref+ "+"] = []
+                        self.reference_positions[best_ref+ "-"] = []
+                    hom_info = hom_storage.homologies[path_id][best_ref] 
+                    self.assigned_reference[path_id + '+'] = best_ref + hom_info.orientation
+                    self.assigned_reference[path_id + '-'] = best_ref + self.rc_orientation(hom_info.orientation)
 #                    self.assigned_reference[path_id] = best_ref
-#                    self.reference_positions[best_ref].append(ReferencePosition(path_id, best_ref, hom_info.largest_interval_center[1], self.hom_storage.getLength(path_id), hom_info.orientaion))
-                    self.reference_positions[best_ref + "+"].append(ReferencePosition(path_id + hom_info.orientaion, best_ref + "+", hom_info.largest_interval_center[1], self.hom_storage.getLength(path_id), hom_info.orientaion))
-                    self.reference_positions[best_ref + "-"].append(ReferencePosition(path_id + self.rc_orientation(hom_info.orientation), best_ref + '-', self.hom_storage.getLength(best_ref) - hom_info.largest_interval_center[1], self.hom_storage.getLength(path_id), self.rc_orientation(hom_info.orientaion)))
+#                    self.reference_positions[best_ref].append(ReferencePosition(path_id, best_ref, hom_info.largest_interval_center[1], hom_storage.getLength(path_id), hom_info.orientation))
+                    self.reference_positions[best_ref + "+"].append(ReferencePosition(path_id + hom_info.orientation, best_ref + "+", hom_info.largest_interval_center[1], hom_storage.getLength(path_id), hom_info.orientation))
+                    self.reference_positions[best_ref + "-"].append(ReferencePosition(path_id + self.rc_orientation(hom_info.orientation), best_ref + '-', hom_storage.getLength(best_ref) - hom_info.largest_interval_center[1], hom_storage.getLength(path_id), self.rc_orientation(hom_info.orientation)))
 
                 else:
-                    self.logger.debug(f"Best homology for {path_id} is {best_ref} not covered enough frac {all_refs[0][0] / self.hom_storage.getLength(path_id)}")
+                    self.logger.debug(f"Best homology for {path_id} is {best_ref} not covered enough frac {all_refs[0][0] / hom_storage.getLength(path_id)}")
         for ref in self.reference_positions:
             self.logger.debug(f"Reference positions for {ref}")
             self.reference_positions[ref] = sorted(self.reference_positions[ref], key=lambda x: x.average_pos)
@@ -692,7 +694,6 @@ class ScaffoldGraph:
                 if self.isNextByRef(path_ids[0] + orientation[0], path_ids[1] + orientation[1]):
                     self.logger.debug (f"Reference connection found! {path_ids} {orientation}")
                     scores[orientation] *= self.REFERENCE_MULTIPLICATIVE_BONUS
-            scores[orientation] = scores[orientation] / (len(connections[(path_ids[0], path_ids[1])]) + 1)
         return scores
     
     #returns dict, {id:[present_start_relo, present_end_telo]}
