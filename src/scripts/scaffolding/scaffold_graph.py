@@ -265,7 +265,7 @@ class ScaffoldGraph:
                 self.logger.debug(f"Clearly best homology for {path_id} is {best_ref} with size{all_refs[0][0]}")
                 if all_refs[0][0] > ScaffoldGraph.LEN_FRAC_REF * hom_storage.getLength(path_id):
                     self.logger.debug(f"Best homology for {path_id} is {best_ref} with size{all_refs[0][0]}")
-                    if not best_ref in self.reference_positions:
+                    if not (best_ref+'+') in self.reference_positions:
                         self.reference_positions[best_ref+ "+"] = []
                         self.reference_positions[best_ref+ "-"] = []
                     hom_info = hom_storage.homologies[path_id][best_ref] 
@@ -286,13 +286,11 @@ class ScaffoldGraph:
 
 
     def isNextByRef(self, from_path_id, to_path_id):
-        nor_from_id = from_path_id.strip('-+')
-        nor_to_id = to_path_id.strip('-+')
-        if (not (nor_from_id in self.assigned_reference) or not (nor_to_id in self.assigned_reference)):
+        if (not (from_path_id in self.assigned_reference) or not (to_path_id in self.assigned_reference)):
             return False
-        if self.assigned_reference[nor_from_id] != self.assigned_reference[nor_to_id]:
+        if self.assigned_reference[from_path_id] != self.assigned_reference[to_path_id]:
             return False
-        aligned = self.reference_positions[self.assigned_reference[nor_from_id]]    
+        aligned = self.reference_positions[self.assigned_reference[from_path_id]]    
         len_aligned = len(aligned)
         for i in range(0, len_aligned - 1):
             if aligned[i].name_q == from_path_id and aligned[i+1].name_q == to_path_id:
