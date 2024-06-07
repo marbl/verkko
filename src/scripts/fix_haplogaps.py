@@ -119,7 +119,7 @@ for key in tip_support:
 			wanted_gap_length = t[1]
 	assert wanted_cut_pos >= 0
 	if wanted_gap_length == len(node_seqs[key[0][1:]]) or wanted_gap_length == len(node_seqs[key[1][1:]]):
-		sys.stderr.write("can't fix " + key[0] + " " + key[1] + " due to overlap containing node (wanted " + str(wanted_gap_length) + ", node lengths " + len(node_seqs[key[0][1:]]) + ", " + len(node_seqs[key[1][1:]]) + ")")
+		sys.stderr.write("can't fix " + key[0] + " " + key[1] + " due to overlap containing node (wanted " + str(wanted_gap_length) + ", node lengths " + str(len(node_seqs[key[0][1:]])) + ", " + str(len(node_seqs[key[1][1:]]) + ")"))
 		continue
 	if wanted_cut_pos == 0:
 		sys.stderr.write("mend " + key[0] + " " + key[1] + "\n")
