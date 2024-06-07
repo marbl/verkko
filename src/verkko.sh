@@ -1285,14 +1285,16 @@ chmod +x ${outd}/snakemake.sh
 
 cd ${outd}
 ./snakemake.sh
-
+ret=$?
 
 #Failed to do it with snakemake
 if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
     if [ ! -e "8-hicPipeline/rukki.paths.gaf" ]; then
-        echo "ERROR!"
-        echo "Not running final consensus since no rukki paths provided!"
-        exit
+        if [ $ret -ne 0 ]; then
+           echo "ERROR!, HiC/Pore-C phasing failed, look above for error message."
+           echo "Not running final consensus since no rukki paths are available!"
+        fi
+        exit $ret
     fi
     newoutd=8-hicPipeline/final_contigs/
     mkdir -p $newoutd
@@ -1327,9 +1329,15 @@ if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
     sed -i.bak 's/runRukkiHIC/cnspath/g' snakemake.sh
     sed -i.bak 's/HiC_rdnascaff/cnspath/g' snakemake.sh
     ./snakemake.sh
-    cp *.fasta ../../
-    cp *.layout ../../
-    cp *.scfmap ../../
-    cp ../rukki.paths.tsv ../../assembly.paths.tsv
-    cp ../hicverkko.colors.tsv ../../assembly.colors.csv
+    ret=$?
+    if [ $ret -eq 0 ]; then
+        cp *.fasta ../../
+        cp *.layout ../../
+        cp *.scfmap ../../
+        cp ../rukki.paths.tsv ../../assembly.paths.tsv
+        cp ../hicverkko.colors.tsv ../../assembly.colors.csv
+    else
+       echo "ERROR: HiC-/PoreC consensus failed, look above for error message"
+    fi
 fi
+exit $ret
