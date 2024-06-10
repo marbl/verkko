@@ -57,7 +57,7 @@ class ScaffoldGraph:
     RATIO_HOMOLOGY_REF = 2.0
     #If best alignment is not covered by homologous intervals good enough - ignore 
     #TODO not sure whether we need it
-    LEN_FRAC_REF = 0.8
+    LEN_FRAC_REF = 0.6
     #Giving ref bonus for neighboring paths if dist is smaller than
     ABSOLUTE_ALLOWED_REFERENCE_JUMP = 2000000
     #Consequtive paths scores are increased by this factor. 
@@ -224,18 +224,19 @@ class ScaffoldGraph:
         for path_node in path:
             #self.logger.debug (f"Checking nodepair dist from {node} to {path_node}")
             if path_node in self.upd_G.nodes:
-                if path_node in self.dists[node]:
-                    if path_node == node:
-                        closest = 0
-                    else:
+                if path_node == node:
+                    closest = 0
+                else:
+                    if path_node in self.dists[node]:
                         closest = min(closest, self.dists[node][path_node] + add_dist - self.compressed_lens[node.strip("-+")] - self.compressed_lens[path_node.strip("-+")])
-                        if check_homologous:
-                            for hom_node in self.homologousOrNodes(path_node):
-                                #self.logger.debug (f"Checking homologous nodepair dist from {node} to {hom_node}")
-                                if hom_node == node:
-                                    closest = 0
-                                elif hom_node in self.dists[node]:
-                                    closest = min(closest, self.dists[node][hom_node] + add_dist - self.compressed_lens[node.strip("-+")] - self.compressed_lens[hom_node.strip("-+")])
+                    if check_homologous:
+                        #self.logger.debug(f"Checking homologous to node {path_node}: {self.homologousOrNodes(path_node)}")
+                        for hom_node in self.homologousOrNodes(path_node):
+                            #self.logger.debug (f"Checking homologous nodepair dist from {node} to {hom_node}")
+                            if hom_node == node:
+                                closest = 0
+                            elif hom_node in self.dists[node]:
+                                closest = min(closest, self.dists[node][hom_node] + add_dist - self.compressed_lens[node.strip("-+")] - self.compressed_lens[hom_node.strip("-+")])
                 add_dist += 2* self.compressed_lens[path_node.strip("-+")]
         return closest/2
     #Optionally allowing to use homologous nodes (to improve in gaps)
@@ -250,13 +251,15 @@ class ScaffoldGraph:
                     for hom_node in self.homologousOrNodes(node) :
                         #self.logger.debug (f"Checking homologous dist from {hom_node} to {path_to} add_dist {add_dist}")
                         closest = min(closest, (self.nodeToPathDist(hom_node, path_to, check_homologous) + add_dist))
-                add_dist += 2* self.compressed_lens[node.strip("-+")]
+                add_dist += self.compressed_lens[node.strip("-+")]
         return closest
 
     def getPathPositions(self, path_mashmap):
         hom_storage = match_graph.HomologyStorage(self.logger, path_mashmap, ScaffoldGraph.MIN_HOMOLOGY_REF)
         for path_id in hom_storage.homologies:
             all_refs = []
+            if self.rukki_paths.getLength(path_id) < ScaffoldGraph.MIN_HOMOLOGY_REF:
+                continue
             for ref_id in hom_storage.homologies[path_id]:
                 all_refs.append([hom_storage.homologies[path_id][ref_id].getCoveredLen(), ref_id])
             all_refs.sort(reverse=True)
@@ -643,9 +646,9 @@ class ScaffoldGraph:
                 scores[str] += 1
             else:
                 scores["middle"] += 1
-        self.logger.debug (f"Scores for {pair} {scores} {orientations} filtered/not_filtered {filtered} {not_filtered}")
-        self.logger.debug (f"Shifts {shift_before} {shift_after}")
-        self.logger.debug (f"Ignored intervals {intervals}")
+        #self.logger.debug (f"Scores for {pair} {scores} {orientations} filtered/not_filtered {filtered} {not_filtered}")
+        #self.logger.debug (f"Shifts {shift_before} {shift_after}")
+        #self.logger.debug (f"Ignored intervals {intervals}")
         return scores
 
 
