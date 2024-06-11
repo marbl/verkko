@@ -52,7 +52,8 @@ class ScaffoldGraph:
 
     #reference-based/haplotype-reference based params
     #shorter homologies will be ignored, possibly can be tuned in mashmap options?
-    MIN_HOMOLOGY_REF = 100000
+    #TODO: shouldn't be always same as MIN_PATH_TO_SCAFFOLD?
+    MIN_HOMOLOGY_REF = 500000
     #Quite conservative here, best homology contig should be twice longer than second best
     RATIO_HOMOLOGY_REF = 2.0
     #If best alignment is not covered by homologous intervals good enough - ignore 
@@ -296,13 +297,20 @@ class ScaffoldGraph:
         aligned = self.reference_positions[self.assigned_reference[from_path_id]]    
         len_aligned = len(aligned)
         for i in range(0, len_aligned - 1):
-            if aligned[i].name_q == from_path_id and aligned[i+1].name_q == to_path_id:
-                ref_jump = aligned[i+1].average_pos - aligned[i].average_pos
-                query_jump = (aligned[i+1].query_len + aligned[i].query_len) / 2
-                if abs(ref_jump - query_jump) < ScaffoldGraph.ABSOLUTE_ALLOWED_REFERENCE_JUMP:
-                    return True
-                else:
-                    return False
+            if aligned[i].name_q == from_path_id:
+                #can be not consequtive if reference is used - both haplos are aligned
+                for j in range (i +1, len_aligned):
+                    if aligned[j].name_q == to_path_id:
+                        ref_jump = aligned[j].average_pos - aligned[i].average_pos
+                        for mid in range (i+1, j):
+                            if aligned[mid].query_len > ref_jump / 2:
+                                return False
+                        query_jump = (aligned[j].query_len + aligned[i].query_len) / 2
+                        if abs(ref_jump - query_jump) < ScaffoldGraph.ABSOLUTE_ALLOWED_REFERENCE_JUMP:
+                            return True
+                        else:
+                            return False
+                        
         return False
 
     def forbiddenPair(self, from_path_id, to_path_id):    
