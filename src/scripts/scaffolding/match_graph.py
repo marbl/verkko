@@ -6,7 +6,11 @@ from scaffolding import logger_wrap
 
 #classes for matchGraph construction
 class HomologyInfo:
-    def __init__(self, node1, node2, len1, len2):
+    #when counting approximate positions, do not allow jumps longer than this * neighboring intervals_lens
+    JUMP_JOINING_FRACTION = 0.5
+    #DO not want huge jumps anyway
+    JUMP_JOINING_ABSOLUTE = 5000000
+    def __init__(self, node1, node2, len1, len2, logger):
         self.nodes = [node1, node2]
         self.len = [len1, len2]
         self.covered = [0, 0]
@@ -17,10 +21,11 @@ class HomologyInfo:
         self.largest_interval = 0
         self.largest_interval_center = [0, 0]
         self.orientation = ""
+        self.approximate_positions = [[0, 0],[0, 0]]
 
         #TODO: should be used for homology check in scaffolding, with specific IDY cutoff and not sorted
         self.filtered_intervals = [[],[]]        
-
+        self.logger = logger_wrap.UpdatedAdapter(logger, self.__class__.__name__)
     def parseIDY(self, idy):
         return float(idy.split(":")[2])
     
@@ -43,18 +48,58 @@ class HomologyInfo:
             self.largest_interval_center = [(intervals[0][1] + intervals[0][0])/2, (intervals[1][1] + intervals[1][0])/2]
 
     def fillCoverage(self):
-        for i in range(0, 2):
+        for ind in range(0, 2):
+            covered_intervals = []
             total_c = 0
-            self.intervals[i].sort()
+            self.intervals[ind].sort()
             state = 0
             prev = 0
-            for coord_pair in self.intervals[i]:
+            if len (self.intervals[ind]) == 0:
+                self.covered[ind] = 0
+                continue
+            for coord_pair in self.intervals[ind]:
                 if state > 0:
                     total_c += coord_pair[0] - prev
+                else:
+                    current_start = coord_pair[0]
                 prev = coord_pair[0]
                 state += coord_pair[1]
-            self.covered[i] = total_c   
-    
+                if state == 0:
+                    current_end = prev
+                    covered_intervals.append([current_start, current_end])
+            self.logger.debug (f"Covered-intervals {self.nodes} {covered_intervals}")
+            #TODO Or possibly use approximate alignment intervals?
+            self.covered[ind] = total_c
+            #if there are short trashy intervals between long ones - do not want them to spoil jumping. So dynamic programming here
+            available_next = {}
+            max_lens = []
+            prev_int = []
+            for i in range(0, len (covered_intervals)):
+                max_lens.append(covered_intervals[i][1] - covered_intervals[i][0])
+                prev_int.append(-1)
+                available_next[i] = set()
+                for j in range (i +1, len(covered_intervals)):
+                    jump = covered_intervals[j][0] - covered_intervals[i][1]
+                    prev_len = covered_intervals[i][1] - covered_intervals[i][0]
+                    next_len = covered_intervals[j][1] - covered_intervals[j][0]
+                    #TODO: think about this condition
+                    if (jump > self.JUMP_JOINING_FRACTION * prev_len and jump > self.JUMP_JOINING_FRACTION * next_len) or jump > self.JUMP_JOINING_ABSOLUTE:
+                        continue
+                    available_next[i].add(j)
+            self.logger.debug(f"Available next {self.nodes} {available_next}")
+            max_i = 0
+            for i in range (0, len(covered_intervals)):
+                for j in available_next[i]:
+                    if max_lens[j] < max_lens[i] + covered_intervals[j][1] - covered_intervals[j][0]:
+                        max_lens[j] = max_lens[i] + covered_intervals[j][1] - covered_intervals[j][0]
+                        prev_int[j] = i
+                if max_lens[i] > max_lens[max_i]:
+                    max_i = i
+            start_i = max_i
+            while prev_int[start_i] != -1:
+                start_i = prev_int[start_i]
+            self.approximate_positions[ind] = [covered_intervals[start_i][0], covered_intervals[max_i][1]]
+
     def getCoveredLen(self):
 #in weird case matches can be larger than seq, avoiding
         return min(self.covered[0], self.covered[1], self.len[0], self.len[1])
@@ -96,7 +141,7 @@ class HomologyStorage:
         if not node1 in self.homologies:
             self.homologies[node1] = {}
         if not node2 in self.homologies[node1]:
-            self.homologies[node1][node2] = HomologyInfo(node1, node2, len1, len2)
+            self.homologies[node1][node2] = HomologyInfo(node1, node2, len1, len2, self.logger)
         self.homologies[node1][node2].addInterval(intervals, orientation, idy)
         self.lens[node1] = len1
         self.lens[node2] = len2
