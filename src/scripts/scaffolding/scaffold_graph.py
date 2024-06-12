@@ -10,15 +10,17 @@ import graph_functions as gf
 import logging
 from scaffolding import logger_wrap, match_graph, path_storage
 
-#TODO: or inherit from nx.Digraph??
 class ReferencePosition:
-    def __init__(self, name_q, name_r, average_pos, query_len, orientation):
+    def __init__(self, name_q, name_r, ref_start, ref_end, query_len, orientation):
         self.name_q = name_q
         self.name_r = name_r
-        self.average_pos = average_pos
+        self.ref_start = ref_start
+        self.ref_end = ref_end
+        self.average_pos = (ref_end + ref_start)/2
         self.query_len = query_len
         self.orientation = orientation
-    
+
+#TODO: or inherit from nx.Digraph??
 class ScaffoldGraph:
     LONG_HAPLOID_CUTOFF = 5000000
     #should not be actuallly used, since they'll be reordered with MAX_REORDERING_LENGTH check
@@ -53,16 +55,21 @@ class ScaffoldGraph:
     #reference-based/haplotype-reference based params
     #shorter homologies will be ignored, possibly can be tuned in mashmap options?
     #TODO: shouldn't be always same as MIN_PATH_TO_SCAFFOLD?
-    MIN_HOMOLOGY_REF = 500000
+    MIN_HOMOLOGY_REF = 100000
     #Quite conservative here, best homology contig should be twice longer than second best
     RATIO_HOMOLOGY_REF = 2.0
     #If best alignment is not covered by homologous intervals good enough - ignore 
     #TODO not sure whether we need it
     LEN_FRAC_REF = 0.6
     #Giving ref bonus for neighboring paths if dist is smaller than
-    ABSOLUTE_ALLOWED_REFERENCE_JUMP = 2000000
+    ABSOLUTE_ALLOWED_REFERENCE_JUMP = 5000000
+    #consecutive by reference can not overlap longer than this
+    ABSOLUTE_ALLOWED_REFERENCE_OVERLAP = MIN_PATH_TO_SCAFFOLD
+    #If there is a path between that is longer than this * jump_in_reference_coords - then paths we are checking are considered to be not consistent
+    INTERMEDIATE_PATH_FRACTION = 0.7
+    
     #Consequtive paths scores are increased by this factor. 
-    #TODO Possibly should be some higher absolute constant?
+    #TODO Possibly should be some high absolute constant too?
     REFERENCE_MULTIPLICATIVE_BONUS = 4
     
 
@@ -259,7 +266,7 @@ class ScaffoldGraph:
         hom_storage = match_graph.HomologyStorage(self.logger, path_mashmap, ScaffoldGraph.MIN_HOMOLOGY_REF)
         for path_id in hom_storage.homologies:
             all_refs = []
-            if self.rukki_paths.getLength(path_id) < ScaffoldGraph.MIN_HOMOLOGY_REF:
+            if self.rukki_paths.getLength(path_id) < ScaffoldGraph.MIN_PATH_TO_SCAFFOLD:
                 continue
             for ref_id in hom_storage.homologies[path_id]:
                 all_refs.append([hom_storage.homologies[path_id][ref_id].getCoveredLen(), ref_id])
@@ -277,8 +284,9 @@ class ScaffoldGraph:
                     self.assigned_reference[path_id + '-'] = best_ref + self.rc_orientation(hom_info.orientation)
 #                    self.assigned_reference[path_id] = best_ref
 #                    self.reference_positions[best_ref].append(ReferencePosition(path_id, best_ref, hom_info.largest_interval_center[1], hom_storage.getLength(path_id), hom_info.orientation))
-                    self.reference_positions[best_ref + "+"].append(ReferencePosition(path_id + hom_info.orientation, best_ref + "+", hom_info.largest_interval_center[1], hom_storage.getLength(path_id), hom_info.orientation))
-                    self.reference_positions[best_ref + "-"].append(ReferencePosition(path_id + self.rc_orientation(hom_info.orientation), best_ref + '-', hom_storage.getLength(best_ref) - hom_info.largest_interval_center[1], hom_storage.getLength(path_id), self.rc_orientation(hom_info.orientation)))
+                    
+                    self.reference_positions[best_ref + "+"].append(ReferencePosition(path_id + hom_info.orientation, best_ref + "+", hom_info.approximate_positions[1][0],hom_info.approximate_positions[1][1], hom_storage.getLength(path_id), hom_info.orientation))
+                    self.reference_positions[best_ref + "-"].append(ReferencePosition(path_id + self.rc_orientation(hom_info.orientation), best_ref + '-', hom_storage.getLength(best_ref) - hom_info.approximate_positions[1][1], hom_storage.getLength(best_ref) - hom_info.approximate_positions[1][0], hom_storage.getLength(path_id), self.rc_orientation(hom_info.orientation)))
 
                 else:
                     self.logger.debug(f"Best homology for {path_id} is {best_ref} not covered enough frac {all_refs[0][0] / hom_storage.getLength(path_id)}")
@@ -286,7 +294,7 @@ class ScaffoldGraph:
             self.logger.debug(f"Reference positions for {ref}")
             self.reference_positions[ref] = sorted(self.reference_positions[ref], key=lambda x: x.average_pos)
             for pos in self.reference_positions[ref]:
-                self.logger.debug(f"{pos.name_q} {pos.name_r} {pos.average_pos} {pos.query_len} {pos.orientation}")          
+                self.logger.debug(f"{pos.name_q} {pos.name_r} {pos.average_pos} {pos.ref_start} {pos.ref_end} {pos.query_len} {pos.orientation}")          
 
 
     def isNextByRef(self, from_path_id, to_path_id):
@@ -301,15 +309,20 @@ class ScaffoldGraph:
                 #can be not consequtive if reference is used - both haplos are aligned
                 for j in range (i +1, len_aligned):
                     if aligned[j].name_q == to_path_id:
-                        ref_jump = aligned[j].average_pos - aligned[i].average_pos
-                        for mid in range (i+1, j):
-                            if aligned[mid].query_len > ref_jump / 2:
-                                return False
-                        query_jump = (aligned[j].query_len + aligned[i].query_len) / 2
-                        if abs(ref_jump - query_jump) < ScaffoldGraph.ABSOLUTE_ALLOWED_REFERENCE_JUMP:
-                            return True
-                        else:
+                        prev_end = aligned[i].ref_end
+                        next_start = aligned[j].ref_start
+                        inconsistency_len = (next_start - prev_end)
+                        if inconsistency_len > ScaffoldGraph.ABSOLUTE_ALLOWED_REFERENCE_JUMP:
                             return False
+                        #TODO: possibly should be tuned, since positions are not exact. Or more accurate position computation....
+                        if inconsistency_len < -1 * ScaffoldGraph.ABSOLUTE_ALLOWED_REFERENCE_OVERLAP:
+                            return False
+                        if inconsistency_len > 0:
+                            for mid in range (i+1, j):
+                                #there is some path in between of i and j, they are not consistent
+                                if aligned[mid].query_len * ScaffoldGraph.INTERMEDIATE_PATH_FRACTION < inconsistency_len:
+                                    return False
+                        return True
                         
         return False
 
