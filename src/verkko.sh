@@ -52,6 +52,7 @@ withont="False"
 withhic="False"
 withporec="False"
 withbam="False"
+withref="False"
 
 keepinter="True"
 
@@ -412,6 +413,17 @@ while [ $# -gt 0 ] ; do
                 hic2="$hic2 $arg"
             else
                 hic2="$hic2 `pwd`/$arg"
+            fi
+            shift
+            arg=$1
+        done
+    elif [ "$opt" = "--ref" ] ; then
+        withref="True"
+        while [ -e "$arg" ] ; do
+            if [ -e "/$arg" ] ; then
+                ref="$ref $arg"
+            else
+                ref="$ref `pwd`/$arg"
             fi
             shift
             arg=$1
@@ -1014,7 +1026,7 @@ echo >> ${outd}/verkko.yml "withPOREC:           '${withporec}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "with_ref:           '${withref}'"
-echo >> ${outd}/verkko.yml "ref:                '${reference}'"
+echo >> ${outd}/verkko.yml "ref:                '${ref}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  Algorithm parameters."
 echo >> ${outd}/verkko.yml ""
