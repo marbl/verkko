@@ -37,7 +37,7 @@ class ScaffoldGraph:
     CLEAR_MAJORITY = 1.5   
     SHORT_INGORED_NODE = 20000
     #ignore shorter paths, TODO change for iterative runs
-    MIN_PATH_TO_SCAFFOLD = 500000
+    MIN_PATH_TO_SCAFFOLD = 200000
 
     #Distance is defined with respect to homologous paths to allow "gap jumping"
     #if one of orientation is relatively close in graph(<min(1/4*path_length, CLOSE_IN_GRAPH) and other is really far (>3/4 of the length), we move all connections from far one to close
