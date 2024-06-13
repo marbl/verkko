@@ -1207,6 +1207,7 @@ if [ "x$cnspaths" != "x" ] ; then
     #  Copy pieces from the previous assembly to the new run directory.  This
     #  is done - instead of symlinking - to prevent Snakemake from
     #  'accidentally' obliterating precious original files.
+    cp -p ${cnsassembly}/assembly.homopolymer-compressed.noseq.gfa                               ${outd}/assembly.homopolymer-compressed.noseq.gfa
 
     if [ ! -e "${outd}/5-untip" ]; then
        mkdir ${outd}/5-untip
@@ -1232,6 +1233,19 @@ if [ "x$cnspaths" != "x" ] ; then
         cp -p ${cnsassembly}/7-consensus/ont_subset.fasta.gz          ${outd}/7-consensus/ont_subset.fasta.gz
         cp -p ${cnsassembly}/7-consensus/ont_subset.id                ${outd}/7-consensus/ont_subset.id
     fi
+
+    # copy haplotype labels if they exist
+    if [ -e ${cnsassembly}/6-rukki/label1 ]; then
+       mkdir ${outd}/6-rukki
+       cp -p ${cnsassembly}/6-rukki/label1                           ${outd}/6-rukki/label1
+       cp -p ${cnsassembly}/6-rukki/label2                           ${outd}/6-rukki/label2
+    fi
+    if [ -e ${cnsassembly}/8-hicPipeline/label1 ]; then
+       mkdir ${outd}/6-rukki
+       cp -p ${cnsassembly}/8-hicPipeline/label1                     ${outd}/6-rukki/label1
+       cp -p ${cnsassembly}/8-hicPipeline/label2                     ${outd}/6-rukki/label2
+    fi
+
     cp -p ${cnsassembly}/emptyfile ${outd}/emptyfile
 fi
 
@@ -1332,6 +1346,7 @@ if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
     ret=$?
     if [ $ret -eq 0 ]; then
         cp *.fasta ../../
+        cp *.gfa ../../
         cp *.layout ../../
         cp *.scfmap ../../
         cp ../rukki.paths.tsv ../../assembly.paths.tsv
