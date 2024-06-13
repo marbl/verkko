@@ -29,7 +29,7 @@ else:
         message = 'need filename as first argument if stdin is not full'
         raise IndexError(message)
     else:
-        input_stream = open(input_filename, 'rU')
+        input_stream = open(input_filename, 'r')
 
 name = ""
 names = [ ]
