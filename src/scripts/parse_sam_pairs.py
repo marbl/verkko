@@ -36,6 +36,8 @@ names = [ ]
 
 for line in input_stream:
    line=line.split()
+   if len(line) < 4:
+      continue
    if name == "":
       name = line[0]
    if name != line[0]:
