@@ -162,7 +162,7 @@ rule prepare_reference_mashmap:
         err    = '8-hicPipeline/prepare_ref_mashmap.err'
     params:
         MASHMAP   = config.get('MASHMAP', "{VERKKO}/bin/mashmap"),
-        ref = config['ref'] if config['with_ref'] == "True" else '8-hicPipeline/paths.hpc.fasta'
+        ref = config['ref'] if config['with_ref'] == "True" else '../8-hicPipeline/paths.hpc.fasta'
     threads:
         int(config['fhc_n_cpus'])
     resources:
@@ -181,7 +181,7 @@ echo "---Preparing rukki paths fasta"
 {PYTHON} {VERKKO}/scripts/get_paths_fasta.py ../{input.rukki_tsv} ../{input.unitigs_hpc} ../{input.graph_hpc} ../8-hicPipeline/paths.hpc.fasta
 
 echo "---Running MashMap"
-{params.MASHMAP} -r ../{params.ref}  -q ../8-hicPipeline/paths.hpc.fasta -t {threads}  -f none --pi 95.0 -s 10000 -o ../{output.path_mashmap}
+{params.MASHMAP} -r {params.ref}  -q ../8-hicPipeline/paths.hpc.fasta -t {threads}  -f none --pi 95.0 -s 10000 -o ../{output.path_mashmap}
 EOF
 
 chmod +x ./prepare_ref_mashmap.sh
