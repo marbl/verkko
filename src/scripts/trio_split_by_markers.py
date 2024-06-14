@@ -15,21 +15,24 @@ def read_hap(fin, nodes):
 			parts = l.strip().split('\t')
 			if parts[3] not in nodes: nodes[parts[3]] = {}
 
-			# when we hit a new node or a new haplotype, we record the current interval and start a new one 
+			# when we hit a new node or a new haplotype, we record the current interval and start a new one
 			if prev != parts[0] or prev_hap != parts[3]:
-				if prev != "":
+				if prev != parts[0] and prev in nodelens and end < nodelens[prev]: end = nodelens[prev]
+				if prev != "" and end - srt >= MIN_DISTANCE:
+					#sys.stderr.write("Recording region %s-%s in %s with hap %s\n"%(srt, end, prev, prev_hap))
 					if prev not in nodes[prev_hap]: nodes[prev_hap][prev] = []
-                    if end - srt >= MIN_DISTANCE:
-						nodes[prev_hap][prev].append(srt)
-						nodes[prev_hap][prev].append(end)
+					nodes[prev_hap][prev].append(srt)
+					nodes[prev_hap][prev].append(end)
 				end = 0
 				srt = 2**32-1
 			prev = parts[0]
 			prev_hap = parts[3]
 			if srt > int(parts[1]): srt = int(parts[1])
 			if end < int(parts[2]): end = int(parts[2])
-		if prev not in nodes[prev_hap]: nodes[prev_hap][prev] = []
+		if prev in nodelens and end < nodelens[prev]: end = nodelens[prev]	# if we don't have any markers between last and end assume it's the same haplotype as we last saw
 		if end - srt >= MIN_DISTANCE:
+			#sys.stderr.write("Recording region %s-%s in %s with hap %s\n"%(srt, end, prev, prev_hap))
+			if prev not in nodes[prev_hap]: nodes[prev_hap][prev] = []
 			nodes[prev_hap][prev].append(srt)
 			nodes[prev_hap][prev].append(end)
 
@@ -37,7 +40,7 @@ in_graph_file = sys.argv[1]
 markers_file = sys.argv[2]
 out_mapping_file = sys.argv[3]
 
-nodelens = {} 
+nodelens = {}
 with open(in_graph_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
@@ -56,7 +59,7 @@ for node in nodelens:
 		if node not in haps[hap]: continue
 		breaks += haps[hap][node]
 		numhaps += 1
-	
+
 	# when we only have one hap in a node, nothing to do
 	if numhaps <= 1: continue
 	sys.stderr.write("Found candidate node %s of len %s with breaks %s\n"%(node, nodelens[node], breaks))
