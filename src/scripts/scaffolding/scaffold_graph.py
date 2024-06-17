@@ -682,7 +682,8 @@ class ScaffoldGraph:
         for i in range (0, 2):
             for or_node in paths[i]:
                 length_before[i][or_node.strip('-+')] = total_len[i]
-                if or_node.strip('-+') in lens:
+                #not counting homozygous nodes, they can be really large
+                if or_node.strip('-+') in lens and or_node in self.multiplicities and self.multiplicities[or_node] == 1:
                     total_len[i] += lens[or_node.strip('-+')]
         scores = {"++":0, "-+":0, "+-":0, "--":0, "middle":0}
         for first in paths[0]:
