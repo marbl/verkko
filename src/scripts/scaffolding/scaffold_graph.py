@@ -202,9 +202,11 @@ class ScaffoldGraph:
                         homs[next_id] += self.matchGraph.edges[nor_node, next]['homology_len']
                         total_hom += self.matchGraph.edges[nor_node, next]['homology_len']
             path_len = self.rukki_paths.getLength(nor_path_id)
+            #TODO: should exclude homozygous nodes here
             if total_hom * 2 < path_len:
                 haploids.add(nor_path_id)
                 #DEBUG ONLY
+                
                 if path_len > 2000000:
                     self.logger.info(f"Found haploid path {nor_path_id} with homology {total_hom} and len {path_len} ")
         return haploids
@@ -694,6 +696,7 @@ class ScaffoldGraph:
                 continue
             for second in paths[1]:
                 nor_s = second.strip('-+')
+                #TODO: should we really ignore short nodes?
                 if not (nor_s in lens) or lens[nor_s] < ScaffoldGraph.SHORT_INGORED_NODE:
                     continue
                 if not second in self.multiplicities or self.multiplicities[second] > 1:
