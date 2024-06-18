@@ -154,6 +154,21 @@ def fixUnbalanced(part, C, G):
     if curswap > 0:
         print (f"Fixing uneven component, moved {curswap} bases and {edge_swapped} nodes")
 
+def getMedianCov(nodeset, sorted_nodes):
+    med_cov = -1
+    total_length = 0
+    for node in nodeset:
+        total_length += node[1]['length']
+    sum_l = 0
+    for node in sorted_nodes:
+        if node in nodeset:
+            sum_l += node[1]['length']
+            if 2*sum_l > total_length:
+                med_cov = node[1]['coverage']
+                print (f'Median coverage is {med_cov}\n')
+                break
+    return med_cov
+
 def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, uneven_depth):
     #TODO: move constants to some more relevant place
     MIN_LEN = 200000  # best result so far with 200000
@@ -253,21 +268,11 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
         if len(node) > 1:
             multiple_ext.add(node)
     #dirty calculation median coverage, considering that most of the phasing is done
-    all_lengths = {}
-    total_length = 0
-    for node in G.nodes():
-        total_length += G.nodes[node]['length']
-    sum_l = 0
-    med_cov = 0
-
-    for node in sorted(G.nodes(data=True), key=lambda node: node[1]['length']):
-        sum_l += node[1]['length']
-        if 2*sum_l > total_length:
-            med_cov = node[1]['coverage']
-            sys.stderr.write (f'Median coverage is {med_cov}\n')
-            break
     
+    sorted_nodes = sorted(G.nodes(data=True), key=lambda node: node[1]['length'])
+    med_cov = getMedianCov(G.nodes(data=True), sorted_nodes)
     MAX_COV = med_cov * 1.5
+    
     if (uneven_depth):
         sys.stderr.write(f"Will not use coverage based homozygous nodes detection\n")
     else:
@@ -453,14 +458,22 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
 
         # first we ignore any nodes that are too short or have too few links.
         short = []
-        tips = set()
+
+        not_to_big = []
+        for n in C.nodes():
+            print (n)
+            if G.nodes[n]['coverage'] < MAX_COV:
+                not_to_big.append((n, G.nodes[n]))
+        local_max_cov = 1.5 * getMedianCov(not_to_big, sorted_nodes)
+        if local_max_cov < 0:
+            local_max_cov = MAX_COV
         for n in C.nodes():
             if n not in G:
                 sys.stderr.write("Error got a node not in original graph %s !" % (n))
                 sys.exit()
     #        if not (n in matchGraph):
-
-            if G.nodes[n]['coverage'] > MAX_COV and (not uneven_depth):
+            
+            if G.nodes[n]['coverage'] > local_max_cov and (not uneven_depth):
                 logging_f.write("While partitoning dropping node %s coverage too high\n" % (n))
                 short.append(n)
             elif not (n in matchGraph) and uneven_depth:
