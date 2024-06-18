@@ -478,6 +478,13 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                     if (e[0] != n or e[1] != n) and hicGraph[e[0]][e[1]]["weight"] > MIN_WEIGHT \
                             and (e[0] in C and e[1] in C):
                         good = True
+                #Let's phase homologous nodes randomly then
+                if n in matchGraph and len(matchGraph.edges(n)) > 0:
+                    for ec in matchGraph.edges(n): 
+                        if matchGraph.edges[ec]['weight'] < 0:
+                            good = True
+                            break
+                                
                 if not good:
                     logging_f.write("While partitoning dropping node %s low links count\n" % (n))
                     short.append(n)
