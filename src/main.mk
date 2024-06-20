@@ -290,6 +290,10 @@ FILES        += \
                 scripts/rdna_scaff_functions.py               -> ../lib/verkko/scripts/rdna_scaff_functions.py \
                 scripts/rdna_scaff.py                         -> ../lib/verkko/scripts/rdna_scaff.py \
                 scripts/remove_nodes_add_telomere.py          -> ../lib/verkko/scripts/remove_nodes_add_telomere.py \
+                scripts/scaffolding/logger_wrap.py            -> ../lib/verkko/scripts/scaffolding/logger_wrap.py \
+                scripts/scaffolding/match_graph.py            -> ../lib/verkko/scripts/scaffolding/match_graph.py \
+                scripts/scaffolding/path_storage.py           -> ../lib/verkko/scripts/scaffolding/path_storage.py \
+                scripts/scaffolding/scaffold_graph.py         -> ../lib/verkko/scripts/scaffolding/scaffold_graph.py \
                 \
                 Snakefile                                     -> ../lib/verkko/Snakefile \
                 Snakefiles/1-buildGraph.sm                    -> ../lib/verkko/Snakefiles/1-buildGraph.sm \
