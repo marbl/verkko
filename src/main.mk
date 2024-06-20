@@ -243,6 +243,7 @@ FILES        += \
                 scripts/parse_sam_pairs.py                    -> ../lib/verkko/scripts/parse_sam_pairs.py \
                 scripts/rdna_scaff_functions.py               -> ../lib/verkko/scripts/rdna_scaff_functions.py \
                 scripts/rdna_scaff.py                         -> ../lib/verkko/scripts/rdna_scaff.py \
+                scripts/get_paths_fasta.py                    -> ../lib/verkko/scripts/get_paths_fasta.py \
                 scripts/remove_nodes_add_telomere.py          -> ../lib/verkko/scripts/remove_nodes_add_telomere.py \
                 scripts/scaffolding/logger_wrap.py            -> ../lib/verkko/scripts/scaffolding/logger_wrap.py \
                 scripts/scaffolding/match_graph.py            -> ../lib/verkko/scripts/scaffolding/match_graph.py \
