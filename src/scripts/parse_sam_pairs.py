@@ -44,9 +44,6 @@ for line in input_stream:
       print_results(names)
       name = line[0]
       names = [ ]
-   if name in seen:
-      print("Warning: read %s already seen but encountered it again, please confirm your bam file is sorted by read."%(name), file=sys.stderr)
-      out_of_order += 1
    names.append("%s\t%s\t%s"%(line[0], line[2], line[3]))
 
 print_results(names)
