@@ -38,11 +38,20 @@ def merge_layout_files(file1, flag1, file2, flag2):
 
         for layout2_entry in layout2:
             if layout2_entry["tig"] == tig1:
+                layout2_entry_fixed_reads = []
+                layout2_entry_fixed_num_reads = 0
+                for read in layout2_entry["reads"]:
+                    if read["start"] >= layout1_entry["len"] and read["end"] >= layout1_entry["len"]:
+                        continue
+                    # if read["end"] >= layout1_entry["len"]:
+                    #     read["end"] = layout1_entry["len"]
+                    layout2_entry_fixed_reads.append(read)
+                    layout2_entry_fixed_num_reads += 1
                 merged_entry = {
                     "tig": tig1,
                     "len": layout1_entry["len"],
-                    "num_reads": layout1_entry["num_reads"] + layout2_entry["num_reads"],
-                    "reads": layout1_entry["reads"] + layout2_entry["reads"],
+                    "num_reads": layout1_entry["num_reads"] + layout2_entry_fixed_num_reads,
+                    "reads": layout1_entry["reads"] + layout2_entry_fixed_reads,
                 }
                 merged_entry["reads"].sort(key=lambda x: min(x['start'], x['end']))
                 layout2.remove(layout2_entry)

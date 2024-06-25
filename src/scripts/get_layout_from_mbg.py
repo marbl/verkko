@@ -237,16 +237,18 @@ with open(paths_file) as f:
 
 		#  Find all words that
 		#    begin with [<>], contain anything but [
-		#    begin with [N, contain digits and end with N]
+		#    begin with [N, contain digits and end with N] or N:optional-description]
+                #    we dump the description here and anly keep the N, digits N] part
 		#
 		fullname = lp[0]
-		pathfull = re.findall(r"([<>][^[]+|\[N\d+N\])", lp[1])
+		pathfull = re.findall(r"([<>][^[]+|\[N\d+N(?:[^\]]+){0,1}\])", lp[1])
 
 		contig_pieces[fullname] = []
 
 		for pp in pathfull:
-			if re.match(r"\[N\d+N\]", pp):
-				contig_pieces[fullname].append(pp)
+			gp = re.match(r"\[(N\d+N)(?:[^\]]+){0,1}\]", pp)
+			if gp:
+				contig_pieces[fullname].append("[" + gp.group(1) + "]")
 				continue
 
 			pieceid = pieceid + 1
@@ -508,5 +510,3 @@ for contig in sorted(contig_actual_lines.keys()):
 tig_layout_file.close()
 scf_layout_file.close()
 nul_layout_file.close()
-
-

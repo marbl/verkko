@@ -19,6 +19,7 @@
 
 rule extractONT:
     input:
+        ont_all_align  = rules.combineONT.output.alignments,
         ont_gap_align  = rules.processONT.output.ont_gap_align,
         split_finished = rules.splitONT.output.split_finished
     output:
@@ -29,6 +30,7 @@ rule extractONT:
         err            = '7-consensus/extractONT.err'
     params:
         ext_files      = lambda wildcards: expand("ont{nnnn}.fasta.gz", nnnn = splitONToutputs(wildcards)),
+        consensus_bams = config['consensus_bams'] == 'True'
     threads:
         int(config['sub_n_cpus'])
     resources:
@@ -60,21 +62,39 @@ set -e
 #  files, leaving the .finished file so snakemake doesn't (erroneously) try
 #  to regenerate them.
 
-cut -f 1 ../{input.ont_gap_align} \\\\
-| \\\\
-sort -u > ../{output.ont_subset_id}
+if [ {params.consensus_bams} ]; then
+    cut -f 1 ../{input.ont_all_align} \\\\
+    | \\\\
+    sort -u > ../{output.ont_subset_id}
 
-rm -f ../{output.ont_subset_ex}
+    rm -f ../{output.ont_subset_ex}
 
-for fn in {params.ext_files} ; do
-  echo >> ../{output.ont_subset_ex} extract \\$fn ../{output.ont_subset_id} ../3-align/split/\\$fn
-done
+    for fn in {params.ext_files} ; do
+    echo >> ../{output.ont_subset_ex} extract \\$fn ../{output.ont_subset_id} ../3-align/split/\\$fn
+    done
 
-xargs -L 1 -P {threads} < ../{output.ont_subset_ex} \\\\
-  {PYTHON} {VERKKO}/scripts/fasta_extract.py
+    xargs -L 1 -P {threads} < ../{output.ont_subset_ex} \\\\
+    {PYTHON} {VERKKO}/scripts/fasta_extract.py
 
-cat {params.ext_files} > ../{output.ont_subset}
-rm -f {params.ext_files}
+    cat {params.ext_files} > ../{output.ont_subset}
+    rm -f {params.ext_files}
+else
+    cut -f 1 ../{input.ont_gap_align} \\\\
+    | \\\\
+    sort -u > ../{output.ont_subset_id}
+
+    rm -f ../{output.ont_subset_ex}
+
+    for fn in {params.ext_files} ; do
+    echo >> ../{output.ont_subset_ex} extract \\$fn ../{output.ont_subset_id} ../3-align/split/\\$fn
+    done
+
+    xargs -L 1 -P {threads} < ../{output.ont_subset_ex} \\\\
+    {PYTHON} {VERKKO}/scripts/fasta_extract.py
+
+    cat {params.ext_files} > ../{output.ont_subset}
+    rm -f {params.ext_files}
+fi
 EOF
 
 chmod +x ./extractONT.sh

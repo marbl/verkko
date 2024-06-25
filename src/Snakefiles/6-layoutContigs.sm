@@ -188,6 +188,10 @@ if [ {params.consensus_bams} ]; then
     ../{output.ONTlayout} \\\\
     ../{output.ONTscfmap}
 
+    cut -f 1 \\\\
+    ../3-align/alns-ont-nodeIDs.gaf \\\\
+    | sort -u > ../3-align/ont_all.id
+
     {PYTHON} {VERKKO}/scripts/check_layout_gaps.py < ../{output.ONTlayout} > ../{output.ONTgaps}
 
     python {VERKKO}/scripts/merge_layouts.py \\\\
