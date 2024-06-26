@@ -287,6 +287,7 @@ FILES        += \
                 scripts/graph_functions.py                    -> ../lib/verkko/scripts/graph_functions.py \
                 scripts/hicverkko.py                          -> ../lib/verkko/scripts/hicverkko.py \
                 scripts/parse_sam_pairs.py                    -> ../lib/verkko/scripts/parse_sam_pairs.py \
+                scripts/parse_sam_not_unique_pairs.py         -> ../lib/verkko/scripts/parse_sam_not_unique_pairs.py \
                 scripts/rdna_scaff_functions.py               -> ../lib/verkko/scripts/rdna_scaff_functions.py \
                 scripts/rdna_scaff.py                         -> ../lib/verkko/scripts/rdna_scaff.py \
                 scripts/get_paths_fasta.py                    -> ../lib/verkko/scripts/get_paths_fasta.py \
