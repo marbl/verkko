@@ -101,13 +101,13 @@ rule runMashMap:
 cd 8-hicPipeline
 
 cat > ./run_mashmap.sh <<EOF
-#!/bin/sh
-set -e
+#!/usr/bin/env bash
+set -e -o pipefail
+
 echo "---Running MashMap"
 {params.MASHMAP} -r ../{input.unitigs_hpc} -q ../{input.unitigs_hpc} -t {threads} -f none --pi {params.MASHMAP_DIV} -s 10000 -o mashmap.out
 cat mashmap.out |awk '{{if (\$4-\$3 > 100000 && \$1 != \$6) print \$1"\\t"\$6"\\t"\$4-\$3}}'|sort |uniq > ../{output.unitigs_matches}
-{params.MASHMAP} -r ../{input.unitigs} -q ../{input.unitigs} -t {threads} -f none --pi {params.MASHMAP_DIV} -s 10000 -o unitigs_nonhpc.mashmap 
-awk '\$11 >= 50000' unitigs_nonhpc.mashmap > ../{output.unitigs_nohpc50}
+{params.MASHMAP} -r ../{input.unitigs} -q ../{input.unitigs} -t {threads} -f none --pi {params.MASHMAP_DIV} -s 10000 -o >(awk '\$11 >= 50000' > ../{output.unitigs_nohpc50})
 EOF
 
 chmod +x ./run_mashmap.sh
@@ -345,6 +345,7 @@ cd 8-hicPipeline
 cat > ./align_bwa{wildcards.nnnn}.sh <<EOF
 #!/usr/bin/env bash
 set -e -o pipefail
+
 if [ {params.withporec} = "False" ] ; then
    echo "---Mapping {input.hic1} and {input.hic2} to {input.unitigs} with BWA"
    {params.BWA} mem -t {threads} -5 -S -P ../{input.unitigs} ../{input.hic1} ../{input.hic2} | {params.SAMTOOLS} view -bh -@ {threads}  -F 0x900 - | {params.SAMTOOLS} sort -n -@ {threads} - -o ../{output.bwa_mapping}
@@ -429,8 +430,9 @@ rule transformBWA:
 cd 8-hicPipeline
 
 cat > ./transform_bwa.sh <<EOF
-#!/usr/bin/env bash
-set -e -o pipefail
+#!/bin/sh
+set -e
+
 {params.SAMTOOLS} view  ../{input.bwa_mapping} | {PYTHON} {VERKKO}/scripts/parse_sam_not_unique_pairs.py  > ../{output.byread_mapping}
 EOF
 
