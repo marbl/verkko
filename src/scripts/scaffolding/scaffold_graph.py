@@ -22,8 +22,10 @@ class ReferencePosition:
 
 #TODO: or inherit from nx.Digraph??
 class ScaffoldGraph:
+    #TODO possibly change the definition - whether we do not have enough similarity at all, or do not have one2one similarity 
     LONG_HAPLOID_CUTOFF = 5000000
     #should not be actuallly used, since they'll be reordered with MAX_REORDERING_LENGTH check
+    #not in use except of assertion
     SHORT_TEL_CUTOFF = 5000000
 
     #Should it be ignored at all? 
@@ -35,6 +37,7 @@ class ScaffoldGraph:
     MIN_LINKS = 10
     #Ratio from best to second best. Possibly should be increased.
     CLEAR_MAJORITY = 1.5   
+    #TODO: sinice multiplicity > 1 is not used, do we really need to ignore short ones?
     SHORT_INGORED_NODE = 20000
     #ignore shorter paths, TODO change for iterative runs
     MIN_PATH_TO_SCAFFOLD = 200000
@@ -54,7 +57,7 @@ class ScaffoldGraph:
 
     #reference-based/haplotype-reference based params
     #shorter homologies will be ignored, possibly can be tuned in mashmap options?
-    #TODO: shouldn't be always same as MIN_PATH_TO_SCAFFOLD?
+    #TODO: shouldn't be always same as MATCHGRAPH_MIN_ALIGNMENT? Rename REFERENCE_MIN_ALIGNMENT? Likely decrease to 50K
     MIN_HOMOLOGY_REF = 100000
     #Quite conservative here, best homology contig should be twice longer than second best
     RATIO_HOMOLOGY_REF = 2.0
@@ -66,6 +69,7 @@ class ScaffoldGraph:
     #consecutive by reference can not overlap longer than this
     ABSOLUTE_ALLOWED_REFERENCE_OVERLAP = MIN_PATH_TO_SCAFFOLD
     #If there is a path between that is longer than this * jump_in_reference_coords - then paths we are checking are considered to be not consistent
+    #Without it paths from alternative haplotype can interfere 
     INTERMEDIATE_PATH_FRACTION = 0.7
     
     #Consequtive paths scores are increased by this factor. 
@@ -89,9 +93,7 @@ class ScaffoldGraph:
         self.to_scaff = self.get_paths_to_scaff(ScaffoldGraph.MIN_PATH_TO_SCAFFOLD)
         self.hic_alignment_file = hic_alignment_file
 
-        #TODO: duplicated... self.matchGraph should not be refered directly
-        self.mg = match_graph.MatchGraph(matches_file, G, -239239239, ScaffoldGraph.MATCHGRAPH_LONG_NODE, ScaffoldGraph.MATCHGRAPH_MIN_ALIGNMENT, logger)
-        self.matchGraph = self.mg.getMatchGraph()
+        self.match_graph = match_graph.MatchGraph(matches_file, G, -239239239, ScaffoldGraph.MATCHGRAPH_LONG_NODE, ScaffoldGraph.MATCHGRAPH_MIN_ALIGNMENT, logger)
         
         #debug purposes
         self.dangerous_swaps = {}
@@ -137,7 +139,7 @@ class ScaffoldGraph:
             for to_path_id in rukki_paths.getPathIds():       
                 if to_path_id == from_path_id:
                     continue 
-                if self.mg.isHomologous([rukki_paths.getPathById(from_path_id), rukki_paths.getPathById(to_path_id)], [rukki_paths.getLength(from_path_id), rukki_paths.getLength(to_path_id)]):
+                if self.match_graph.isHomologousPath([rukki_paths.getPathById(from_path_id), rukki_paths.getPathById(to_path_id)], [rukki_paths.getLength(from_path_id), rukki_paths.getLength(to_path_id)]):
                     continue
                 for from_dir in ('-', '+'):
                     for to_dir in ('-', '+'):
@@ -148,28 +150,7 @@ class ScaffoldGraph:
                     self.logger.debug (f"Counted scores {from_path_id} {to_path_id} {scores[from_path_id][to_path_id]}")
 
 #TODO: move all rc_<smth> somewhere, not right place 
-    def rc_orientation(self, c):
-        if c == "+":
-            return "-"
-        if c == "-":
-            return "+"
-        return c    
 
-    def rc_path_id(self, path_id):
-        return path_id[:-1] + self.rc_orientation(path_id[-1])
-    
-    def rc_path(self, path):
-        res = []
-        path.reverse()
-        for node in path:
-            if node[-1] == "+":
-                res.append(node[:-1]+"-")
-            elif node[-1] == "-":
-                res.append(node[:-1]+"+")   
-            else:
-                res.append(node)
-        path.reverse()
-        return res
     
     
     def getHaploidPaths(self):
@@ -189,18 +170,16 @@ class ScaffoldGraph:
             total_hom = 0
             for or_node in self.rukki_paths.getPathById(nor_path_id):
                 nor_node = or_node.strip("-+")
-                if not (nor_node in self.matchGraph.nodes):
-                    continue
-                for next in self.matchGraph.neighbors(nor_node):
-                    if self.matchGraph.edges[nor_node, next]['weight'] < 0:
-                        if len (nodes_to_path_ids[next]) > 1:
-                            #soemthing weird, ignoring
-                            continue
-                        next_id = nodes_to_path_ids[next][0]
-                        if not (next_id in homs):
-                            homs[next_id] = 0
-                        homs[next_id] += self.matchGraph.edges[nor_node, next]['homology_len']
-                        total_hom += self.matchGraph.edges[nor_node, next]['homology_len']
+                #TODO function wrapper,  
+                for next in self.match_graph.getHomologousNodes(nor_node, True):
+                    if len (nodes_to_path_ids[next]) > 1:
+                        #soemthing weird, ignoring
+                        continue
+                    next_id = nodes_to_path_ids[next][0]
+                    if not (next_id in homs):
+                        homs[next_id] = 0
+                    homs[next_id] += self.match_graph.getEdgeAttribute(nor_node, next, 'homology_len')
+                    total_hom += self.match_graph.getEdgeAttribute(nor_node, next, 'homology_len')
             path_len = self.rukki_paths.getLength(nor_path_id)
             #TODO: should exclude homozygous nodes here
             if total_hom * 2 < path_len:
@@ -215,7 +194,7 @@ class ScaffoldGraph:
     def getClosestTelomere(self, path, direction):
         #From telomere to rc(path_end)
         if direction == '+':
-            path = self.rc_path(path)
+            path = gf.rc_path(path)
         closest = 1000000000
 
         add_dist = 0
@@ -241,7 +220,7 @@ class ScaffoldGraph:
                         closest = min(closest, self.dists[node][path_node] + add_dist - self.compressed_lens[node.strip("-+")] - self.compressed_lens[path_node.strip("-+")])
                     if check_homologous:
                         #self.logger.debug(f"Checking homologous to node {path_node}: {self.homologousOrNodes(path_node)}")
-                        for hom_node in self.homologousOrNodes(path_node):
+                        for hom_node in self.match_graph.getHomologousOrNodes(path_node, True):
                             #self.logger.debug (f"Checking homologous nodepair dist from {node} to {hom_node}")
                             if hom_node == node:
                                 closest = 0
@@ -258,7 +237,7 @@ class ScaffoldGraph:
             if node in self.upd_G.nodes:
                 closest = min(closest, self.nodeToPathDist(node, path_to, check_homologous) + add_dist)
                 if check_homologous:
-                    for hom_node in self.homologousOrNodes(node) :
+                    for hom_node in self.match_graph.getHomologousOrNodes(node, True) :
                         #self.logger.debug (f"Checking homologous dist from {hom_node} to {path_to} add_dist {add_dist}")
                         closest = min(closest, (self.nodeToPathDist(hom_node, path_to, check_homologous) + add_dist))
                 add_dist += self.compressed_lens[node.strip("-+")]
@@ -283,12 +262,12 @@ class ScaffoldGraph:
                         self.reference_positions[best_ref+ "-"] = []
                     hom_info = hom_storage.homologies[path_id][best_ref] 
                     self.assigned_reference[path_id + '+'] = best_ref + hom_info.orientation
-                    self.assigned_reference[path_id + '-'] = best_ref + self.rc_orientation(hom_info.orientation)
+                    self.assigned_reference[path_id + '-'] = best_ref + gf.rc_orientation(hom_info.orientation)
 #                    self.assigned_reference[path_id] = best_ref
 #                    self.reference_positions[best_ref].append(ReferencePosition(path_id, best_ref, hom_info.largest_interval_center[1], hom_storage.getLength(path_id), hom_info.orientation))
-                    
+                    #TODO: possibly unaligned sequences after/before approximate interavals should be counted?
                     self.reference_positions[best_ref + "+"].append(ReferencePosition(path_id + hom_info.orientation, best_ref + "+", hom_info.approximate_positions[1][0],hom_info.approximate_positions[1][1], hom_storage.getLength(path_id), hom_info.orientation))
-                    self.reference_positions[best_ref + "-"].append(ReferencePosition(path_id + self.rc_orientation(hom_info.orientation), best_ref + '-', hom_storage.getLength(best_ref) - hom_info.approximate_positions[1][1], hom_storage.getLength(best_ref) - hom_info.approximate_positions[1][0], hom_storage.getLength(path_id), self.rc_orientation(hom_info.orientation)))
+                    self.reference_positions[best_ref + "-"].append(ReferencePosition(path_id + gf.rc_orientation(hom_info.orientation), best_ref + '-', hom_storage.getLength(best_ref) - hom_info.approximate_positions[1][1], hom_storage.getLength(best_ref) - hom_info.approximate_positions[1][0], hom_storage.getLength(path_id), gf.rc_orientation(hom_info.orientation)))
 
                 else:
                     self.logger.debug(f"Best homology for {path_id} is {best_ref} not covered enough frac {all_refs[0][0] / hom_storage.getLength(path_id)}")
@@ -420,7 +399,7 @@ class ScaffoldGraph:
                 elif next_path_id.strip('-+') in nor_used_path_ids:
                     self.logger.info (f"Extention {next_path_id} looks good but already used")
                     break
-                if self.rc_path_id(self.findExtension(self.rc_path_id(next_path_id))) != cur_path_id:
+                if gf.rc_path_id(self.findExtension(gf.rc_path_id(next_path_id))) != cur_path_id:
                     self.logger.info (f"backward check failed for {next_path_id}")
                     break
                 self.logger.info (f"Extending {cur_path_id} with {next_path_id}")
@@ -457,7 +436,7 @@ class ScaffoldGraph:
                 if or_path_id[-1] == "+":
                     scf_path.extend(self.rukki_paths.getPathById(nor_path_id))
                 else:
-                    scf_path.extend(self.rc_path(self.rukki_paths.getPathById(nor_path_id)))
+                    scf_path.extend(gf.rc_path(self.rukki_paths.getPathById(nor_path_id)))
                 if cur_path_count < len(scf):
                     scf_path.append("[N1000001N:scaffold]")
                     
@@ -498,36 +477,33 @@ class ScaffoldGraph:
                 gaf_file.write(final_paths.getPathGaf(path_id) + "\n")
         return
     #returns: dict {(start_id, end_id):[[start_pos1, end_pos1]]}. Coords not compressed!
-    def get_connections(self, alignment_file):
+    def get_connections(self, alignment_file, use_multimappers:bool = False):
         res = {}
         #A01660:39:HNYM7DSX3:1:1101:1696:29982   utig4-73        utig4-1056      1       16949880        78591191
         for line in open (alignment_file):
             arr = line.split()
+            if not (use_multimappers) and (arr[1].find(",") != -1 or arr[2].find(",") != -1):
+                continue
+            first = arr[1].split(",")
+            second = arr[2].split(",")
+            first_coords = arr[4].split(",")
+            second_coords = arr[5].split(",")
+            weight = 1 / (len (first) * len(second))
+            for i in range (0, len(first)):
+                node_f = first[i]
+                for j in range (0, len(second)):
+                    node_s = second[j]
+                    if not (node_f, node_s) in res:
+                        res[(node_f, node_s)] = []
+                    next = [int(first_coords[i]), int(second_coords[j]), weight]
+                    res[(node_f, node_s)].append(next)
 
-            if not (arr[1], arr[2]) in res:
-                res[(arr[1], arr[2])] = []
-            next = [int(arr[4]), int(arr[5])]
-            res[(arr[1], arr[2])].append(next)
-
-            if not (arr[2], arr[1]) in res:
-                res[(arr[2], arr[1])] = []
-            res[(arr[2], arr[1])].append([int(arr[5]), int(arr[4])])  
+                    if not (node_s, node_f) in res:
+                        res[(node_s, node_f)] = []
+                    res[(node_s, node_f)].append([int(second_coords[j]), int(first_coords[i]), weight])  
         return res
     
     #TODO: move to matchGraph
-    def homologousOrNodes (self, or_node):
-        nor_node = or_node.strip("-+")
-        if not nor_node in self.matchGraph.nodes:
-            return set()
-        orient = or_node[-1]
-        res = set()
-        for hom_node in self.matchGraph.neighbors(nor_node):
-            if self.matchGraph.edges[nor_node, hom_node]['weight'] < 0:
-                if self.matchGraph.edges[nor_node, hom_node]['orientation'] == '+':
-                    res.add(hom_node + orient)
-                else:
-                    res.add (hom_node+ self.rc_orientation(orient))
-        return res
     
     def fixOrientation(self, path_ids, scores):
         #orientation for telomere-containing short contigs is fixed, but because of filtering (i.e. distal bits) read counts can be misleading
@@ -548,7 +524,7 @@ class ScaffoldGraph:
                     if self.scaffold_graph.nodes[path_ids[i]+"+"]['telomere'][0] and not self.scaffold_graph.nodes[path_ids[i]+"+"]['telomere'][1]:
                         correct_or = correct_orientations[i]
                     elif self.scaffold_graph.nodes[path_ids[i]+"+"]['telomere'][1] and not self.scaffold_graph.nodes[path_ids[i]+"+"]['telomere'][0]:
-                        correct_or = self.rc_orientation(correct_orientations[i])
+                        correct_or = gf.rc_orientation(correct_orientations[i])
                     if correct_or != "":            
                         pair_or = ["",""]
                         pair_or[i] = correct_or                        
@@ -557,7 +533,7 @@ class ScaffoldGraph:
                             correct_pair = pair_or.copy()                       
                             correct_pair[1 - i] = second_or
                             incorrect_pair = correct_pair.copy()
-                            incorrect_pair[i] = self.rc_orientation(correct_or)
+                            incorrect_pair[i] = gf.rc_orientation(correct_or)
                             correct_pair = "".join(correct_pair)
                             incorrect_pair = "".join(incorrect_pair)                            
                             #just logging
@@ -581,9 +557,9 @@ class ScaffoldGraph:
                         for orient in ('-', '+'):
                             to_check = paths.copy()
                             if fixed_orientation == "-":
-                                to_check[1 - i] = self.rc_path(paths[1-i])
+                                to_check[1 - i] = gf.rc_path(paths[1-i])
                             if orient == '-':
-                                to_check[i] = self.rc_path(paths[i])
+                                to_check[i] = gf.rc_path(paths[i])
                             shortest_paths[orient] = self.pathDist(to_check[0], to_check[1], True)
                             self.logger.debug(f"Checking dists {to_check} index {i} dist {shortest_paths[orient]} cutoffs {min_cutoff} {max_cutoff}")
 
@@ -598,7 +574,7 @@ class ScaffoldGraph:
                             incorrect_pair = ["", ""]
                             correct_pair[i] = correct_or
                             correct_pair[1 - i] = fixed_orientation
-                            incorrect_pair[i] = self.rc_orientation(correct_or)
+                            incorrect_pair[i] = gf.rc_orientation(correct_or)
                             incorrect_pair[1 - i] = fixed_orientation   
                             correct_pair = "".join(correct_pair)
                             incorrect_pair = "".join(incorrect_pair) 
@@ -624,10 +600,13 @@ class ScaffoldGraph:
         scores = {"++":0, "-+":0, "+-":0, "--":0, "middle":0}    
         filtered = 0
         not_filtered = 0
-        if self.matchGraph.has_edge(pair[0], pair[1]):
-            intervals = self.matchGraph.edges[pair[0], pair[1]]['intervals']
+        if self.match_graph.hasEdge(pair[0], pair[1]):
+            intervals = self.match_graph.getEdgeAttribute(pair[0], pair[1], 'intervals')
         else:
             intervals = [[],[]]
+        #Force ignoring links between homologous nodes
+        if self.match_graph.isHomologousNodes(pair[0], pair[1], True):
+            return scores
         for conn in connections[pair]:        
             in_homo = False
             for i in range (0, len(intervals[0])):
@@ -635,7 +614,9 @@ class ScaffoldGraph:
                 for j in range (0, 2):
                     if conn[j] <  intervals[j][i][0] or conn[j] > intervals[j][i][1]:
                         local_homo = False
-                if not local_homo:
+                #TODO: check!!
+                #Likely correct, should we also filter global homologous based on matchgraph?
+                if local_homo:
                     in_homo = True
                     break
             if in_homo:
@@ -666,10 +647,10 @@ class ScaffoldGraph:
             else:
                 str += "+"
             if near_ends[0] and near_ends[1]:
-                scores[str] += 1
+                scores[str] += conn[2]
             else:
-                scores["middle"] += 1
-        #self.logger.debug (f"Scores for {pair} {scores} {orientations} filtered/not_filtered {filtered} {not_filtered}")
+                scores["middle"] += conn[2]
+        self.logger.debug (f"Scores for {pair} {scores} {orientations} filtered/not_filtered {filtered} {not_filtered}")
         #self.logger.debug (f"Shifts {shift_before} {shift_after}")
         #self.logger.debug (f"Ignored intervals {intervals}")
         return scores

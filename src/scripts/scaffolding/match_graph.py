@@ -47,6 +47,7 @@ class HomologyInfo:
             self.orientation = orientation
             self.largest_interval_center = [(intervals[0][1] + intervals[0][0])/2, (intervals[1][1] + intervals[1][0])/2]
 
+#TODO: whether we should use orientation.
     def fillCoverage(self):
         for ind in range(0, 2):
             covered_intervals = []
@@ -248,9 +249,41 @@ class MatchGraph:
             return True
         else:
             return False
-        
 
-    def isHomologous (self, paths, lens):
+    def hasEdge(self, node1, node2):
+        return self.matchGraph.has_edge(node1, node2)
+    
+    def getEdgeAttribute(self, node1, node2, attr):
+        return self.matchGraph.edges[node1, node2][attr]
+
+    def isHomologousNodes(self, node1, node2, strict:bool):
+        if self.matchGraph.has_edge(node1, node2) and ((not strict) or self.matchGraph.edges[node1, node2]['weight'] < 0):
+            return True
+        else:
+            return False
+    
+    def getHomologousNodes(self, node, strict:bool):
+        homologous = []
+        if node in self.matchGraph.nodes:
+            for adj_node in self.matchGraph.neighbors(node):
+                if ((not strict) or self.matchGraph.edges[node, adj_node]['weight'] < 0):
+                    homologous.append(adj_node)
+        return homologous
+
+    def getHomologousOrNodes(self, or_node, strict:bool):
+        nor_node = or_node.strip("-+")
+        if not nor_node in self.matchGraph.nodes:
+            return set()
+        orient = or_node[-1]
+        res = set()
+        for hom_node in self.getHomologousNodes(nor_node, strict):
+            if self.matchGraph.edges[nor_node, hom_node]['orientation'] == '+':
+                res.add(hom_node + orient)
+            else:
+                res.add (hom_node+ gf.rc_orientation(orient))
+        return res
+
+    def isHomologousPath (self, paths, lens):
         hom_size = 0
         for p0 in paths[0]:
             for p1 in paths[1]:
