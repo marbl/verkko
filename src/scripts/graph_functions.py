@@ -314,9 +314,11 @@ def loadHiCGraph(hic_byread_file):
     for line in hic_file:
         if "#" in line:
             continue
-        line = line.strip().split()
-
+        line = line.strip().split()        
         if len(line) < 3:
+            continue
+        #introducing multimappers
+        if line[1].find(",") != -1 or line[2].find(",") != -1:
             continue
 
         if line[1] == line[2]:
@@ -382,3 +384,26 @@ def get_telomeric_nodes(telomere_locations_file, G):
 def rc_seq(seq):
     rc = {"A": "T", "T": "A", "G": "C", "C": "G", "N": "N"}
     return "".join([rc[x] for x in seq[::-1]])
+
+def rc_orientation(c):
+    if c == "+":
+        return "-"
+    if c == "-":
+        return "+"
+    return c    
+
+def rc_path_id(path_id):
+    return path_id[:-1] + rc_orientation(path_id[-1])
+
+def rc_path(path):
+    res = []
+    path.reverse()
+    for node in path:
+        if node[-1] == "+":
+            res.append(node[:-1]+"-")
+        elif node[-1] == "-":
+            res.append(node[:-1]+"+")   
+        else:
+            res.append(node)
+    path.reverse()
+    return res
