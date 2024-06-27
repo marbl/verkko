@@ -1,23 +1,13 @@
 #!/usr/bin/env python
 
 import sys
+import graph_functions as gf
 
 in_graph_file = sys.argv[1]
 in_paths_file = sys.argv[2]
 gapname = sys.argv[3]
 out_mapping_file = sys.argv[4]
 # gfa to stdout
-
-def revnode(n):
-	return (">" if n[0] == "<" else "<") + n[1:]
-
-def canon(n1, n2):
-	if revnode(n2) + revnode(n1) < n1 + n2: return (revnode(n2), revnode(n1))
-	return (n1, n2)
-
-def getone(s):
-	for c in s:
-		return c
 
 def parse_current_alns(tip_support, alns):
 	if len(alns) < 2: return
@@ -27,8 +17,8 @@ def parse_current_alns(tip_support, alns):
 			key = (alns[i-1][3], alns[i][2])
 			if key not in tip_support: tip_support[key] = []
 			tip_support[key].append((alns[i][4], alns[i][0] - alns[i-1][1]))
-		elif alns[i][4] == 0 and (revnode(alns[i][2]), revnode(alns[i-1][3])) in valid_tips:
-			key = (revnode(alns[i][2]), revnode(alns[i-1][3]))
+		elif alns[i][4] == 0 and (gf.revnode(alns[i][2]), gf.revnode(alns[i-1][3])) in valid_tips:
+			key = (gf.revnode(alns[i][2]), gf.revnode(alns[i-1][3]))
 			if key not in tip_support: tip_support[key] = []
 			tip_support[key].append((alns[i-1][5], alns[i][0] - alns[i-1][1]))
 
@@ -47,32 +37,32 @@ with open(in_graph_file) as f:
 			tonode = (">" if parts[4] == "+" else "<") + parts[3]
 			if fromnode not in edges: edges[fromnode] = set()
 			edges[fromnode].add(tonode)
-			if revnode(tonode) not in edges: edges[revnode(tonode)] = set()
-			edges[revnode(tonode)].add(revnode(fromnode))
+			if gf.revnode(tonode) not in edges: edges[gf.revnode(tonode)] = set()
+			edges[gf.revnode(tonode)].add(gf.revnode(fromnode))
 			overlap = int(parts[5][:-1])
-			edge_overlaps[canon(fromnode, tonode)] = overlap
+			edge_overlaps[gf.canon(fromnode, tonode)] = overlap
 			if fromnode not in max_overlap: max_overlap[fromnode] = overlap
-			if revnode(tonode) not in max_overlap: max_overlap[revnode(tonode)] = overlap
+			if gf.revnode(tonode) not in max_overlap: max_overlap[gf.revnode(tonode)] = overlap
 			max_overlap[fromnode] = max(overlap, max_overlap[fromnode])
-			max_overlap[revnode(tonode)] = max(overlap, max_overlap[revnode(tonode)])
+			max_overlap[gf.revnode(tonode)] = max(overlap, max_overlap[gf.revnode(tonode)])
 
 valid_tips = set()
 
 for n in edges:
-	if revnode(n) in edges: continue
+	if gf.revnode(n) in edges: continue
 	if len(edges[n]) != 1: continue
-	prev_hom = revnode(getone(edges[n]))
-	if revnode(prev_hom) not in edges or len(edges[revnode(prev_hom)]) != 2: continue
+	prev_hom = gf.revnode(gf.getone(edges[n]))
+	if gf.revnode(prev_hom) not in edges or len(edges[gf.revnode(prev_hom)]) != 2: continue
 	assert prev_hom in edges
 	if len(edges[prev_hom]) != 2: continue
 	other = None
 	for edge in edges[prev_hom]:
-		if edge == revnode(n): continue
+		if edge == gf.revnode(n): continue
 		other = edge
 	if other is None: continue
-	assert revnode(other) in edges
-	if len(edges[revnode(other)]) != 1: continue
-	valid_tips.add((revnode(n), other))
+	assert gf.revnode(other) in edges
+	if len(edges[gf.revnode(other)]) != 1: continue
+	valid_tips.add((gf.revnode(n), other))
 
 node_count_in_tips = {}
 for tip in valid_tips:
@@ -127,7 +117,7 @@ for key in tip_support:
 		num_fixed += 1
 		continue
 	max_ov = 0
-	if revnode(key[1]) in max_overlap: max_ov = max_overlap[revnode(key[1])]
+	if gf.revnode(key[1]) in max_overlap: max_ov = max_overlap[gf.revnode(key[1])]
 	max_rev_ov = 0
 	if key[1] in max_overlap: max_rev_ov = max_overlap[key[1]]
 	if wanted_cut_pos <= max_ov:
@@ -141,16 +131,16 @@ for key in tip_support:
 			wanted_trim = -wanted_gap_length - (len(node_seqs[key[1][1:]]) - wanted_cut_pos) + 1
 			assert wanted_trim >= 1
 			sys.stderr.write("trim back " + str(key[0]) + " by " + str(wanted_trim) + "\n")
-			assert revnode(key[0]) in max_overlap
+			assert gf.revnode(key[0]) in max_overlap
 			assert wanted_trim < len(node_seqs[key[0][1:]])
-			if len(node_seqs[key[0][1:]]) - wanted_trim <= max_overlap[revnode(key[0])]:
+			if len(node_seqs[key[0][1:]]) - wanted_trim <= max_overlap[gf.revnode(key[0])]:
 				sys.stderr.write("can't trim due to overlap, skipping")
 				continue
 			node_trims[key[0]] = wanted_trim
 			wanted_gap_length += wanted_trim
 	sys.stderr.write("mend " + key[0] + " " + key[1] + "\n")
 	assert key[1] not in node_cuts
-	assert revnode(key[1]) not in node_cuts
+	assert gf.revnode(key[1]) not in node_cuts
 	node_cuts[key[1]] = wanted_cut_pos
 	extra_edges.append((key[0], key[1], wanted_gap_length))
 	num_fixed += 1
@@ -189,36 +179,36 @@ for edge in edges:
 	for edge2 in edges[edge]:
 		fromnode = edge
 		tonode = edge2
-		overlap=edge_overlaps[canon(edge, edge2)]
+		overlap=edge_overlaps[gf.canon(edge, edge2)]
 		if ">" + fromnode[1:] in node_trims or "<" + fromnode[1:] in node_trims:
-			if ">" + fromnode[1:] in node_trims and ">" + fromnode[1:] in canon(edge, edge2): overlap -= node_trims[">" + fromnode[1:]]
-			if "<" + fromnode[1:] in node_trims and "<" + fromnode[1:] in canon(edge, edge2): overlap -= node_trims["<" + fromnode[1:]]
+			if ">" + fromnode[1:] in node_trims and ">" + fromnode[1:] in gf.canon(edge, edge2): overlap -= node_trims[">" + fromnode[1:]]
+			if "<" + fromnode[1:] in node_trims and "<" + fromnode[1:] in gf.canon(edge, edge2): overlap -= node_trims["<" + fromnode[1:]]
 
 			fromnode = fromnode + "_trim"
 		if ">" + tonode[1:] in node_trims or "<" + tonode[1:] in node_trims:
-			if ">" + tonode[1:] in node_trims and ">" + tonode[1:] in canon(edge, edge2): overlap -= node_trims[">" + tonode[1:]]
-			if "<" + tonode[1:] in node_trims and "<" + tonode[1:] in canon(edge, edge2): overlap -= node_trims["<" + tonode[1:]]
+			if ">" + tonode[1:] in node_trims and ">" + tonode[1:] in gf.canon(edge, edge2): overlap -= node_trims[">" + tonode[1:]]
+			if "<" + tonode[1:] in node_trims and "<" + tonode[1:] in gf.canon(edge, edge2): overlap -= node_trims["<" + tonode[1:]]
 
 			tonode = tonode + "_trim"
-		if fromnode[0] == ">" and (edge in node_cuts or revnode(edge) in node_cuts):
+		if fromnode[0] == ">" and (edge in node_cuts or gf.revnode(edge) in node_cuts):
 			fromnode = fromnode + "_end"
-		elif fromnode[0] == "<" and (edge in node_cuts or revnode(edge) in node_cuts):
+		elif fromnode[0] == "<" and (edge in node_cuts or gf.revnode(edge) in node_cuts):
 			fromnode = fromnode + "_beg"
-		if tonode[0] == ">" and (edge2 in node_cuts or revnode(edge2) in node_cuts):
+		if tonode[0] == ">" and (edge2 in node_cuts or gf.revnode(edge2) in node_cuts):
 			tonode = tonode + "_beg"
-		elif tonode[0] == "<" and (edge2 in node_cuts or revnode(edge2) in node_cuts):
+		elif tonode[0] == "<" and (edge2 in node_cuts or gf.revnode(edge2) in node_cuts):
 			tonode = tonode + "_end"
 		print("L\t" + fromnode[1:] + "\t" + ("+" if fromnode[0] == ">" else "-") + "\t" + tonode[1:] + "\t" + ("+" if tonode[0] == ">" else "-") + "\t" + str(overlap) + "M")
 
 next_fake_node_id = 0
 for edge in extra_edges:
-	assert revnode(edge[0]) not in node_trims
+	assert gf.revnode(edge[0]) not in node_trims
 	fromprint = ""
-	if edge[0] in node_cuts or revnode(edge[0]) in node_cuts:
+	if edge[0] in node_cuts or gf.revnode(edge[0]) in node_cuts:
 		fromprint = "_end" if edge[0][0] == ">" else "_beg"
 		assert edge[0] not in node_trims
 	assert edge[1] in node_cuts
-	assert revnode(edge[1]) not in node_cuts
+	assert gf.revnode(edge[1]) not in node_cuts
 	gap_len = edge[2]
 	trimprint = ""
 	if edge[0] in node_trims: trimprint = "_trim"
@@ -235,9 +225,9 @@ for edge in extra_edges:
 
 for edge in extra_nocut_edges:
 	assert edge[0] not in node_cuts
-	assert revnode(edge[0]) not in node_cuts
+	assert gf.revnode(edge[0]) not in node_cuts
 	assert edge[1] not in node_cuts
-	assert revnode(edge[1]) not in node_cuts
+	assert gf.revnode(edge[1]) not in node_cuts
 	gap_len = edge[2]
 	trimprint = ""
 	if edge[0] in node_trims: trimprint = "_trim"

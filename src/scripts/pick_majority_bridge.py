@@ -1,18 +1,16 @@
 #!/usr/bin/env python
 
 import sys
+import graph_functions as gf
 
 forbidden_paths_out_file = sys.argv[1]
 # paths from stdin
 # allowed paths to stdout
 
-def pathstr(p):
-	return "".join(p)
-
 def canon(p):
-	ps = pathstr(p)
+	ps = gf.pathstr(p)
 	reverse = [('>' if n[0] == '<' else '<') + n[1:] for n in p[::-1]]
-	rps = pathstr(reverse)
+	rps = gf.pathstr(reverse)
 	if ps < rps: return p
 	return reverse
 

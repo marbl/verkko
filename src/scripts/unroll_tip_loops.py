@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import graph_functions as gf
 
 graph_file = sys.argv[1]
 longest_n = int(sys.argv[2])
@@ -15,11 +16,6 @@ def iscanon(left, right):
         bwstr = right + left
         if bwstr < fwstr: return False
         return True
-
-def revnode(n):
-	assert len(n) >= 2
-	assert n[0] == "<" or n[0] == ">"
-	return (">" if n[0] == "<" else "<") + n[1:]
 
 coverage = {}
 min_len = 100000
@@ -56,10 +52,10 @@ with open(graph_file) as f:
 			tonode = (">" if parts[4] == "+" else "<") + parts[3]
 			if fromnode not in edges: edges[fromnode] = set()
 			edges[fromnode].add(tonode)
-			if revnode(tonode) not in edges: edges[revnode(tonode)] = set()
-			edges[revnode(tonode)].add(revnode(fromnode))
+			if gf.revnode(tonode) not in edges: edges[gf.revnode(tonode)] = set()
+			edges[gf.revnode(tonode)].add(gf.revnode(fromnode))
 			overlaps[(fromnode, tonode)] = parts[5]
-			overlaps[(revnode(tonode), revnode(fromnode))] = parts[5]
+			overlaps[(gf.revnode(tonode), gf.revnode(fromnode))] = parts[5]
 
 			if parts[1] != parts[3] and iscanon(fromnode, tonode):
 				if fromnode not in max_overlap: max_overlap[fromnode] = int(parts[5][:-1])
@@ -73,6 +69,7 @@ counts_per_tiploop = {}
 for node in nodeseqs:
 	if ">" + node not in edges: continue
 	if "<" + node not in edges: continue
+
 	if len(edges[">" + node]) > 2 or len(edges["<" + node]) > 2: continue
 	if ">" + node not in edges[">" + node]: continue
 	if len(edges[">" + node]) == 2 and len(edges["<" + node]) == 2: continue
@@ -104,13 +101,13 @@ for node in counts_per_tiploop:
 	if len(edges["<" + node]) == 2:
 		for edge in edges["<" + node]:
 			if edge[1:] == node: continue
-			assert ">" + node in edges[revnode(edge)]
-			edges[revnode(edge)].remove(">" + node)
-			edges[revnode(edge)].add(">unroll_" + node + "_1")
+			assert ">" + node in edges[gf.revnode(edge)]
+			edges[gf.revnode(edge)].remove(">" + node)
+			edges[gf.revnode(edge)].add(">unroll_" + node + "_1")
 			edges["<unroll_" + node + "_1"] = set()
 			edges["<unroll_" + node + "_1"].add(edge)
-			overlaps[(revnode(edge), ">unroll_" + node + "_1")] = overlaps[(revnode(edge), ">" + node)]
-			overlaps[("<unroll_" + node + "_1", edge)] = overlaps[(revnode(edge), ">" + node)]
+			overlaps[(gf.revnode(edge), ">unroll_" + node + "_1")] = overlaps[(gf.revnode(edge), ">" + node)]
+			overlaps[("<unroll_" + node + "_1", edge)] = overlaps[(gf.revnode(edge), ">" + node)]
 	self_overlap = overlaps[(">" + node, ">" + node)]
 	for i in range(0, count):
 		nodeseqs["unroll_" + node + "_" + str(i+1)] = nodeseqs[node]
@@ -122,13 +119,13 @@ for node in counts_per_tiploop:
 	if len(edges[">" + node]) == 2:
 		for edge in edges[">" + node]:
 			if edge[1:] == node: continue
-			assert "<" + node in edges[revnode(edge)]
-			edges[revnode(edge)].remove("<" + node)
-			edges[revnode(edge)].add("<unroll_" + node + "_" + str(count))
+			assert "<" + node in edges[gf.revnode(edge)]
+			edges[gf.revnode(edge)].remove("<" + node)
+			edges[gf.revnode(edge)].add("<unroll_" + node + "_" + str(count))
 			assert ">unroll_" + node + "_" + str(count) in edges
 			edges[">unroll_" + node + "_"  + str(count)].add(edge)
-			overlaps[(revnode(edge), "<unroll_" + node + "_" + str(count))] = overlaps[(revnode(edge), "<" + node)]
-			overlaps[(">unroll_" + node + "_" + str(count), edge)] = overlaps[(revnode(edge), "<" + node)]
+			overlaps[(gf.revnode(edge), "<unroll_" + node + "_" + str(count))] = overlaps[(gf.revnode(edge), "<" + node)]
+			overlaps[(">unroll_" + node + "_" + str(count), edge)] = overlaps[(gf.revnode(edge), "<" + node)]
 	del edges[">" + node]
 	del edges["<" + node]
 	del nodeseqs[node]

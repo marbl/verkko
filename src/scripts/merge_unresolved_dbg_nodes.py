@@ -1,38 +1,25 @@
 #!/usr/bin/env python
 
 import sys
+import graph_functions as gf
 
 # gfa from stdin
 # gfa to stdout
-
-def revnode(n):
-	return (">" if n[0] == "<" else "<") + n[1:]
-
-def getone(s):
-	assert len(s) >= 1
-	for n in s:
-		return n
-
-def canontip(left, right):
-	fwstr = left + right
-	bwstr = right + left
-	if bwstr < fwstr: return (right, left)
-	return (left, right)
 
 def remove_graph_node(node, nodeseqs, edges):
 	assert node in nodeseqs
 	del nodeseqs[node]
 	if ">" + node in edges:
 		for edge in edges[">" + node]:
-			assert revnode(edge) in edges
-			assert "<" + node in edges[revnode(edge)]
-			edges[revnode(edge)].remove("<" + node)
+			assert gf.revnode(edge) in edges
+			assert "<" + node in edges[gf.revnode(edge)]
+			edges[gf.revnode(edge)].remove("<" + node)
 		del edges[">" + node]
 	if "<" + node in edges:
 		for edge in edges["<" + node]:
-			assert revnode(edge) in edges
-			assert ">" + node in edges[revnode(edge)]
-			edges[revnode(edge)].remove(">" + node)
+			assert gf.revnode(edge) in edges
+			assert ">" + node in edges[gf.revnode(edge)]
+			edges[gf.revnode(edge)].remove(">" + node)
 		del edges["<" + node]
 
 def get_base_name(name):
@@ -58,11 +45,11 @@ for l in sys.stdin:
 		tonode = (">" if parts[4] == "+" else "<") + parts[3]
 		if fromnode not in edges: edges[fromnode] = set()
 		edges[fromnode].add(tonode)
-		if revnode(tonode) not in edges: edges[revnode(tonode)] = set()
-		edges[revnode(tonode)].add(revnode(fromnode))
+		if gf.revnode(tonode) not in edges: edges[gf.revnode(tonode)] = set()
+		edges[gf.revnode(tonode)].add(gf.revnode(fromnode))
 		frombase = get_base_name(fromnode)
 		tobase = get_base_name(tonode)
-		edge_overlaps[canontip(frombase, revnode(tobase))] = parts[5]
+		edge_overlaps[gf.canontip(frombase, gf.revnode(tobase))] = parts[5]
 
 unresolve_number = {}
 for base in belongs_to_base:
@@ -94,20 +81,20 @@ while True:
 			any_resolved = True
 			new_node = base + "_unresolve" + str(unresolve_number[base])
 			unresolve_number[base] += 1
-			nodeseqs[new_node] = nodeseqs[getone(belongs_to_base[base])]
+			nodeseqs[new_node] = nodeseqs[gf.getone(belongs_to_base[base])]
 			edges[">" + new_node] = set(group)
 			for node in group:
-				if revnode(node) not in edges: print(group)
-				assert revnode(node) in edges
-				edges[revnode(node)].add("<" + new_node)
+				if gf.revnode(node) not in edges: print(group)
+				assert gf.revnode(node) in edges
+				edges[gf.revnode(node)].add("<" + new_node)
 			edges["<" + new_node] = set()
 			belongs_to_base[base].add(new_node)
 			for node in outneighbor_groups[group]:
 				if "<" + node not in edges: continue
 				for edge in edges["<" + node]:
 					edges["<" + new_node].add(edge)
-					assert revnode(edge) in edges
-					edges[revnode(edge)].add(">" + new_node)
+					assert gf.revnode(edge) in edges
+					edges[gf.revnode(edge)].add(">" + new_node)
 			for node in outneighbor_groups[group]:
 				remove_graph_node(node, nodeseqs, edges)
 				belongs_to_base[base].remove(node)
@@ -128,19 +115,19 @@ while True:
 			any_resolved = True
 			new_node = base + "_unresolve" + str(unresolve_number[base])
 			unresolve_number[base] += 1
-			nodeseqs[new_node] = nodeseqs[getone(belongs_to_base[base])]
+			nodeseqs[new_node] = nodeseqs[gf.getone(belongs_to_base[base])]
 			edges["<" + new_node] = set(group)
 			for node in group:
-				assert revnode(node) in edges
-				edges[revnode(node)].add(">" + new_node)
+				assert gf.revnode(node) in edges
+				edges[gf.revnode(node)].add(">" + new_node)
 			edges[">" + new_node] = set()
 			belongs_to_base[base].add(new_node)
 			for node in inneighbor_groups[group]:
 				if ">" + node not in edges: continue
 				for edge in edges[">" + node]:
 					edges[">" + new_node].add(edge)
-					assert revnode(edge) in edges
-					edges[revnode(edge)].add("<" + new_node)
+					assert gf.revnode(edge) in edges
+					edges[gf.revnode(edge)].add("<" + new_node)
 			for node in inneighbor_groups[group]:
 				remove_graph_node(node, nodeseqs, edges)
 				belongs_to_base[base].remove(node)
@@ -177,7 +164,7 @@ for edge in edge_names:
 	for target in targets:
 		from_base = get_base_name(edge)
 		to_base = get_base_name(target)
-		key = canontip(from_base, revnode(to_base))
+		key = gf.canontip(from_base, gf.revnode(to_base))
 		overlap = "0M"
 		if key not in edge_overlaps:
 			print(edge)

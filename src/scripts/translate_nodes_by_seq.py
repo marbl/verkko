@@ -1,15 +1,12 @@
 #!/usr/bin/env python
 
 import sys
+import graph_functions as gf
 
 old_graph = sys.argv[1]
 new_graph = sys.argv[2]
 # old uniques from stdin
 # new uniques to stdout
-
-def revcomp(s):
-	comp = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C', 'N': 'N'}
-	return "".join(comp[c] for c in s[::-1])
 
 old_uniques = set()
 for l in sys.stdin:
@@ -22,7 +19,7 @@ with open(old_graph) as f:
 		if parts[0] == 'S':
 			if parts[1] in old_uniques: 
 				old_unique_seqs.add(parts[2])
-				old_unique_seqs.add(revcomp(parts[2]))
+				old_unique_seqs.add(gf.revcomp(parts[2]))
 
 with open(new_graph) as f:
 	for l in f:

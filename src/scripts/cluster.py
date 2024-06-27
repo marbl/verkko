@@ -6,6 +6,7 @@ import os
 import graph_functions
 import copy
 from networkx.algorithms import community
+import graph_functions as gf
 
 def check_non_empty(part, G):
     for p in part:
@@ -14,22 +15,17 @@ def check_non_empty(part, G):
     return False
 
 
-def revnode(n):
-    assert len(n) >= 2
-    assert n[0] == "<" or n[0] == ">"
-    return (">" if n[0] == "<" else "<") + n[1:]
-
 #Currently not in use anymore
 def IsTip(node, edges):
     for pref in ['>', '<']:
         ornode = pref + node
         if ornode not in edges or len(edges[ornode]) == 0:
-            if revnode(ornode) not in edges:
+            if gf.revnode(ornode) not in edges:
                 continue
 #rc to the tip predeccor
-            for edge in edges[revnode(ornode)]:
+            for edge in edges[gf.revnode(ornode)]:
 #alternative edge to tip that should be not a deadend
-                for alt_tip in edges[revnode(edge)]:
+                for alt_tip in edges[gf.revnode(edge)]:
                     if alt_tip in edges and len(edges[alt_tip])> 0:
                         print (f'Tip {node}')
                         return True
@@ -42,22 +38,22 @@ def collapseOrientedNode (edges, node):
         ornode = pref + node
         if not ornode in edges:
             continue
-        if not revnode(ornode) in edges:
+        if not gf.revnode(ornode) in edges:
             continue
         outgoing = set(edges[ornode])
         incoming = set()
-        for n in edges[revnode(ornode)]:
-            incoming.add(revnode(n))
+        for n in edges[gf.revnode(ornode)]:
+            incoming.add(gf.revnode(n))
         for inc in incoming:
             for outg in outgoing:
                 edges[inc].add(outg)
     for pref in ['>', '<']:
         ornode = pref + node
-        if not revnode(ornode) in edges:
+        if not gf.revnode(ornode) in edges:
             continue
         incoming = set()
-        for n in edges[revnode(ornode)]:
-            incoming.add(revnode(n))
+        for n in edges[gf.revnode(ornode)]:
+            incoming.add(gf.revnode(n))
         for inc in incoming:
             edges[inc].discard(ornode)
     for pref in ['>', '<']:
@@ -254,10 +250,10 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
    #        edgelines.append((fromnode, tonode, l.strip()))
             if fromnode not in edges:
                 edges[fromnode] = set()
-            if revnode(tonode) not in edges:
-                edges[revnode(tonode)] = set()
+            if gf.revnode(tonode) not in edges:
+                edges[gf.revnode(tonode)] = set()
             edges[fromnode].add(tonode)
-            edges[revnode(tonode)].add(revnode(fromnode))
+            edges[gf.revnode(tonode)].add(gf.revnode(fromnode))
 
 #let's save original graph somewhere
     edges_save = copy.deepcopy(edges)

@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 
 import sys
+import graph_functions as gf
 
-def str2bool(v):
-  return v.lower() in ("yes", "true", "t", "1")
 
 node_coverage_file = sys.argv[1]
 haploid = str2bool(sys.argv[2])
@@ -15,25 +14,6 @@ max_bubble_pop_size = 10
 max_poppable_node_size = 200000
 max_poppable_coverage = 0
 
-def iterate_deterministic(l, end = ""):
-	tmp = list(l)
-	tmp.sort()
-
-	if end != "" and end in tmp:
-		tmp.remove(end)
-		tmp.insert(0, end)
-	for x in tmp:
-		yield x
-
-def getone(s):
-	for n in s:
-		return n
-	assert False
-
-def revnode(n):
-	assert len(n) >= 2
-	assert n[0] == "<" or n[0] == ">"
-	return (">" if n[0] == "<" else "<") + n[1:]
 
 def find(parent, key):
 	while parent[key] != parent[parent[key]]:
@@ -41,8 +21,8 @@ def find(parent, key):
 	return parent[key]
 
 def merge(parent, chain_coverage_sum, chain_length_sum, left, right):
-	left = find(parent, left)
-	right = find(parent, right)
+	left = gf.find(parent, left)
+	right = gf.find(parent, right)
 	assert parent[left] == left
 	assert parent[right] == right
 	assert parent[left] != parent[right]
@@ -53,15 +33,15 @@ def merge(parent, chain_coverage_sum, chain_length_sum, left, right):
 def remove_graph_node(node, edges):
 	if ">" + node in edges:
 		for edge in edges[">" + node]:
-			assert revnode(edge) in edges
-			assert "<" + node in edges[revnode(edge)]
-			edges[revnode(edge)].remove("<" + node)
+			assert gf.revnode(edge) in edges
+			assert "<" + node in edges[gf.revnode(edge)]
+			edges[gf.revnode(edge)].remove("<" + node)
 		del edges[">" + node]
 	if "<" + node in edges:
 		for edge in edges["<" + node]:
-			assert revnode(edge) in edges
-			assert ">" + node in edges[revnode(edge)]
-			edges[revnode(edge)].remove(">" + node)
+			assert gf.revnode(edge) in edges
+			assert ">" + node in edges[gf.revnode(edge)]
+			edges[gf.revnode(edge)].remove(">" + node)
 		del edges["<" + node]
 
 # Detecting Superbubbles in Assembly Graphs, Onodera et al 2013
@@ -80,23 +60,25 @@ def find_bubble(s, edges, max_bubble_size, nodelens, max_size):
 		assert v not in visited
 		visited.add(v)
 		if v != s and nodelens[v[1:]] > max_size: return None
-		if len(visited) > max_bubble_size: return None
+		if len(visited) > max_bubble_size:
+			#sys.stderr.write("Error bubble is not poppable because it its size of %s is  larger than max %s\n"%(len(visited), max_bubble_size))
+			return None
 		if v not in edges: return None
 		if len(edges[v]) == 0: return None
 		for u in edges[v]:
 			if u[1:] == v[1:]: return None
-			if revnode(u) in visited: return None
+			if gf.revnode(u) in visited: return None
 			if u == s: return None
 			assert u not in visited
 			seen.add(u)
-			assert revnode(u) in edges
-			assert len(edges[revnode(u)]) >= 1
+			assert gf.revnode(u) in edges
+			assert len(edges[gf.revnode(u)]) >= 1
 			has_nonvisited_parent = False
-			for parent_edge in edges[revnode(u)]:
-				parent = revnode(parent_edge)
+			for parent_edge in edges[gf.revnode(u)]:
+				parent = gf.revnode(parent_edge)
 				if parent not in visited: has_nonvisited_parent = True
 			if not has_nonvisited_parent: S.append(u)
-		if len(S) == 1 and len(seen) == 1 and S[0] == getone(seen):
+		if len(S) == 1 and len(seen) == 1 and S[0] == gf.getone(seen):
 			t = S.pop()
 			if t in edges:
 				for edge in edges[t]:
@@ -126,7 +108,7 @@ def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage, nodele
 		if top[1:] != start[1:] and top[1:] != end[1:] and nodelens[top[1:]] > max_bubble_node_size:
 			max_bubble_node_size = nodelens[top[1:]]
 		if top == end: continue
-		for edge in iterate_deterministic(edges[top], end):
+		for edge in gf.iterate_deterministic(edges[top], end):
 			stack.append((edge, top, min(pathwidth, coverage.get(edge[1:], 0))))
 	assert end in predecessor
 	path = [end]
@@ -167,7 +149,7 @@ def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage, nodele
 		removed_nodes.add(node)
 	for edge in bubble_edges:
 		if edge in kept_edges: continue
-		if (revnode(edge[1]), revnode(edge[0])) in kept_edges: continue
+		if (gf.revnode(edge[1]), gf.revnode(edge[0])) in kept_edges: continue
 		# if we have a bubble where there is a connection between the start and end and we decided to keep a node in between them, remove the edge skipping that node then
 		if set([start,end]) == kept_nodes or edge[0] != start or edge[1] != end:
 			if edge[0][1:] in kept_nodes or edge[1][1:] in kept_nodes: continue
@@ -175,9 +157,9 @@ def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage, nodele
 		if edge[0] in edges:
 			if edge[1] in edges[edge[0]]:
 				edges[edge[0]].remove(edge[1])
-		if revnode(edge[1]) in edges:
-			if revnode(edge[0]) in edges[revnode(edge[1])]:
-				edges[revnode(edge[1])].remove(revnode(edge[0]))
+		if gf.revnode(edge[1]) in edges:
+			if gf.revnode(edge[0]) in edges[gf.revnode(edge[1])]:
+				edges[gf.revnode(edge[1])].remove(gf.revnode(edge[0]))
 
 def try_pop_tip(start, edges, coverage, removed_nodes, removed_edges, max_removable, nodelens):
 	if start not in edges: return
@@ -185,9 +167,9 @@ def try_pop_tip(start, edges, coverage, removed_nodes, removed_edges, max_remova
 	max_coverage = 0
 	max_len = 0
 	keeps = []
-	for node in iterate_deterministic(edges[start]):
-		assert revnode(node) in edges
-		if len(edges[revnode(node)]) != 1: keeps.append(node)
+	for node in gf.iterate_deterministic(edges[start]):
+		assert gf.revnode(node) in edges
+		if len(edges[gf.revnode(node)]) != 1: keeps.append(node)
 		if node in edges and len(edges[node]) > 0: keeps.append(node)
 		coverage_here = 0
 		if node[1:] in coverage: coverage_here = coverage[node[1:]]
@@ -196,9 +178,9 @@ def try_pop_tip(start, edges, coverage, removed_nodes, removed_edges, max_remova
 		if nodelens[node[1:]] > max_len:
 			max_len = nodelens[node[1:]]
 	remove_this = []
-	for node in iterate_deterministic(edges[start]):
+	for node in gf.iterate_deterministic(edges[start]):
 		if node in keeps:
-		    continue
+			continue
 		coverage_here = 0
 		if node[1:] in coverage: coverage_here = coverage[node[1:]]
 		# if we have a node w/better coverage, remove this one. Ties are broken by length
@@ -274,8 +256,8 @@ while True:
 	merged_any = False
 	for triplet in possible_merges:
 		(node1, node2, difference) = triplet
-		key1 = find(parent, node1)
-		key2 = find(parent, node2)
+		key1 = gf.find(parent, node1)
+		key2 = gf.find(parent, node2)
 		if key1 == key2: continue
 		chain1_cov = chain_coverage_sum[find(parent, node1)] / chain_length_sum[find(parent, node1)]
 		chain2_cov = chain_coverage_sum[find(parent, node2)] / chain_length_sum[find(parent, node2)]
@@ -293,7 +275,7 @@ while True:
 unique_chains = set()
 tip_chains = set()
 for node in nodelens:
-	key = find(parent, node)
+	key = gf.find(parent, node)
 	if key not in chain_coverage_sum: continue
 	chain_coverage = chain_coverage_sum[key] / chain_length_sum[key]
 	if chain_coverage <= avg_coverage * 1.5:
@@ -301,16 +283,16 @@ for node in nodelens:
 	if chain_coverage >= avg_coverage * 0.5 and chain_coverage <= avg_coverage * 1.5:
 		unique_chains.add(key)
 
-for node in iterate_deterministic(nodelens):
-	key = find(parent, node)
+for node in gf.iterate_deterministic(nodelens):
+	key = gf.find(parent, node)
 	if key not in unique_chains: continue
 	if node in removed_nodes: continue
 	bubble = find_bubble(">" + node, edges, max_bubble_pop_size, nodelens, max_poppable_node_size * 5)
 	if bubble:
 		assert bubble[0] == ">" + node
 		assert bubble[1][1:] != node
-		if find(parent, bubble[1][1:]) != key: continue
-		pop_bubble(bubble[0], bubble[1], removed_nodes, removed_edges, edges, coverage, nodelens)
+		if gf.find(parent, bubble[1][1:]) != key: continue
+		pop_bubble(bubble[0], bubble[1], removed_nodes, removed_edges, edges, coverage, nodelens, chain_coverage >= comp_coverage * 1.5)
 	bubble = find_bubble("<" + node, edges, max_bubble_pop_size, nodelens, max_poppable_node_size * 5)
 	if bubble:
 		assert bubble[0] == "<" + node
@@ -318,8 +300,8 @@ for node in iterate_deterministic(nodelens):
 		if find(parent, bubble[1][1:]) != key: continue
 		pop_bubble(bubble[0], bubble[1], removed_nodes, removed_edges, edges, coverage, nodelens)
 
-for node in iterate_deterministic(nodelens):
-	key = find(parent, node)
+for node in gf.iterate_deterministic(nodelens):
+	key = gf.find(parent, node)
 	if key not in tip_chains: continue
 	if node in removed_nodes: continue
 	bubble = find_bubble(">" + node, edges, max_bubble_pop_size, nodelens, max_poppable_node_size)
@@ -345,5 +327,5 @@ for edge in edgelines:
 	if edge[0][1:] in removed_nodes: continue
 	if edge[1][1:] in removed_nodes: continue
 	if (edge[0], edge[1]) in removed_edges: continue
-	if (revnode(edge[1]), revnode(edge[0])) in removed_edges: continue
+	if (gf.revnode(edge[1]), gf.revnode(edge[0])) in removed_edges: continue
 	print(edge[2])

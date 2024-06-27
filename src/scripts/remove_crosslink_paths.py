@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import graph_functions as gf
 
 graph_file = sys.argv[1]
 unique_nodes_file = sys.argv[2]
@@ -8,22 +9,13 @@ picked_paths_file = sys.argv[3]
 counted_paths_file = sys.argv[4]
 # paths to stdout
 
-def revnode(n):
-	assert len(n) >= 2
-	assert n[0] == '>' or n[0] == '<'
-	return ('>' if n[0] == '<' else '<') + n[1:]
-
 def startnode(p):
 	path = p.replace('>', '\t>').replace('<', '\t<').strip().split('\t')
 	return path[0]
 
 def endnode(p):
 	path = p.replace('>', '\t>').replace('<', '\t<').strip().split('\t')
-	return revnode(path[-1])
-
-def canontip(n1, n2):
-	if n2 + n1 < n1 + n2: return (n2, n1)
-	return (n1, n2)
+	return gf.revnode(path[-1])
 
 def check_side(start, checked_sides, graph_edges):
 	global forbidden_connections
@@ -39,7 +31,7 @@ def check_side(start, checked_sides, graph_edges):
 		if top[1:] in unique_nodes:
 			tangle_sides.add(top)
 		else:
-			check_stack.append(revnode(top))
+			check_stack.append(gf.revnode(top))
 		if top in graph_edges:
 			for edge in graph_edges[top]:
 				check_stack.append(edge)
@@ -53,7 +45,7 @@ def check_side(start, checked_sides, graph_edges):
 		best_connection = None
 		if node not in connections_per_unique: return
 		for connection in connections_per_unique[node]:
-			key = canontip(node, connection)
+			key = gf.canontip(node, connection)
 			if connection_counts[key] > best_count:
 				best_count = connection_counts[key]
 				best_connection = connection
@@ -66,7 +58,7 @@ def check_side(start, checked_sides, graph_edges):
 	for node in tangle_sides:
 		for connection in connections_per_unique[node]:
 			if connection != best_per_side[node]:
-				key = canontip(node, connection)
+				key = gf.canontip(node, connection)
 				forbidden_connections.add(key)
 
 graph_edges = {}
@@ -76,7 +68,7 @@ with open(graph_file) as f:
 		if parts[0] == "L":
 			fromnode = (">" if parts[2] == "+" else "<") + parts[1]
 			tonode = (">" if parts[4] == "+" else "<") + parts[3]
-			tonode = revnode(tonode)
+			tonode = gf.revnode(tonode)
 			if fromnode not in graph_edges: graph_edges[fromnode] = set()
 			if tonode not in graph_edges: graph_edges[tonode] = set()
 			graph_edges[fromnode].add(tonode)
@@ -96,10 +88,10 @@ with open(picked_paths_file) as f:
 		if len(path) == 0: continue
 		all_paths.add(l.strip())
 		if path[0] not in connections_per_unique: connections_per_unique[path[0]] = set()
-		connections_per_unique[path[0]].add(revnode(path[-1]))
-		if revnode(path[-1]) not in connections_per_unique: connections_per_unique[revnode(path[-1])] = set()
-		connections_per_unique[revnode(path[-1])].add(path[0])
-		key = canontip(path[0], path[-1])
+		connections_per_unique[path[0]].add(gf.revnode(path[-1]))
+		if gf.revnode(path[-1]) not in connections_per_unique: connections_per_unique[gf.revnode(path[-1])] = set()
+		connections_per_unique[gf.revnode(path[-1])].add(path[0])
+		key = gf.canontip(path[0], path[-1])
 		if key not in paths_per_connection: paths_per_connection[key] = set()
 		paths_per_connection[key].add(l.strip())
 
@@ -109,7 +101,7 @@ with open(counted_paths_file) as f:
 		if len(l.strip()) == 0: continue
 		path = l.strip().replace('>', '\t>').replace('<', '\t<').strip().split('\t')
 		if len(path) == 0: continue
-		key = canontip(path[0], revnode(path[-1]))
+		key = gf.canontip(path[0], gf.revnode(path[-1]))
 		if key not in connection_counts: connection_counts[key] = 0
 		connection_counts[key] += 1
 
@@ -122,7 +114,7 @@ for node in unique_nodes:
 for pathstr in all_paths:
 	path = pathstr.replace('>', '\t>').replace('<', '\t<').strip().split('\t')
 	if len(path) == 0: continue
-	key = canontip(path[0], revnode(path[-1]))
+	key = gf.canontip(path[0], gf.revnode(path[-1]))
 	if key not in forbidden_connections:
 		print(pathstr)
 	else:

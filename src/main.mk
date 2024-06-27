@@ -226,7 +226,6 @@ FILES        += \
                 scripts/merge_unresolved_dbg_nodes.py         -> ../lib/verkko/scripts/merge_unresolved_dbg_nodes.py \
                 scripts/pick_majority_bridge.py               -> ../lib/verkko/scripts/pick_majority_bridge.py \
                 scripts/pop_bubbles_coverage_based.py         -> ../lib/verkko/scripts/pop_bubbles_coverage_based.py \
-                scripts/pop_bubbles_keep_longest.py           -> ../lib/verkko/scripts/pop_bubbles_keep_longest.py \
                 scripts/remove_contained_spurious_uniques.py  -> ../lib/verkko/scripts/remove_contained_spurious_uniques.py \
                 scripts/remove_crosslink_paths.py             -> ../lib/verkko/scripts/remove_crosslink_paths.py \
                 scripts/remove_wrong_connections_2.py         -> ../lib/verkko/scripts/remove_wrong_connections_2.py \

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import graph_functions as gf
 
 input_resolved_gfa = sys.argv[1]
 input_nodemap = sys.argv[2]
@@ -31,21 +32,6 @@ def get_continuation_acyclic_size(start_node, edges, node_lens):
 				check_stack.append(edge[1:])
 	return result
 
-def revnode(n):
-	assert len(n) >= 2
-	assert n[0] == ">" or n[0] == "<"
-	return (">" if n[0] == "<" else "<") + n[1:]
-
-def canon(n1, n2):
-	fw = n1 + n2
-	bw = revnode(n2) + revnode(n1)
-	if bw < fw: return (revnode(n2), revnode(n1))
-	return (n1, n2)
-
-def getone(s):
-	for c in s:
-		return c
-
 def reduce_to_leaves(path, nodemap):
 	result = list(path)
 	while True:
@@ -57,23 +43,12 @@ def reduce_to_leaves(path, nodemap):
 			else:
 				add = nodemap[node[1:]]
 				if node[0] == "<":
-					add = [revnode(n) for n in add[::-1]]
+					add = [gf.revnode(n) for n in add[::-1]]
 				new_result += add
 				changed = True
 		if not changed: break
 		result = new_result
 	return result
-
-def find(parent, key):
-	while parent[key] != parent[parent[key]]: parent[key] = parent[parent[key]]
-	return parent[key]
-
-def merge(parent, left, right):
-	left = find(parent, left)
-	right = find(parent, right)
-	assert parent[left] == left
-	assert parent[right] == right
-	parent[right] = left
 
 nodemap = {}
 with open(input_nodemap) as f:
@@ -99,13 +74,13 @@ with open(input_resolved_gfa) as f:
 		if parts[0] == "L":
 			if parts[1] not in node_parent: node_parent[parts[1]] = parts[1]
 			if parts[3] not in node_parent: node_parent[parts[3]] = parts[1]
-			merge(node_parent, parts[1], parts[3])
+			gf.merge(node_parent, parts[1], parts[3])
 			fromnode = (">" if parts[2] == "+" else "<") + parts[1]
 			tonode = (">" if parts[4] == "+" else "<") + parts[3]
 			if fromnode not in edges: edges[fromnode] = set()
 			edges[fromnode].add(tonode)
-			if revnode(tonode) not in edges: edges[revnode(tonode)] = set()
-			edges[revnode(tonode)].add(revnode(fromnode))
+			if gf.revnode(tonode) not in edges: edges[gf.revnode(tonode)] = set()
+			edges[gf.revnode(tonode)].add(gf.revnode(fromnode))
 
 leaf_belongs_to_two_nodes = {}
 for node in final_graph_nodes:
@@ -137,7 +112,7 @@ for node in final_graph_nodes:
 			this_orient = leaf_belongs_to_two_nodes[leaf[1:]][1][0]
 			other_node = leaf_belongs_to_two_nodes[leaf[1:]][0]
 		if this_orient == "<":
-			other_node = revnode(other_node)
+			other_node = gf.revnode(other_node)
 		if last_match is None:
 			last_match = other_node
 			continue
@@ -145,11 +120,11 @@ for node in final_graph_nodes:
 		if find(node_parent, last_match[1:]) == find(node_parent, node) or find(node_parent, other_node[1:]) == find(node_parent, node):
 			if find(node_parent, last_match[1:]) != find(node_parent, other_node[1:]):
 				if get_continuation_acyclic_size(last_match, edges, node_lens) < max_acyclic_continuation_size:
-					if get_continuation_acyclic_size(revnode(other_node), edges, node_lens) < max_acyclic_continuation_size:
+					if get_continuation_acyclic_size(gf.revnode(other_node), edges, node_lens) < max_acyclic_continuation_size:
 						if last_match not in possible_edges: possible_edges[last_match] = set()
 						possible_edges[last_match].add(other_node)
-						if revnode(other_node) not in possible_edges: possible_edges[revnode(other_node)] = set()
-						possible_edges[revnode(other_node)].add(revnode(last_match))
+						if gf.revnode(other_node) not in possible_edges: possible_edges[gf.revnode(other_node)] = set()
+						possible_edges[gf.revnode(other_node)].add(gf.revnode(last_match))
 						sys.stderr.write("potential edge " + last_match + " to " + other_node + "\n")
 		last_match = other_node
 
@@ -158,9 +133,9 @@ added_gaps = set()
 gap_sequence = "N"*20000
 for edge in possible_edges:
 	if len(possible_edges[edge]) != 1: continue
-	other_side = getone(possible_edges[edge])
-	if len(possible_edges[revnode(other_side)]) != 1: continue
-	assert getone(possible_edges[revnode(other_side)]) == revnode(edge)
+	other_side = gf.getone(possible_edges[edge])
+	if len(possible_edges[gf.revnode(other_side)]) != 1: continue
+	assert gf.getone(possible_edges[gf.revnode(other_side)]) == gf.revnode(edge)
 	key = canon(edge, other_side)
 	if key in added_gaps: continue
 	added_gaps.add(key)

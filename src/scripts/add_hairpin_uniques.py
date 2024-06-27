@@ -1,20 +1,12 @@
 #!/usr/bin/env python
 
 import sys
+import graph_functions as gf
 
 old_unique_nodes_file = sys.argv[1]
 coverage_file = sys.argv[2]
 # graph from stdin
 # new uniques to stdout
-
-def revnode(n):
-	assert len(n) >= 2
-	assert n[0] == '>' or n[0] == '<'
-	return ('>' if n[0] == '<' else '<') + n[1:]
-
-def getone(s):
-	for c in s:
-		return c
 
 def get_reachable_uniques(start, edges, uniques):
 	checked = set()
@@ -60,8 +52,8 @@ for l in sys.stdin:
 		tonode = (">" if parts[4] == "+" else "<") + parts[3]
 		if fromnode not in edges: edges[fromnode] = set()
 		edges[fromnode].add(tonode)
-		if revnode(tonode) not in edges: edges[revnode(tonode)] = set()
-		edges[revnode(tonode)].add(revnode(fromnode))
+		if gf.revnode(tonode) not in edges: edges[gf.revnode(tonode)] = set()
+		edges[gf.revnode(tonode)].add(gf.revnode(fromnode))
 
 coverage_sum = 0.0
 coverage_len = 0
@@ -83,7 +75,7 @@ for node in coverages:
 	if "<" + node not in edges: continue
 	if len(edges[">" + node]) != 1: continue
 	if len(edges["<" + node]) != 1: continue
-	if getone(edges[">" + node]) != getone(edges["<" + node]): continue
+	if gf.getone(edges[">" + node]) != gf.getone(edges["<" + node]): continue
 #	if len(get_reachable_uniques(node, edges, uniques)) != 2: continue
 	new_uniques.add(node)
 

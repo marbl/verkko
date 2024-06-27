@@ -1,17 +1,11 @@
 #!/usr/bin/env python
 
 import sys
+import graph_functions as gf
 
 forbidden_paths_out_file = sys.argv[1]
 # paths from stdin
 # allowed to stdout
-
-
-def pathstr(p):
-	return "".join(p)
-
-def reverse(n):
-	return (">" if n[0] == '<' else '<') + n[1:]
 
 connectors = {}
 
@@ -27,7 +21,7 @@ for line in sys.stdin:
 			last_break = i
 	assert len(path) >= 2
 	fwkey = path[0]
-	bwkey = reverse(path[-1])
+	bwkey = gf.revnode(path[-1])
 	if fwkey not in connectors: connectors[fwkey] = {}
 	if bwkey not in connectors[fwkey]: connectors[fwkey][bwkey] = []
 	connectors[fwkey][bwkey].append(len(connections))
@@ -43,15 +37,15 @@ for fwpos in connectors:
 	for bwpos in connectors[fwpos]:
 		max_coverage = max(max_coverage, len(connectors[fwpos][bwpos]))
 	for bwpos in connectors[fwpos]:
-		#sys.stderr.write("Checking coverage for nodes %s and %s with max %s and len %s\n"%(fwpos, bwpos, max_coverage, len(connectors[fwpos][bwpos])))
+		sys.stderr.write("Checking coverage for nodes %s and %s with max %s and len %s\n"%(fwpos, bwpos, max_coverage, len(connectors[fwpos][bwpos])))
 		if len(connectors[fwpos][bwpos]) == 1 or max_coverage >= 2 * len(connectors[fwpos][bwpos]):
 			for j in connectors[fwpos][bwpos]:
 				forbidden.add(j)
 
 with open(forbidden_paths_out_file, "w") as f:
 	for path in forbidden:
-		f.write(pathstr(connections[path]) + "\n")
+		f.write(gf.pathstr(connections[path]) + "\n")
 
 for i in range(0, len(connections)):
 	if i in forbidden: continue
-	print(pathstr(connections[i]))
+	print(gf.pathstr(connections[i]))

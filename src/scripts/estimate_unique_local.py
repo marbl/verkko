@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import graph_functions as gf
 
 graph_file = sys.argv[1]
 node_coverage_file = sys.argv[2]
@@ -12,50 +13,22 @@ path_consistency_threshold = float(sys.argv[6])
 
 long_node_neighborhood_size = long_node_threshold
 
-def revnode(n):
-	assert len(n) >= 2
-	assert n[0] == ">" or n[0] == "<"
-	return (">" if n[0] == "<" else "<") + n[1:]
-
-def canon(left, right):
-	fwstr = left + right
-	bwstr = revnode(right) + revnode(left)
-	if bwstr < fwstr: return (revnode(right), revnode(left))
-	return (left, right)
-
-def canontip(left, right):
-	fwstr = left + right
-	bwstr = right + left
-	if bwstr < fwstr: return (right, left)
-	return (left, right)
-
-def find(parent, key):
-	assert key in parent
-	while parent[key] != parent[parent[key]]:
-		parent[key] = parent[parent[key]]
-	return parent[key]
-
 def merge(parent, rank, left, right):
-	left = find(parent, left)
-	right = find(parent, right)
+	left = gf.find(parent, left)
+	right = gf.find(parent, right)
 	assert left in rank
 	assert right in rank
 	if rank[left] < rank[right]: (left, right) = (right, left)
 	parent[right] = left
 	if rank[left] == rank[right]: rank[right] += 1
 
-def getone(s):
-	assert len(s) == 1
-	for i in s:
-		return i
-
 # Detecting Superbubbles in Assembly Graphs, Onodera et al 2013
 # fig. 5
 def find_bubble_end(edges, s):
 	if s not in edges: return None
 	if len(edges[s]) == 1:
-		if len(edges[revnode(getone(edges[s]))]) == 1:
-			return getone(edges[s])
+		if len(edges[gf.revnode(gf.getone(edges[s]))]) == 1:
+			return gf.getone(edges[s])
 	if len(edges[s]) < 2: return None
 	S = [s]
 	visited = set()
@@ -71,18 +44,18 @@ def find_bubble_end(edges, s):
 		if len(edges[v]) == 0: return None
 		for u in edges[v]:
 			if u[1:] == v[1:]: return None
-			if revnode(u) in visited: return None
+			if gf.revnode(u) in visited: return None
 			if u == s: return None
 			assert u not in visited
 			seen.add(u)
-			assert revnode(u) in edges
-			assert len(edges[revnode(u)]) >= 1
+			assert gf.revnode(u) in edges
+			assert len(edges[gf.revnode(u)]) >= 1
 			has_nonvisited_parent = False
-			for parent_edge in edges[revnode(u)]:
-				parent = revnode(parent_edge)
+			for parent_edge in edges[gf.revnode(u)]:
+				parent = gf.revnode(parent_edge)
 				if parent not in visited: has_nonvisited_parent = True
 			if not has_nonvisited_parent: S.append(u)
-		if len(S) == 1 and len(seen) == 1 and S[0] == getone(seen):
+		if len(S) == 1 and len(seen) == 1 and S[0] == gf.getone(seen):
 			t = S.pop()
 			if t in edges:
 				for edge in edges[t]:
@@ -105,8 +78,8 @@ def is_tip_unique_candidate(edges, s):
 
 	# grap the reverse of the tip (e.g. the side we have a connection) and then traverse all the nodes from that node we connect to
 	for o in edges[d+s]:
-		if revnode(o) not in edges: continue
-		for n in edges[revnode(o)]:
+		if gf.revnode(o) not in edges: continue
+		for n in edges[gf.revnode(o)]:
 			if s != n[1:]:
 				# when the node is also a tip and has similar length/coverage to us, then that is OK
 				covRatio = abs(normalized_node_coverage[n[1:]] - normalized_node_coverage[s])
@@ -145,9 +118,9 @@ with open(graph_file) as f:
 			max_overlap[fromnode] = max(max_overlap[fromnode], int(parts[5][:-1]))
 			if tonode not in max_overlap: max_overlap[tonode] = int(parts[5][:-1])
 			max_overlap[tonode] = max(max_overlap[tonode], int(parts[5][:-1]))
-			edges[fromnode].add(revnode(tonode))
-			edges[tonode].add(revnode(fromnode))
-			canon_edges.add(canontip(fromnode, tonode))
+			edges[fromnode].add(gf.revnode(tonode))
+			edges[tonode].add(gf.revnode(fromnode))
+			canon_edges.add(gf.canontip(fromnode, tonode))
 			not_tips.add(fromnode)
 			not_tips.add(tonode)
 tips=tips.difference(not_tips)
@@ -209,10 +182,10 @@ for edge in canon_edges:
 cluster_edge_nodes = {}
 
 for node in long_nodes:
-	key = find(parent, ">" + node)
+	key = gf.find(parent, ">" + node)
 	if key not in cluster_edge_nodes: cluster_edge_nodes[key] = set()
 	cluster_edge_nodes[key].add(">" + node)
-	key = find(parent, "<" + node)
+	key = gf.find(parent, "<" + node)
 	if key not in cluster_edge_nodes: cluster_edge_nodes[key] = set()
 	cluster_edge_nodes[key].add("<" + node)
 
@@ -261,16 +234,16 @@ with open(alignment_file) as f:
 			for i in range(0, len(part_path)):
 				if node_counts[part_path[i][1:]] != 1: continue
 				if part_path[i] not in out_paths: out_paths[part_path[i]] = []
-				if revnode(part_path[i]) not in out_paths: out_paths[revnode(part_path[i])] = []
+				if gf.revnode(part_path[i]) not in out_paths: out_paths[gf.revnode(part_path[i])] = []
 				if i < len(part_path)-1: out_paths[part_path[i]].append(tuple(part_path[i+1:]))
-				if i > 0: out_paths[revnode(part_path[i])].append(tuple(revnode(n) for n in part_path[0:i][::-1]))
+				if i > 0: out_paths[gf.revnode(part_path[i])].append(tuple(gf.revnode(n) for n in part_path[0:i][::-1]))
 
 normalized_node_coverage = {}
 for node in nodelens:
 	if node in long_nodes:
 		normalized_node_coverage[node] = 1.0
 		continue
-	key = find(parent, ">" + node)
+	key = gf.find(parent, ">" + node)
 	compare_nodes = set()
 	if key in cluster_edge_nodes: compare_nodes = cluster_edge_nodes[key]
 	if len(compare_nodes) == 0:
@@ -368,7 +341,7 @@ chain_coverage_sum = {}
 chain_coverage_count = {}
 
 for node in nodelens:
-	chain = find(chain_parent, node)
+	chain = gf.find(chain_parent, node)
 	if chain not in chain_coverage_count:
 		assert chain not in chain_coverage_sum
 		chain_coverage_count[chain] = 0.0
@@ -379,7 +352,7 @@ for node in nodelens:
 
 copycount_2_chain_core_nodes = set()
 for node in nodelens:
-	chain = find(chain_parent, node)
+	chain = gf.find(chain_parent, node)
 	assert chain in chain_coverage_count
 	assert chain in chain_coverage_sum
 	if chain_coverage_count[chain] == 0: continue
@@ -398,7 +371,7 @@ for node in copycount_2_chain_core_nodes:
 		max_cov = 0
 		for edge in edges[">" + node]:
 			if normalized_node_coverage[edge[1:]] < 0.4 or normalized_node_coverage[edge[1:]] > 1.5 or edge[1:] in copycount_2_chain_core_nodes: maybe_valid = False
-			if len(edges[revnode(edge)]) != 1: maybe_valid = False
+			if len(edges[gf.revnode(edge)]) != 1: maybe_valid = False
 			min_cov = min(min_cov, normalized_node_coverage[edge[1:]])
 			max_cov = max(max_cov, normalized_node_coverage[edge[1:]])
 		if maybe_valid and max_cov < min_cov * 2 and max_cov >= min_cov:
@@ -413,7 +386,7 @@ for node in copycount_2_chain_core_nodes:
 		max_cov = 0
 		for edge in edges["<" + node]:
 			if normalized_node_coverage[edge[1:]] < 0.4 or normalized_node_coverage[edge[1:]] > 1.5 or edge[1:] in copycount_2_chain_core_nodes: maybe_valid = False
-			if len(edges[revnode(edge)]) != 1: maybe_valid = False
+			if len(edges[gf.revnode(edge)]) != 1: maybe_valid = False
 			min_cov = min(min_cov, normalized_node_coverage[edge[1:]])
 			max_cov = max(max_cov, normalized_node_coverage[edge[1:]])
 		if maybe_valid and max_cov < min_cov * 2 and max_cov >= min_cov:
@@ -434,7 +407,7 @@ for node in copycount_2_chain_core_nodes:
 		for edge in edges[">" + node]:
 			if edge in edges and len(edges[edge]) == 1:
 				for edge2 in edges[edge]:
-					if len(edges[revnode(edge2)]) == 2 and edge2[1:] not in copycount_2_chain_core_nodes:
+					if len(edges[gf.revnode(edge2)]) == 2 and edge2[1:] not in copycount_2_chain_core_nodes:
 						if edge2 not in further_ahead_nodes: further_ahead_nodes[edge2] = 0
 						further_ahead_nodes[edge2] += 1
 		if len(further_ahead_nodes) <= 2:
@@ -482,7 +455,7 @@ for node in copycount_2_chain_core_nodes:
 		for edge in edges["<" + node]:
 			if edge in edges and len(edges[edge]) == 1:
 				for edge2 in edges[edge]:
-					if len(edges[revnode(edge2)]) == 2 and edge2[1:] not in copycount_2_chain_core_nodes:
+					if len(edges[gf.revnode(edge2)]) == 2 and edge2[1:] not in copycount_2_chain_core_nodes:
 						if edge2 not in further_ahead_nodes: further_ahead_nodes[edge2] = 0
 						further_ahead_nodes[edge2] += 1
 		if len(further_ahead_nodes) <= 2:
@@ -522,7 +495,7 @@ for node in copycount_2_chain_core_nodes:
 
 unique_chains = set()
 for node in nodelens:
-	chain = find(chain_parent, node)
+	chain = gf.find(chain_parent, node)
 	assert chain in chain_coverage_count
 	assert chain in chain_coverage_sum
 	if chain_coverage_count[chain] == 0: continue
@@ -541,17 +514,17 @@ for node in nodelens:
 	if unique_chain: unique_chains.add(chain)
 
 for node in nodelens:
-	chain = find(chain_parent, node)
+	chain = gf.find(chain_parent, node)
 	if chain not in unique_chains: continue
 	if find_bubble_end(edges, ">" + node):
 		for edge in edges[">" + node]:
-			if find(chain_parent, edge[1:]) in unique_chains:
+			if gf.find(chain_parent, edge[1:]) in unique_chains:
 				unique_chains.remove(chain)
 				break
 	if chain not in unique_chains: continue
 	if find_bubble_end(edges, "<" + node):
 		for edge in edges["<" + node]:
-			if find(chain_parent, edge[1:]) in unique_chains:
+			if gf.find(chain_parent, edge[1:]) in unique_chains:
 				unique_chains.remove(chain)
 				break
 
@@ -560,7 +533,7 @@ length_unique_nodes = set()
 for node in nodelens:
 	if node in long_nodes:
 		continue
-	chain = find(chain_parent, node)
+	chain = gf.find(chain_parent, node)
 	unique_chain = chain in unique_chains
 	normalized_coverage = normalized_node_coverage[node]
 	unique = False

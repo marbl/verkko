@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import graph_functions as gf
 
 in_graph_file = sys.argv[1]
 in_alns_file = sys.argv[2]
@@ -12,11 +13,6 @@ cut_length_threshold = int(sys.argv[6])
 
 cut_anchor_min_size = 5000
 min_dist_from_end = 50
-
-def revnode(n):
-	assert len(n) >= 2
-	assert n[0] == '>' or n[0] == '<'
-	return ('>' if n[0] == '<' else '<') + n[1:]
 
 not_tip = set()
 nodelens = {}
@@ -31,11 +27,11 @@ with open(in_graph_file) as f:
 			tonode = (">" if parts[4] == "+" else "<") + parts[3]
 			overlap = int(parts[5][:-1])
 			if fromnode not in max_overlap: max_overlap[fromnode] = 0
-			if revnode(tonode) not in max_overlap: max_overlap[revnode(tonode)] = 0
+			if gf.revnode(tonode) not in max_overlap: max_overlap[gf.revnode(tonode)] = 0
 			max_overlap[fromnode] = max(max_overlap[fromnode], overlap)
-			max_overlap[revnode(tonode)] = max(max_overlap[revnode(tonode)], overlap)
+			max_overlap[gf.revnode(tonode)] = max(max_overlap[gf.revnode(tonode)], overlap)
 			not_tip.add(fromnode)
-			not_tip.add(revnode(tonode))
+			not_tip.add(gf.revnode(tonode))
 
 alns_per_read = {}
 with open(in_alns_file) as f:
@@ -58,7 +54,7 @@ with open(in_alns_file) as f:
 		start_node_offset = int(parts[7])
 		start_node = path[0]
 		if path[0][0] == "<": start_node_offset = nodelens[start_node[1:]] - start_node_offset - 1
-		end_node = revnode(path[-1])
+		end_node = gf.revnode(path[-1])
 		end_node_offset = int(parts[6]) - int(parts[8])
 		if path[-1][0] == ">": end_node_offset = nodelens[end_node[1:]] - end_node_offset - 1
 		if readname not in read_aln_positions: read_aln_positions[readname] = []
@@ -74,7 +70,7 @@ for read in read_aln_positions:
 		if read_aln_positions[read][i][1] <= read_aln_positions[read][i-1][1]: continue
 		prev_node = read_aln_positions[read][i-1][4]
 		this_node = read_aln_positions[read][i][2]
-		if revnode(prev_node) in not_tip and revnode(this_node) in not_tip: continue
+		if gf.revnode(prev_node) in not_tip and gf.revnode(this_node) in not_tip: continue
 		prev_node_offset = read_aln_positions[read][i-1][5]
 		this_node_offset = read_aln_positions[read][i][3]
 		if prev_node > this_node or (prev_node == this_node and prev_node_offset > this_node_offset):
