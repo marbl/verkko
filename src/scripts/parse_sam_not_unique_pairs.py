@@ -4,20 +4,33 @@ import sys
 import re
 import os
 
+def count_matches(cigar_string):
+    # Find all the occurrences of the pattern in the CIGAR string
+    
+    matches = re.findall(r'(\d+)M', cigar_string)
+    # Convert the list of strings to integers and sum them up
+    total_matches = sum(map(int, matches))
+    #print (f"{cigar_string} - {total_matches}", file=sys.stderr)
+    return total_matches
+
 def print_results(names):
-   for i in range(len(names)):
-      for j in range(i+1, len(names)):
+   nlen = len(names)
+   for i in range(0, nlen - 1):
+      for j in range(i+1, nlen):
          aln_split = [names[i], names[j]]
 
          if (aln_split[0][0] != aln_split[1][0]):
             print("Error: name read %s and %s don't match"%(aln_split[0], aln_split[1]), file=sys.stderr)
             sys.exit(1)
-         if (aln_split[0][1] > aln_split[1][1]):
+
+         if (aln_split[0][2] > aln_split[1][2]):
             aln_split.reverse()
          valid = True
          for aln in aln_split:
             if aln[2] == "*":
                valid = False
+         if not valid:
+            continue
          tags = [{},{}]
          for i in range(0, 2):
             for tag in aln_split[i][11:]:
@@ -40,14 +53,19 @@ def print_results(names):
          matched_coords = [[aln_split[0][3]], [aln_split[1][3]]]
          #XA:Z:utig4-2161,-5673767,151M,3;utig4-183,+3013486,151M,4;utig4-184,-3355570,151M,5;utig4-184,+4936592,151M,5;
          for i in range (0, 2):
+            primary_matches = count_matches(sams[i])
             if "XA" in tags[i]:
                for alt in tags[i].get("XA").split(";")[:-1]:
                   alt_split = alt.split(",")
+                  #TODO: should we really forbid it?
+                  if alt_split[0] in matched_ids[1 - i]:
+                     valid = False
+                     break
                   #some of alts can be same as primary, some can be worse
-                  if alt_split[2] == sams[i] and int(alt_split[3]) <= int(tags[i]["NM"]):
+                  if count_matches(alt_split[2]) == primary_matches and int(alt_split[3]) <= int(tags[i]["NM"]):
                      matched_ids[i].append(alt_split[0])
                      matched_coords[i].append(alt_split[1][1:])
-            if len(matched_ids[i]) > 5:
+            if len(matched_ids[i]) >= 5:
                valid = False
          if not valid:
             continue

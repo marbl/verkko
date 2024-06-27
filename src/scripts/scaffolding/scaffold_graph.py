@@ -127,7 +127,7 @@ class ScaffoldGraph:
                 self.scaffold_graph.add_node(or_id, telomere = tels_ends)    
         #possilby unefficient but whelp
         scores = {}
-        all_connections = self.get_connections(self.hic_alignment_file)
+        all_connections = self.get_connections(self.hic_alignment_file, True)
         for from_path_id in self.rukki_paths.getPathIds():
             scores[from_path_id] = {}
             for to_path_id in self.rukki_paths.getPathIds():
@@ -476,8 +476,9 @@ class ScaffoldGraph:
                 tsv_file.write(final_paths.getPathTsv(path_id) + "\n")
                 gaf_file.write(final_paths.getPathGaf(path_id) + "\n")
         return
+
     #returns: dict {(start_id, end_id):[[start_pos1, end_pos1]]}. Coords not compressed!
-    def get_connections(self, alignment_file, use_multimappers:bool = False):
+    def get_connections(self, alignment_file, use_multimappers:bool):
         res = {}
         #A01660:39:HNYM7DSX3:1:1101:1696:29982   utig4-73        utig4-1056      1       16949880        78591191
         for line in open (alignment_file):
