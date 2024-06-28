@@ -2,23 +2,29 @@
 
 import sys
 import graph_functions as gf
+import networkx as nx
 
+graph_file = sys.argv[1]
+node_coverage_file = sys.argv[2]
+haploid = gf.str2bool(sys.argv[3])
 
-node_coverage_file = sys.argv[1]
-haploid = str2bool(sys.argv[2])
-
-# gfa from stdin
 # gfa to stdout
 
 max_bubble_pop_size = 10
 max_poppable_node_size = 200000
+min_coverage_node_size = max_poppable_node_size / 2
 max_poppable_coverage = 0
+max_coverage_delta = 1.5
 
+if haploid: max_coverage_delta += 0.3
 
-def find(parent, key):
-	while parent[key] != parent[parent[key]]:
-		parent[key] = parent[parent[key]]
-	return parent[key]
+def find_component_coverage(key, belongs_to_component, component_coverage_sum, component_length_sum):
+	comp_coverage = avg_coverage
+	if key in belongs_to_component:
+		if belongs_to_component[key] in component_coverage_sum:
+			if component_long_nodes[belongs_to_component[key]] > 5:
+				comp_coverage = component_coverage_sum[belongs_to_component[key]] / component_length_sum[belongs_to_component[key]]
+	return comp_coverage
 
 def merge(parent, chain_coverage_sum, chain_length_sum, left, right):
 	left = gf.find(parent, left)
@@ -46,7 +52,7 @@ def remove_graph_node(node, edges):
 
 # Detecting Superbubbles in Assembly Graphs, Onodera et al 2013
 # fig. 5
-def find_bubble(s, edges, max_bubble_size, nodelens, max_size):
+def find_bubble(s, edges, nodelens, max_size):
 	if s not in edges: return None
 	if len(edges[s]) < 2: return None
 	S = [s]
@@ -60,9 +66,6 @@ def find_bubble(s, edges, max_bubble_size, nodelens, max_size):
 		assert v not in visited
 		visited.add(v)
 		if v != s and nodelens[v[1:]] > max_size: return None
-		if len(visited) > max_bubble_size:
-			#sys.stderr.write("Error bubble is not poppable because it its size of %s is  larger than max %s\n"%(len(visited), max_bubble_size))
-			return None
 		if v not in edges: return None
 		if len(edges[v]) == 0: return None
 		for u in edges[v]:
@@ -86,7 +89,7 @@ def find_bubble(s, edges, max_bubble_size, nodelens, max_size):
 			return (s, t)
 	return None
 
-def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage, nodelens):
+def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage, nodelens, conservative = False):
 	bubble_nodes = set()
 	bubble_edges = set()
 	max_bubble_node_size = 0
@@ -111,6 +114,12 @@ def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage, nodele
 		for edge in gf.iterate_deterministic(edges[top], end):
 			stack.append((edge, top, min(pathwidth, coverage.get(edge[1:], 0))))
 	assert end in predecessor
+	#sys.stderr.write("Processing bubble from %s to %s and conservative mode is %s\n"%(start, end, conservative))
+	# TODO: when our coverage is more trustworthy (e.g. low coverage isn't due to no unique nodes in a path, we can run this in conservative popping mode to remove noise, until then do nothing in these bubbles
+	if len(bubble_nodes) > max_bubble_pop_size:
+		#sys.stderr.write("Error bubble beteween %s and %s is not poppable because it its size of %s is  larger than max %s\n"%(start, end, len(bubble_nodes), max_bubble_pop_size))
+		return
+
 	path = [end]
 	while path[-1] != start:
 		path.append(predecessor[path[-1]][0])
@@ -130,14 +139,18 @@ def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage, nodele
 	if len(bubble_nodes) > 3 and max_bubble_node_size > max_poppable_node_size: return
 
 	# set minimum coverage, for 3-node (transitive) bubbles we are conservative always, otherwise be agressive in haploid genomes and when we are surrounded by large likely resolved nodes (e.g. within haplotype bubble)
-	if len(bubble_nodes) == 3:
-		max_poppable_coverage = 0.5*avg_coverage
-	elif start[1:] in coverage and end[1:] in coverage and nodelens[start[1:]] > max_poppable_node_size and nodelens[end[1:]] > max_poppable_node_size and coverage[start[1:]] <= 1.5*avg_coverage and coverage[start[1:]] >= 0.5 * avg_coverage and coverage[end[1:]] <= 1.5*avg_coverage and coverage[end[1:]] >= 0.5*avg_coverage:
-		max_poppable_coverage = avg_coverage
+	comp_coverage = find_component_coverage(start, belongs_to_component, component_coverage_sum, component_length_sum)
+	if conservative == True:
+		max_poppable_coverage = 0.15 * comp_coverage
+	elif len(bubble_nodes) == 3:
+		max_poppable_coverage = 0.5*comp_coverage
+	elif start[1:] in coverage and end[1:] in coverage and nodelens[start[1:]] > max_poppable_node_size and nodelens[end[1:]] > max_poppable_node_size and coverage[start[1:]] <= 1.5*comp_coverage and coverage[start[1:]] >= 0.5 * comp_coverage and coverage[end[1:]] <= 1.5*comp_coverage and coverage[end[1:]] >= 0.5*comp_coverage:
+		max_poppable_coverage = comp_coverage
 	elif haploid:
-		max_poppable_coverage = avg_coverage
+		max_poppable_coverage = comp_coverage
 	else:
-		max_poppable_coverage = 0.5*avg_coverage
+		max_poppable_coverage = 0.5*comp_coverage
+	#sys.stderr.write("Processing bubble from %s to %s and nodes %s and max poppable coverage is %s\n"%(start, end, bubble_nodes, max_poppable_coverage))
 
 	for node in bubble_nodes:
 		if node in kept_nodes: continue
@@ -189,7 +202,7 @@ def try_pop_tip(start, edges, coverage, removed_nodes, removed_edges, max_remova
 	if len(remove_this) == 0: return
 	for remove_node in remove_this:
 		assert remove_node[1:] in nodelens
-		if nodelens[remove_node[1:]] > 100000: continue
+		if nodelens[remove_node[1:]] > min_coverage_node_size: continue
 		removed_nodes.add(remove_node[1:])
 		removed_edges.add((start, remove_node))
 
@@ -207,31 +220,55 @@ edgelines = []
 removed_nodes = set()
 removed_edges = set()
 
-for l in sys.stdin:
-	parts = l.strip().split('\t')
-	if parts[0] == 'S':
-		nodelines.append((parts[1], l.strip()))
-		nodelens[parts[1]] = len(parts[2])
-	elif parts[0] == 'L':
-		fromnode = (">" if parts[2] == "+" else "<") + parts[1]
-		tonode = (">" if parts[4] == "+" else "<") + parts[3]
-		edgelines.append((fromnode, tonode, l.strip()))
-		if fromnode not in edges: edges[fromnode] = set()
-		if revnode(tonode) not in edges: edges[revnode(tonode)] = set()
-		edges[fromnode].add(tonode)
-		edges[revnode(tonode)].add(revnode(fromnode))
+with open(graph_file) as f:
+	for l in f:
+		parts = l.strip().split('\t')
+		if parts[0] == 'S':
+			nodelines.append((parts[1], l.strip()))
+			nodelens[parts[1]] = len(parts[2])
+		elif parts[0] == 'L':
+			fromnode = (">" if parts[2] == "+" else "<") + parts[1]
+			tonode = (">" if parts[4] == "+" else "<") + parts[3]
+			edgelines.append((fromnode, tonode, l.strip()))
+			if fromnode not in edges: edges[fromnode] = set()
+			if gf.revnode(tonode) not in edges: edges[gf.revnode(tonode)] = set()
+			edges[fromnode].add(tonode)
+			edges[gf.revnode(tonode)].add(gf.revnode(fromnode))
 
 long_coverage_cov_sum = 0.0
 long_coverage_len_sum = 0.0
 for node in nodelens:
 	if node not in coverage: continue
-	if nodelens[node] < 100000: continue
+	if nodelens[node] < min_coverage_node_size: continue
 	long_coverage_len_sum += nodelens[node]
 	long_coverage_cov_sum += nodelens[node] * coverage[node]
 
 avg_coverage = 0
 if long_coverage_len_sum != 0:
 	avg_coverage = long_coverage_cov_sum / long_coverage_len_sum
+component_coverage_sum = {}
+component_length_sum = {}
+component_long_nodes = {}
+belongs_to_component = {}
+# we load the graph twice rather than re-implementing connected component search
+G = nx.Graph()
+gf.load_indirect_graph(graph_file, G)
+comp = 0
+for current_component in sorted(nx.connected_components(G), key=len, reverse=True):
+	comp += 1
+
+	for node in current_component:
+		belongs_to_component[node] = comp
+		if nodelens[node] < min_coverage_node_size: continue
+
+		if comp not in component_coverage_sum:
+			component_coverage_sum[comp] = 0
+			component_length_sum[comp] = 0
+			component_long_nodes[comp] = 0
+		if node in coverage:
+			component_length_sum[comp] += nodelens[node]
+			component_coverage_sum[comp] += coverage[node] * nodelens[node]
+			component_long_nodes[comp] += 1  
 
 chain_coverage_sum = {}
 chain_length_sum = {}
@@ -245,7 +282,7 @@ for node in nodelens:
 possible_merges = []
 
 for edge in edges:
-	bubble = find_bubble(edge, edges, len(nodelens), nodelens, max_poppable_node_size * 5)
+	bubble = find_bubble(edge, edges, nodelens, max_poppable_node_size * 5)
 	if not bubble: continue
 	if bubble[0][1:] not in coverage or bubble[1][1:] not in coverage: continue
 	possible_merges.append((bubble[0][1:], bubble[1][1:], max(coverage[bubble[0][1:]] / coverage[bubble[1][1:]], coverage[bubble[1][1:]] / coverage[bubble[0][1:]])))
@@ -259,12 +296,14 @@ while True:
 		key1 = gf.find(parent, node1)
 		key2 = gf.find(parent, node2)
 		if key1 == key2: continue
-		chain1_cov = chain_coverage_sum[find(parent, node1)] / chain_length_sum[find(parent, node1)]
-		chain2_cov = chain_coverage_sum[find(parent, node2)] / chain_length_sum[find(parent, node2)]
-		if chain1_cov > chain2_cov * 1.5 and (chain1_cov > avg_coverage * 1.5 or chain2_cov > avg_coverage * 1.5):
+		chain1_cov = chain_coverage_sum[gf.find(parent, node1)] / chain_length_sum[gf.find(parent, node1)]
+		chain2_cov = chain_coverage_sum[gf.find(parent, node2)] / chain_length_sum[gf.find(parent, node2)]
+		assert(belongs_to_component[key1] == belongs_to_component[key2])
+		comp_coverage = find_component_coverage(key1, belongs_to_component, component_coverage_sum, component_length_sum)
+		if chain1_cov > chain2_cov * max_coverage_delta and (chain1_cov > comp_coverage * 1.5 or chain2_cov > comp_coverage * 1.5):
 			new_possible_merges.append(triplet)
 			continue
-		if chain2_cov > chain1_cov * 1.5 and (chain1_cov > avg_coverage * 1.5 or chain2_cov > avg_coverage * 1.5):
+		if chain2_cov > chain1_cov * max_coverage_delta and (chain1_cov > comp_coverage * 1.5 or chain2_cov > comp_coverage * 1.5):
 			new_possible_merges.append(triplet)
 			continue
 		merge(parent, chain_coverage_sum, chain_length_sum, node1, node2)
@@ -277,39 +316,47 @@ tip_chains = set()
 for node in nodelens:
 	key = gf.find(parent, node)
 	if key not in chain_coverage_sum: continue
+	comp_coverage = find_component_coverage(key, belongs_to_component, component_coverage_sum, component_length_sum)
 	chain_coverage = chain_coverage_sum[key] / chain_length_sum[key]
-	if chain_coverage <= avg_coverage * 1.5:
-	    tip_chains.add(key)
-	if chain_coverage >= avg_coverage * 0.5 and chain_coverage <= avg_coverage * 1.5:
+	#sys.stderr.write("Checking chain with key %s and coverqge %s versus avg coverage %s and componenet %s\n"%(key, chain_coverage, avg_coverage, comp_coverage))
+	if chain_coverage <= comp_coverage * 1.5:
+		tip_chains.add(key)
+	if chain_coverage >= comp_coverage * 0.5 and chain_coverage <= comp_coverage * 2.5:
 		unique_chains.add(key)
 
 for node in gf.iterate_deterministic(nodelens):
 	key = gf.find(parent, node)
 	if key not in unique_chains: continue
 	if node in removed_nodes: continue
-	bubble = find_bubble(">" + node, edges, max_bubble_pop_size, nodelens, max_poppable_node_size * 5)
+	comp_coverage = find_component_coverage(key, belongs_to_component, component_coverage_sum, component_length_sum)
+	chain_coverage = chain_coverage_sum[key] / chain_length_sum[key]
+
+	#sys.stderr.write("Looing for bubble at node %s\n"%(node))
+	bubble = find_bubble(">" + node, edges, nodelens, max_poppable_node_size * 5)
 	if bubble:
 		assert bubble[0] == ">" + node
 		assert bubble[1][1:] != node
 		if gf.find(parent, bubble[1][1:]) != key: continue
 		pop_bubble(bubble[0], bubble[1], removed_nodes, removed_edges, edges, coverage, nodelens, chain_coverage >= comp_coverage * 1.5)
-	bubble = find_bubble("<" + node, edges, max_bubble_pop_size, nodelens, max_poppable_node_size * 5)
+	bubble = find_bubble("<" + node, edges, nodelens, max_poppable_node_size * 5)
 	if bubble:
 		assert bubble[0] == "<" + node
 		assert bubble[1][1:] != node
-		if find(parent, bubble[1][1:]) != key: continue
-		pop_bubble(bubble[0], bubble[1], removed_nodes, removed_edges, edges, coverage, nodelens)
+		if gf.find(parent, bubble[1][1:]) != key: continue
+		pop_bubble(bubble[0], bubble[1], removed_nodes, removed_edges, edges, coverage, nodelens, chain_coverage >= comp_coverage * 1.5)
 
 for node in gf.iterate_deterministic(nodelens):
 	key = gf.find(parent, node)
 	if key not in tip_chains: continue
 	if node in removed_nodes: continue
-	bubble = find_bubble(">" + node, edges, max_bubble_pop_size, nodelens, max_poppable_node_size)
+	bubble = find_bubble(">" + node, edges, nodelens, max_poppable_node_size)
+	comp_coverage = find_component_coverage(node, belongs_to_component, component_coverage_sum, component_length_sum)
+
 	if not bubble:
-		try_pop_tip(">" + node, edges, coverage, removed_nodes, removed_edges, avg_coverage*.75, nodelens)
-	bubble = find_bubble("<" + node, edges, max_bubble_pop_size, nodelens, max_poppable_node_size)
+		try_pop_tip(">" + node, edges, coverage, removed_nodes, removed_edges, comp_coverage*.75, nodelens)
+	bubble = find_bubble("<" + node, edges, nodelens, max_poppable_node_size)
 	if not bubble:
-		try_pop_tip("<" + node, edges, coverage, removed_nodes, removed_edges, avg_coverage*.75, nodelens)
+		try_pop_tip("<" + node, edges, coverage, removed_nodes, removed_edges, comp_coverage*.75, nodelens)
 
 for node in removed_nodes:
 	sys.stderr.write(node + "\n")
