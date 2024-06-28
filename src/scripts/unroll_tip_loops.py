@@ -18,7 +18,7 @@ def iscanon(left, right):
         return True
 
 coverage = {}
-min_len = 100000
+min_len = max_unroll_length / 2
 long_coverage_len_sum = 0
 long_coverage_cov_sum = 0
 coverage_len_sum = 0
@@ -95,6 +95,7 @@ for node in counts_per_tiploop:
 	counts_per_tiploop[node].sort()
 	assert len(counts_per_tiploop[node]) >= longest_n
 	count = counts_per_tiploop[node][-longest_n]
+	if node in coverage and coverage[node] < 1.1*avg_coverage: continue  # don't unroll nodes that seem to have insufficient coverage to be a loop
 	assert count >= 1
 	assert len(edges["<" + node]) >= 1 and len(edges["<" + node]) <= 2
 	assert len(edges[">" + node]) >= 1 and len(edges[">" + node]) <= 2
@@ -142,7 +143,9 @@ for node in tip_loops:
 	if "<"+node in max_overlap: nodelen -= max_overlap["<"+node]
 	if nodelen <= 0: nodelen = 1
 
-	if node in coverage and coverage[node] < 0.5*avg_coverage and nodelen <= min_len / 10:
+	sys.stderr.write("Checking node %s with len %s coverage %s which is a tip that was not unrolled\n"%(node, nodelen, coverage[node]))
+	# if a node is short enough (we tolerate a bit longer than the unrolling length and doesn't look like it's high coverage enough to be unrolled then we drop it's loop edge and hope we can reconnect
+	if node in coverage and coverage[node] < 1.1*avg_coverage and nodelen <= max_unroll_length:
 		sys.stderr.write("%s removed edges\n"%(node))
 		del edges[">" + node]
 		del edges["<" + node]
