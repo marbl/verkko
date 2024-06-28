@@ -102,8 +102,8 @@ echo Fix coverage
 
 echo Pop bubbles based on coverage
 {PYTHON} {VERKKO}/scripts/pop_bubbles_coverage_based.py \\\\
+  unitig-connected-tip.gfa \\\\
   ./nodecov_hifi_fix.csv {params.haploid} \\\\
-< unitig-connected-tip.gfa \\\\
 > popped-connected-tip.gfa \\\\
 2> popinfo_round1.err
 
@@ -151,8 +151,8 @@ echo Fix coverage
 
 echo Pop bubbles based on coverage round 2
 {PYTHON} {VERKKO}/scripts/pop_bubbles_coverage_based.py \\\\
+  unitig-unrolled-popped-connected-tip.gfa \\\\
   ./nodecov_hifi_fix.csv {params.haploid} \\\\
-  < unitig-unrolled-popped-connected-tip.gfa \\\\
   > popped-unitig-unrolled-popped-connected-tip.gfa \\\\
   2> popinfo_round2.err
 
