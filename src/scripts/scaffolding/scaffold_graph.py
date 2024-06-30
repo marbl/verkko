@@ -8,7 +8,10 @@ import networkx as nx
 from numpy import argmax
 import graph_functions as gf
 import logging
+import pandas as pd
+import psutil
 from scaffolding import logger_wrap, match_graph, path_storage
+from line_profiler import LineProfiler
 
 class ReferencePosition:
     def __init__(self, name_q, name_r, ref_start, ref_end, query_len, orientation):
@@ -22,6 +25,10 @@ class ReferencePosition:
 
 #TODO: or inherit from nx.Digraph??
 class ScaffoldGraph:
+    #to avoid storing doubles as multimpaper weight will multiply by this and round, possibly to remove
+    INT_NORMALIZATION = 100
+
+
     #TODO possibly change the definition - whether we do not have enough similarity at all, or do not have one2one similarity 
     LONG_HAPLOID_CUTOFF = 5000000
     #should not be actuallly used, since they'll be reordered with MAX_REORDERING_LENGTH check
@@ -34,7 +41,7 @@ class ScaffoldGraph:
     #If not near end, hi-c link is ignored
     NEAR_PATH_END = 5000000
     #<MIN_LINKS - ignore even clear majority
-    MIN_LINKS = 10
+    MIN_LINKS = 10 
     #Ratio from best to second best. Possibly should be increased.
     CLEAR_MAJORITY = 1.5   
     #TODO: sinice multiplicity > 1 is not used, do we really need to ignore short ones?
@@ -76,6 +83,7 @@ class ScaffoldGraph:
     #TODO Possibly should be some high absolute constant too?
     REFERENCE_MULTIPLICATIVE_BONUS = 4
     
+
 
 
     def __init__(self, rukki_paths, telomere_locations_file, hic_alignment_file, matches_file, G, uncompressed_fasta, path_mashmap, logger):
@@ -127,7 +135,17 @@ class ScaffoldGraph:
                 self.scaffold_graph.add_node(or_id, telomere = tels_ends)    
         #possilby unefficient but whelp
         scores = {}
-        all_connections = self.get_connections(self.hic_alignment_file, True)
+        
+        #profiler = LineProfiler()
+        #profiler.add_function(self.get_connections_pandas)
+        # Profile the functions
+        #profiler.enable_by_count()
+        all_connections = self.get_connections_pandas(self.hic_alignment_file, True)
+        #profiler.disable_by_count()
+
+        # Print the results
+        #profiler.print_stats()
+        #exit()
         for from_path_id in self.rukki_paths.getPathIds():
             scores[from_path_id] = {}
             for to_path_id in self.rukki_paths.getPathIds():
@@ -481,7 +499,12 @@ class ScaffoldGraph:
     def get_connections(self, alignment_file, use_multimappers:bool):
         res = {}
         #A01660:39:HNYM7DSX3:1:1101:1696:29982   utig4-73        utig4-1056      1       16949880        78591191
+        ind = 0
         for line in open (alignment_file):
+            ind += 1
+            if (ind % 1000000 == 0):
+                self.logger.debug (f"Processed {ind} alignments")
+
             arr = line.split()
             if not (use_multimappers) and (arr[1].find(",") != -1 or arr[2].find(",") != -1):
                 continue
@@ -490,6 +513,10 @@ class ScaffoldGraph:
             first_coords = arr[4].split(",")
             second_coords = arr[5].split(",")
             weight = 1 / (len (first) * len(second))
+            #efficiently 1/2, 1/3, 1/4, 2/2 are allowed for now.
+            if weight < 0.24:
+                continue
+
             for i in range (0, len(first)):
                 node_f = first[i]
                 for j in range (0, len(second)):
@@ -504,6 +531,68 @@ class ScaffoldGraph:
                     res[(node_s, node_f)].append([int(second_coords[j]), int(first_coords[i]), weight])  
         return res
     
+    def get_connections_pandas(self, alignment_file, use_multimappers:bool):
+        res = {}
+        #A01660:39:HNYM7DSX3:1:1101:1696:29982   utig4-73        utig4-1056      1       16949880        78591191
+        ind = 0
+        chunk_size = 10**6
+        for chunk in pd.read_csv(alignment_file, delim_whitespace=True, header=None, chunksize=chunk_size):
+            for _, row in chunk.iterrows():
+            
+                ind += 1
+                if (ind % 1000000 == 0):
+                    self.logger.debug (f"Processed {ind} alignments")
+                    self.logger.debug (f"Current memory usage {psutil.virtual_memory().percent}%")
+                    self.logger.debug (f"Current memory usage {psutil.virtual_memory().used / 1024 / 1024 / 1024}GB")
+                    self.logger.debug (f"Mem usage of main map {sys.getsizeof(res) / 1024 / 1024 / 1024}GB")
+                    #if ind == 10000000:
+                    #    return res
+                has_multimappers = (',' in row[1] or ',' in row[2])
+                if not use_multimappers and has_multimappers:
+                    continue
+                #TODO temporary memory issue thing.
+                '''
+                frac_to_use = 10
+                if has_multimappers:
+                    weight = frac_to_use
+                else:
+                    weight = 1
+                if (ind % frac_to_use != 0) and has_multimappers:
+                    continue 
+                '''
+
+                first = row[1].split(",")
+                second = row[2].split(",")
+                first_coords = row[4].split(",")
+                second_coords = row[5].split(",")
+                weight = self.INT_NORMALIZATION  // (len (first) * len(second))
+                
+                
+                #efficiently 1/2, 1/3, 1/4, 2/2 are allowed for now.
+                #if weight < 0.24:
+                #    continue
+
+                for i in range (0, len(first)):
+                    node_f = first[i]
+                    node_f_len = self.uncompressed_lens[node_f]
+                    node_f_pos = int(first_coords[i])
+                    if node_f_len < ScaffoldGraph.SHORT_INGORED_NODE or (node_f_pos > ScaffoldGraph.NEAR_PATH_END and node_f_len - node_f_pos > ScaffoldGraph.NEAR_PATH_END):
+                        continue
+                    for j in range (0, len(second)):
+                        node_s = second[j]
+                        node_s_len = self.uncompressed_lens[node_s]
+                        node_s_pos = int(second_coords[j])
+                        if node_s_len < ScaffoldGraph.SHORT_INGORED_NODE or (node_s_pos > ScaffoldGraph.NEAR_PATH_END and node_s_len - node_s_pos > ScaffoldGraph.NEAR_PATH_END):
+                            continue
+                        if not (node_f, node_s) in res:
+                            res[(node_f, node_s)] = []
+                        next = [int(first_coords[i]), int(second_coords[j]), weight]
+                        res[(node_f, node_s)].append(next)
+                        if not (node_s, node_f) in res:
+                            res[(node_s, node_f)] = []
+                        res[(node_s, node_f)].append([int(second_coords[j]), int(first_coords[i]), weight])  
+        return res
+
     #TODO: move to matchGraph
     
     def fixOrientation(self, path_ids, scores):
@@ -702,6 +791,7 @@ class ScaffoldGraph:
                 if self.isNextByRef(path_ids[0] + orientation[0], path_ids[1] + orientation[1]):
                     self.logger.debug (f"Reference connection found! {path_ids} {orientation}")
                     scores[orientation] *= self.REFERENCE_MULTIPLICATIVE_BONUS
+            scores[orientation] /= self.INT_NORMALIZATION
         return scores
     
     #returns dict, {id:[present_start_relo, present_end_telo]}
