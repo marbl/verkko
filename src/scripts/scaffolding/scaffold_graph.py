@@ -8,7 +8,11 @@ import networkx as nx
 from numpy import argmax
 import graph_functions as gf
 import logging
+
+from memory_profiler import profile
 import pandas as pd
+
+import pysam
 import psutil
 from scaffolding import logger_wrap, match_graph, path_storage
 from line_profiler import LineProfiler
@@ -82,8 +86,11 @@ class ScaffoldGraph:
     #Consequtive paths scores are increased by this factor. 
     #TODO Possibly should be some high absolute constant too?
     REFERENCE_MULTIPLICATIVE_BONUS = 4
-    
+    #Just too long/far
+    TOO_FAR = 1000000000
 
+    #efficiantly it is so because of bwa behaviour on XA tags but not used directly
+    MAX_ALIGNMENTS = 6
 
 
     def __init__(self, rukki_paths, telomere_locations_file, hic_alignment_file, matches_file, G, uncompressed_fasta, path_mashmap, logger):
@@ -96,6 +103,9 @@ class ScaffoldGraph:
         self.logger.debug("Telomeric nodes")
         self.logger.debug(self.tel_nodes)
         self.output_basename = "scaff_rukki.paths"
+
+
+        presaved_pathscores = self.loadPresavedScores("precomputed.pathscores")
 
         #Used for scaffolding starts and debug, 
         self.to_scaff = self.get_paths_to_scaff(ScaffoldGraph.MIN_PATH_TO_SCAFFOLD)
@@ -117,9 +127,7 @@ class ScaffoldGraph:
         self.assigned_reference = {}
         self.getPathPositions(path_mashmap)
         self.G = G
-        self.dists = dict(nx.all_pairs_dijkstra_path_length(self.upd_G, weight=lambda u, v, d: self.upd_G.edges[u, v]['mid_length']))
-        self.logger.info("Pairwise distances in assembly graph calculated")
-        self.haploids = self.getHaploidPaths()
+  
         self.scaffold_graph = nx.DiGraph()
 
         for id in rukki_paths.getPathIds():
@@ -140,18 +148,29 @@ class ScaffoldGraph:
         #profiler.add_function(self.get_connections_pandas)
         # Profile the functions
         #profiler.enable_by_count()
-        all_connections = self.get_connections_pandas(self.hic_alignment_file, True)
+        #all_connections = self.get_connections_pandas(self.hic_alignment_file, True)
+        #all_connections = self.get_connections_bam("../hic_to_assembly.sorted_by_read.bam", True)
         #profiler.disable_by_count()
 
-        # Print the results
+        #Print the results
         #profiler.print_stats()
         #exit()
+
+
+        all_connections = self.get_connections_bam(hic_alignment_file, True)
+        self.dists = dict(nx.all_pairs_dijkstra_path_length(self.upd_G, weight=lambda u, v, d: self.upd_G.edges[u, v]['mid_length']))
+        self.logger.info("Pairwise distances in assembly graph calculated")
+        self.haploids = self.getHaploidPaths()
+        #bam should be prefiltered
+        #all_connections = self.get_connections_bam("../", True)
+
         for from_path_id in self.rukki_paths.getPathIds():
             scores[from_path_id] = {}
             for to_path_id in self.rukki_paths.getPathIds():
                 if to_path_id == from_path_id:
                     continue               
                 scores[from_path_id][to_path_id] = self.getPathPairConnections([from_path_id, to_path_id], all_connections, self.uncompressed_lens)
+                #scores[from_path_id][to_path_id] = self.getPresavedPathPairConnections([from_path_id, to_path_id], presaved_pathscores)
                 
         for from_path_id in rukki_paths.getPathIds():
             for to_path_id in rukki_paths.getPathIds():       
@@ -540,7 +559,7 @@ class ScaffoldGraph:
             for _, row in chunk.iterrows():
             
                 ind += 1
-                if (ind % 1000000 == 0):
+                if (ind % 10000000 == 0):
                     self.logger.debug (f"Processed {ind} alignments")
                     self.logger.debug (f"Current memory usage {psutil.virtual_memory().percent}%")
                     self.logger.debug (f"Current memory usage {psutil.virtual_memory().used / 1024 / 1024 / 1024}GB")
@@ -551,15 +570,7 @@ class ScaffoldGraph:
                 if not use_multimappers and has_multimappers:
                     continue
                 #TODO temporary memory issue thing.
-                '''
-                frac_to_use = 10
-                if has_multimappers:
-                    weight = frac_to_use
-                else:
-                    weight = 1
-                if (ind % frac_to_use != 0) and has_multimappers:
-                    continue 
-                '''
+
 
                 first = row[1].split(",")
                 second = row[2].split(",")
@@ -592,6 +603,74 @@ class ScaffoldGraph:
                             res[(node_s, node_f)] = []
                         res[(node_s, node_f)].append([int(second_coords[j]), int(first_coords[i]), weight])  
         return res
+    @profile
+    def get_connections_bam(self, bam_filename, use_multimappers:bool):
+        res = {}
+        #A01660:39:HNYM7DSX3:1:1101:1696:29982   utig4-73        utig4-1056      1       16949880        78591191
+        total_reads = 0
+        unique_reads = 0
+        valid_pairs = 0
+        all_pairs = 0
+        bamfile = pysam.AlignmentFile(bam_filename, "rb")
+        cur_name = ""
+        reads = []
+        prev_read = None
+        prev_name = ""
+        for read in bamfile:
+            total_reads += 1
+            if (total_reads % 1000000 == 0):
+                self.logger.debug (f"Processed {total_reads} alignment strings")
+                self.logger.debug (f"Of them unique vaild unique pairs {unique_reads}, total pairs {all_pairs} total valid {valid_pairs} ")
+                self.logger.debug (f"Current memory usage {psutil.virtual_memory().percent}%")
+                self.logger.debug (f"Current memory usage {psutil.virtual_memory().used / 1024 / 1024 / 1024}GB")
+                self.logger.debug (f"Mem usage of main map {sys.getsizeof(res) / 1024 / 1024 / 1024}GB")
+                exit()
+            cur_name = read.query_name
+            if cur_name == prev_name:
+                #TODO: poreC is not compatible with this now
+                #Last read is always missing but who cares? do not want to make it function since it is time-critical part
+                if len(reads) == 2:
+#                if read.is_paired:
+                    all_pairs += 1
+                    if reads[0].mapping_quality > 0 and reads[1].mapping_quality > 0:
+                        #TODO: special storage
+                        unique_reads += 1
+                        
+                    names = [[reads[0].reference_name], [reads[1].reference_name]]
+                    coords = [[reads[0].reference_start], [reads[1].reference_start]]
+#                    names = read.reference_name
+                    valid = True
+                    if use_multimappers:
+                        for i in range (0, 2):
+                            if reads[i].has_tag("XA"):
+                                for xa in reads[i].get_tag("XA")[:-1].split(";"):
+                                    xa_arr = xa.split(",")
+                                    names[i].append(xa_arr[0])
+                                    coords[i].append(int(xa_arr[1][1:]))
+                            #Too many alignments, not reported in XA
+                            elif reads[i].mapping_quality == 0:
+                                valid = False
+
+                        lname0 = len(names[0])
+                        lname1 = len(names[1])
+                        if valid: #  and lname0 < self.MAX_ALIGNMENTS and lname1 < self.MAX_ALIGNMENTS:        
+#                            self.logger.info(names)                 
+#                            self.logger.info(reads)
+                            valid_pairs += 1
+                            weight = self.INT_NORMALIZATION  // (lname0 * lname1)    
+                            for i in range (0, lname0):
+                                for j in range (0, lname1):
+                                    if not (names[0][i], names[1][j]) in res:
+                                        res[(names[0][i], names[1][j])] = []
+                                    next = [coords[0][i], coords[1][j], weight]
+                                    res[(names[0][i], names[1][j])].append(next)
+                                    if not (names[1][j], names[0][i]) in res:
+                                        res[(names[1][j], names[0][i])] = []
+                                    res[(names[1][j], names[0][i])].append([coords[1][j], coords[0][i], weight]) 
+                reads = []
+            cur_name = read.query_name
+            reads.append(read)            
+        return res
 
     #TODO: move to matchGraph
     
@@ -609,7 +688,8 @@ class ScaffoldGraph:
             #whether we need to switch orientation for path number i
             for i in range (0, 2):
                 #Do we need length check here at all?
-                if self.rukki_paths.getLength(path_ids[i]) <= self.MAX_REORDERING_LENGTH:
+                #with multimappers we likely dooo...
+                if self.rukki_paths.getLength(path_ids[i]) <= self.TOO_FAR:
                     correct_or = ""
                     if self.scaffold_graph.nodes[path_ids[i]+"+"]['telomere'][0] and not self.scaffold_graph.nodes[path_ids[i]+"+"]['telomere'][1]:
                         correct_or = correct_orientations[i]
@@ -627,19 +707,22 @@ class ScaffoldGraph:
                             correct_pair = "".join(correct_pair)
                             incorrect_pair = "".join(incorrect_pair)                            
                             #just logging
-                            if scores[incorrect_pair] >= ScaffoldGraph.MIN_LINKS and scores[incorrect_pair]  > scores[correct_pair]:
+                            if scores[incorrect_pair] >= ScaffoldGraph.MIN_LINKS* self.INT_NORMALIZATION and scores[incorrect_pair]  > scores[correct_pair]:
                                 self.dangerous_swaps[(path_ids[0], path_ids[1])] = "telomeres"
-
-                                self.logger.debug(f"Dangerous telomeric tuning pair {path_ids}, i {i} scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}")                    
-                                self.logger.debug(f"Dangerous moved {scores[incorrect_pair]} from {incorrect_pair} to {correct_pair}")    
+                                self.logger.info(f"Dangerous telomeric tuning pair {path_ids}, i {i} scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']} from {incorrect_pair} to {correct_pair}")                    
                             self.logger.debug (f"moving {incorrect_pair} to {correct_pair}")
-                            scores[correct_pair] += scores[incorrect_pair]
+                            if self.rukki_paths.getLength(path_ids[i]) <= self.NEAR_PATH_END:
+                                scores[correct_pair] += scores[incorrect_pair]
+                            else:
+                                if scores[incorrect_pair] >= ScaffoldGraph.MIN_LINKS * self.INT_NORMALIZATION and scores[incorrect_pair]  > scores[correct_pair]:
+                                    self.logger.warning(f"Dangerous telomeric tuning pair too long to move {path_ids}, i {i} scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}")                    
                             scores[incorrect_pair] = 0                            
                         self.logger.debug (f"telomeric tuned pair {path_ids}, scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}") 
         
             for i in range (0, 2):
                 #Do we need length check here? Should it be same as for telomeric one
-                if self.rukki_paths.getLength(path_ids[i]) <= self.MAX_REORDERING_LENGTH:                  
+                #TODO: WIP
+                if self.rukki_paths.getLength(path_ids[i]) <= self.TOO_FAR:                  
                     for fixed_orientation in ('-', '+'):
                         shortest_paths = {'-':1000000000, '+':1000000000}
                         min_cutoff = min(self.CLOSE_IN_GRAPH, self.rukki_paths.getLength(path_ids[i]) / 4)                        
@@ -669,13 +752,14 @@ class ScaffoldGraph:
                             correct_pair = "".join(correct_pair)
                             incorrect_pair = "".join(incorrect_pair) 
                             #just logging
-                            if scores[incorrect_pair] >= ScaffoldGraph.MIN_LINKS and scores[incorrect_pair] > scores[correct_pair]:
+                            if scores[incorrect_pair] >= ScaffoldGraph.MIN_LINKS * self.INT_NORMALIZATION and scores[incorrect_pair] > scores[correct_pair]:
                                 self.dangerous_swaps[(path_ids[0], path_ids[1])] = "connectivity"
-
-                                self.logger.debug(f"Dangerous connectivity tuning pair {path_ids}, i {i} scores {scores}")                    
-                                self.logger.debug(f"Dangerous moved {scores[incorrect_pair]} from {incorrect_pair} to {correct_pair}")    
-                        
-                            scores[correct_pair] += scores[incorrect_pair]
+                                self.logger.debug(f"Dangerous connectivity tuning pair {path_ids}, i {i} scores {scores}from {incorrect_pair} to {correct_pair}")                    
+                            if self.rukki_paths.getLength(path_ids[i]) <= self.NEAR_PATH_END:
+                                scores[correct_pair] += scores[incorrect_pair]
+                            else:
+                                if scores[incorrect_pair] >= ScaffoldGraph.MIN_LINKS * self.INT_NORMALIZATION and scores[incorrect_pair]  > scores[correct_pair]:
+                                    self.logger.warning(f"Dangerous connectivity  tuning pair too long to move {path_ids}, i {i} scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}")                    
                             scores[correct_pair] *= self.CONNECTIVITY_MULTIPLICATIVE_BONUS
                             scores[incorrect_pair] = 0 
                             self.logger.debug (f"Connectivity tuned pair {path_ids}, scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}") 
@@ -782,6 +866,7 @@ class ScaffoldGraph:
                     shift_before.append(length_before[i][pair[i]])
                     shift_after.append(total_len[i] - shift_before[i] - lens[pair[i]])
                 scores_pair = self.getNodePairConnections(pair, orientations, connections, shift_before, shift_after, lens)
+                
                 for key in scores_pair:
                     scores[key] += scores_pair[key] 
         self.logger.debug (f"Pathscores for {path_ids} {scores}")
@@ -794,6 +879,34 @@ class ScaffoldGraph:
             scores[orientation] /= self.INT_NORMALIZATION
         return scores
     
+    def loadPresavedScores(self, presaved_file):
+        res = {}
+        pattern = re.compile(r"Pathscores for (\[.*?\]) (\{.*?\})")
+        for line in open(presaved_file):
+            match = pattern.search(line)
+            if match:
+                path_list_str = match.group(1)
+                scores_str = match.group(2)
+                
+        # Convert the strings to actual list and dictionary using eval
+                path_list = tuple(eval(path_list_str))
+                scores = eval(scores_str)
+                res[path_list] = scores      
+        return res
+
+    def getPresavedPathPairConnections(self, path_ids, presaved_scores):
+        scores = presaved_scores[(path_ids[0], path_ids[1])]
+        self.logger.debug (f"Pathscores for {path_ids} {scores}")
+        scores = self.fixOrientation(path_ids, scores)
+        for orientation in scores:
+            if len(orientation) == 2:
+                if self.isNextByRef(path_ids[0] + orientation[0], path_ids[1] + orientation[1]):
+                    self.logger.debug (f"Reference connection found! {path_ids} {orientation}")
+                    scores[orientation] *= self.REFERENCE_MULTIPLICATIVE_BONUS
+            scores[orientation] /= self.INT_NORMALIZATION
+        self.logger.debug (f"Tuned pathscores for {path_ids} {scores}")
+        return scores
+
     #returns dict, {id:[present_start_relo, present_end_telo]}
     def get_paths_to_scaff(self, long_enough):
         res = {}

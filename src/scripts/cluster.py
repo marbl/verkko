@@ -295,7 +295,6 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
     mg = match_graph.MatchGraph(mashmap_sim, G, -10*FIXED_WEIGHT, CLEAR_HOMOLOGY, MIN_ALIGNMENT, logger)
     matchGraph = mg.getMatchGraph()
     
-#    matchGraph = graph_functions.loadMatchGraph(mashmap_sim, G, -10*FIXED_WEIGHT, CLEAR_HOMOLOGY, MIN_ALIGNMENT)
     component_colors = graph_functions.getComponentColors(G)
 
 #reconnecting homologous nodes

@@ -77,7 +77,9 @@ def print_results(names):
                   valid = False
          if not valid:
             continue
-         print (f'{aln_split[0][0]}\t{",".join(matched_ids[0])}\t{",".join(matched_ids[1])}\t1\t{",".join(matched_coords[0])}\t{",".join(matched_coords[1])}')
+         #print (f'{aln_split[0][0]}\t{",".join(matched_ids[0])}\t{",".join(matched_ids[1])}\t1\t{",".join(matched_coords[0])}\t{",".join(matched_coords[1])}')
+         print (f'X\t{",".join(matched_ids[0])}\t{",".join(matched_ids[1])}\t1\t{",".join(matched_coords[0])}\t{",".join(matched_coords[1])}')
+
          
 if not sys.stdin.isatty():
     input_stream = sys.stdin
