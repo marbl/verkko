@@ -55,6 +55,6 @@ path_mashmap = os.path.join(hicrun_dir, "paths2ref.mashmap")
 rukki_path_storage = path_storage.PathStorage(G)
 rukki_path_storage.readFromFile(rukki_tsv_file)
 #sf.try_to_scaff(rukki_paths, telomere_locations_file, os.path.join(hicrun_dir, "hic_mapping.byread.output"), os.path.join(hicrun_dir, "unitigs.matches"), G, indirectG, uncompressed_nodes)
-sg = scaffold_graph.ScaffoldGraph(rukki_path_storage, telomere_locations_file, os.path.join(hicrun_dir, "hic_mapping.byread.output"), os.path.join(hicrun_dir, "unitigs_nonhpc50.mashmap"), G, uncompressed_nodes, path_mashmap, logger) 
+sg = scaffold_graph.ScaffoldGraph(rukki_path_storage, telomere_locations_file, os.path.join(hicrun_dir, "hic_selffiltered.bam"), os.path.join(hicrun_dir, "unitigs_nonhpc50.mashmap"), G, uncompressed_nodes, path_mashmap, logger) 
 res = sg.generateScaffolds()
 
