@@ -9,13 +9,16 @@ from numpy import argmax
 import graph_functions as gf
 import logging
 
-from memory_profiler import profile
+#from pympler import asizeof
+
+#from memory_profiler import profile
 import pandas as pd
+import gc 
 
 import pysam
 import psutil
 from scaffolding import logger_wrap, match_graph, path_storage
-from line_profiler import LineProfiler
+#from line_profiler import LineProfiler
 
 class ReferencePosition:
     def __init__(self, name_q, name_r, ref_start, ref_end, query_len, orientation):
@@ -96,6 +99,9 @@ class ScaffoldGraph:
     def __init__(self, rukki_paths, telomere_locations_file, hic_alignment_file, matches_file, G, uncompressed_fasta, path_mashmap, logger):
         self.logger = logger_wrap.UpdatedAdapter(logger, self.__class__.__name__)
         self.rukki_paths = rukki_paths
+        self.uncompressed_lens = gf.get_lengths(uncompressed_fasta)
+
+        all_connections = self.get_connections_bam(hic_alignment_file, True)
 
         self.multiplicities = rukki_paths.getEdgeMultiplicities()
         #upd_G - graph with telomeric nodes
@@ -116,7 +122,6 @@ class ScaffoldGraph:
         #debug purposes
         self.dangerous_swaps = {}
 
-        self.uncompressed_lens = gf.get_lengths(uncompressed_fasta)
         self.compressed_lens = {}
         for node in self.upd_G.nodes:
             self.compressed_lens[node] = self.upd_G.nodes[node]['length']      
@@ -157,7 +162,6 @@ class ScaffoldGraph:
         #exit()
 
 
-        all_connections = self.get_connections_bam(hic_alignment_file, True)
         self.dists = dict(nx.all_pairs_dijkstra_path_length(self.upd_G, weight=lambda u, v, d: self.upd_G.edges[u, v]['mid_length']))
         self.logger.info("Pairwise distances in assembly graph calculated")
         self.haploids = self.getHaploidPaths()
@@ -603,12 +607,11 @@ class ScaffoldGraph:
                             res[(node_s, node_f)] = []
                         res[(node_s, node_f)].append([int(second_coords[j]), int(first_coords[i]), weight])  
         return res
-    @profile
     def get_connections_bam(self, bam_filename, use_multimappers:bool):
         res = {}
         #A01660:39:HNYM7DSX3:1:1101:1696:29982   utig4-73        utig4-1056      1       16949880        78591191
         total_reads = 0
-        unique_reads = 0
+        unique_pairs = 0
         valid_pairs = 0
         all_pairs = 0
         bamfile = pysam.AlignmentFile(bam_filename, "rb")
@@ -616,60 +619,82 @@ class ScaffoldGraph:
         reads = []
         prev_read = None
         prev_name = ""
-        for read in bamfile:
-            total_reads += 1
-            if (total_reads % 1000000 == 0):
+        for cur_read in bamfile:
+            if (total_reads % 10000000 == 0):
+                
                 self.logger.debug (f"Processed {total_reads} alignment strings")
-                self.logger.debug (f"Of them unique vaild unique pairs {unique_reads}, total pairs {all_pairs} total valid {valid_pairs} ")
-                self.logger.debug (f"Current memory usage {psutil.virtual_memory().percent}%")
+                self.logger.debug (f"Of them unique vaild unique pairs {unique_pairs}, total pairs {all_pairs} total valid {valid_pairs} ")
                 self.logger.debug (f"Current memory usage {psutil.virtual_memory().used / 1024 / 1024 / 1024}GB")
-                self.logger.debug (f"Mem usage of main map {sys.getsizeof(res) / 1024 / 1024 / 1024}GB")
-                exit()
-            cur_name = read.query_name
+                #gc.collect()
+                #self.logger.debug (f"Current memory usage after GC {psutil.virtual_memory().used / 1024 / 1024 / 1024}GB")
+                #self.logger.debug (f"Mem usage of main map {asizeof.asizeof(res) / 1024 / 1024 / 1024}GB")
+                '''
+                mem_sum = 0
+                for pair in res:
+                    mem_sum += sys.getsizeof(res[pair]) + sys.getsizeof(pair)
+                    for f in res[pair]:
+                        mem_sum += sys.getsizeof(f)
+                self.logger.debug (f"Mem usage of main map asizeof {asizeof.asizeof(res)/ 1024 / 1024 / 1024} GB, summed {mem_sum / 1024 / 1024 / 1024}")
+                '''
+                #if total_reads == 20000000:
+                #    exit()
+            total_reads += 1
+            cur_name = cur_read.query_name
             if cur_name == prev_name:
                 #TODO: poreC is not compatible with this now
                 #Last read is always missing but who cares? do not want to make it function since it is time-critical part
-                if len(reads) == 2:
-#                if read.is_paired:
-                    all_pairs += 1
-                    if reads[0].mapping_quality > 0 and reads[1].mapping_quality > 0:
-                        #TODO: special storage
-                        unique_reads += 1
-                        
-                    names = [[reads[0].reference_name], [reads[1].reference_name]]
-                    coords = [[reads[0].reference_start], [reads[1].reference_start]]
+                reads = (prev_read, cur_read)
+#                  if read.is_paired:
+                all_pairs += 1
+                if prev_read.mapping_quality > 0 and cur_read.mapping_quality > 0:
+                    #TODO: special storage
+                    unique_pairs += 1
+                    
+                names = [[prev_read.reference_name], [cur_read.reference_name]]
+                coords = [[prev_read.reference_start], [cur_read.reference_start]]
 #                    names = read.reference_name
-                    valid = True
-                    if use_multimappers:
-                        for i in range (0, 2):
-                            if reads[i].has_tag("XA"):
-                                for xa in reads[i].get_tag("XA")[:-1].split(";"):
-                                    xa_arr = xa.split(",")
-                                    names[i].append(xa_arr[0])
-                                    coords[i].append(int(xa_arr[1][1:]))
-                            #Too many alignments, not reported in XA
-                            elif reads[i].mapping_quality == 0:
-                                valid = False
+                valid = True
+                if use_multimappers:
+                    i = 0
+                    for read in reads:
+                        if read.has_tag("XA"):
+                            for xa in read.get_tag("XA")[:-1].split(";"):
+                                xa_arr = xa.split(",")
+                                names[i].append(xa_arr[0])
+                                coords[i].append(int(xa_arr[1][1:]))
+                        #Too many alignments, not reported in XA
+                        #TODO: likely is  prefiltered, check
+                        elif read.mapping_quality == 0:
+                            valid = False
+                        i += 1
 
-                        lname0 = len(names[0])
-                        lname1 = len(names[1])
-                        if valid: #  and lname0 < self.MAX_ALIGNMENTS and lname1 < self.MAX_ALIGNMENTS:        
+                    lname0 = len(names[0])
+                    lname1 = len(names[1])
+                    if valid: #  and lname0 < self.MAX_ALIGNMENTS and lname1 < self.MAX_ALIGNMENTS:        
 #                            self.logger.info(names)                 
 #                            self.logger.info(reads)
-                            valid_pairs += 1
-                            weight = self.INT_NORMALIZATION  // (lname0 * lname1)    
-                            for i in range (0, lname0):
-                                for j in range (0, lname1):
-                                    if not (names[0][i], names[1][j]) in res:
-                                        res[(names[0][i], names[1][j])] = []
-                                    next = [coords[0][i], coords[1][j], weight]
-                                    res[(names[0][i], names[1][j])].append(next)
-                                    if not (names[1][j], names[0][i]) in res:
-                                        res[(names[1][j], names[0][i])] = []
-                                    res[(names[1][j], names[0][i])].append([coords[1][j], coords[0][i], weight]) 
-                reads = []
-            cur_name = read.query_name
-            reads.append(read)            
+                        valid_pairs += 1
+                        weight = self.INT_NORMALIZATION  // (lname0 * lname1)  
+                        for i in range (0, lname0):
+                            node_f_len = self.uncompressed_lens[names[0][i]]
+                            #memory opt
+                            if node_f_len < ScaffoldGraph.SHORT_INGORED_NODE or (coords[0][i] > ScaffoldGraph.NEAR_PATH_END and node_f_len - coords[0][i] > ScaffoldGraph.NEAR_PATH_END):
+                                continue
+                            for j in range (0, lname1):
+                                node_s_len = self.uncompressed_lens[names[1][j]]
+                                if node_s_len < ScaffoldGraph.SHORT_INGORED_NODE or (coords[1][j] > ScaffoldGraph.NEAR_PATH_END and node_s_len - coords[1][j] > ScaffoldGraph.NEAR_PATH_END):
+                                    continue
+                                if not (names[0][i], names[1][j]) in res:
+                                    res[(names[0][i], names[1][j])] = []
+                                next = (coords[0][i], coords[1][j], weight)
+                                res[(names[0][i], names[1][j])].append(next)
+                                #TODO: do not need to double mem usage!
+
+                                #if not (names[1][j], names[0][i]) in res:
+                                #    res[(names[1][j], names[0][i])] = []
+                                #res[(names[1][j], names[0][i])].append([coords[1][j], coords[0][i], weight]) 
+            prev_read = cur_read
+            prev_name = cur_name
         return res
 
     #TODO: move to matchGraph
@@ -781,7 +806,20 @@ class ScaffoldGraph:
         #Force ignoring links between homologous nodes
         if self.match_graph.isHomologousNodes(pair[0], pair[1], True):
             return scores
+        
+        #res[(names[1][j], names[0][i])].append([coords[1][j], coords[0][i], weight]) 
+        rc_pair = (pair[1], pair[0])
+
+        cons = []
+
+        #stored only half
+        #TODO: not optimal
+        for conn in connections[rc_pair]:
+            cons.append((conn[1], conn[0], conn[2]))
         for conn in connections[pair]:        
+            cons.append(conn)
+
+        for conn in cons:        
             in_homo = False
             for i in range (0, len(intervals[0])):
                 local_homo = True
@@ -858,7 +896,7 @@ class ScaffoldGraph:
                     continue
                 pair = (nor_f, nor_s)
                 orientations = (first[-1], second[-1])
-                if not pair in connections:
+                if not pair in connections and not (pair[1], pair[0]) in connections:
                     continue
                 shift_before = []
                 shift_after = []
