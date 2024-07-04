@@ -607,7 +607,11 @@ class ScaffoldGraph:
                             res[(node_s, node_f)] = []
                         res[(node_s, node_f)].append([int(second_coords[j]), int(first_coords[i]), weight])  
         return res
+
+
     def get_connections_bam(self, bam_filename, use_multimappers:bool):
+
+     
         res = {}
         #A01660:39:HNYM7DSX3:1:1101:1696:29982   utig4-73        utig4-1056      1       16949880        78591191
         total_reads = 0
@@ -658,10 +662,14 @@ class ScaffoldGraph:
                     i = 0
                     for read in reads:
                         if read.has_tag("XA"):
-                            for xa in read.get_tag("XA")[:-1].split(";"):
-                                xa_arr = xa.split(",")
-                                names[i].append(xa_arr[0])
-                                coords[i].append(int(xa_arr[1][1:]))
+                            nm = int(read.get_tag("NM"))
+                            if read.has_tag("XS") and read.get_tag("XS") == read.get_tag("AS"):  
+                                for xa in read.get_tag("XA")[:-1].split(";"):
+                                    xa_arr = xa.split(",")
+                                    #do not want to do cigar comparsion
+                                    if int(xa_arr[3]) == nm:
+                                        names[i].append(xa_arr[0])
+                                        coords[i].append(int(xa_arr[1][1:]))
                         #Too many alignments, not reported in XA
                         #TODO: likely is  prefiltered, check
                         elif read.mapping_quality == 0:
@@ -814,10 +822,12 @@ class ScaffoldGraph:
 
         #stored only half
         #TODO: not optimal
-        for conn in connections[rc_pair]:
-            cons.append((conn[1], conn[0], conn[2]))
-        for conn in connections[pair]:        
-            cons.append(conn)
+        if rc_pair in connections:
+            for conn in connections[rc_pair]:
+                cons.append((conn[1], conn[0], conn[2]))
+        if pair in connections:
+            for conn in connections[pair]:        
+                cons.append(conn)
 
         for conn in cons:        
             in_homo = False
