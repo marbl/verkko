@@ -111,7 +111,7 @@ class ScaffoldGraph:
         self.output_basename = "scaff_rukki.paths"
 
 
-        presaved_pathscores = self.loadPresavedScores("precomputed.pathscores")
+        #presaved_pathscores = self.loadPresavedScores("precomputed.pathscores")
 
         #Used for scaffolding starts and debug, 
         self.to_scaff = self.get_paths_to_scaff(ScaffoldGraph.MIN_PATH_TO_SCAFFOLD)
