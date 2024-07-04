@@ -347,7 +347,7 @@ set -e -o pipefail
 
 if [ {params.withporec} = "False" ] ; then
    echo "---Mapping {input.hic1} and {input.hic2} to {input.unitigs} with BWA"
-   {params.BWA} mem -t {threads} -5 -S -P ../{input.unitigs} ../{input.hic1} ../{input.hic2} | {params.SAMTOOLS} view -bh -@ {threads}  -F 0x900 - | {params.SAMTOOLS} sort -n -@ {threads} - -o ../{output.bwa_mapping}
+   {params.BWA} mem -t {threads} -5 -S -P ../{input.unitigs} ../{input.hic1} ../{input.hic2} | {params.SAMTOOLS} view -bh -@ {threads}  -F 0x900 - | {params.SAMTOOLS} sort -n -@ 24 - |  {PYTHON} {VERKKO}/scripts/hic_prefilter.py > ../{output.bwa_mapping}
 else
    echo "--Mapping {input.hic1} to {input.unitigs} with minimap2"
    mem=\`expr {resources.mem_gb} \/ {threads} | awk '{{print \$1"G"}}' \`
@@ -432,7 +432,7 @@ cat > ./transform_bwa.sh <<EOF
 #!/bin/sh
 set -e
 
-{params.SAMTOOLS} view  ../{input.bwa_mapping} | {PYTHON} {VERKKO}/scripts/parse_sam_not_unique_pairs.py  > ../{output.byread_mapping}
+{params.SAMTOOLS} view  ../{input.bwa_mapping} | {PYTHON} {VERKKO}/scripts/parse_sam_pairs.py  > ../{output.byread_mapping}
 EOF
 
 chmod +x ./transform_bwa.sh
@@ -530,6 +530,7 @@ chmod +x ./rukki_hic.sh
 rule HiC_rdnascaff:
     input:
         graph = '8-hicPipeline/unitigs.hpc.noseq.gfa',
+        bam = rules.mergeBWA.output.alignments,
         tsv_path = '8-hicPipeline/rukki.paths.tsv',
         gaf_path = '8-hicPipeline/rukki.paths.gaf',
         unitigs_telo = '8-hicPipeline/unitigs.telo',
