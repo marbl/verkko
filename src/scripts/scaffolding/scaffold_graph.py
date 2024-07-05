@@ -12,10 +12,8 @@ import logging
 #from pympler import asizeof
 
 #from memory_profiler import profile
-import pandas as pd
-import gc 
-
 import pysam
+#TODO: remove clother to release? 
 import psutil
 from scaffolding import logger_wrap, match_graph, path_storage
 #from line_profiler import LineProfiler
@@ -101,7 +99,7 @@ class ScaffoldGraph:
         self.rukki_paths = rukki_paths
         self.uncompressed_lens = gf.get_lengths(uncompressed_fasta)
 
-        all_connections = self.get_connections_bam(hic_alignment_file, True)
+        all_connections, unique_connections = self.get_connections_bam(hic_alignment_file, True)
 
         self.multiplicities = rukki_paths.getEdgeMultiplicities()
         #upd_G - graph with telomeric nodes
@@ -148,20 +146,7 @@ class ScaffoldGraph:
                 self.scaffold_graph.add_node(or_id, telomere = tels_ends)    
         #possilby unefficient but whelp
         scores = {}
-        
-        #profiler = LineProfiler()
-        #profiler.add_function(self.get_connections_pandas)
-        # Profile the functions
-        #profiler.enable_by_count()
-        #all_connections = self.get_connections_pandas(self.hic_alignment_file, True)
-        #all_connections = self.get_connections_bam("../hic_to_assembly.sorted_by_read.bam", True)
-        #profiler.disable_by_count()
-
-        #Print the results
-        #profiler.print_stats()
-        #exit()
-
-
+        unique_scores = {}
         self.dists = dict(nx.all_pairs_dijkstra_path_length(self.upd_G, weight=lambda u, v, d: self.upd_G.edges[u, v]['mid_length']))
         self.logger.info("Pairwise distances in assembly graph calculated")
         self.haploids = self.getHaploidPaths()
@@ -174,6 +159,8 @@ class ScaffoldGraph:
                 if to_path_id == from_path_id:
                     continue               
                 scores[from_path_id][to_path_id] = self.getPathPairConnections([from_path_id, to_path_id], all_connections, self.uncompressed_lens)
+                unique_scores[from_path_id][to_path_id] = self.getPathPairConnections([from_path_id, to_path_id], unique_connections, self.uncompressed_lens)
+
                 #scores[from_path_id][to_path_id] = self.getPresavedPathPairConnections([from_path_id, to_path_id], presaved_pathscores)
                 
         for from_path_id in rukki_paths.getPathIds():
@@ -186,7 +173,7 @@ class ScaffoldGraph:
                     for to_dir in ('-', '+'):
                         or_from_path_id = from_path_id + from_dir
                         or_to_path_id = to_path_id + to_dir
-                        self.scaffold_graph.add_edge(or_from_path_id, or_to_path_id, weight = scores[from_path_id][to_path_id][from_dir + to_dir])
+                        self.scaffold_graph.add_edge(or_from_path_id, or_to_path_id, weight = scores[from_path_id][to_path_id][from_dir + to_dir], unique_weight = unique_scores[from_path_id][to_path_id][from_dir + to_dir])
                 if from_path_id in self.to_scaff and to_path_id in self.to_scaff:
                     self.logger.debug (f"Counted scores {from_path_id} {to_path_id} {scores[from_path_id][to_path_id]}")
 
@@ -364,13 +351,16 @@ class ScaffoldGraph:
             return True
         return False
     
-    #Main logic is here!        
-    def findExtension(self, cur_path_id):
+    #Main logic is here!     
+    # returns NONE/DONE/next_path_id   
+    def findExtension(self, cur_path_id, type):
         local_scores = []
         self.logger.info(f"Checking {cur_path_id}")
+        if not (cur_path_id in self.scaffold_graph.nodes):
+            return "NONE"
         if self.scaffold_graph.nodes[cur_path_id]['telomere'][1]:
             self.logger.info (f"Stopped at the telomere")
-            return "NONE"
+            return "DONE"
         for next_node in self.scaffold_graph.successors(cur_path_id):
             #specific hacks to avoid
             local_scores.append([next_node, self.scaffold_graph.edges[cur_path_id, next_node]['weight']])            
@@ -395,7 +385,7 @@ class ScaffoldGraph:
         #not valid but waay best solution exists
         elif len(local_scores) == 1:
             self.logger.info (f"Only next one, {local_scores[best_ind]}") 
-            return local_scores[best_ind][0]                       
+            return local_scores[best_ind][0]                      
         elif local_scores[best_ind][1] <  local_scores[second_best_ind][1] * ScaffoldGraph.CLEAR_MAJORITY:
             self.logger.info (f"Not found next, first {local_scores[best_ind]}, second best {local_scores[second_best_ind]}")
             return "NONE"
@@ -405,6 +395,18 @@ class ScaffoldGraph:
         else:
             self.logger.info (f"Really best {local_scores[best_ind]}, second best {local_scores[second_best_ind]}")            
             return local_scores[best_ind][0]
+
+    #made function to allow to use uniques
+    #types: weight/unique_weight
+    def getNextPath(self, current_path_id, nor_used_path_ids, type):
+        next_path_id = self.findExtension(current_path_id, type)
+        if next_path_id.strip('-+') in nor_used_path_ids:
+            self.logger.info (f"Extention {next_path_id} looks good but already used")
+            return "NONE"
+        elif gf.rc_path_id(self.findExtension(gf.rc_path_id(next_path_id))) != current_path_id:
+            self.logger.info (f"backward check failed for {next_path_id}")
+            return "NONE"
+        return next_path_id
         
     def generateScaffolds(self):
         res = []
@@ -434,21 +436,23 @@ class ScaffoldGraph:
             cur_path_id = or_from_path_id            
             nor_used_path_ids.add(or_from_path_id.strip('-+'))
             while True:
-                next_path_id = self.findExtension(cur_path_id)
+                next_path_id = self.findNextPath(cur_path_id, "weight")
                 if next_path_id == "NONE":
+                    self.logger.info ("Failed to find regular extension for {next_path_id}, trying unique")
+                    next_path_id = self.findNextPath(cur_path_id, "unique_weight")
+                if next_path_id == "DONE":
+                    self.logger.info ("All done, stopped at telomere")
                     break
-                elif next_path_id.strip('-+') in nor_used_path_ids:
-                    self.logger.info (f"Extention {next_path_id} looks good but already used")
+                elif next_path_id == "NONE":
+                    self.logger.info ("Failed to find extension, stopping")
                     break
-                if gf.rc_path_id(self.findExtension(gf.rc_path_id(next_path_id))) != cur_path_id:
-                    self.logger.info (f"backward check failed for {next_path_id}")
-                    break
-                self.logger.info (f"Extending {cur_path_id} with {next_path_id}")
+                else:
+                    self.logger.info (f"Extending {cur_path_id} with {next_path_id}")
 
-                #possibly not do so with paths of length one? They can be more successful in other direction
-                cur_scaffold.append(next_path_id)
-                nor_used_path_ids.add(next_path_id.strip('-+'))
-                cur_path_id = next_path_id
+                    #possibly not do so with paths of length one? They can be more successful in other direction
+                    cur_scaffold.append(next_path_id)
+                    nor_used_path_ids.add(next_path_id.strip('-+'))
+                    cur_path_id = next_path_id
             self.logger.info(f"scaffold {cur_scaffold}\n")
             res.append(cur_scaffold)
         total_scf = 0
@@ -553,65 +557,8 @@ class ScaffoldGraph:
                         res[(node_s, node_f)] = []
                     res[(node_s, node_f)].append([int(second_coords[j]), int(first_coords[i]), weight])  
         return res
-    
-    def get_connections_pandas(self, alignment_file, use_multimappers:bool):
-        res = {}
-        #A01660:39:HNYM7DSX3:1:1101:1696:29982   utig4-73        utig4-1056      1       16949880        78591191
-        ind = 0
-        chunk_size = 10**6
-        for chunk in pd.read_csv(alignment_file, delim_whitespace=True, header=None, chunksize=chunk_size):
-            for _, row in chunk.iterrows():
-            
-                ind += 1
-                if (ind % 10000000 == 0):
-                    self.logger.debug (f"Processed {ind} alignments")
-                    self.logger.debug (f"Current memory usage {psutil.virtual_memory().percent}%")
-                    self.logger.debug (f"Current memory usage {psutil.virtual_memory().used / 1024 / 1024 / 1024}GB")
-                    self.logger.debug (f"Mem usage of main map {sys.getsizeof(res) / 1024 / 1024 / 1024}GB")
-                    #if ind == 10000000:
-                    #    return res
-                has_multimappers = (',' in row[1] or ',' in row[2])
-                if not use_multimappers and has_multimappers:
-                    continue
-                #TODO temporary memory issue thing.
-
-
-                first = row[1].split(",")
-                second = row[2].split(",")
-                first_coords = row[4].split(",")
-                second_coords = row[5].split(",")
-                weight = self.INT_NORMALIZATION  // (len (first) * len(second))
-                
-                
-                #efficiently 1/2, 1/3, 1/4, 2/2 are allowed for now.
-                #if weight < 0.24:
-                #    continue
-
-                for i in range (0, len(first)):
-                    node_f = first[i]
-                    node_f_len = self.uncompressed_lens[node_f]
-                    node_f_pos = int(first_coords[i])
-                    if node_f_len < ScaffoldGraph.SHORT_INGORED_NODE or (node_f_pos > ScaffoldGraph.NEAR_PATH_END and node_f_len - node_f_pos > ScaffoldGraph.NEAR_PATH_END):
-                        continue
-                    for j in range (0, len(second)):
-                        node_s = second[j]
-                        node_s_len = self.uncompressed_lens[node_s]
-                        node_s_pos = int(second_coords[j])
-                        if node_s_len < ScaffoldGraph.SHORT_INGORED_NODE or (node_s_pos > ScaffoldGraph.NEAR_PATH_END and node_s_len - node_s_pos > ScaffoldGraph.NEAR_PATH_END):
-                            continue
-                        if not (node_f, node_s) in res:
-                            res[(node_f, node_s)] = []
-                        next = [int(first_coords[i]), int(second_coords[j]), weight]
-                        res[(node_f, node_s)].append(next)
-                        if not (node_s, node_f) in res:
-                            res[(node_s, node_f)] = []
-                        res[(node_s, node_f)].append([int(second_coords[j]), int(first_coords[i]), weight])  
-        return res
-
 
     def get_connections_bam(self, bam_filename, use_multimappers:bool):
-
-     
         res = {}
         #A01660:39:HNYM7DSX3:1:1101:1696:29982   utig4-73        utig4-1056      1       16949880        78591191
         total_reads = 0
@@ -628,18 +575,11 @@ class ScaffoldGraph:
                 
                 self.logger.debug (f"Processed {total_reads} alignment strings")
                 self.logger.debug (f"Of them unique vaild unique pairs {unique_pairs}, total pairs {all_pairs} total valid {valid_pairs} ")
-                self.logger.debug (f"Current memory usage {psutil.virtual_memory().used / 1024 / 1024 / 1024}GB")
+                self.logger.debug (f"Current memory usage {(psutil.virtual_memory().used / 1024 / 1024 / 1024):.2f} GB")
                 #gc.collect()
                 #self.logger.debug (f"Current memory usage after GC {psutil.virtual_memory().used / 1024 / 1024 / 1024}GB")
                 #self.logger.debug (f"Mem usage of main map {asizeof.asizeof(res) / 1024 / 1024 / 1024}GB")
-                '''
-                mem_sum = 0
-                for pair in res:
-                    mem_sum += sys.getsizeof(res[pair]) + sys.getsizeof(pair)
-                    for f in res[pair]:
-                        mem_sum += sys.getsizeof(f)
-                self.logger.debug (f"Mem usage of main map asizeof {asizeof.asizeof(res)/ 1024 / 1024 / 1024} GB, summed {mem_sum / 1024 / 1024 / 1024}")
-                '''
+
                 #if total_reads == 20000000:
                 #    exit()
             total_reads += 1
@@ -666,21 +606,23 @@ class ScaffoldGraph:
                             if read.has_tag("XS") and read.get_tag("XS") == read.get_tag("AS"):  
                                 for xa in read.get_tag("XA")[:-1].split(";"):
                                     xa_arr = xa.split(",")
+                                    #TODO: remove later
+                                    for pname in names[1 - i]:
+                                        if xa_arr[0] == pname:
+                                            valid = False
                                     #do not want to do cigar comparsion
                                     if int(xa_arr[3]) == nm:
                                         names[i].append(xa_arr[0])
                                         coords[i].append(int(xa_arr[1][1:]))
                         #Too many alignments, not reported in XA
-                        #TODO: likely is  prefiltered, check
+                        #TODO: likely is prefiltered, check
                         elif read.mapping_quality == 0:
                             valid = False
                         i += 1
 
                     lname0 = len(names[0])
                     lname1 = len(names[1])
-                    if valid: #  and lname0 < self.MAX_ALIGNMENTS and lname1 < self.MAX_ALIGNMENTS:        
-#                            self.logger.info(names)                 
-#                            self.logger.info(reads)
+                    if valid:
                         valid_pairs += 1
                         weight = self.INT_NORMALIZATION  // (lname0 * lname1)  
                         for i in range (0, lname0):
@@ -694,13 +636,9 @@ class ScaffoldGraph:
                                     continue
                                 if not (names[0][i], names[1][j]) in res:
                                     res[(names[0][i], names[1][j])] = []
+                                #TODO: possibly require node1 < node2?
                                 next = (coords[0][i], coords[1][j], weight)
                                 res[(names[0][i], names[1][j])].append(next)
-                                #TODO: do not need to double mem usage!
-
-                                #if not (names[1][j], names[0][i]) in res:
-                                #    res[(names[1][j], names[0][i])] = []
-                                #res[(names[1][j], names[0][i])].append([coords[1][j], coords[0][i], weight]) 
             prev_read = cur_read
             prev_name = cur_name
         return res
@@ -742,13 +680,13 @@ class ScaffoldGraph:
                             #just logging
                             if scores[incorrect_pair] >= ScaffoldGraph.MIN_LINKS* self.INT_NORMALIZATION and scores[incorrect_pair]  > scores[correct_pair]:
                                 self.dangerous_swaps[(path_ids[0], path_ids[1])] = "telomeres"
-                                self.logger.info(f"Dangerous telomeric tuning pair {path_ids}, i {i} scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']} from {incorrect_pair} to {correct_pair}")                    
+                                self.logger.debug(f"Dangerous telomeric tuning pair {path_ids}, i {i} scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']} from {incorrect_pair} to {correct_pair}")                    
                             self.logger.debug (f"moving {incorrect_pair} to {correct_pair}")
                             if self.rukki_paths.getLength(path_ids[i]) <= self.NEAR_PATH_END:
                                 scores[correct_pair] += scores[incorrect_pair]
                             else:
                                 if scores[incorrect_pair] >= ScaffoldGraph.MIN_LINKS * self.INT_NORMALIZATION and scores[incorrect_pair]  > scores[correct_pair]:
-                                    self.logger.warning(f"Dangerous telomeric tuning pair too long to move {path_ids}, i {i} scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}")                    
+                                    self.logger.debug(f"Dangerous telomeric tuning pair too long to move {path_ids}, i {i} scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}")                    
                             scores[incorrect_pair] = 0                            
                         self.logger.debug (f"telomeric tuned pair {path_ids}, scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}") 
         
@@ -792,7 +730,7 @@ class ScaffoldGraph:
                                 scores[correct_pair] += scores[incorrect_pair]
                             else:
                                 if scores[incorrect_pair] >= ScaffoldGraph.MIN_LINKS * self.INT_NORMALIZATION and scores[incorrect_pair]  > scores[correct_pair]:
-                                    self.logger.warning(f"Dangerous connectivity  tuning pair too long to move {path_ids}, i {i} scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}")                    
+                                    self.logger.debug(f"Dangerous connectivity  tuning pair too long to move {path_ids}, i {i} scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}")                    
                             scores[correct_pair] *= self.CONNECTIVITY_MULTIPLICATIVE_BONUS
                             scores[incorrect_pair] = 0 
                             self.logger.debug (f"Connectivity tuned pair {path_ids}, scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}") 
