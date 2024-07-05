@@ -155,6 +155,8 @@ class ScaffoldGraph:
 
         for from_path_id in self.rukki_paths.getPathIds():
             scores[from_path_id] = {}
+            unique_scores[from_path_id] = {}
+
             for to_path_id in self.rukki_paths.getPathIds():
                 if to_path_id == from_path_id:
                     continue               
@@ -398,7 +400,7 @@ class ScaffoldGraph:
 
     #made function to allow to use uniques
     #types: weight/unique_weight
-    def getNextPath(self, current_path_id, nor_used_path_ids, type):
+    def findNextPath(self, current_path_id, nor_used_path_ids, type):
         next_path_id = self.findExtension(current_path_id, type)
         if next_path_id.strip('-+') in nor_used_path_ids:
             self.logger.info (f"Extention {next_path_id} looks good but already used")
@@ -560,6 +562,7 @@ class ScaffoldGraph:
 
     def get_connections_bam(self, bam_filename, use_multimappers:bool):
         res = {}
+        unique_storage = {}
         #A01660:39:HNYM7DSX3:1:1101:1696:29982   utig4-73        utig4-1056      1       16949880        78591191
         total_reads = 0
         unique_pairs = 0
@@ -586,14 +589,18 @@ class ScaffoldGraph:
             cur_name = cur_read.query_name
             if cur_name == prev_name:
                 #TODO: poreC is not compatible with this now
-                #Last read is always missing but who cares? do not want to make it function since it is time-critical part
                 reads = (prev_read, cur_read)
 #                  if read.is_paired:
                 all_pairs += 1
                 if prev_read.mapping_quality > 0 and cur_read.mapping_quality > 0:
-                    #TODO: special storage
+                    #TODO: special storage possibly not needed, just check weights?
                     unique_pairs += 1
-                    
+                    if not (prev_read.reference_name, cur_read.reference_name) in unique_storage:
+                        unique_storage[(prev_read.reference_name, cur_read.reference_name) ] = []
+                    #TODO: possibly require node1 < node2?
+                    next = (prev_read.reference_start, cur_read.reference_start, self.INT_NORMALIZATION) 
+                    unique_storage[(prev_read.reference_name, cur_read.reference_name) ].append(next)
+
                 names = [[prev_read.reference_name], [cur_read.reference_name]]
                 coords = [[prev_read.reference_start], [cur_read.reference_start]]
 #                    names = read.reference_name
@@ -641,7 +648,7 @@ class ScaffoldGraph:
                                 res[(names[0][i], names[1][j])].append(next)
             prev_read = cur_read
             prev_name = cur_name
-        return res
+        return res, unique_storage
 
     #TODO: move to matchGraph
     
