@@ -285,7 +285,7 @@ ahc_time_h=48
 
 # fast things in hic pipeline
 fhc_n_cpus=8
-fhc_mem_gb=16
+fhc_mem_gb=160
 fhc_time_h=24
 
 
