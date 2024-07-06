@@ -32,7 +32,8 @@ rule generateConsensus:
     log:
         err        = '7-consensus/packages/part{nnnn}.err'
     params:
-        ont_ids    = getNumLines({rules.extractONT.output.ont_subset_id}) if config['withONT'] == "True" else 0
+        ont_ids    = lambda wildcards: getNumLines({rules.extractONT.output.ont_subset_id}) if config['withONT'] == "True" else 0,
+        bam        = '7-consensus/packages/part{nnnn}.bam' if config['withBAM'] == "True" else rules.emptyfile.output
     threads:
         int(config['cns_n_cpus']),
     resources:
@@ -50,11 +51,18 @@ cat > ./packages/part{wildcards.nnnn}.sh <<EOF
 #!/bin/sh
 set -e
 
+if [ '{params.bam}' != 'emptyfile' ]; then
+   align="-B ../{params.bam}"
+else
+   align="-norealign"
+fi
+
 {VERKKO}/bin/utgcns \\\\
     -threads {threads} \\\\
     -import ../{input.package} \\\\
     -A ../{output.consensus}.WORKING \\\\
-    -C 2 -norealign \\\\
+    -C 2 \\\\
+    \$align \\\\
     -maxcoverage 50 \\\\
     -e  0.05 \\\\
     -em 0.20 \\\\

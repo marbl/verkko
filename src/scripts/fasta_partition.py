@@ -40,7 +40,7 @@ outf_seqs        = 0
 outf             = seq.openOutput(f"{output_prefix}{format(outf_index, '03d')}.fasta.gz")
 
 for filename in filenames:
-  print(f"Starting file {filename}.")
+  print(f"Starting file {filename}.", file=sys.stderr)
   inf  = seq.openInput(filename)
 
   line = inf.readline()
@@ -54,7 +54,7 @@ for filename in filenames:
         (output_max_seqs  > 0) and
         ((outf_bytes > output_max_bytes) or
          (outf_seqs  > output_max_seqs))):
-      print(f"File {output_prefix}{format(outf_index, '03d')}.fasta.gz complete with {outf_bytes} bp and {outf_seqs} reads.")
+      print(f"File {output_prefix}{format(outf_index, '03d')}.fasta.gz complete with {outf_bytes} bp and {outf_seqs} reads.", file=sys.stderr)
       outf_bytes  = 0
       outf_seqs   = 0
       outf_index += 1
@@ -80,6 +80,7 @@ for filename in filenames:
         if outf == None:
           outf        = seq.openOutput(f"{output_prefix}{format(outf_index, '03d')}.fasta.gz")
         outf.write(f">{sName}\n{sSeq}\n".encode())
+        print(sName)
 
     elif (line[0] == "@"):
       line, sName, sSeq, sQlt = seq.readFastQ(inf, line)
@@ -97,6 +98,7 @@ for filename in filenames:
         if outf == None:
           outf        = seq.openOutput(f"{output_prefix}{format(outf_index, '03d')}.fasta.gz")
         outf.write(f">{sName}\n{sSeq}\n".encode())
+        print(sName)
 
     else:
       print(f"Unrecognized line '{line.strip()}'", file=sys.stderr)
@@ -106,7 +108,7 @@ for filename in filenames:
 
 
 if (output_max_bytes > 0) and (output_max_seqs  > 0):
-  print(f"File {output_prefix}{format(outf_index, '03d')}.fasta.gz complete with {outf_bytes} bp and {outf_seqs} reads.")
+  print(f"File {output_prefix}{format(outf_index, '03d')}.fasta.gz complete with {outf_bytes} bp and {outf_seqs} reads.", file=sys.stderr)
 
 
 if outf != None:

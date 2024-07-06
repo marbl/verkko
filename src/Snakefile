@@ -68,6 +68,7 @@ rule verkko:
         nseqgraph   = '6-rukki/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.noseq.gfa'  if config['ruk_enable'] == "True" else {rules.emptyfile.output},
         layout      = '6-layoutContigs/unitig-popped.layout',
         scfmap      = '6-layoutContigs/unitig-popped.layout.scfmap',
+        bam         = '7-consensus/unitig-popped.bam',
         cns         = '7-consensus/unitig-popped.fasta',
         cnshap1     = '7-consensus/unitig-popped.haplotype1.fasta',
         cnshap2     = '7-consensus/unitig-popped.haplotype2.fasta',
@@ -93,6 +94,7 @@ rule verkko:
         cnshap1     = 'assembly.haplotype1.fasta',    #  Actually, these are optional outputs.
         cnshap2     = 'assembly.haplotype2.fasta',
         cnsunas     = 'assembly.unassigned.fasta',
+        bam         = 'assembly.bam',
         pathstsv    = 'assembly.paths.tsv',
         colorscsv   = 'assembly.colors.csv'
     shell:
@@ -144,6 +146,10 @@ cp -p {input.hifi5cov}  {output.hificov}
 cp -p {input.ont5cov}   {output.ontcov}
 cp -p {input.scfmap}    {output.scfmap}
 
+if [ -s {input.bam} ]; then
+   cp -p {input.bam} {params.bam}
+fi
+
 #  Clean up intermediate files.
 
 if [ {params.keepinter} = "False" ] ; then
@@ -160,6 +166,7 @@ rule cnspath:
         layout      = '6-layoutContigs/unitig-popped.layout',
         scfmap      = '6-layoutContigs/unitig-popped.layout.scfmap',
         consensus   = '7-consensus/unitig-popped.fasta',
+        bam         = '7-consensus/unitig-popped.bam',
         cnshap1     = '7-consensus/unitig-popped.haplotype1.fasta',
         cnshap2     = '7-consensus/unitig-popped.haplotype2.fasta',
         cnsunas     = '7-consensus/unitig-popped.unassigned.fasta'
@@ -174,6 +181,7 @@ rule cnspath:
         cnshap1     = 'assembly.haplotype1.fasta',    #  Actually, these are optional outputs.
         cnshap2     = 'assembly.haplotype2.fasta',
         cnsunas     = 'assembly.unassigned.fasta',
+        bam         = 'assembly.bam'
     shell:
         '''
 cp -p {input.graph}     {output.graph}
@@ -185,10 +193,12 @@ if [  -s {input.cnshap1} -a -s {input.cnshap2} ]; then
   cp -p {input.cnshap1}   {params.cnshap1}
   cp -p {input.cnshap2}   {params.cnshap2}
 fi
+if [ -s {input.bam} ]; then
+   cp -p {input.bam} {params.bam}
+fi
 cp -p {input.cnsunas}   {params.cnsunas}
 cp -p {input.scfmap}    {output.scfmap}
         '''
-        
 
 ##########
 #

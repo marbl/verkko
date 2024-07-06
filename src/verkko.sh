@@ -51,6 +51,7 @@ hic2=""
 withont="False"
 withhic="False"
 withporec="False"
+withbam="False"
 
 keepinter="True"
 
@@ -483,6 +484,7 @@ while [ $# -gt 0 ] ; do
     #  Post-processing options
     #
 
+    elif [ "$opt" = "--consensus-bam" ] ;       then withbam="True";
     elif [ "$opt" = "--discard-short" ] ;       then short_contig_length=$arg;   shift
     elif [ "$opt" = "--screen" ] ; then
       if [ "x$arg" = "xhuman" ] ; then
@@ -757,7 +759,7 @@ if [ ! -z "$screen" -o "x$withhic" = "xTrue" ] ; then
 fi
 
 # bwa samtools and seqtk required for HiC data
-if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
+if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" -o "x$withbam" = "xTrue" ] ; then
    if [ "x$withhic" = "xTrue" ]; then
       if [ "x$hic1" = "x" -o "x$hic2" = "x" ]; then
          errors="${errors}Only one of --hic1 and --hic2 specified, both must be specified to run with Hi-C\n"
@@ -1050,6 +1052,7 @@ echo >> ${outd}/verkko.yml "ali_max_trace:       '${ali_max_trace}'"
 echo >> ${outd}/verkko.yml "ali_seed_window:     '${ali_seed_window}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  post-processing"
+echo >> ${outd}/verkko.yml "withBAM:             '${withbam}'"
 echo >> ${outd}/verkko.yml "short_contig_length: '${short_contig_length}'"
 echo >> ${outd}/verkko.yml "screen:              '${screen}'"
 echo >> ${outd}/verkko.yml ""
@@ -1223,7 +1226,8 @@ if [ "x$cnspaths" != "x" ] ; then
         mkdir ${outd}/6-layoutContigs
         cp -p ${cnsassembly}/6-layoutContigs/combined-nodemap.txt     ${outd}/6-layoutContigs/combined-nodemap.txt
         cp -p ${cnsassembly}/6-layoutContigs/combined-edges.gfa       ${outd}/6-layoutContigs/combined-edges.gfa
-        cp -p ${cnsassembly}/6-layoutContigs/combined-alignments.gaf  ${outd}/6-layoutContigs/combined-alignments.gaf
+        cp -p ${cnsassembly}/6-layoutContigs/hifi.alignments.gaf      ${outd}/6-layoutContigs/hifi.alignments.gaf
+        cp -p ${cnsassembly}/6-layoutContigs/ont.alignments.gaf       ${outd}/6-layoutContigs/ont.alignments.gaf
         cp -p ${cnspaths}                                             ${outd}/6-layoutContigs/consensus_paths.txt
         cp -p ${cnsassembly}/6-layoutContigs/nodelens.txt             ${outd}/6-layoutContigs/nodelens.txt
     fi
@@ -1247,6 +1251,11 @@ if [ "x$cnspaths" != "x" ] ; then
     fi
 
     cp -p ${cnsassembly}/emptyfile ${outd}/emptyfile
+
+    # lastly symlink the raw ONT if we need them for bams
+    if [ "x$withont" = "xTrue" ] && [ "x$withbam" = "xTrue" ] ; then
+       ln -s ${cnsassembly}/3-align ${outd}/3-align
+    fi
 fi
 
 #
@@ -1328,7 +1337,8 @@ if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
         mkdir ${newoutd}/6-layoutContigs
         cp -p 6-layoutContigs/combined-nodemap.txt     ${newoutd}/6-layoutContigs/combined-nodemap.txt
         cp -p 6-layoutContigs/combined-edges.gfa       ${newoutd}/6-layoutContigs/combined-edges.gfa
-        cp -p 6-layoutContigs/combined-alignments.gaf  ${newoutd}/6-layoutContigs/combined-alignments.gaf
+        cp -p 6-layoutContigs/hifi.alignments.gaf      ${newoutd}/6-layoutContigs/hifi.alignments.gaf
+        cp -p 6-layoutContigs/ont.alignments.gaf       ${newoutd}/6-layoutContigs/ont.alignments.gaf
         cp -p 8-hicPipeline/rukki.paths.gaf            ${newoutd}/6-layoutContigs/consensus_paths.txt
         cp -p 6-layoutContigs/nodelens.txt             ${newoutd}/6-layoutContigs/nodelens.txt
     fi
@@ -1339,6 +1349,11 @@ if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
         cp -p 7-consensus/ont_subset.id                ${newoutd}/7-consensus/ont_subset.id
     fi
     cp -p emptyfile ${newoutd}/emptyfile
+    # lastly symlink the raw ONT if we need them for bams
+    if [ "x$withont" = "xTrue" ] && [ "x$withbam" = "xTrue" ] ; then
+        ln -s $(fullpath '3-align') ${newoutd}/3-align
+    fi
+
     cd $newoutd
     sed -i.bak 's/runRukkiHIC/cnspath/g' snakemake.sh
     sed -i.bak 's/HiC_rdnascaff/cnspath/g' snakemake.sh
@@ -1346,6 +1361,7 @@ if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
     ret=$?
     if [ $ret -eq 0 ]; then
         cp *.fasta ../../
+        cp *.bam ../../
         cp *.gfa ../../
         cp *.layout ../../
         cp *.scfmap ../../
