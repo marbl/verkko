@@ -482,6 +482,9 @@ rule runRukkiHIC:
     output:
         tsv_path = '8-hicPipeline/rukki.paths.tsv',
         gaf_path = '8-hicPipeline/rukki.paths.gaf',
+        prescaf_tsv_path = '8-hicPipeline/prescaf_rukki.paths.tsv',
+        prescaf_gaf_path = '8-hicPipeline/prescaf_rukki.paths.gaf',
+
         final_paths_tsv = 'assembly.paths.tsv'
     log:
         err    = '8-hicPipeline/rukki_hic.err'
@@ -514,9 +517,12 @@ params="\$params --hap-names haplotype1,haplotype2"
 params="\$params --max-homozygous-len=25000000"
 params="\$params --trusted-len 325000"
 
-{VERKKO}/bin/rukki trio -g ../{input.graph} -m ../{input.binning}              -p ../{output.tsv_path} \$params
-{VERKKO}/bin/rukki trio -g ../{input.graph} -m ../{input.binning} --gaf-format -p ../{output.gaf_path} \$params
-cp ../{output.tsv_path} ../{output.final_paths_tsv}
+{VERKKO}/bin/rukki trio -g ../{input.graph} -m ../{input.binning}              -p ../{output.prescaf_tsv_path} \$params
+{VERKKO}/bin/rukki trio -g ../{input.graph} -m ../{input.binning} --gaf-format -p ../{output.prescaf_gaf_path} \$params
+cp ../{output.prescaf_tsv_path} ../{output.tsv_path}
+cp ../{output.prescaf_tsv_path} ../{output.final_paths_tsv}
+cp ../{output.prescaf_gaf_path} ../{output.gaf_path}
+
 echo "haplotype1" > label1
 echo "haplotype2" > label2
 
@@ -531,8 +537,8 @@ rule HiC_rdnascaff:
     input:
         graph = '8-hicPipeline/unitigs.hpc.noseq.gfa',
         bam = rules.mergeBWA.output.alignments,
-        tsv_path = '8-hicPipeline/rukki.paths.tsv',
-        gaf_path = '8-hicPipeline/rukki.paths.gaf',
+        tsv_path = '8-hicPipeline/prescaf_rukki.paths.tsv',
+        gaf_path = '8-hicPipeline/prescaf_rukki.paths.gaf',
         unitigs_telo = '8-hicPipeline/unitigs.telo',
         unitigs_nohpc50 =  '8-hicPipeline/unitigs_nonhpc50.mashmap',
         path_mashmap = rules.prepare_reference_mashmap.output.path_mashmap,
@@ -540,8 +546,8 @@ rule HiC_rdnascaff:
     output:
         scaff_tsv_path = '8-hicPipeline/scaff_rukki.paths.tsv',
         scaff_gaf_path = '8-hicPipeline/scaff_rukki.paths.gaf',
-        prescaf_tsv_path = '8-hicPipeline/prescaf_rukki.paths.tsv',
-        prescaf_gaf_path = '8-hicPipeline/prescaf_rukki.paths.gaf',
+        final_tsv_path = '8-hicPipeline/rukki.paths.tsv',
+        final_gaf_path = '8-hicPipeline/rukki.paths.gaf',
     log:
         err    = '8-hicPipeline/hic_scaff.err'
     threads:
@@ -561,11 +567,8 @@ set -e
 {PYTHON} {VERKKO}/scripts/rdna_scaff.py .
 
 
-cp ../{input.tsv_path} ../{output.prescaf_tsv_path}
-cp ../{input.gaf_path} ../{output.prescaf_gaf_path}
-
-cp ../{output.scaff_tsv_path} ../{input.tsv_path}
-cp ../{output.scaff_gaf_path} ../{input.gaf_path}
+cp ../{output.scaff_tsv_path} ../{input.final_tsv_path}
+cp ../{output.scaff_gaf_path} ../{input.final_gaf_path}
 
 cp ../{input.tsv_path} ../{rules.runRukkiHIC.output.final_paths_tsv}
 EOF
