@@ -93,6 +93,8 @@ class ScaffoldGraph:
     #efficiantly it is so because of bwa behaviour on XA tags but not used directly
     MAX_ALIGNMENTS = 6
 
+    APPROXIMATE_COORDS = 40000
+    APPROXIMATE_COORDS_HALF = APPROXIMATE_COORDS/2
 
     def __init__(self, rukki_paths, telomere_locations_file, hic_alignment_file, matches_file, G, uncompressed_fasta, path_mashmap, logger):
         self.logger = logger_wrap.UpdatedAdapter(logger, self.__class__.__name__)
@@ -569,17 +571,24 @@ class ScaffoldGraph:
         unique_pairs = 0
         valid_pairs = 0
         all_pairs = 0
+        
+        created_pair = 0
+        created_dist = 0
+        increased_dist = 0
+
         bamfile = pysam.AlignmentFile(bam_filename, "rb")
         cur_name = ""
         reads = []
         prev_read = None
         prev_name = ""
+        
         for cur_read in bamfile:
             if (total_reads % 10000000 == 0):
                 
                 self.logger.debug (f"Processed {total_reads} alignment strings")
                 self.logger.debug (f"Of them unique vaild unique pairs {unique_pairs}, total pairs {all_pairs} total valid {valid_pairs} ")
                 self.logger.debug (f"Current memory usage {(psutil.virtual_memory().used / 1024 / 1024 / 1024):.2f} GB")
+                self.logger.debug (f"Created new pairs {created_pair} new mappings {created_dist} increased without creation {increased_dist - created_dist}")
                 #gc.collect()
                 #self.logger.debug (f"Current memory usage after GC {psutil.virtual_memory().used / 1024 / 1024 / 1024}GB")
                 #self.logger.debug (f"Mem usage of main map {asizeof.asizeof(res) / 1024 / 1024 / 1024}GB")
@@ -596,11 +605,11 @@ class ScaffoldGraph:
                 if prev_read.mapping_quality > 0 and cur_read.mapping_quality > 0:
                     #TODO: special storage possibly not needed, just check weights?
                     unique_pairs += 1
-                    if not (prev_read.reference_name, cur_read.reference_name) in unique_storage:
-                        unique_storage[(prev_read.reference_name, cur_read.reference_name) ] = []
+                    #if not (prev_read.reference_name, cur_read.reference_name) in unique_storage:
+                    #    unique_storage[(prev_read.reference_name, cur_read.reference_name) ] = 0
                     #TODO: possibly require node1 < node2?
-                    next = (prev_read.reference_start, cur_read.reference_start, self.INT_NORMALIZATION) 
-                    unique_storage[(prev_read.reference_name, cur_read.reference_name) ].append(next)
+                    #next = (prev_read.reference_start, cur_read.reference_start, self.INT_NORMALIZATION) 
+                    #unique_storage[(prev_read.reference_name, cur_read.reference_name) ]+= self.INT_NORMALIZATION
 
                 names = [[prev_read.reference_name], [cur_read.reference_name]]
                 coords = [[prev_read.reference_start], [cur_read.reference_start]]
@@ -642,11 +651,36 @@ class ScaffoldGraph:
                                 node_s_len = self.uncompressed_lens[names[1][j]]
                                 if node_s_len < ScaffoldGraph.SHORT_INGORED_NODE or (coords[1][j] > ScaffoldGraph.NEAR_PATH_END and node_s_len - coords[1][j] > ScaffoldGraph.NEAR_PATH_END):
                                     continue
-                                if not (names[0][i], names[1][j]) in res:
-                                    res[(names[0][i], names[1][j])] = []
+                                if (names[0][i] < names[1][j]):
+                                    names_pair = (names[0][i], names[1][j])
+                                    pre_coords_pair = (coords[0][i], coords[1][j])
+                                else :
+                                    names_pair = (names[1][j], names[0][i])
+                                    pre_coords_pair = (coords[1][j], coords[0][i])
+                                #To round to closest integer and not always down
+                                coords_pair = tuple(((c + self.APPROXIMATE_COORDS_HALF) // self.APPROXIMATE_COORDS) * self.APPROXIMATE_COORDS for c in pre_coords_pair)
+                                if not names_pair in res:
+                                    res[names_pair] = {}
+                                    created_pair += 1
+                                if not (coords_pair in res[names_pair]):
+                                    created_dist += 1
+                                    res[names_pair][coords_pair] = 0
+                                res[names_pair][coords_pair] += weight
+                                increased_dist += 1
+                                if weight == self.INT_NORMALIZATION:
+                                    if not names_pair in unique_storage:
+                                        unique_storage[names_pair] = {}
+                                    if not coords_pair in unique_storage[names_pair]:
+                                        unique_storage[names_pair][coords_pair] = 0
+                                    unique_storage[names_pair][coords_pair] += self.INT_NORMALIZATION
+                                
+
                                 #TODO: possibly require node1 < node2?
-                                next = (coords[0][i], coords[1][j], weight)
-                                res[(names[0][i], names[1][j])].append(next)
+                                #next = (coords[0][i], coords[1][j], weight)
+                                #res[(names[0][i], names[1][j])].append(next)
+
+                                #no more check on homologous regions?
+                                #res[(names[0][i], names[1][j])] += weight
             prev_read = cur_read
             prev_name = cur_name
         return res, unique_storage
@@ -769,24 +803,24 @@ class ScaffoldGraph:
         #stored only half
         #TODO: not optimal
         if rc_pair in connections:
-            for conn in connections[rc_pair]:
-                cons.append((conn[1], conn[0], conn[2]))
+            for coords, w in connections[rc_pair].items():
+                cons.append((coords[1], coords[0], w))
         if pair in connections:
-            for conn in connections[pair]:        
-                cons.append(conn)
-
+            for coords, w in connections[pair].items():
+                cons.append((coords[0], coords[1], w))
+           
         for conn in cons:        
             in_homo = False
             for i in range (0, len(intervals[0])):
                 local_homo = True
                 for j in range (0, 2):
-                    if conn[j] <  intervals[j][i][0] or conn[j] > intervals[j][i][1]:
+                    #coords were approximated so adjusting. not sure we'll actually need it
+                    if conn[j] <  intervals[j][i][0] + self.APPROXIMATE_COORDS_HALF or conn[j] > intervals[j][i][1] - self.APPROXIMATE_COORDS_HALF:
                         local_homo = False
-                #TODO: check!!
-                #Likely correct, should we also filter global homologous based on matchgraph?
-                if local_homo:
-                    in_homo = True
-                    break
+                    #TODO: check!!
+                    if local_homo:
+                        in_homo = True
+                        break
             if in_homo:
                 filtered+= 1
                 continue
