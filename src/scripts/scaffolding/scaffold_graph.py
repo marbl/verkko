@@ -355,6 +355,7 @@ class ScaffoldGraph:
     
     #Main logic is here!     
     # returns NONE/DONE/next_path_id   
+    #type: weight/unique_weight
     def findExtension(self, cur_path_id, type):
         local_scores = []
         self.logger.info(f"Checking {cur_path_id}")
@@ -365,7 +366,7 @@ class ScaffoldGraph:
             return "DONE"
         for next_node in self.scaffold_graph.successors(cur_path_id):
             #specific hacks to avoid
-            local_scores.append([next_node, self.scaffold_graph.edges[cur_path_id, next_node]['weight']])            
+            local_scores.append([next_node, self.scaffold_graph.edges[cur_path_id, next_node][type]])            
 
         local_scores.sort(key=lambda x: x[1], reverse=True)
         best_ind = -1
@@ -405,7 +406,7 @@ class ScaffoldGraph:
         if next_path_id.strip('-+') in nor_used_path_ids:
             self.logger.info (f"Extention {next_path_id} looks good but already used")
             return "NONE"
-        elif gf.rc_path_id(self.findExtension(gf.rc_path_id(next_path_id))) != current_path_id:
+        elif gf.rc_path_id(self.findExtension(gf.rc_path_id(next_path_id), type)) != current_path_id:
             self.logger.info (f"backward check failed for {next_path_id}")
             return "NONE"
         return next_path_id
@@ -438,10 +439,10 @@ class ScaffoldGraph:
             cur_path_id = or_from_path_id            
             nor_used_path_ids.add(or_from_path_id.strip('-+'))
             while True:
-                next_path_id = self.findNextPath(cur_path_id, "weight")
+                next_path_id = self.findNextPath(cur_path_id, nor_used_path_ids, "weight")
                 if next_path_id == "NONE":
                     self.logger.info ("Failed to find regular extension for {next_path_id}, trying unique")
-                    next_path_id = self.findNextPath(cur_path_id, "unique_weight")
+                    next_path_id = self.findNextPath(cur_path_id, nor_used_path_ids, "unique_weight")
                 if next_path_id == "DONE":
                     self.logger.info ("All done, stopped at telomere")
                     break
