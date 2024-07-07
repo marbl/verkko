@@ -54,28 +54,18 @@ SOURCES      := ${CANUROOT}utility/src/align/align-ksw2-driver.C \
                 ${CANUROOT}utility/src/kmers-v1/kmers-writer.C \
                 ${CANUROOT}utility/src/kmers-v1/kmers.C \
                 \
-                ${CANUROOT}utility/src/kmers-v2/kmers-exact.C \
-                ${CANUROOT}utility/src/kmers-v2/kmers-files.C \
-                ${CANUROOT}utility/src/kmers-v2/kmers-histogram.C \
-                ${CANUROOT}utility/src/kmers-v2/kmers-reader-dump.C \
-                ${CANUROOT}utility/src/kmers-v2/kmers-reader.C \
-                ${CANUROOT}utility/src/kmers-v2/kmers-writer-block.C \
-                ${CANUROOT}utility/src/kmers-v2/kmers-writer-stream.C \
-                ${CANUROOT}utility/src/kmers-v2/kmers-writer.C \
-                ${CANUROOT}utility/src/kmers-v2/kmers.C \
-                \
                 ${CANUROOT}utility/src/math/md5-v1.C \
                 ${CANUROOT}utility/src/math/mt19937ar-v1.C \
                 ${CANUROOT}utility/src/math/sampledDistribution-v1.C \
                 \
                 ${CANUROOT}utility/src/parasail/cpuid.c \
+                ${CANUROOT}utility/src/parasail/cigar.c \
                 ${CANUROOT}utility/src/parasail/memory.c \
                 ${CANUROOT}utility/src/parasail/sg.c \
                 ${CANUROOT}utility/src/parasail/sg_trace.c \
-                ${CANUROOT}utility/src/parasail/sg_qx_dispatch.c \
                 ${CANUROOT}utility/src/parasail/sg_qb_de_dispatch.c \
                 ${CANUROOT}utility/src/parasail/sg_qe_db_dispatch.c \
-                ${CANUROOT}utility/src/parasail/cigar.c \
+                ${CANUROOT}utility/src/parasail/sg_qx_dispatch.c \
                 \
                 ${CANUROOT}utility/src/sequence/dnaSeq-v1.C \
                 ${CANUROOT}utility/src/sequence/bufSeqFile-v1.C \
@@ -122,56 +112,55 @@ SOURCES      := ${CANUROOT}utility/src/align/align-ksw2-driver.C \
                 ${CANUROOT}gfa/gfa.C \
                 ${CANUROOT}gfa/bed.C
 
-SOURCES      +=${CANUROOT}utility/src/htslib/hts/bcf_sr_sort.c \
-               ${CANUROOT}utility/src/htslib/hts/bgzf.c \
-               ${CANUROOT}utility/src/htslib/hts/errmod.c \
-               ${CANUROOT}utility/src/htslib/hts/faidx.c \
-               ${CANUROOT}utility/src/htslib/hts/header.c \
-               ${CANUROOT}utility/src/htslib/hts/hfile.c \
-               ${CANUROOT}utility/src/htslib/hts/hfile_libcurl.c \
-               ${CANUROOT}utility/src/htslib/hts/hfile_s3.c \
-               ${CANUROOT}utility/src/htslib/hts/hts.c \
-               ${CANUROOT}utility/src/htslib/hts/hts_expr.c \
-               ${CANUROOT}utility/src/htslib/hts/hts_os.c \
-               ${CANUROOT}utility/src/htslib/hts/kfunc.c \
-               ${CANUROOT}utility/src/htslib/hts/kstring.c \
-               ${CANUROOT}utility/src/htslib/hts/md5.c \
-               ${CANUROOT}utility/src/htslib/hts/multipart.c \
-               ${CANUROOT}utility/src/htslib/hts/probaln.c \
-               ${CANUROOT}utility/src/htslib/hts/realn.c \
-               ${CANUROOT}utility/src/htslib/hts/regidx.c \
-               ${CANUROOT}utility/src/htslib/hts/region.c \
-               ${CANUROOT}utility/src/htslib/hts/sam.c \
-               ${CANUROOT}utility/src/htslib/hts/synced_bcf_reader.c \
-               ${CANUROOT}utility/src/htslib/hts/tbx.c \
-               ${CANUROOT}utility/src/htslib/hts/textutils.c \
-               ${CANUROOT}utility/src/htslib/hts/thread_pool.c \
-               ${CANUROOT}utility/src/htslib/hts/vcf.c \
-               ${CANUROOT}utility/src/htslib/hts/vcf_sweep.c \
-               ${CANUROOT}utility/src/htslib/hts/vcfutils.c \
-               ${CANUROOT}utility/src/htslib/cram/cram_codecs.c \
-               ${CANUROOT}utility/src/htslib/cram/cram_decode.c \
-               ${CANUROOT}utility/src/htslib/cram/cram_encode.c \
-               ${CANUROOT}utility/src/htslib/cram/cram_external.c \
-               ${CANUROOT}utility/src/htslib/cram/cram_index.c \
-               ${CANUROOT}utility/src/htslib/cram/cram_io.c \
-               ${CANUROOT}utility/src/htslib/cram/cram_stats.c \
-               ${CANUROOT}utility/src/htslib/cram/mFILE.c \
-               ${CANUROOT}utility/src/htslib/cram/open_trace_file.c \
-               ${CANUROOT}utility/src/htslib/cram/pooled_alloc.c \
-               ${CANUROOT}utility/src/htslib/cram/string_alloc.c \
-               ${CANUROOT}utility/src/htslib/htscodecs/arith_dynamic.c \
-               ${CANUROOT}utility/src/htslib/htscodecs/fqzcomp_qual.c \
-               ${CANUROOT}utility/src/htslib/htscodecs/htscodecs.c \
-               ${CANUROOT}utility/src/htslib/htscodecs/pack.c \
-               ${CANUROOT}utility/src/htslib/htscodecs/rANS_static.c \
-               ${CANUROOT}utility/src/htslib/htscodecs/rANS_static32x16pr.c \
-               ${CANUROOT}utility/src/htslib/htscodecs/rANS_static32x16pr_neon.c \
-               ${CANUROOT}utility/src/htslib/htscodecs/rANS_static4x16pr.c \
-               ${CANUROOT}utility/src/htslib/htscodecs/rle.c \
-               ${CANUROOT}utility/src/htslib/htscodecs/tokenise_name3.c \
-               ${CANUROOT}utility/src/htslib/htscodecs/utils.c
-
+SOURCES      += ${CANUROOT}utility/src/htslib/hts/bcf_sr_sort.c \
+                ${CANUROOT}utility/src/htslib/hts/bgzf.c \
+                ${CANUROOT}utility/src/htslib/hts/errmod.c \
+                ${CANUROOT}utility/src/htslib/hts/faidx.c \
+                ${CANUROOT}utility/src/htslib/hts/header.c \
+                ${CANUROOT}utility/src/htslib/hts/hfile.c \
+                ${CANUROOT}utility/src/htslib/hts/hfile_libcurl.c \
+                ${CANUROOT}utility/src/htslib/hts/hfile_s3.c \
+                ${CANUROOT}utility/src/htslib/hts/hts.c \
+                ${CANUROOT}utility/src/htslib/hts/hts_expr.c \
+                ${CANUROOT}utility/src/htslib/hts/hts_os.c \
+                ${CANUROOT}utility/src/htslib/hts/kfunc.c \
+                ${CANUROOT}utility/src/htslib/hts/kstring.c \
+                ${CANUROOT}utility/src/htslib/hts/md5.c \
+                ${CANUROOT}utility/src/htslib/hts/multipart.c \
+                ${CANUROOT}utility/src/htslib/hts/probaln.c \
+                ${CANUROOT}utility/src/htslib/hts/realn.c \
+                ${CANUROOT}utility/src/htslib/hts/regidx.c \
+                ${CANUROOT}utility/src/htslib/hts/region.c \
+                ${CANUROOT}utility/src/htslib/hts/sam.c \
+                ${CANUROOT}utility/src/htslib/hts/synced_bcf_reader.c \
+                ${CANUROOT}utility/src/htslib/hts/tbx.c \
+                ${CANUROOT}utility/src/htslib/hts/textutils.c \
+                ${CANUROOT}utility/src/htslib/hts/thread_pool.c \
+                ${CANUROOT}utility/src/htslib/hts/vcf.c \
+                ${CANUROOT}utility/src/htslib/hts/vcf_sweep.c \
+                ${CANUROOT}utility/src/htslib/hts/vcfutils.c \
+                ${CANUROOT}utility/src/htslib/cram/cram_codecs.c \
+                ${CANUROOT}utility/src/htslib/cram/cram_decode.c \
+                ${CANUROOT}utility/src/htslib/cram/cram_encode.c \
+                ${CANUROOT}utility/src/htslib/cram/cram_external.c \
+                ${CANUROOT}utility/src/htslib/cram/cram_index.c \
+                ${CANUROOT}utility/src/htslib/cram/cram_io.c \
+                ${CANUROOT}utility/src/htslib/cram/cram_stats.c \
+                ${CANUROOT}utility/src/htslib/cram/mFILE.c \
+                ${CANUROOT}utility/src/htslib/cram/open_trace_file.c \
+                ${CANUROOT}utility/src/htslib/cram/pooled_alloc.c \
+                ${CANUROOT}utility/src/htslib/cram/string_alloc.c \
+                ${CANUROOT}utility/src/htslib/htscodecs/arith_dynamic.c \
+                ${CANUROOT}utility/src/htslib/htscodecs/fqzcomp_qual.c \
+                ${CANUROOT}utility/src/htslib/htscodecs/htscodecs.c \
+                ${CANUROOT}utility/src/htslib/htscodecs/pack.c \
+                ${CANUROOT}utility/src/htslib/htscodecs/rANS_static.c \
+                ${CANUROOT}utility/src/htslib/htscodecs/rANS_static32x16pr.c \
+                ${CANUROOT}utility/src/htslib/htscodecs/rANS_static32x16pr_neon.c \
+                ${CANUROOT}utility/src/htslib/htscodecs/rANS_static4x16pr.c \
+                ${CANUROOT}utility/src/htslib/htscodecs/rle.c \
+                ${CANUROOT}utility/src/htslib/htscodecs/tokenise_name3.c \
+                ${CANUROOT}utility/src/htslib/htscodecs/utils.c
 
 ifeq (${BUILDSTACKTRACE}, 1)
 SOURCES      += ${CANUROOT}utility/src/system/libbacktrace/atomic.c \
