@@ -154,7 +154,7 @@ rule prepare_reference_mashmap:
     input:
         unitigs_hpc = '8-hicPipeline/unitigs.hpc.fasta',
         graph_hpc = '8-hicPipeline/unitigs.hpc.noseq.gfa',
-        rukki_tsv = '8-hicPipeline/rukki.paths.tsv'
+        rukki_tsv = '8-hicPipeline/prescaf_rukki.paths.tsv'
     output:
         path_mashmap = '8-hicPipeline/paths2ref.mashmap'
     log:
@@ -432,7 +432,7 @@ cat > ./transform_bwa.sh <<EOF
 #!/bin/sh
 set -e
 
-{params.SAMTOOLS} view  ../{input.bwa_mapping} | {PYTHON} {VERKKO}/scripts/parse_sam_pairs.py  > ../{output.byread_mapping}
+{params.SAMTOOLS} view -q 1 ../{input.bwa_mapping} | {PYTHON} {VERKKO}/scripts/parse_sam_pairs.py  > ../{output.byread_mapping}
 EOF
 
 chmod +x ./transform_bwa.sh
@@ -551,12 +551,12 @@ rule HiC_rdnascaff:
     log:
         err    = '8-hicPipeline/hic_scaff.err'
     threads:
-        int(config['fhc_n_cpus'])
+        int(config['shc_n_cpus'])
     resources:
         job_id = 1,
-        n_cpus = int(config['fhc_n_cpus']),
-        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
-        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
+        n_cpus = int(config['shc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'shc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'shc')
     shell:
         '''
 cd 8-hicPipeline
@@ -567,8 +567,8 @@ set -e
 {PYTHON} {VERKKO}/scripts/rdna_scaff.py .
 
 
-cp ../{output.scaff_tsv_path} ../{input.final_tsv_path}
-cp ../{output.scaff_gaf_path} ../{input.final_gaf_path}
+cp ../{output.scaff_tsv_path} ../{output.final_tsv_path}
+cp ../{output.scaff_gaf_path} ../{output.final_gaf_path}
 
 cp ../{input.tsv_path} ../{rules.runRukkiHIC.output.final_paths_tsv}
 EOF

@@ -36,7 +36,10 @@ names = [ ]
 
 for line in input_stream:
    line=line.split()
-   if len(line) < 4:
+   if len(line) < 5:
+      continue
+   #TODO: remove later
+   if line[4] == "0":
       continue
    if name == "":
       name = line[0]
