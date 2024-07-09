@@ -285,9 +285,13 @@ ahc_time_h=48
 
 # fast things in hic pipeline
 fhc_n_cpus=8
-fhc_mem_gb=160
+fhc_mem_gb=16
 fhc_time_h=24
 
+# hic scaffolding pipeline
+shc_n_cpus=8
+shc_mem_gb=128
+shc_time_h=24
 
 
 #
@@ -535,6 +539,8 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--cns-run" ] ;  then cns_n_cpus=$1; cns_mem_gb=$2; cns_time_h=$3; shift; shift; shift;
     elif [ "$opt" = "--ahc-run" ] ;  then ahc_n_cpus=$1; ahc_mem_gb=$2; ahc_time_h=$3; shift; shift; shift;
     elif [ "$opt" = "--fhc-run" ] ;  then fhc_n_cpus=$1; fhc_mem_gb=$2; fhc_time_h=$3; shift; shift; shift;
+    elif [ "$opt" = "--shc-run" ] ;  then shc_n_cpus=$1; shc_mem_gb=$2; shc_time_h=$3; shift; shift; shift;
+
 
     #
     #  unknown options
@@ -920,6 +926,7 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --cns-run"
     echo "    --ahc-run"
     echo "    --fhc-run"
+    echo "    --shc-run"
     echo ""
     echo "ADVANCED MODULE PARAMETERS (expert users):"
     echo "HiFi read correction:"
@@ -1185,6 +1192,11 @@ echo >> ${outd}/verkko.yml "#  fast hic stuff"
 echo >> ${outd}/verkko.yml "fhc_n_cpus:          '${fhc_n_cpus}'"
 echo >> ${outd}/verkko.yml "fhc_mem_gb:          '${fhc_mem_gb}'"
 echo >> ${outd}/verkko.yml "fhc_time_h:          '${fhc_time_h}'"
+echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#hi-c scaffolding itself"
+echo >> ${outd}/verkko.yml "shc_n_cpus:          '${shc_n_cpus}'"
+echo >> ${outd}/verkko.yml "shc_mem_gb:          '${shc_mem_gb}'"
+echo >> ${outd}/verkko.yml "shc_time_h:          '${shc_time_h}'
 
 echo >> ${outd}/verkko.yml "#  This is the end."
 
