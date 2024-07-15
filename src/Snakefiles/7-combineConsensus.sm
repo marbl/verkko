@@ -59,7 +59,7 @@ rule combineConsensus:
         packbam   = combineConsensusB,
         haveBAM    = config['withBAM']
     threads:
-        1
+        8
     resources:
         job_id = 1,
         n_cpus = 8,
@@ -119,8 +119,9 @@ if [ "{params.haveBAM}" = "True" ]; then
    echo "--------------------"
    echo "Combining consensus bam results."
    echo ""
+   mem_per_core=\`expr {resources.mem_gb} \/ {threads} | awk '{{if (\$1 < 1) print "1G"; else print \$1"G"}}'\`
 
-   {params.SAMTOOLS} merge -f -O bam --reference combined.fasta -@{threads} ../{output.bam} {params.packbam}
+   {params.SAMTOOLS} merge -f -O bam --reference combined.fasta -@{threads} -u - {params.packbam} | {params.SAMTOOLS} sort -m \$mem_per_core -@{threads} -o ../{output.bam}
 else
    touch ../{output.bam}
 fi
