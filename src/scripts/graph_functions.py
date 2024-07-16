@@ -348,16 +348,20 @@ def getComponentColors(G):
         current_color += 1
     return component_colors
 
-
 def get_telomeric_nodes(telomere_locations_file, G):
     aux_tel_nodes = set()
     new_G = G.copy()
+    CLOSE_ENOUGH = 20000
     with open(telomere_locations_file) as f:
         for l in f:
             parts = l.strip().split('\t')
             telnode = ""
             graph_node = parts[0]
-            if int(parts[1]) < 20000:
+
+            to_start = int(parts[1])
+            to_end = int(parts[3]) - int(parts[2])
+            #Do not want to add telomeres to both ends of short telomeric node
+            if to_start < CLOSE_ENOUGH and to_start <= to_end:
                 telnode="telomere_"+graph_node+"+_start"
                 new_G.add_node(telnode, length=0, coverage=0)
                 new_G.add_edge(telnode, graph_node+'+', mid_length=G.nodes[graph_node+'+']['length'])
@@ -368,7 +372,7 @@ def get_telomeric_nodes(telomere_locations_file, G):
                 new_G.add_edge(graph_node+'-', telnode, mid_length=G.nodes[graph_node+'+']['length'])
                 aux_tel_nodes.add(telnode)
 
-            if int(parts[2])+20000 > G.nodes[graph_node + '+']['length']:
+            elif to_end < CLOSE_ENOUGH and to_end < to_start:
                 telnode="telomere_"+graph_node+"+_end"
                 new_G.add_node(telnode, length=0, coverage=0)
                 new_G.add_edge(graph_node+'+', telnode, mid_length=G.nodes[graph_node+'+']['length'])  
@@ -378,6 +382,8 @@ def get_telomeric_nodes(telomere_locations_file, G):
                 new_G.add_node(telnode, length=0, coverage=0)
                 new_G.add_edge(telnode, graph_node+'-', mid_length=G.nodes[graph_node+'+']['length'])     
                 aux_tel_nodes.add(telnode)
+            else:
+                sys.stderr.write(f"Warning: telomere location {l} is not close enough to any ends of the contig, skipping\n")
     return aux_tel_nodes, new_G
 
 
