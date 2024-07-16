@@ -33,7 +33,7 @@ output_bam = pysam.AlignmentFile('-', 'wb', template=bamfile)
 for cur_read in bamfile:
     total_reads += 1
 # awk '$7 != "*" && $7 != "="' | awk '$NF !~ "SA" && $NF !~ ($7 "," )' | awk '$5 != 0 || $NF ~ "XA"'
-    if cur_read.is_unmapped or cur_read.reference_name == cur_read.next_reference_name or (cur_read.has_tag("XA") and cur_read.get_tag("XA").find(cur_read.reference_name+",") != -1) or (not cur_read.has_tag("XA") and cur_read.mapping_quality == 0):
+    if cur_read.is_unmapped or cur_read.reference_name == cur_read.next_reference_name or (cur_read.has_tag("XA") and cur_read.get_tag("XA").find(cur_read.next_reference_name+",") != -1) or (not cur_read.has_tag("XA") and cur_read.mapping_quality == 0):
         basic_filtered += 1
         continue
     cur_name = cur_read.query_name

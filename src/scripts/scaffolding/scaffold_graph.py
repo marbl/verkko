@@ -58,8 +58,13 @@ class ScaffoldGraph:
     #if one of orientation is relatively close in graph(<min(1/4*path_length, CLOSE_IN_GRAPH) and other is really far (>3/4 of the length), we move all connections from far one to close
     CLOSE_IN_GRAPH = 500000
     #If paths are closer than CLOSE_IN_GRAPH, we significantly increase scores. Should be reconsidered when lots of gaps present
+
     #can be asymetric because of the 1/4 path_length rule, possibly should reconsider it
-    CONNECTIVITY_MULTIPLICATIVE_BONUS = 2
+   #TODO: reconsidered to be smaller than min of two paths, check whether anything go wrong
+
+    #efficiently was 4 in lots of cases because applied twice
+    #TODO recheck
+    CONNECTIVITY_MULTIPLICATIVE_BONUS = 4
 
 
     #default values for MatchGraph construction
@@ -86,7 +91,7 @@ class ScaffoldGraph:
     
     #Consequtive paths scores are increased by this factor. 
     #TODO Possibly should be some high absolute constant too?
-    REFERENCE_MULTIPLICATIVE_BONUS = 4
+    REFERENCE_MULTIPLICATIVE_BONUS = 5
     #Just too long/far
     TOO_FAR = 1000000000
 
@@ -115,7 +120,7 @@ class ScaffoldGraph:
         #presaved_pathscores = self.loadPresavedScores("precomputed.pathscores")
 
         #Used for scaffolding starts and debug, 
-        self.to_scaff = self.get_paths_to_scaff(ScaffoldGraph.MIN_PATH_TO_SCAFFOLD)
+        telomeric_ends = self.getTelomericEnds()
         self.hic_alignment_file = hic_alignment_file
 
         self.match_graph = match_graph.MatchGraph(matches_file, G, -239239239, ScaffoldGraph.MATCHGRAPH_LONG_NODE, ScaffoldGraph.MATCHGRAPH_MIN_ALIGNMENT, logger)
@@ -139,13 +144,10 @@ class ScaffoldGraph:
         for id in rukki_paths.getPathIds():
             for dir in ('-', '+'):
                 or_id = id + dir
-                #TODO: what about shorter without  telomere
-                tels_ends = [True, True]
-                if id in self.to_scaff.keys():
-                    if dir == '+':
-                        tels_ends = self.to_scaff[id]
-                    else:
-                        tels_ends = [self.to_scaff[id][1], self.to_scaff[id][0]]
+                if dir == '+':
+                    tels_ends = telomeric_ends[id]
+                else:
+                    tels_ends = [telomeric_ends[id][1], telomeric_ends[id][0]]
                 self.scaffold_graph.add_node(or_id, telomere = tels_ends)    
         #possilby unefficient but whelp
         scores = {}
@@ -179,8 +181,9 @@ class ScaffoldGraph:
                         or_from_path_id = from_path_id + from_dir
                         or_to_path_id = to_path_id + to_dir
                         self.scaffold_graph.add_edge(or_from_path_id, or_to_path_id, weight = scores[from_path_id][to_path_id][from_dir + to_dir], unique_weight = unique_scores[from_path_id][to_path_id][from_dir + to_dir])
-                if from_path_id in self.to_scaff and to_path_id in self.to_scaff:
-                    self.logger.debug (f"Counted scores {from_path_id} {to_path_id} {scores[from_path_id][to_path_id]}")
+                if self.rukki_paths.getLength(from_path_id) >= ScaffoldGraph.MIN_PATH_TO_SCAFFOLD  and self.rukki_paths.getLength(from_path_id) >= ScaffoldGraph.MIN_PATH_TO_SCAFFOLD:
+                    self.logger.debug (f"Final not-unique scores {from_path_id} {to_path_id} {scores[from_path_id][to_path_id]}")
+                    self.logger.debug (f"Final unique scores {from_path_id} {to_path_id} {unique_scores[from_path_id][to_path_id]}")
 
 #TODO: move all rc_<smth> somewhere, not right place 
 
@@ -223,21 +226,6 @@ class ScaffoldGraph:
                     self.logger.info(f"Found haploid path {nor_path_id} with homology {total_hom} and len {path_len} ")
         return haploids
 
-        
-    def getClosestTelomere(self, path, direction):
-        #From telomere to rc(path_end)
-        if direction == '+':
-            path = gf.rc_path(path)
-        closest = 1000000000
-
-        add_dist = 0
-        #Or use all nodes?
-        shortened_path = [path[0]]
-
-        for tel_node in self.tel_nodes:
-            closest = min(closest, self.nodeToPathDist(tel_node, shortened_path, False) + add_dist)
-        return closest/2
-    
     #Dist from node end to path. Allowed to go not in the first path node, but then additional length in path is added
     #Optionally allowing to use homologous nodes (to improve in gaps)
     def nodeToPathDist(self, node, path, check_homologous):
@@ -421,7 +409,9 @@ class ScaffoldGraph:
         middle_paths = []
         #to avoid outputing same path twice
         nor_used_path_ids = set()
-        for from_path_id in self.to_scaff:
+        for from_path_id in self.rukki_paths.getPathIds():
+            if self.rukki_paths.getLength(from_path_id) < ScaffoldGraph.MIN_PATH_TO_SCAFFOLD:
+                continue
             for from_dir in ('-', '+'):
                 or_from_path_id = from_path_id + from_dir
                 if not self.scaffold_graph.nodes[or_from_path_id]['telomere'][1]:
@@ -761,6 +751,7 @@ class ScaffoldGraph:
             for i in range (0, 2):
                 #Do we need length check here? Should it be same as for telomeric one
                 #TODO: WIP
+                
                 if self.rukki_paths.getLength(path_ids[i]) <= self.TOO_FAR:                  
                     for fixed_orientation in ('-', '+'):
                         shortest_paths = {'-':1000000000, '+':1000000000}
@@ -773,7 +764,11 @@ class ScaffoldGraph:
                             if orient == '-':
                                 to_check[i] = gf.rc_path(paths[i])
                             shortest_paths[orient] = self.pathDist(to_check[0], to_check[1], True)
-                            self.logger.debug(f"Checking dists {to_check} index {i} dist {shortest_paths[orient]} cutoffs {min_cutoff} {max_cutoff}")
+                            if (i == 0):
+                                orient_pair = orient + fixed_orientation
+                            else:
+                                orient_pair = fixed_orientation + orient
+                            self.logger.debug(f"Checking dists {path_ids} orientations: {orient_pair} index {i} dist {shortest_paths[orient]} cutoffs {min_cutoff} {max_cutoff}")
 
                         if shortest_paths['-'] < min_cutoff and shortest_paths['+'] > max_cutoff:
                             correct_or = "-"    
@@ -799,10 +794,23 @@ class ScaffoldGraph:
                             else:
                                 if scores[incorrect_pair] >= ScaffoldGraph.MIN_LINKS * self.INT_NORMALIZATION and scores[incorrect_pair]  > scores[correct_pair]:
                                     self.logger.debug(f"Dangerous connectivity  tuning pair too long to move {path_ids}, i {i} scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}")                    
-                            scores[correct_pair] *= self.CONNECTIVITY_MULTIPLICATIVE_BONUS
+                            #TODO: this may happen twice or once!!!
+                            #scores[correct_pair] *= self.CONNECTIVITY_MULTIPLICATIVE_BONUS
                             scores[incorrect_pair] = 0 
-                            self.logger.debug (f"Connectivity tuned pair {path_ids}, scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}") 
-
+                            #self.logger.debug (f"Connectivity tuned pair {path_ids}, scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}") 
+            #Code duplication:(
+            for first_or in ('-', '+'):
+                for second_or in ('-', '+'):
+                    str = first_or + second_or
+                    to_check = paths.copy()
+                    if first_or == "-":
+                        to_check[0] = gf.rc_path(paths[0])
+                    if second_or == "-":
+                        to_check[1] = gf.rc_path(paths[1])
+                    dist_paths = self.pathDist(to_check[0], to_check[1], True)     
+                    if dist_paths < self.CLOSE_IN_GRAPH and dist_paths < self.rukki_paths.getLength(path_ids[0]) / 4 and dist_paths < self.rukki_paths.getLength(path_ids[1]) / 4:
+                        scores[str] *= self.CONNECTIVITY_MULTIPLICATIVE_BONUS
+                        self.logger.debug(f"Connectivity bonus applied pair {path_ids} orientations {str}, scores {scores}")
 
         return scores
 
@@ -834,14 +842,7 @@ class ScaffoldGraph:
         if pair in connections:
             for conn in connections[pair]:        
                 cons.append(conn)
-        '''
-        if rc_pair in connections:
-            for coords, w in connections[rc_pair].items():
-                cons.append((coords[1], coords[0], w))
-        if pair in connections:
-            for coords, w in connections[pair].items():
-                cons.append((coords[0], coords[1], w))
-        '''
+
         for conn in cons:        
             in_homo = False
             for i in range (0, len(intervals[0])):
@@ -855,7 +856,7 @@ class ScaffoldGraph:
                         in_homo = True
                         break
             if in_homo:
-                filtered+= 1
+                filtered += 1
                 continue
             else:
                 not_filtered += 1
@@ -994,7 +995,7 @@ class ScaffoldGraph:
         return scores
 
     #returns dict, {id:[present_start_relo, present_end_telo]}
-    def get_paths_to_scaff(self, long_enough):
+    def getTelomericEnds(self):
         res = {}
         for id in self.rukki_paths.paths:
             total_l = self.rukki_paths.path_lengths[id]
@@ -1005,10 +1006,5 @@ class ScaffoldGraph:
                     tel_start = True
                 if self.upd_G.has_edge(self.rukki_paths.paths[id][-1], telomere):
                     tel_end = True
-            if tel_start and tel_end:
-                continue
-            #all long enough AND containing telomere
-            if total_l > long_enough:
-                res[id] = [tel_start, tel_end]
-                #print (f"will use path {paths.paths[id]} {tel_start} {tel_end}")
+            res[id] = [tel_start, tel_end]                
         return res

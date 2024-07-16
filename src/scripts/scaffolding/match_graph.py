@@ -10,6 +10,7 @@ class HomologyInfo:
     JUMP_JOINING_FRACTION = 0.5
     #DO not want huge jumps anyway
     JUMP_JOINING_ABSOLUTE = 5000000
+
     def __init__(self, node1, node2, len1, len2, logger):
         self.nodes = [node1, node2]
         self.len = [len1, len2]
@@ -100,7 +101,7 @@ class HomologyInfo:
             while prev_int[start_i] != -1:
                 start_i = prev_int[start_i]
             self.approximate_positions[ind] = [covered_intervals[start_i][0], covered_intervals[max_i][1]]
-
+    
     def getCoveredLen(self):
 #in weird case matches can be larger than seq, avoiding
         return min(self.covered[0], self.covered[1], self.len[0], self.len[1])
@@ -160,11 +161,24 @@ class HomologyStorage:
     #extracting length, sometimes we do not haev this info in other places
     def getLength(self, node):
         return self.lens[node]
-        
+
+    def getApproximatePositionLength(self, node1, node2, ind):
+        if not self.isValid(node1, node2):
+            return 0        
+        return self.homologies[node1][node2].approximate_positions[ind][1] - self.homologies[node1][node2].approximate_positions[ind][0]
+
+
 # homology_weight - large negative something, min_big_homology - minimal length of homology to be taken in account. 
 # Some shorter ones can still sometimes be used if they are in regular bulge_like structure
 # G can be both directed and undirected graph
 class MatchGraph:
+
+    #Best match > CLEAR_BEST*1.5 then clear homology
+    CLEAR_BEST = 1.5
+
+    #homologous intervals should cover at least 1/3 of at least one of the nodes in pair
+    REQUIRED_COVERAGE_FRACTION = 1/3
+
     def __init__(self, mashmap_sim, G, homology_weight, min_big_homology, min_alignment, logger):
         self.matchGraph = nx.Graph()
         self.hom_storage = HomologyStorage(logger, mashmap_sim, min_alignment)
@@ -210,14 +224,18 @@ class MatchGraph:
             #homology storage may be asymetric, mashmap do not guararntee anything        
             #possibly should forcely symmetrize... 
             if self.hom_storage.isValid(ec[0], ec[1]) and (not G.has_edge(ec[0], ec[1])):
+                long_enough = True
                 for i in range (0, 2):
                     best_homology = True
                     best_len = self.matchGraph.edges[ec]['homology_len']
                     for adj_node in self.matchGraph.neighbors(ec[i]):
-                        if adj_node != ec[1 - i] and  best_len * 0.8 < self.matchGraph.edges[ec[i], adj_node]['homology_len']:
+                        if adj_node != ec[1 - i] and  best_len < self.matchGraph.edges[ec[i], adj_node]['homology_len'] * MatchGraph.CLEAR_BEST:
                             best_homology = False
                     clear_best_match = clear_best_match or best_homology
-                if clear_best_match:
+                    #we have total length of homologous sequences without joining and approximate positions with joining, check if any is long enough
+                    if max(best_len, self.hom_storage.getApproximatePositionLength(ec[0], ec[1], i)) < self.hom_storage.getLength(ec[i]) * MatchGraph.REQUIRED_COVERAGE_FRACTION:
+                        long_enough = False
+                if clear_best_match and long_enough:
                     self.matchGraph.add_edge(ec[0], ec[1], weight = homology_weight, homology_len = best_len, intervals = self.hom_storage.homologies[ec[0]][ec[1]].filtered_intervals, 
                                         orientation = self.hom_storage.homologies[ec[0]][ec[1]].orientation)
                 else:
