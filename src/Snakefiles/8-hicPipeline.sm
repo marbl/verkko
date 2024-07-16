@@ -114,7 +114,7 @@ chmod +x ./run_mashmap.sh
 ./run_mashmap.sh > ../{log.err} 2>&1
         '''
 
-
+#TODO constants to yml
 rule prepareScaffolding:
     input:
         unitigs_hpc = '8-hicPipeline/unitigs.hpc.fasta',
@@ -129,6 +129,7 @@ rule prepareScaffolding:
         err    = '8-hicPipeline/prepare_ref_mashmap.err'
     params:
         MASHMAP   = config.get('MASHMAP', "{VERKKO}/bin/mashmap"),
+        MASHMAP_DIV = 100 - 100*float(config['haplo_divergence']),
         ref = config['ref'] if config['with_ref'] == "True" else '../8-hicPipeline/paths.hpc.fasta'
     threads:
         int(config['fhc_n_cpus'])
@@ -145,10 +146,10 @@ cat > ./prepare_ref_mashmap.sh <<EOF
 #!/bin/sh
 set -e
 echo "---Preparing rukki paths fasta"
-{PYTHON} {VERKKO}/scripts/scaffolding/prepare_scaffolding.py ../{input.rukki_tsv} ../{input.unitigs_hpc} ../{input.graph_hpc} ../{output.paths_hpc} ../{output.ids_list} 20000 5000000 ../{input.uncompressed_unitigs}
+{PYTHON} {VERKKO}/scripts/prepare_scaffolding.py ../{input.rukki_tsv} ../{input.unitigs_hpc} ../{input.graph_hpc} ../{output.paths_hpc} ../{output.ids_list} 20000 5000000 ../{input.uncompressed_unitigs}
 
 echo "---Running MashMap"
-{params.MASHMAP} -r {params.ref}  -q ../8-hicPipeline/paths.hpc.fasta -t {threads}  -f none --pi 95.0 -s 10000 -o ../{output.path_mashmap}
+{params.MASHMAP} -r {params.ref}  -q ../8-hicPipeline/paths.hpc.fasta -t {threads}  -f none --pi {params.MASHMAP_DIV} -s 10000 -o >(awk '\$11 >= 50000' > ../{output.path_mashmap})
 EOF
 
 chmod +x ./prepare_ref_mashmap.sh
@@ -355,7 +356,7 @@ cat > ./scaffold_prefilter{wildcards.nnnn}.sh <<EOF
 #!/usr/bin/env bash
 set -e -o pipefail
 
-{PYTHON} {VERKKO}/scripts/scaffolding/scaff_prefilter.py {input.bwa_mapping} {output.bwa_filtered_mapping} {input.ids_list}
+{PYTHON} {VERKKO}/scripts/scaffolding/scaff_prefilter.py ../{input.bwa_mapping} ../{output.bwa_filtered_mapping} ../{input.ids_list}
 
 EOF
 

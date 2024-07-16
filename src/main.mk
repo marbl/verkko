@@ -294,7 +294,7 @@ FILES        += \
                 scripts/scaffolding/match_graph.py            -> ../lib/verkko/scripts/scaffolding/match_graph.py \
                 scripts/scaffolding/path_storage.py           -> ../lib/verkko/scripts/scaffolding/path_storage.py \
                 scripts/scaffolding/scaff_prefilter.py        -> ../lib/verkko/scripts/scaffolding/scaff_prefilter.py \
-                scripts/scaffolding/prepare_scaffolding.py    -> ../lib/verkko/scripts/scaffolding/prepare_scaffolding.py \
+                scripts/prepare_scaffolding.py                -> ../lib/verkko/scripts/prepare_scaffolding.py \
                 scripts/scaffolding/scaffold_graph.py         -> ../lib/verkko/scripts/scaffolding/scaffold_graph.py \
                 \
                 Snakefile                                     -> ../lib/verkko/Snakefile \
