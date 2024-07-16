@@ -648,7 +648,7 @@ class ScaffoldGraph:
                             valid = False
                         i += 1
                     weight = self.INT_NORMALIZATION  // (len(names[0]) * len(names[1]))  
-
+                    '''
                     filtered_names = [[], []]
                     filtered_coords = [[], []]
                     for i in range(0, 2):
@@ -657,8 +657,9 @@ class ScaffoldGraph:
                             #utig4-XXXX; ints are much faster than strings                            
                             if int(names[i][j][6:]) in interesting_names:
                                 filtered_names[i].append(names[i][j])
-                                filtered_coords[i].append(coords[i][j])
-
+                                filtered_coords[i].append(coords[i][j])'''
+                    filtered_names = names
+                    filtered_coords = coords
                     lname0 = len(filtered_names[0])
                     lname1 = len(filtered_names[1])
                     #self.logger.debug (f" {valid} {lname0} {lname1}")
@@ -909,10 +910,6 @@ class ScaffoldGraph:
                 if nor_node in lens and lens[nor_node] > ScaffoldGraph.SHORT_INGORED_NODE and or_node in self.multiplicities and self.multiplicities[or_node] == 1:
                     after -= lens[nor_node]
                     if before < ScaffoldGraph.NEAR_PATH_END or after < ScaffoldGraph.NEAR_PATH_END:
-                        #utig4-, optimizing for speed
-#                        print (f"Interesting node {nor_node}")
-#                        print (f"Interesting node {int(nor_node[5:])}")
-#                        exit()
                         interesting.add(int(nor_node[6:]))
                     before += lens[nor_node]
         return frozenset(interesting)

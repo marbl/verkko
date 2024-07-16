@@ -75,7 +75,7 @@ for cur_read in bamfile:
                 #print ( len(names[ind]) )
                 for i in range (0, len(names[ind]) ):
                     node_f_len = lens[names[ind][i]]
-                    if node_f_len > 20000: 
+                    if node_f_len > 10000: 
                         all_short[ind] = False
                     if coords[ind][i] < 10000000 and node_f_len - coords[ind][i] < 10000000:
                         all_middle[ind] = False

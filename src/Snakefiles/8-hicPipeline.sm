@@ -114,49 +114,17 @@ chmod +x ./run_mashmap.sh
 ./run_mashmap.sh > ../{log.err} 2>&1
         '''
 
-#TODO update chm13 paths
-rule runRDNAMashMap:
-    input:
-        unitigs = '8-hicPipeline/unitigs.fasta'
-    output:
-        unitigs_rdnamatches = '8-hicPipeline/rdna_mashmap.out'
-    log:
-        err    = '8-hicPipeline/run_rdnamashmap.err'
-    params:
-        MASHMAP   = config.get('MASHMAP', "{VERKKO}/bin/mashmap"),
-        MASHMAP_DIV = 100 - 100*float(config['haplo_divergence']),
-        RDNA_REF    = config['rdna_scaff_ref']
-    threads:
-        int(config['fhc_n_cpus'])
 
-    resources:
-        job_id = 1,
-        n_cpus = int(config['fhc_n_cpus']),
-        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
-        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
-    shell:
-        '''
-cd 8-hicPipeline
-
-cat > ./run_rdnamashmap.sh <<EOF
-#!/bin/sh
-set -e
-echo "---Running MashMap"
-{params.MASHMAP} -r {params.RDNA_REF}  -q ../{input.unitigs} -t {threads} --pi 95.0 -s 5000 -o ../{output.unitigs_rdnamatches}
-EOF
-
-chmod +x ./run_rdnamashmap.sh
-
-./run_rdnamashmap.sh > ../{log.err} 2>&1
-        '''
-
-rule prepare_reference_mashmap:
+rule prepareScaffolding:
     input:
         unitigs_hpc = '8-hicPipeline/unitigs.hpc.fasta',
         graph_hpc = '8-hicPipeline/unitigs.hpc.noseq.gfa',
+        uncompressed_unitigs = '8-hicPipeline/unitigs.fasta',
         rukki_tsv = '8-hicPipeline/prescaf_rukki.paths.tsv'
     output:
-        path_mashmap = '8-hicPipeline/paths2ref.mashmap'
+        path_mashmap = '8-hicPipeline/paths2ref.mashmap',
+        paths_hpc = '8-hicPipeline/paths.hpc.fasta',        
+        ids_list = '8-hicPipeline/scaffolding_nodes.list'
     log:
         err    = '8-hicPipeline/prepare_ref_mashmap.err'
     params:
@@ -177,7 +145,7 @@ cat > ./prepare_ref_mashmap.sh <<EOF
 #!/bin/sh
 set -e
 echo "---Preparing rukki paths fasta"
-{PYTHON} {VERKKO}/scripts/get_paths_fasta.py ../{input.rukki_tsv} ../{input.unitigs_hpc} ../{input.graph_hpc} ../8-hicPipeline/paths.hpc.fasta
+{PYTHON} {VERKKO}/scripts/scaffolding/prepare_scaffolding.py ../{input.rukki_tsv} ../{input.unitigs_hpc} ../{input.graph_hpc} ../{output.paths_hpc} ../{output.ids_list} 20000 5000000 ../{output.uncompressed_unitigs}
 
 echo "---Running MashMap"
 {params.MASHMAP} -r {params.ref}  -q ../8-hicPipeline/paths.hpc.fasta -t {threads}  -f none --pi 95.0 -s 10000 -o ../{output.path_mashmap}
@@ -360,7 +328,79 @@ chmod +x ./align_bwa{wildcards.nnnn}.sh
 ./align_bwa{wildcards.nnnn}.sh > ../{log.err} 2>&1
         '''
 
-#TODO: bwa and mashmap and samtools bins
+#TODO: remember porec 
+rule scaffoldPrefilterBAM:
+    input:
+        bwa_mapping = '8-hicPipeline/mapped{nnnn}.bam',
+        ids_list = '8-hicPipeline/scaffolding_nodes.list'
+    output:
+        bwa_filtered_mapping = '8-hicPipeline/mapped{nnnn}_nodefiltered.bam'
+    log:
+        err    = '8-hicPipeline/scaffold_prefilter{nnnn}.err'
+    params:
+        SAMTOOLS  = config.get('SAMTOOLS', "{VERKKO}/bin/samtools"),
+        withporec = config['withPOREC']
+    threads:
+        int(config['ahc_n_cpus'])
+    resources:
+        job_id = lambda wildcards, input, attempt: int(wildcards.nnnn),
+        n_cpus = int(config['ahc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'ahc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ahc', 5.0)
+    shell:
+        '''
+cd 8-hicPipeline
+
+cat > ./scaffold_prefilter{wildcards.nnnn}.sh <<EOF
+#!/usr/bin/env bash
+set -e -o pipefail
+
+{PYTHON} {VERKKO}/scripts/scaffolding/scaff_prefilter.py {input.bwa_mapping} {output.bwa_filtered_mapping} {input.ids_list}
+
+EOF
+
+chmod +x ./scaffold_prefilter{wildcards.nnnn}.sh
+
+./scaffold_prefilter{wildcards.nnnn}.sh > ../{log.err} 2>&1
+        '''
+
+rule scaffoldMergeBWA:
+    input:
+        split_finished = rules.splitHIC.output.split_finished,
+        alignments     = lambda wildcards: expand("8-hicPipeline/mapped{nnnn}_nodefiltered.bam", nnnn = splitHICoutputs(wildcards))
+    output:
+        alignments     = '8-hicPipeline/hic_nodefiltered.bam'
+    log:
+        err            = '8-hicPipeline/scaffold_mergeBWA.err'
+    params:
+        SAMTOOLS       = config.get('SAMTOOLS', "{VERKKO}/bin/samtools"),
+        alignments     = lambda wildcards: expand("mapped{nnnn}_nodefiltered.bam", nnnn = splitHICoutputs(wildcards)),
+        keepinter      = config['keep_intermediate']
+    threads:
+        int(config['fhc_n_cpus'])
+    resources:
+        job_id = 1,
+        n_cpus = int(config['fhc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
+    shell:
+        '''
+cd 8-hicPipeline
+
+cat > ./scaffold_mergeBWA.sh <<EOF
+#!/bin/sh
+set -e
+
+{params.SAMTOOLS} merge -n -@ {threads}  ../{output.alignments} {params.alignments}
+
+EOF
+
+chmod +x ./scaffold_mergeBWA.sh
+
+./scaffold_mergeBWA.sh > ../{log.err} 2>&1
+        '''
+
+
 rule mergeBWA:
     input:
         split_finished = rules.splitHIC.output.split_finished,
@@ -533,6 +573,7 @@ chmod +x ./rukki_hic.sh
 ./rukki_hic.sh > ../{log.err} 2>&1
         '''
 
+#TODO: python script params
 rule HiC_rdnascaff:
     input:
         graph = '8-hicPipeline/unitigs.hpc.noseq.gfa',
@@ -541,7 +582,8 @@ rule HiC_rdnascaff:
         gaf_path = '8-hicPipeline/prescaf_rukki.paths.gaf',
         unitigs_telo = '8-hicPipeline/unitigs.telo',
         unitigs_nohpc50 =  '8-hicPipeline/unitigs_nonhpc50.mashmap',
-        path_mashmap = rules.prepare_reference_mashmap.output.path_mashmap,
+        path_mashmap = rules.prepareScaffolding.output.path_mashmap,
+        prefiltered_bam = rules.scaffoldMergeBWA.output.alignments,
         unitigs_rdnamatches = '8-hicPipeline/rdna_mashmap.out'
     output:
         scaff_tsv_path = '8-hicPipeline/scaff_rukki.paths.tsv',
@@ -564,7 +606,7 @@ cd 8-hicPipeline
 cat > ./hic_scaff.sh <<EOF
 #!/bin/sh
 set -e
-{PYTHON} {VERKKO}/scripts/rdna_scaff.py .
+{PYTHON} {VERKKO}/scripts/rdna_scaff.py . 
 
 
 cp ../{output.scaff_tsv_path} ../{output.final_tsv_path}
