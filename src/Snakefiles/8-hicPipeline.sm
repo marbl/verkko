@@ -145,7 +145,7 @@ cat > ./prepare_ref_mashmap.sh <<EOF
 #!/bin/sh
 set -e
 echo "---Preparing rukki paths fasta"
-{PYTHON} {VERKKO}/scripts/scaffolding/prepare_scaffolding.py ../{input.rukki_tsv} ../{input.unitigs_hpc} ../{input.graph_hpc} ../{output.paths_hpc} ../{output.ids_list} 20000 5000000 ../{output.uncompressed_unitigs}
+{PYTHON} {VERKKO}/scripts/scaffolding/prepare_scaffolding.py ../{input.rukki_tsv} ../{input.unitigs_hpc} ../{input.graph_hpc} ../{output.paths_hpc} ../{output.ids_list} 20000 5000000 ../{input.uncompressed_unitigs}
 
 echo "---Running MashMap"
 {params.MASHMAP} -r {params.ref}  -q ../8-hicPipeline/paths.hpc.fasta -t {threads}  -f none --pi 95.0 -s 10000 -o ../{output.path_mashmap}
