@@ -143,13 +143,13 @@ rule prepareScaffolding:
 cd 8-hicPipeline
 
 cat > ./prepare_ref_mashmap.sh <<EOF
-#!/bin/sh
+#!/usr/bin/env bash
 set -e
 echo "---Preparing rukki paths fasta"
 {PYTHON} {VERKKO}/scripts/prepare_scaffolding.py ../{input.rukki_tsv} ../{input.unitigs_hpc} ../{input.graph_hpc} ../{output.paths_hpc} ../{output.ids_list} 20000 5000000 ../{input.uncompressed_unitigs}
 
 echo "---Running MashMap"
-{params.MASHMAP} -r {params.ref}  -q ../8-hicPipeline/paths.hpc.fasta -t {threads}  -f none --pi {params.MASHMAP_DIV} -s 10000 -o >(awk '\$11 >= 50000' > ../{output.path_mashmap}
+{params.MASHMAP} -r {params.ref}  -q ../8-hicPipeline/paths.hpc.fasta -t {threads}  -f none --pi {params.MASHMAP_DIV} -s 10000 -o >(awk '\$11 >= 50000' > ../{output.path_mashmap})
 EOF
 
 chmod +x ./prepare_ref_mashmap.sh
