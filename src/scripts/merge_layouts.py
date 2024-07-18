@@ -70,8 +70,9 @@ def merge_layout_files(file1, flag1, file2, flag2):
 
         merged_layout.append(merged_entry)
 
-    # Add remaining layout data from layout2
-    merged_layout.extend(layout2)
+    # don't add remaining layout data from layout2
+    # if these don't have usable reads (layout1) then they are useless to us
+    #merged_layout.extend(layout2)
 
     return merged_layout
 
