@@ -1196,7 +1196,7 @@ echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#hi-c scaffolding itself"
 echo >> ${outd}/verkko.yml "shc_n_cpus:          '${shc_n_cpus}'"
 echo >> ${outd}/verkko.yml "shc_mem_gb:          '${shc_mem_gb}'"
-echo >> ${outd}/verkko.yml "shc_time_h:          '${shc_time_h}'
+echo >> ${outd}/verkko.yml "shc_time_h:          '${shc_time_h}'"
 
 echo >> ${outd}/verkko.yml "#  This is the end."
 
