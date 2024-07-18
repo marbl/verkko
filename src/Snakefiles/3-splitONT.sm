@@ -65,11 +65,24 @@ mkdir -p split
 {PYTHON} {VERKKO}/scripts/fasta_partition.py \\\\
   partition split/ont {params.bases} {params.reads} {params.length} \\\\
   {input.ont} \\\\
+  > ../{output.split_ids} \\\\
 && \\\\
 touch ../{output.split_finished}
+
+sort -snk1,1 -T . ../{output.split_ids} |uniq -c > ../3-align/splitID.sorted.ids
+count=\`wc -l ../{output.split_ids} |awk '{{print \$1}}'\`
+count_unique=\`cat ../3-align/splitID.sorted.ids |awk '{{print \$2}}' |wc -l\`
+
+if [ \$count -ne \$count_unique ]; then
+   echo "Error, the ONT input has duplicate IDs:"
+   cat ../3-align/splitID.sorted.ids |  awk '{{if (\$1 > 1) print "\t"\$0}}' |head
+   exit -1
+fi
+
+
 EOF
 
 chmod +x ./splitONT.sh
 
-./splitONT.sh > ../{output.split_ids} 2> ../{log.err}
+./splitONT.sh > ../{log.err} 2>&1
         '''
