@@ -338,6 +338,13 @@ def loadHiCGraph(hic_byread_file):
             hicGraph[line[1]][line[2]]['weight'] = w
     return hicGraph
 
+def nor_node(node):
+    return node.strip("+-")
+
+#for clarity different name
+def nor_path_id(path_id):
+    return path_id.strip("+-")
+
 def getComponentColors(G):
     component_colors = {}
     current_color = 0

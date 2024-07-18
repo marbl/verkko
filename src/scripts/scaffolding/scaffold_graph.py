@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from collections import namedtuple
 import sys
 import re
 import shutil
@@ -54,6 +55,10 @@ class ScaffoldGraph:
     #ignore shorter paths, TODO change for iterative runs
     MIN_PATH_TO_SCAFFOLD = 200000
 
+    #Consts connecting two remaining telo-containing paths in component
+    MIN_EXPECTED_T2T = 1000000
+
+    DEFAULT_GAP_SIZE = 100000
     #Distance is defined with respect to homologous paths to allow "gap jumping"
     #if one of orientation is relatively close in graph(<min(1/4*path_length, CLOSE_IN_GRAPH) and other is really far (>3/4 of the length), we move all connections from far one to close
     CLOSE_IN_GRAPH = 500000
@@ -62,9 +67,7 @@ class ScaffoldGraph:
     #can be asymetric because of the 1/4 path_length rule, possibly should reconsider it
    #TODO: reconsidered to be smaller than min of two paths, check whether anything go wrong
 
-    #efficiently was 4 in lots of cases because applied twice
-    #TODO recheck
-    CONNECTIVITY_MULTIPLICATIVE_BONUS = 4
+   
 
 
     #default values for MatchGraph construction
@@ -92,6 +95,10 @@ class ScaffoldGraph:
     #Consequtive paths scores are increased by this factor. 
     #TODO Possibly should be some high absolute constant too?
     REFERENCE_MULTIPLICATIVE_BONUS = 5
+    #efficiently was 4 in lots of cases because applied twice
+    #TODO recheck
+    CONNECTIVITY_MULTIPLICATIVE_BONUS = 3
+
     #Just too long/far
     TOO_FAR = 1000000000
 
@@ -463,53 +470,18 @@ class ScaffoldGraph:
             if not (nor_path_id in nor_used_path_ids):
                 final_paths.addPath(self.rukki_paths.getPathTsv(nor_path_id))
         for scf in res:
-            scf_path = []
-            if len(scf) > 1:
+            scaff_result = self.scaffoldFromOrPathIds(scf, self.rukki_paths)
+            total_jumps += scaff_result[2]
+            if scaff_result[2] > 0:
                 total_scf += 1
-            total_jumps += len(scf) - 1
-            largest_label = "NA"
-            largest_id = scf[0].strip('-+')
-            largest_len = 0
-            cur_path_count = 0
-            for or_path_id in scf:
-                cur_path_count += 1
-                nor_path_id = or_path_id.strip('-+')
-                if self.rukki_paths.getLength(nor_path_id) > largest_len and self.rukki_paths.getLabel(nor_path_id) != "NA":
-                    largest_len = self.rukki_paths.getLength(nor_path_id)
-                    largest_id = nor_path_id
-                    largest_label = self.rukki_paths.getLabel(nor_path_id)
-                if or_path_id[-1] == "+":
-                    scf_path.extend(self.rukki_paths.getPathById(nor_path_id))
-                else:
-                    scf_path.extend(gf.rc_path(self.rukki_paths.getPathById(nor_path_id)))
-                if cur_path_count < len(scf):
-                    scf_path.append("[N1000001N:scaffold]")
-                    
-            #debugging part
-            for or_path_id in scf:
-                nor_path_id = or_path_id.strip('-+')
-                if nor_path_id in self.haploids and len(scf) > 12:
-                    self.logger.info (f"scaffold part {nor_path_id} is haploid")
-            for i in range (0, len(scf) - 1):
-                swap_info = (scf[i].strip('-+'), scf[i+1].strip('-+'), scf[i][-1] + scf[i+1][-1])
-                if (swap_info) in self.dangerous_swaps:
-                    self.logger.warning (f"consecutive pair, {swap_info} did signficant changes on hi-c counts based on {self.dangerous_swaps[swap_info]}")
-            path_str = "\t".join([largest_id, ",".join(scf_path), largest_label])
-            final_paths.addPath(path_str)
-            telo_end = False
-            telo_start = False
-            for tel_node in self.tel_nodes:
-                if self.upd_G.has_edge(scf_path[-1], tel_node):
-                    telo_end = True
-                if self.upd_G.has_edge(tel_node, scf_path[0]):
-                    telo_start = True
-            if telo_end and telo_start:
+            if scaff_result[1]:
                 total_new_t2t += 1
-            if len(scf) > 1:
-                self.logger.info (f"SCAFFOLD {scf} {telo_start} {telo_end} ")    
+            final_paths.addPath(scaff_result[0])
+
+        self.logger.info("Starting last telomere tuning")
         component_tuned_paths = self.completeConnectedComponent(final_paths)
         telomere_cheating = len(final_paths.getPathIds()) - len(component_tuned_paths.getPathIds())
-        self.logger.warning (f"Total normal scaffolds {total_scf} last telomere tuned {telomere_cheating} total jumps {total_jumps} new T2T {total_new_t2t}")
+        self.logger.warning (f"Total normal scaffolds {total_scf} last telomere tuned {telomere_cheating} total jumps {total_jumps + telomere_cheating} new T2T {total_new_t2t + telomere_cheating}")
         self.outputScaffolds(component_tuned_paths)
         return res
     
@@ -517,117 +489,186 @@ class ScaffoldGraph:
     #if only too paths with one telomere missing remains in connected component and all other long nodes are in T2T and some conditions on distance and length then we connect
     def completeConnectedComponent(self, prefinal_paths):
         res = path_storage.PathStorage(self.upd_G)
-        oriented_paths = path_storage.PathStorage(self.upd_G)
-        for path_id in prefinal_paths.getPathIds():
-            for orientation in ('+', '-'):
-                new_id = path_id + orientation
-                if orientation == '+':
-                    new_path = prefinal_paths.getPathById(path_id)
-                else:
-                    new_path = gf.rc_path(prefinal_paths.getPathById(path_id))
-                new_label = prefinal_paths.getLabel(path_id)
-                oriented_paths.addPath('\t'.join([new_id, ",".join(new_path), new_label]))
-
+  
+        #stats for logging
+        added_t2t = 0
+        total_jumps = 0
 
         scaffolded_paths = set()
         components = list(nx.weakly_connected_components(self.upd_G))
         node_comp = {}
         path_comp = {}
         node_path = {}
+  
+        nor_components = list()
+        used_nodes = set()
         for comp_id in range(0, len(components)):
+            current = set()
             for node in components[comp_id]:
+                nor_node = gf.nor_node(node)
+                if nor_node in used_nodes:
+                    continue
+                else:
+                    current.add(nor_node)
+                    used_nodes.add(nor_node)
+            if len(current) > 0:
+                nor_components.append(current)
+  
+        for comp_id in range(0, len(nor_components)):
+            for node in nor_components[comp_id]:
                 node_comp[node] = comp_id
-        for path_id in oriented_paths.getPathIds():
+  
+
+        self.logger.info(f"Checking {len(nor_components)} weakly connected components ")
+        for path_id in prefinal_paths.getPathIds():
             cur_color = 0
-            for node in oriented_paths.getPathById(path_id):
+            for node in prefinal_paths.getPathById(path_id):
                 if node in self.upd_G.nodes:
-                    if cur_color != 0 and node_comp[node] != cur_color:
+                    nor_node = gf.nor_node(node)
+                    if cur_color != 0 and node_comp[nor_node] != cur_color:
                         cur_color = -1
-                    node_path[node] = path_id                      
-                    cur_color = node_comp[node]
+                    #some nodes in multiple paths but who cares
+                    node_path[nor_node] = path_id                      
+                    cur_color = node_comp[nor_node]
             path_comp[path_id] = cur_color
 
-        for comp_id in range(0, len(components)):
+        for comp_id in range(0, len(nor_components)):
             valid = True
             comp_paths_ids = set()
-            for node in components[comp_id]:
+            for node in nor_components[comp_id]:
                 if node in node_path:
                     #if there is a path that jumps from component somewhere else, we do not want to scaffold anything
                     if node_path == -1:
                         valid = False
                     comp_paths_ids.add(node_path[node])
-            if valid:
-                missing_telos = 0
-                to_scaffold = []
-                total_long_paths = 0
-                telos = {}
-                for path_id in comp_paths_ids:
+            if not valid:
+                continue
+
+            missing_telos = 0
+            to_scaffold = []
+            total_long_paths = 0
+            telos = {}
+            t2t_paths = 0
+
+            for path_id in comp_paths_ids:
+                if prefinal_paths.getLength(path_id) > ScaffoldGraph.MIN_EXPECTED_T2T:
                     total_long_paths += 1
-                    end_telo = False
-                    for n in self.upd_G.successors(oriented_paths.getPathById(path_id)[-1]):
-                        if n in self.tel_nodes:
-                            end_telo = True                    
-                    start_telo = False
-                    for n in self.upd_G.predecessors(oriented_paths.getPathById(path_id)[0]):
-                        if n in self.tel_nodes:
-                            start_telo = True
-                    telos[path_id] = (start_telo, end_telo)
-                    #component is not finished yet
-                    if not end_telo and not start_telo and  oriented_paths.getLength(path_id) > ScaffoldGraph.CLOSE_IN_GRAPH:
-                        missing_telos = 1000
-                        continue
-                    elif (not end_telo) or (not start_telo):
-                        to_scaffold.append(path_id)
-                        missing_telos += 1
-                    #only two non-t2t paths of reasonable length in connected component
-                if missing_telos == 2:
-                    dist = self.pathDist(oriented_paths.getPathById(to_scaffold[0]), oriented_paths.getPathById(to_scaffold[1]), True)
-                    #Paths are not far away
-                    self.logger.info (f"t2t connectivity cheat {to_scaffold} dist {dist}")
-                    for i in range(0, 2):
-                        if to_scaffold[i].strip('-+') in scaffolded_paths:
-                            valid = False        
+                end_telo = False
+                for n in self.upd_G.successors(prefinal_paths.getPathById(path_id)[-1]):
+                    if n in self.tel_nodes:
+                        end_telo = True                    
+                start_telo = False
+                for n in self.upd_G.predecessors(prefinal_paths.getPathById(path_id)[0]):
+                    if n in self.tel_nodes:
+                        start_telo = True
+                telos[path_id] = (start_telo, end_telo)
+                #component is not finished yet
+                #path with only one telomere - we are interested
+                if end_telo != start_telo:
+                    to_scaffold.append(path_id)
+                    missing_telos += 1
+                else:
+                    #Short non-telo paths are ignored, short t2t is weird case of telomeric-only node and also should be ignored
+                    if prefinal_paths.getLength(path_id) > ScaffoldGraph.MIN_EXPECTED_T2T:
+                        if start_telo and end_telo:
+                            t2t_paths += 1
+                        #component not finished, stopping
+                        elif (not start_telo) and not (end_telo):
+                            self.logger.debug(f"Found path {path_id} of length {prefinal_paths.getLength(path_id)} without telomeres, do nothing with component ")
+                            missing_telos = 1000
+                            break
+                #only two non-t2t paths of reasonable length in connected component
+            if (total_long_paths > 0):
+                self.logger.debug(f"Component {comp_id} has {missing_telos} missing telos, {t2t_paths} t2t paths, {total_long_paths} long paths")
 
-                    if valid and dist < ScaffoldGraph.CLOSE_IN_GRAPH:
-                        sum_len = oriented_paths.getLength(to_scaffold[0]) + oriented_paths.getLength(to_scaffold[1])                        
-                        similar_len_t2t = 0
-                        distant_len_t2t = 0
-                        for path_id in comp_paths_ids:
-                            cur_len = oriented_paths.getLength(path_id) 
-                            if telos[path_id][0] and telos[path_id][1] and cur_len > ScaffoldGraph.CLOSE_IN_GRAPH:
-                                if cur_len > sum_len * ScaffoldGraph.SIMILAR_LEN_FRAC and cur_len * ScaffoldGraph.SIMILAR_LEN_FRAC < sum_len:
-                                    similar_len_t2t += 1
-                                else:
-                                    distant_len_t2t += 1              
-                        #Either haploid or there is homologous T2T of similar length              
-                        if distant_len_t2t == 0 or similar_len_t2t > 0:
-                            node_sec = []                            
-                            self.logger.info(f"SCAFFOLD t2t connectivity cheat {to_scaffold}!")
-                            for i in range(0, 2):
-                                scaffolded_paths.add(to_scaffold[i].strip('-+'))
-                            hap_id = 0
-                            if to_scaffold[0].find("aplotype") == -1:
-                                hap_id = 1
-                            
-                            new_id = to_scaffold[hap_id].strip('-+') 
-                            new_label = oriented_paths.getLabel(to_scaffold[hap_id])
-                            new_path = []
-                            for i in range(0, 2):
-                                if telos[to_scaffold[i]][i]:
-                                    new_path.extend(oriented_paths.getPathById(to_scaffold[i]))
-                                else:
-                                    new_path.extend(gf.rc_path(oriented_paths.getPathById(to_scaffold[i])))
-                            res.addPath('\t'.join([new_id, ",".join(new_path), new_label]))
-                        else:
-                            self.logger.info(f"t2t connectivity cheat {to_scaffold} failed distant len {distant_len_t2t} similar len {similar_len_t2t}")
+            if missing_telos == 2:
+                paths_for_dists = []
+                or_ids = []
+                for i in range(0, 2):
+                    if telos[to_scaffold[i]][i]:
+                        paths_for_dists.append(prefinal_paths.getPathById(to_scaffold[i]))
+                        or_ids.append(to_scaffold[i] + "-")
+                    else:
+                        paths_for_dists.append(gf.rc_path(prefinal_paths.getPathById(to_scaffold[i])))
+                        or_ids.append(to_scaffold[i] + "-")
 
-            for path_id in prefinal_paths.getPathIds():
-                if not (path_id in scaffolded_paths):
-                    res.addPath(prefinal_paths.getPathTsv(path_id))
+                dist = self.pathDist(paths_for_dists[0], paths_for_dists[1], True)
+                #Paths are not far away
+                self.logger.info (f"Potential t2t connectivity cheat {or_ids} dist {dist}")    
+
+                if dist < ScaffoldGraph.CLOSE_IN_GRAPH:
+                    sum_len = prefinal_paths.getLength(to_scaffold[0]) + prefinal_paths.getLength(to_scaffold[1])                        
+                    similar_len_t2t = 0
+                    distant_len_t2t = 0
+                    for alt_path_id in comp_paths_ids:
+                        cur_len = prefinal_paths.getLength(alt_path_id) 
+                        if telos[alt_path_id][0] and telos[alt_path_id][1] and cur_len > ScaffoldGraph.MIN_EXPECTED_T2T:
+                            if cur_len > sum_len * ScaffoldGraph.SIMILAR_LEN_FRAC and cur_len * ScaffoldGraph.SIMILAR_LEN_FRAC < sum_len:
+                                similar_len_t2t += 1
+                            else:
+                                distant_len_t2t += 1              
+                    #Either haploid or there is homologous T2T of similar length, not too short              
+                    if (distant_len_t2t == 0 or similar_len_t2t > 0) and sum_len > ScaffoldGraph.MIN_EXPECTED_T2T:
+                        node_sec = []                            
+                        self.logger.info(f"t2t connectivity cheat worked {or_ids}!")
+                        new_tsv_tuple = self.scaffoldFromOrPathIds(or_ids, prefinal_paths)
+                        res.addPath(new_tsv_tuple[0])
+                        if new_tsv_tuple[1]:
+                            added_t2t += 1
+                        total_jumps += new_tsv_tuple[2]
+                        for i in range(0, 2):
+                            scaffolded_paths.add(to_scaffold[i].strip('-+'))
+                    else:
+                        self.logger.info(f"t2t connectivity cheat {or_ids} failed, total_len {sum_len} distant len count {distant_len_t2t} similar len {similar_len_t2t}")
+                else:
+                    self.logger.info(f"t2t connectivity cheat {or_ids} failed, too far {dist}")
+
+        for path_id in prefinal_paths.getPathIds():
+            if not (path_id in scaffolded_paths):
+                res.addPath(prefinal_paths.getPathTsv(path_id))
+        self.logger.warning (f"Total last telomere tuned scaffolds (all t2t) {added_t2t}, jumps {total_jumps}")
         return res                            
+    #Returns (new_tsv_line, is_t2t, num_jumps)
 
+    ScaffResult = namedtuple('ScaffResult', ['new_tsv_line', 'is_t2t', 'num_jumps'])
+    
+    def scaffoldFromOrPathIds(self, or_ids, prefinal_paths):
+        scf_path = []
+        largest_label = "NA"
+        largest_id = gf.nor_path_id(or_ids[0])
+        largest_len = 0
+        for i in range (0, len(or_ids)):
+            nor_path_id = gf.nor_path_id(or_ids[i])
+            if i != 0:
+                #something non-default
+                scf_path.append(f"[N{ScaffoldGraph.DEFAULT_GAP_SIZE}N:scaffold]")
+            if or_ids[i][-1] == "+":
+                scf_path.extend(prefinal_paths.getPathById(nor_path_id))
+            else:
+                scf_path.extend(gf.rc_path(prefinal_paths.getPathById(nor_path_id)))
+            #name and haplo of scaffolded path is taken from longest contig in scaffold
+            if prefinal_paths.getLength(nor_path_id) > largest_len:
+                largest_len = prefinal_paths.getLength(nor_path_id)
+                largest_id = nor_path_id
+                largest_label = prefinal_paths.getLabel(nor_path_id)
 
-        
+        #dangerous_nodes can be not correct on non-first iteration, but anyway debug only
+        for i in range (0, len(or_ids) - 1):
+            swap_info = (or_ids[i].strip('-+'), or_ids[i+1].strip('-+'), or_ids[i][-1] + or_ids[i+1][-1])
+            if (swap_info) in self.dangerous_swaps:
+                self.logger.warning (f"consecutive pair, {swap_info} did signficant changes on hi-c counts based on {self.dangerous_swaps[swap_info]}")
+        path_str = "\t".join([largest_id, ",".join(scf_path), largest_label])
+        telo_end = False
+        telo_start = False
+        for tel_node in self.tel_nodes:
+            if self.upd_G.has_edge(scf_path[-1], tel_node):
+                telo_end = True
+            if self.upd_G.has_edge(tel_node, scf_path[0]):
+                telo_start = True
+        if len(or_ids) > 1:
+            self.logger.info (f"Added SCAFFOLD {or_ids} {telo_start} {telo_end} ") 
+        return (path_str, (telo_start and telo_end), len(or_ids) - 1)
+
     def outputScaffolds(self, final_paths):
         output_tsv = self.output_basename + ".tsv"
         output_gaf = self.output_basename + ".gaf"
@@ -769,16 +810,7 @@ class ScaffoldGraph:
                             valid = False
                         i += 1
                     weight = self.INT_NORMALIZATION  // (len(names[0]) * len(names[1]))  
-                    '''
-                    filtered_names = [[], []]
-                    filtered_coords = [[], []]
-                    for i in range(0, 2):
-                        lname = len(names[i])
-                        for j in  range (0, lname):
-                            #utig4-XXXX; ints are much faster than strings                            
-                            if int(names[i][j][6:]) in interesting_names:
-                                filtered_names[i].append(names[i][j])
-                                filtered_coords[i].append(coords[i][j])'''
+
                     filtered_names = names
                     filtered_coords = coords
                     lname0 = len(filtered_names[0])
@@ -1012,7 +1044,8 @@ class ScaffoldGraph:
         #self.logger.debug (f"Shifts {shift_before} {shift_after}")
         #self.logger.debug (f"Ignored intervals {intervals}")
         return scores
-
+    
+    #TODO: remove, not used anymore
     def getInterestingNodes(self, lens):
         interesting = set()
         for path_id in self.rukki_paths.getPathIds():            
@@ -1036,6 +1069,12 @@ class ScaffoldGraph:
         return frozenset(interesting)
     
     #return scores for each of the orientations, ++, -+, +-, --,
+    def isPathPairForDebug(self, path_ids, path_storage):
+        if path_storage.getLength(path_ids[0]) < ScaffoldGraph.MIN_PATH_TO_SCAFFOLD and path_storage.getLength(path_ids[1]) < ScaffoldGraph.MIN_PATH_TO_SCAFFOLD:
+            return False
+        else:
+            return True
+        
     def getPathPairConnections(self, path_ids, connections, lens):
         #from start to occurance of node exclusive, do not care about multiplicity > 1 (possibly should filter)
         length_before = [{}, {}]
@@ -1074,7 +1113,8 @@ class ScaffoldGraph:
                 
                 for key in scores_pair:
                     scores[key] += scores_pair[key] 
-        self.logger.debug (f"Pathscores for {path_ids} {scores}")
+        if self.isPathPairForDebug(path_ids, self.rukki_paths):
+            self.logger.debug (f"Pathscores for {path_ids} {scores}")
         scores = self.fixOrientation(path_ids, scores)
         for orientation in scores:
             if len(orientation) == 2:
