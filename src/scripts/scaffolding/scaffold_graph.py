@@ -579,7 +579,7 @@ class ScaffoldGraph:
                             break
                 #only two non-t2t paths of reasonable length in connected component
             if (total_long_paths > 0):
-                self.logger.debug(f"Component {comp_id} has {missing_telos} missing telos, {t2t_paths} t2t paths, {total_long_paths} long paths")
+                self.logger.debug(f"Component {comp_id} has {missing_telos} non-t2t telos, {t2t_paths} t2t paths, {total_long_paths} long paths")
 
             if missing_telos == 2:
                 paths_for_dists = []
@@ -587,7 +587,7 @@ class ScaffoldGraph:
                 for i in range(0, 2):
                     if telos[to_scaffold[i]][i]:
                         paths_for_dists.append(prefinal_paths.getPathById(to_scaffold[i]))
-                        or_ids.append(to_scaffold[i] + "-")
+                        or_ids.append(to_scaffold[i] + "+")
                     else:
                         paths_for_dists.append(gf.rc_path(prefinal_paths.getPathById(to_scaffold[i])))
                         or_ids.append(to_scaffold[i] + "-")
