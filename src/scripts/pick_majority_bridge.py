@@ -41,9 +41,9 @@ for key in connectors:
 	assert len(connectorlist) >= 1
 	for connection in connectorlist:
 		if connection[1]*2 >= connectorlist[0][1]:
-			print(pathstr(list(connection[0])))
+			print(gf.pathstr(list(connection[0])))
 		else:
-			forbidden.add(pathstr(list(connection[0])))
+			forbidden.add(gf.pathstr(list(connection[0])))
 
 with open(forbidden_paths_out_file, "w") as f:
 	for path in forbidden:

@@ -143,9 +143,8 @@ for node in tip_loops:
 	if "<"+node in max_overlap: nodelen -= max_overlap["<"+node]
 	if nodelen <= 0: nodelen = 1
 
-	sys.stderr.write("Checking node %s with len %s coverage %s which is a tip that was not unrolled\n"%(node, nodelen, coverage[node]))
 	# if a node is short enough (we tolerate a bit longer than the unrolling length and doesn't look like it's high coverage enough to be unrolled then we drop it's loop edge and hope we can reconnect
-	if node in coverage and coverage[node] < 1.1*avg_coverage and nodelen <= max_unroll_length:
+	if node in coverage and coverage[node] < 1.1*avg_coverage and nodelen <= 1.5*max_unroll_length:
 		sys.stderr.write("%s removed edges\n"%(node))
 		del edges[">" + node]
 		del edges["<" + node]

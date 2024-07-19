@@ -188,7 +188,7 @@ def canontip(left, right):
     return (left, right)
 
 def getone(s):
-    assert len(s) == 1
+    assert len(s) >= 1
     for i in s:
         return i
 
