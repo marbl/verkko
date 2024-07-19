@@ -409,7 +409,7 @@ rule mergeBWA:
         alignments     = lambda wildcards: expand("8-hicPipeline/mapped{nnnn}.bam", nnnn = splitHICoutputs(wildcards))
 
     output:
-        alignments     = '8-hicPipeline/hic_to_assembly.sorted_by_read.bam'
+        alignments     = '8-hicPipeline/unique_mappings.bam'
     log:
         err            = '8-hicPipeline/mergeBWA.err'
     params:
@@ -431,7 +431,8 @@ cat > ./mergeBWA.sh <<EOF
 #!/bin/sh
 set -e
 
-{params.SAMTOOLS} merge -n -@ {threads}  ../{output.alignments} {params.alignments}
+{params.SAMTOOLS} merge -n -@ {threads}  - {params.alignments} | samtools view -q 1 -o ../{output.alignments}
+
 
 if [ {params.keepinter} = False ] ; then
   rm -f {params.alignments}
@@ -451,7 +452,7 @@ chmod +x ./mergeBWA.sh
 
 rule transformBWA:
     input:
-        bwa_mapping = '8-hicPipeline/hic_to_assembly.sorted_by_read.bam'
+        bwa_mapping = rules.mergeBWA.output.alignments,
     output:
         byread_mapping = '8-hicPipeline/hic_mapping.byread.output'
     log:
@@ -578,7 +579,6 @@ chmod +x ./rukki_hic.sh
 rule HiC_rdnascaff:
     input:
         graph = '8-hicPipeline/unitigs.hpc.noseq.gfa',
-        bam = rules.mergeBWA.output.alignments,
         tsv_path = '8-hicPipeline/prescaf_rukki.paths.tsv',
         gaf_path = '8-hicPipeline/prescaf_rukki.paths.gaf',
         unitigs_telo = '8-hicPipeline/unitigs.telo',
@@ -613,7 +613,7 @@ set -e
 cp ../{output.scaff_tsv_path} ../{output.final_tsv_path}
 cp ../{output.scaff_gaf_path} ../{output.final_gaf_path}
 
-cp ../{input.tsv_path} ../{rules.runRukkiHIC.output.final_paths_tsv}
+cp ../{output.final_gaf_path} ../{rules.runRukkiHIC.output.final_paths_tsv}
 EOF
 
 chmod +x ./hic_scaff.sh
