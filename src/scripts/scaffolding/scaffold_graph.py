@@ -36,7 +36,8 @@ class ScaffoldGraph:
 
 
     #TODO possibly change the definition - whether we do not have enough similarity at all, or do not have one2one similarity 
-    LONG_HAPLOID_CUTOFF = 5000000
+    #Want this to be longer than longest distal bit, heterogametic sex chrs only
+    LONG_HAPLOID_CUTOFF = 6000000
     #should not be actuallly used, since they'll be reordered with MAX_REORDERING_LENGTH check
     #not in use except of assertion
     SHORT_TEL_CUTOFF = 5000000
@@ -113,17 +114,33 @@ class ScaffoldGraph:
 
     def __init__(self, rukki_paths, telomere_locations_file, hic_alignment_file, matches_file, G, uncompressed_fasta, path_mashmap, logger):
         self.logger = logger_wrap.UpdatedAdapter(logger, self.__class__.__name__)
-        self.rukki_paths = rukki_paths
+        self.rukki_paths = rukki_paths        
         self.uncompressed_lens = gf.get_lengths(uncompressed_fasta)
         self.multiplicities = rukki_paths.getEdgeMultiplicities()
         interesting_nodes = self.getInterestingNodes(self.uncompressed_lens)
         self.logger.info(f"Total nodes {len(G.nodes)} interesting nodes {len(interesting_nodes)}")
-        all_connections, unique_connections = self.get_connections_bam(hic_alignment_file, interesting_nodes, True)
-
+        
         #upd_G - graph with telomeric nodes
         self.tel_nodes, self.upd_G = gf.get_telomeric_nodes(telomere_locations_file, G)
         self.logger.debug("Telomeric nodes")
         self.logger.debug(self.tel_nodes)
+
+        self.match_graph = match_graph.MatchGraph(matches_file, G, -239239239, ScaffoldGraph.MATCHGRAPH_LONG_NODE, ScaffoldGraph.MATCHGRAPH_MIN_ALIGNMENT, logger)
+
+        #block for reassignment testing
+        '''
+        self.compressed_lens = {}
+        for node in self.upd_G.nodes:
+            self.compressed_lens[node] = self.upd_G.nodes[node]['length']      
+            self.compressed_lens[node.strip("-+")] = self.upd_G.nodes[node]['length'] 
+        self.dists = dict(nx.all_pairs_dijkstra_path_length(self.upd_G, weight=lambda u, v, d: self.upd_G.edges[u, v]['mid_length']))
+        self.logger.info (hic_alignment_file)
+        self.fixHaploidNames(rukki_paths)
+        exit()
+        '''
+        all_connections, unique_connections = self.get_connections_bam(hic_alignment_file, interesting_nodes, True)
+
+        
         self.output_basename = "scaff_rukki.paths"
 
 
@@ -133,7 +150,6 @@ class ScaffoldGraph:
         telomeric_ends = self.getTelomericEnds()
         self.hic_alignment_file = hic_alignment_file
 
-        self.match_graph = match_graph.MatchGraph(matches_file, G, -239239239, ScaffoldGraph.MATCHGRAPH_LONG_NODE, ScaffoldGraph.MATCHGRAPH_MIN_ALIGNMENT, logger)
         
         #debug purposes
         self.dangerous_swaps = {}
@@ -164,7 +180,7 @@ class ScaffoldGraph:
         unique_scores = {}
         self.dists = dict(nx.all_pairs_dijkstra_path_length(self.upd_G, weight=lambda u, v, d: self.upd_G.edges[u, v]['mid_length']))
         self.logger.info("Pairwise distances in assembly graph calculated")
-        self.haploids = self.getHaploidPaths()
+        self.haploids = self.getHaploidPaths(self.rukki_paths)
         #bam should be prefiltered
         #all_connections = self.get_connections_bam("../", True)
 
@@ -199,22 +215,22 @@ class ScaffoldGraph:
 
     
     
-    def getHaploidPaths(self):
+    def getHaploidPaths(self, paths):
         haploids = set()
         nodes_to_path_ids = {}        
-        for nor_path_id in self.rukki_paths.getPathIds():
-            for or_node in self.rukki_paths.getPathById(nor_path_id):
+        for nor_path_id in paths.getPathIds():
+            for or_node in paths.getPathById(nor_path_id):
                 nor_node = or_node.strip("-+")
                 if not (nor_node in nodes_to_path_ids):
                     nodes_to_path_ids[nor_node] = []
                 nodes_to_path_ids[nor_node].append(nor_path_id)
         #possibly we'll need that graph but not now
         #homGraph = nx.Graph()
-        for nor_path_id in self.rukki_paths.getPathIds():
+        for nor_path_id in paths.getPathIds():
             #let's leave for the graph.
             homs = {}
             total_hom = 0
-            for or_node in self.rukki_paths.getPathById(nor_path_id):
+            for or_node in paths.getPathById(nor_path_id):
                 nor_node = or_node.strip("-+")
                 #TODO function wrapper,  
                 for next in self.match_graph.getHomologousNodes(nor_node, True):
@@ -226,12 +242,11 @@ class ScaffoldGraph:
                         homs[next_id] = 0
                     homs[next_id] += self.match_graph.getEdgeAttribute(nor_node, next, 'homology_len')
                     total_hom += self.match_graph.getEdgeAttribute(nor_node, next, 'homology_len')
-            path_len = self.rukki_paths.getLength(nor_path_id)
+            path_len = paths.getLength(nor_path_id)
             #TODO: should exclude homozygous nodes here
             if total_hom * 2 < path_len:
                 haploids.add(nor_path_id)
-                #DEBUG ONLY
-                
+                #DEBUG ONLY                
                 if path_len > 2000000:
                     self.logger.info(f"Found haploid path {nor_path_id} with homology {total_hom} and len {path_len} ")
         return haploids
@@ -239,7 +254,7 @@ class ScaffoldGraph:
     #Dist from node end to path. Allowed to go not in the first path node, but then additional length in path is added
     #Optionally allowing to use homologous nodes (to improve in gaps)
     def nodeToPathDist(self, node, path, check_homologous):
-        closest = 1000000000
+        closest = ScaffoldGraph.TOO_FAR * 2
         add_dist = 0
         for path_node in path:
             #self.logger.debug (f"Checking nodepair dist from {node} to {path_node}")
@@ -261,8 +276,8 @@ class ScaffoldGraph:
         return closest/2
     #Optionally allowing to use homologous nodes (to improve in gaps)
 
-    def pathDist(self, path_from, path_to, check_homologous):
-        closest = 1000000000
+    def pathDist(self, path_from:list[str], path_to:list[str], check_homologous:bool):
+        closest = ScaffoldGraph.TOO_FAR
         add_dist = 0
         for node in reversed(path_from):
             if node in self.upd_G.nodes:
@@ -273,6 +288,28 @@ class ScaffoldGraph:
                         closest = min(closest, (self.nodeToPathDist(hom_node, path_to, check_homologous) + add_dist))
                 add_dist += self.compressed_lens[node.strip("-+")]
         return closest
+
+    def orPathIdDist(self, or_path_id_from:str, or_path_id_to:str, paths:path_storage.PathStorage, check_homologous:bool):
+        ids = [or_path_id_from, or_path_id_to]
+        to_dists = []
+        for k in range (0, 2):
+            if ids[k][-1] == "-":
+                to_dists.append(gf.rc_path(paths.getPathById(ids[k][:-1])))
+            else:
+                to_dists.append(paths.getPathById(ids[k][:-1]))
+        return self.pathDist(to_dists[0], to_dists[1], check_homologous)
+        #return self.pathDist(paths.getPathById(or_path_id_from), paths.getPathById(or_path_id_to), check_homologous)
+
+    def norPathIdDist(self, nor_path_id_from:str, nor_path_id_to:str, paths:path_storage.PathStorage, check_homologous:bool):
+        ids = [nor_path_id_from, nor_path_id_to]        
+        res = ScaffoldGraph.TOO_FAR
+        for orients in ('--', '++', '-+', '+-'):
+            to_dists = []
+            for k in range (0, 2):                
+                to_dists.append(ids[k] + orients[k])
+            res = min(res, self.orPathIdDist(to_dists[0], to_dists[1], paths, check_homologous))
+        return res
+
 
     def getPathPositions(self, path_mashmap):
         hom_storage = match_graph.HomologyStorage(self.logger, path_mashmap, ScaffoldGraph.MIN_HOMOLOGY_REF)
@@ -482,6 +519,7 @@ class ScaffoldGraph:
         component_tuned_paths = self.completeConnectedComponent(final_paths)
         telomere_cheating = len(final_paths.getPathIds()) - len(component_tuned_paths.getPathIds())
         self.logger.warning (f"Total normal scaffolds {total_scf} last telomere tuned {telomere_cheating} total jumps {total_jumps + telomere_cheating} new T2T {total_new_t2t + telomere_cheating}")
+        self.fixHaploidNames(component_tuned_paths)        
         self.outputScaffolds(component_tuned_paths)
         return res
     
@@ -630,7 +668,6 @@ class ScaffoldGraph:
         return res                            
     #Returns (new_tsv_line, is_t2t, num_jumps)
 
-    ScaffResult = namedtuple('ScaffResult', ['new_tsv_line', 'is_t2t', 'num_jumps'])
     
     def scaffoldFromOrPathIds(self, or_ids, prefinal_paths):
         scf_path = []
@@ -668,6 +705,76 @@ class ScaffoldGraph:
         if len(or_ids) > 1:
             self.logger.info (f"Added SCAFFOLD {or_ids} {telo_start} {telo_end} ") 
         return (path_str, (telo_start and telo_end), len(or_ids) - 1)
+
+#large haploid paths should be assigned based on connectivity. Complete human chrX will always be in hap1 
+#TODO revisit after rukki's update!
+    def fixHaploidNames(self, paths: path_storage.PathStorage):
+        large_haploid_ids = []
+        haploids = self.getHaploidPaths(paths)
+        for path_id in haploids:
+            if paths.getLength(path_id) > ScaffoldGraph.LONG_HAPLOID_CUTOFF:
+                close_diploid_path = False
+                for alt_path in paths.getPathIds():
+                    if not (alt_path in haploids) and paths.getLength(alt_path) > ScaffoldGraph.LONG_HAPLOID_CUTOFF:
+                        if self.norPathIdDist(alt_path, path_id, paths, False) < ScaffoldGraph.TOO_FAR:
+                            close_diploid_path = True
+                            break
+                if not (close_diploid_path):
+                    large_haploid_ids.append(path_id)
+                else:
+                    self.logger.warning(f"large haploid and diploid paths connected, {path_id} and {alt_path}, lens {paths.getLength(path_id)} {paths.getLength(alt_path)}, no relabeing")
+        large_haploid_ids.sort(key=lambda x: paths.getLength(x), reverse=True)
+
+        for path_id in paths.getPathIds():            
+            if path_id.split("_")[0] == "mat":
+                self.logger.info("Trio labeling detected, haploid haplotype reassignment cancelled")
+                return
+            
+        names_prefix = {}
+        names_prefix["HAPLOTYPE1"] = "haplotype1_from_"
+        names_prefix["HAPLOTYPE2"] = "haplotype2_from_"
+
+
+        large_haploid_info = []
+        reassigned = 0
+        reassigning_hap_id = 1
+        not_connected_hap_assign = 0
+        for i in range (0, len(large_haploid_ids)):
+            path_id = large_haploid_ids[i]
+            cur_label = paths.getLabel(path_id)
+            #Two largest large haploids assigned to same haplotype are not normal            
+            clothest_dist = ScaffoldGraph.TOO_FAR
+            closest_id = -1
+            for j in range (0, i):
+                dist = self.norPathIdDist(large_haploid_ids[j], path_id, paths,False)
+                if dist < clothest_dist:
+                    clothest_dist = dist
+                    closest_id = j
+            #If we are close to some longer haploid use its precomputed label else alterate between two haplotypes
+            if clothest_dist >= 2* ScaffoldGraph.CLOSE_IN_GRAPH: 
+                new_label = "HAPLOTYPE" + str(reassigning_hap_id)
+                reassigning_hap_id = 3 - reassigning_hap_id
+                not_connected_hap_assign += 1
+            else:
+                new_label = large_haploid_info[closest_id][2]
+            new_id = path_id
+            #TODO should it be CLOSE_IN_GRAPH or just same connected component? Now with XY glued together by PAR we'll still have different colors                
+            if new_label != cur_label:                                    
+                utig_id = path_id.split("_")[-1]                    
+                new_id = names_prefix[new_label] + utig_id
+                self.logger.info(f"Reasigning haploid label for {path_id} {cur_label} to {new_id} {new_label}, dist {clothest_dist} len {paths.getLength(path_id)}")
+                reassigned += 1                    
+            else:                        
+                self.logger.info(f"Reassignment of haploid label for {path_id} not required, dist {clothest_dist} len {paths.getLength(path_id)}")                
+            large_haploid_info.append([new_id, ",".join(paths.getPathById(path_id)), new_label])            
+        for path_id in large_haploid_ids:
+            paths.removePath(path_id)
+        for info in large_haploid_info:
+            paths.addPath("\t".join(info))
+        self.logger.info(f"Reassigned {reassigned} large haploids, groups of distant haploid paths detected: {not_connected_hap_assign}")
+        if not_connected_hap_assign != 0 and not_connected_hap_assign != 2:
+            self.logger.warning(f"Strange number of not connected haploid groups {not_connected_hap_assign}")
+
 
     def outputScaffolds(self, final_paths):
         output_tsv = self.output_basename + ".tsv"
@@ -1068,13 +1175,14 @@ class ScaffoldGraph:
                     before += lens[nor_node]
         return frozenset(interesting)
     
-    #return scores for each of the orientations, ++, -+, +-, --,
+    #Just to reduce debug flood
     def isPathPairForDebug(self, path_ids, path_storage):
         if path_storage.getLength(path_ids[0]) < ScaffoldGraph.MIN_PATH_TO_SCAFFOLD and path_storage.getLength(path_ids[1]) < ScaffoldGraph.MIN_PATH_TO_SCAFFOLD:
             return False
         else:
             return True
         
+    #return scores for each of the orientations, ++, -+, +-, --,        
     def getPathPairConnections(self, path_ids, connections, lens):
         #from start to occurance of node exclusive, do not care about multiplicity > 1 (possibly should filter)
         length_before = [{}, {}]
