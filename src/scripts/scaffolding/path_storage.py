@@ -30,6 +30,14 @@ class PathStorage:
     def getPathIds(self):
         return self.paths.keys()
 
+    def removePath(self, path_id):
+        if path_id in self.paths:
+            del self.paths[path_id]
+            del self.path_lengths[path_id]
+            del self.hap_labels[path_id]
+            return True
+        else:
+            return False
 #should not be used
     def getEdgeSequenceById(self, path_id):
         res = []
