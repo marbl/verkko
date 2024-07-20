@@ -20,6 +20,7 @@ class PathStorage:
         self.path_lengths = {}
         self.hap_labels = {}
         self.G = G
+        self.pairwise_dists = {}
 
     def getPathById(self, path_id):
         return self.paths[path_id]
@@ -103,6 +104,16 @@ class PathStorage:
                     multiplicities[node] += 1
         return multiplicities
     
+    #Ids with orientation!
+    def getStoredDist(self, from_path:str, to_path:str, check_homologous:bool):
+        if (from_path, to_path, check_homologous) in self.pairwise_dists:
+            return self.pairwise_dists[(from_path, to_path, check_homologous)]
+        else:
+            return -1
+
+    def storeDist(self, from_path:str, to_path:str, check_homologous:bool, dist):
+        self.pairwise_dists[(from_path, to_path, check_homologous)] = dist
+
     # Can save seqs from gfa in graph structures to avoid additional input fasta but really do not want to make graphs huge.
     def writePathAsFasta(self, input_fasta, output_fasta):
         seqs = {}
