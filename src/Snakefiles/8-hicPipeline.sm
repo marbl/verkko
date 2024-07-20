@@ -613,7 +613,7 @@ set -e
 cp ../{output.scaff_tsv_path} ../{output.final_tsv_path}
 cp ../{output.scaff_gaf_path} ../{output.final_gaf_path}
 
-cp ../{output.final_gaf_path} ../{rules.runRukkiHIC.output.final_paths_tsv}
+cp ../{output.final_tsv_path} ../{rules.runRukkiHIC.output.final_paths_tsv}
 EOF
 
 chmod +x ./hic_scaff.sh
