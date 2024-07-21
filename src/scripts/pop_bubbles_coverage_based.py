@@ -116,7 +116,7 @@ def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage, nodele
 	assert end in predecessor
 	#sys.stderr.write("Processing bubble from %s to %s and conservative mode is %s\n"%(start, end, conservative))
 	# TODO: when our coverage is more trustworthy (e.g. low coverage isn't due to no unique nodes in a path, we can run this in conservative popping mode to remove noise, until then do nothing in these bubbles
-	if len(bubble_nodes) > max_bubble_pop_size:
+	if (conservative == True and len(bubble_nodes) > max_bubble_pop_size / 2) or len(bubble_nodes) > max_bubble_pop_size:
 		#sys.stderr.write("Error bubble beteween %s and %s is not poppable because it its size of %s is  larger than max %s\n"%(start, end, len(bubble_nodes), max_bubble_pop_size))
 		return
 
@@ -319,7 +319,7 @@ for node in nodelens:
 	comp_coverage = find_component_coverage(key, belongs_to_component, component_coverage_sum, component_length_sum)
 	chain_coverage = chain_coverage_sum[key] / chain_length_sum[key]
 	#sys.stderr.write("Checking chain with key %s and coverqge %s versus avg coverage %s and componenet %s\n"%(key, chain_coverage, avg_coverage, comp_coverage))
-	if chain_coverage <= comp_coverage * 1.5:
+	if chain_coverage <= comp_coverage * 2.5:
 		tip_chains.add(key)
 	if chain_coverage >= comp_coverage * 0.5 and chain_coverage <= comp_coverage * 2.5:
 		unique_chains.add(key)
@@ -331,19 +331,18 @@ for node in gf.iterate_deterministic(nodelens):
 	comp_coverage = find_component_coverage(key, belongs_to_component, component_coverage_sum, component_length_sum)
 	chain_coverage = chain_coverage_sum[key] / chain_length_sum[key]
 
-	#sys.stderr.write("Looing for bubble at node %s\n"%(node))
 	bubble = find_bubble(">" + node, edges, nodelens, max_poppable_node_size * 5)
 	if bubble:
 		assert bubble[0] == ">" + node
 		assert bubble[1][1:] != node
 		if gf.find(parent, bubble[1][1:]) != key: continue
-		pop_bubble(bubble[0], bubble[1], removed_nodes, removed_edges, edges, coverage, nodelens, chain_coverage >= comp_coverage * 1.5)
+		pop_bubble(bubble[0], bubble[1], removed_nodes, removed_edges, edges, coverage, nodelens, chain_coverage > comp_coverage * 1.5)
 	bubble = find_bubble("<" + node, edges, nodelens, max_poppable_node_size * 5)
 	if bubble:
 		assert bubble[0] == "<" + node
 		assert bubble[1][1:] != node
 		if gf.find(parent, bubble[1][1:]) != key: continue
-		pop_bubble(bubble[0], bubble[1], removed_nodes, removed_edges, edges, coverage, nodelens, chain_coverage >= comp_coverage * 1.5)
+		pop_bubble(bubble[0], bubble[1], removed_nodes, removed_edges, edges, coverage, nodelens, chain_coverage > comp_coverage * 1.5)
 
 for node in gf.iterate_deterministic(nodelens):
 	key = gf.find(parent, node)
@@ -351,12 +350,13 @@ for node in gf.iterate_deterministic(nodelens):
 	if node in removed_nodes: continue
 	bubble = find_bubble(">" + node, edges, nodelens, max_poppable_node_size)
 	comp_coverage = find_component_coverage(node, belongs_to_component, component_coverage_sum, component_length_sum)
+	chain_coverage = chain_coverage_sum[key] / chain_length_sum[key]
 
 	if not bubble:
-		try_pop_tip(">" + node, edges, coverage, removed_nodes, removed_edges, comp_coverage*.75, nodelens)
+		try_pop_tip(">" + node, edges, coverage, removed_nodes, removed_edges, comp_coverage * 0.75 if chain_coverage <= comp_coverage * 1.5 else comp_coverage * 0.15, nodelens)
 	bubble = find_bubble("<" + node, edges, nodelens, max_poppable_node_size)
 	if not bubble:
-		try_pop_tip("<" + node, edges, coverage, removed_nodes, removed_edges, comp_coverage*.75, nodelens)
+		try_pop_tip("<" + node, edges, coverage, removed_nodes, removed_edges, comp_coverage * 0.75 if chain_coverage <= comp_coverage * 1.5 else comp_coverage * 0.15, nodelens)
 
 for node in removed_nodes:
 	sys.stderr.write(node + "\n")
