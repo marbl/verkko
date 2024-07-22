@@ -243,9 +243,14 @@ def get_valid_triplets(node, edges, paths_crossing, min_edge_support, min_covera
 
 def resolve_hairpins(nodelength, nodes, paths_crossing, node_seqs, node_lens, edges, maybe_resolvable, min_edge_support, min_coverage, removable_nodes):
 	hairpins = set()
+	unresolvable_hairpins = set()
 	for node in iterate_deterministic(nodes):
 		if ">" + node not in edges: continue
 		if "<" + node not in edges: continue
+		if len(edges[">" + node]) >= 2 and "<" + node in edges[">" + node]:
+			unresolvable_hairpins.add(node)
+		if len(edges["<" + node]) >= 2 and ">" + node in edges["<" + node]:
+			unresolvable_hairpins.add(node)
 		if len(edges[">" + node]) == 1 and getone(edges[">" + node]) == "<" + node:
 			hairpins.add(">" + node)
 		if len(edges["<" + node]) == 1 and getone(edges["<" + node]) == ">" + node:
@@ -257,6 +262,7 @@ def resolve_hairpins(nodelength, nodes, paths_crossing, node_seqs, node_lens, ed
 	for node in hairpins:
 		if revnode(node) in hairpins: continue # double hairpin resolution hard to implement, so just ignore it
 		if len(edges[revnode(node)]) == 0: continue # don't resolve disconnected hairpins, they're probably spurious anyway
+		if node[1:] in unresolvable_hairpins: continue # weird unresolvable structures
 		resolutions = {}
 		for path in iterate_paths(paths_crossing, node[1:]):
 			if len(path) < 4: continue
@@ -310,7 +316,7 @@ def resolve_hairpins(nodelength, nodes, paths_crossing, node_seqs, node_lens, ed
 			remove_paths.append(path)
 			if len(path) < 4: continue
 			add_this = []
-			add_this.append(path[0])
+			if path[0][1:] != node[1:]: add_this.append(path[0])
 			for i in range(1, len(path)-2):
 				if path[i] == node and path[i+1] == revnode(node):
 					key = (path[i-1], path[i+2])
