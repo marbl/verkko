@@ -433,10 +433,10 @@ class ScaffoldGraph:
         local_scores = []
         self.logger.info(f"Checking {cur_path_id}")
         if not (cur_path_id in self.scaffold_graph.nodes):
-            return "NONE"
+            return "NONE",0
         if self.scaffold_graph.nodes[cur_path_id]['telomere'][1]:
             self.logger.info (f"Stopped at the telomere")
-            return "DONE"
+            return "DONE",0
         for next_node in self.scaffold_graph.successors(cur_path_id):
             #specific hacks to avoid
             local_scores.append([next_node, self.scaffold_graph.edges[cur_path_id, next_node][type]])            
@@ -454,35 +454,42 @@ class ScaffoldGraph:
                 break
         if len(local_scores) == 0:            
             self.logger.info (f"Nothing next")  
-            return "NONE"
+            return "NONE", 0
         elif local_scores[best_ind][1] <= ScaffoldGraph.MIN_LINKS:
             self.logger.info (f"very few links, best valid candidate {local_scores[best_ind]}")                 
-            return "NONE"
+            return "NONE", 0
         #not valid but waay best solution exists
         elif len(local_scores) == 1:
             self.logger.info (f"Only next one, {local_scores[best_ind]}") 
-            return local_scores[best_ind][0]                      
-        elif local_scores[best_ind][1] <  local_scores[second_best_ind][1] * ScaffoldGraph.CLEAR_MAJORITY:
-            self.logger.info (f"Not found next, first {local_scores[best_ind]}, second best {local_scores[second_best_ind]}")
-            return "NONE"
+            return local_scores[best_ind][0],0                      
+ #       elif local_scores[best_ind][1] <  local_scores[second_best_ind][1] * ScaffoldGraph.CLEAR_MAJORITY:
+ #           self.logger.info (f"Not found next, first {local_scores[best_ind]}, second best {local_scores[second_best_ind]}")
+ #           return "NONE"
         elif self.scaffold_graph.nodes[local_scores[best_ind][0]]['telomere'][0]:
             self.logger.info (f"Best {local_scores[best_ind]}, is good count but actually are in telomere!")            
-            return "NONE"
+            return "NONE", 0
         else:
             self.logger.info (f"Really best {local_scores[best_ind]}, second best {local_scores[second_best_ind]}")            
-            return local_scores[best_ind][0]
+            return local_scores[best_ind][0],local_scores[best_ind][1]/local_scores[second_best_ind][1]
 
     #made function to allow to use uniques
     #types: weight/unique_weight
     def findNextPath(self, current_path_id, nor_used_path_ids, type):
-        next_path_id = self.findExtension(current_path_id, type)
+        next_path_id, ratio_fwd = self.findExtension(current_path_id, type)
         if next_path_id.strip('-+') in nor_used_path_ids:
             self.logger.info (f"Extention {next_path_id} looks good but already used")
             return "NONE"
-        elif gf.rc_path_id(self.findExtension(gf.rc_path_id(next_path_id), type)) != current_path_id:
+        prev_path_id, ratio_bwd = self.findExtension(gf.rc_path_id(next_path_id), type)
+        if gf.rc_path_id(prev_path_id) != current_path_id:
             self.logger.info (f"backward check failed for {next_path_id}")
             return "NONE"
-        return next_path_id
+        if ratio_fwd > ScaffoldGraph.CLEAR_MAJORITY and ratio_bwd > ScaffoldGraph.CLEAR_MAJORITY:
+            self.logger.info (f"Extention {next_path_id} looks good")
+            return next_path_id
+        elif ratio_fwd * ratio_bwd > ScaffoldGraph.CLEAR_MAJORITY * ScaffoldGraph.CLEAR_MAJORITY * ScaffoldGraph.CLEAR_MAJORITY and type == "unique_weight":
+            self.logger.info (f" Risky extension, not clear majority for one direction but very clear for other {current_path_id} {next_path_id} {ratio_fwd} {ratio_bwd}")
+            return next_path_id
+        return "NONE" 
         
     def generateScaffolds(self):
         res = []
