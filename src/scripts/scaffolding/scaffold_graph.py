@@ -1259,6 +1259,11 @@ class ScaffoldGraph:
                     self.logger.debug (f"Reference connection found! {path_ids} {orientation}")
                     scores[orientation] *= self.REFERENCE_MULTIPLICATIVE_BONUS
             scores[orientation] /= self.INT_NORMALIZATION
+
+            #TODO: possibly do not need reordering and compare with pathLengrh/2after this?
+            for i in range (0, 2):
+                if self.rukki_paths.getLength(path_ids[i]) < ScaffoldGraph.NEAR_PATH_END:
+                    scores[orientation] *= self.NEAR_PATH_END / self.rukki_paths.getLength(path_ids[i])
         return scores
 
 #Do we need it for reruns?    
