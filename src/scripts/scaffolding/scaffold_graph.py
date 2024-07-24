@@ -1262,8 +1262,9 @@ class ScaffoldGraph:
             scores[orientation] /= self.INT_NORMALIZATION
 
             #TODO: possibly do not need reordering from "wrong" end and compare with pathLength/2 after reordering removed?
+            #Only reevaluate short-long connections since short-short are too unreliable
             for i in range (0, 2):
-                if self.rukki_paths.getLength(path_ids[i]) < ScaffoldGraph.NEAR_PATH_END and self.rukki_paths.getLength(path_ids[i]) > ScaffoldGraph.MIN_PATH_TO_SCAFFOLD:
+                if self.rukki_paths.getLength(path_ids[i]) < ScaffoldGraph.NEAR_PATH_END and self.rukki_paths.getLength(path_ids[1 - i]) > ScaffoldGraph.NEAR_PATH_END and self.rukki_paths.getLength(path_ids[i]) > ScaffoldGraph.MIN_PATH_TO_SCAFFOLD:
                     scores[orientation] *= self.NEAR_PATH_END / self.rukki_paths.getLength(path_ids[i])
         return scores
 
