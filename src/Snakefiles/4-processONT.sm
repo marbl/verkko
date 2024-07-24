@@ -35,6 +35,7 @@ rule processONT:
        tip_paths        = rules.combineTipsONT.output.alignments
     output:
        graph            = '4-processONT/unitig-unrolled-ont-resolved.gfa',
+       ont_align        = '4-processONT/alns-ont-mapqfilter.gaf',
        ont_gap_align    = '4-processONT/gaps-ont.gaf',
        ont_node_cov     = '4-processONT/nodecovs-ont.csv'
     log:
@@ -72,10 +73,10 @@ cat ../{input.ont_paths} |awk '{{if (\$12 >= 20) print; }}' > graphaln-mapqfilte
 trim_len=\`expr 2 \*  {params.min_aln_len}\`
 echo \$trim_len
 cat ../{input.ont_paths} | {PYTHON} {VERKKO}/scripts/maybe_trim_alignment.py ../{input.graph} \$trim_len > alns-trimmed.gaf
-cat ../{input.ont_paths} | awk -F "\\t" '{{if (\$4-\$3 >= \$2*0.8 && \$12 >= 20) print;}}' |  {PYTHON} {VERKKO}/scripts/trim_dbg_alignment.py ../2-processGraph/unitig-unrolled-hifi-resolved.gfa 1500 |cut -f 6 > previous_paths
+cat ../{input.ont_paths} | awk -F "\\t" '{{if (\$4-\$3 >= \$2*0.8 && \$12 >= 20) print;}}' |  {PYTHON} {VERKKO}/scripts/trim_dbg_alignment.py ../{input.graph} 1500 |cut -f 6 > previous_paths
 
-{PYTHON} {VERKKO}/scripts/select_best_alignment.py previous_paths ../{input.tip_paths} alns-trimmed.gaf ../{input.ont_paths} 20 {params.min_aln_len} alns-graphalign-gap1.gaf > alns-ont-mapqfilter.gaf 2> selected-winnowmap.ids
-{PYTHON} {VERKKO}/scripts/chop_misassemblies.py ../{input.graph} alns-ont-mapqfilter.gaf chop-mapping.txt alns-cut.gaf 10 20 > chopped-unitig-unrolled-hifi-resolved.gfa 2> chop-info.txt
+{PYTHON} {VERKKO}/scripts/select_best_alignment.py previous_paths ../{input.tip_paths} alns-trimmed.gaf ../{input.ont_paths} 20 {params.min_aln_len} alns-graphalign-gap1.gaf > ../{output.ont_align} 2> selected-winnowmap.ids
+{PYTHON} {VERKKO}/scripts/chop_misassemblies.py ../{input.graph} ../{output.ont_align} chop-mapping.txt alns-cut.gaf 10 20 > chopped-unitig-unrolled-hifi-resolved.gfa 2> chop-info.txt
 
 echo ""
 echo Step 2a

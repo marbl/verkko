@@ -46,12 +46,13 @@ rule generateLayoutContigsInputs:
     input:
         graph      = rules.verkko.input.graph,
         paths      = rules.buildGraph.output.paths,
-        ontaligns  = {rules.combineONT.output.alignments} if config['withONT'] == "True" else {rules.emptyfile.output}
+        ontalns    = {rules.processONT.output.ont_align} if config['withONT'] == "True" else {rules.emptyfile.output},
+        ontgaps    = {rules.processONT.output.ont_gap_align} if config['withONT'] == "True" else {rules.emptyfile.output}
     output:
         nodemap    = '6-layoutContigs/combined-nodemap.txt',
         edges      = '6-layoutContigs/combined-edges.gfa',
-        hifialigns = '6-layoutContigs/hifi.alignments.gaf',
-        ontaligns  = '6-layoutContigs/ont.alignments.gaf',
+        hifialns   = '6-layoutContigs/hifi.alignments.gaf',
+        ontalns    = '6-layoutContigs/ont.alignments.gaf',
         paths      = '6-layoutContigs/consensus_paths.txt',
         lengths    = '6-layoutContigs/nodelens.txt'
     log:
@@ -85,9 +86,10 @@ cat {params.graphs} \\\\
 > ../{output.edges}
 
 cat {params.aligns} ../{input.paths} \\\\
-> ../{output.hifialigns}
+> ../{output.hifialns}
 
-{PYTHON} {VERKKO}/scripts/replace_path_nodes.py ../{input.ontaligns} ../{output.nodemap} > ../{output.ontaligns}
+cat ../{input.ontgaps} |cut -f 1 > ../6-layoutContigs/ont-gapfill.txt
+{PYTHON} {VERKKO}/scripts/replace_path_nodes.py ../{input.ontalns} ../{output.nodemap} |grep -v -w -f ../6-layoutContigs/ont-gapfill.txt > ../{output.ontalns} || true
 
 cat ../{input.graph} \\\\
 | awk 'BEGIN \\\\
@@ -132,15 +134,19 @@ rule layoutContigs:
     input:
         nodemap    = rules.generateLayoutContigsInputs.output.nodemap,
         edges      = rules.generateLayoutContigsInputs.output.edges,
-        alignments = '6-layoutContigs/{id}.alignments.gaf',
+        hifialns   = rules.generateLayoutContigsInputs.output.hifialns,
+        ontalns    = rules.generateLayoutContigsInputs.output.ontalns,
         paths      = rules.generateLayoutContigsInputs.output.paths if config['ruk_enable'] == "False" else rules.rukki.output.pathsgaf,
         lengths    = rules.generateLayoutContigsInputs.output.lengths
     output:
-        layout     = '6-layoutContigs/{id}.lay',
-        scfmap     = '6-layoutContigs/{id}.map',
-        gaps       = '6-layoutContigs/{id}.txt'
+        layout     = rules.verkko.input.layout,
+        scfmap     = rules.verkko.input.scfmap,
+        gaps       = '6-layoutContigs/gaps.txt'
+    params:
+       haveONT     = config['withONT'],
+       haveBAM     = config['withBAM']
     log:
-        err        = '6-layoutContigs/{id}.err'
+        err        = '6-layoutContigs/createLayout.err'
     threads:
         int(config['lay_n_cpus'])
     resources:
@@ -154,72 +160,38 @@ rule layoutContigs:
         '''
 cd 6-layoutContigs
 
-cat > ./createLayout.{wildcards.id}.sh <<EOF
+cat > ./createLayout.sh <<EOF
 #!/bin/sh
 set -e
+
+if [ "{params.haveONT}" = "True" ] && [ "{params.haveBAM}" = "True" ]; then
+   cat ../{input.hifialns} ../{input.ontalns} > ../6-layoutContigs/combined-alignments.gaf
+else
+   cp ../{input.hifialns} ../6-layoutContigs/combined-alignments.gaf
+fi
 
 {PYTHON} {VERKKO}/scripts/get_layout_from_mbg.py \\\\
   ../{input.nodemap} \\\\
   ../{input.edges} \\\\
-  ../{input.alignments} \\\\
+  ../6-layoutContigs/combined-alignments.gaf \\\\
   ../{input.paths} \\\\
   ../{input.lengths} \\\\
-  ../{output.layout} \\\\
+  ../6-layoutContigs/unitig_initial.layout \\\\
   ../{output.scfmap}
+
+if [ "{params.haveONT}" = "True" ] && [ "{params.haveBAM}" = "True" ]; then
+   {PYTHON} {VERKKO}/scripts/merge_layouts.py \\\\
+        ../6-layoutContigs/unitig_initial.layout \\\\
+        ../{input.ontalns} \\\\
+        > ../{output.layout}
+else
+   cp ../6-layoutContigs/unitig_initial.layout  ../{output.layout}
+fi
 
 {PYTHON} {VERKKO}/scripts/check_layout_gaps.py < ../{output.layout} > ../{output.gaps}
 EOF
 
-chmod +x ./createLayout.{wildcards.id}.sh
+chmod +x ./createLayout.sh
 
-./createLayout.{wildcards.id}.sh > ../{log.err} 2>&1
-        '''
-
-rule combineLayouts:
-    input:
-        ontlayout    = '6-layoutContigs/ont.lay'  if config['withONT'] == "True" else {rules.emptyfile.output},
-        hifilayout   = '6-layoutContigs/hifi.lay',
-        hifimap      = '6-layoutContigs/hifi.map'
-    output:
-        layout       = rules.verkko.input.layout,
-        scfmap       = rules.verkko.input.scfmap,
-    log:
-        err        = '6-layoutContigs/combineLayouts.err'
-    params:
-       haveONT    = config['withONT'],
-       haveBAM    = config['withBAM']
-    threads:
-        int(config['lay_n_cpus'])
-    resources:
-        job_id = 1,
-        n_cpus = int(config['lay_n_cpus']),
-        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'lay'),
-        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'lay')
-    group:
-        'layoutGroup'
-    shell:
-        '''
-cd 6-layoutContigs
-
-cat > ./combineLayouts.sh <<EOF
-#!/bin/sh
-set -e
-
-# if we want to include all ONT reads, we will merge the layouts otherwise just promote the hifi + gap patch only
-if [ "{params.haveONT}" = "True" ] && [ "{params.haveBAM}" = "True" ]; then
-    {PYTHON} {VERKKO}/scripts/merge_layouts.py \\\\
-        ../{input.hifilayout} \\\\
-        ../{input.ontlayout} \\\\
-        > ../{output.layout}
-else
-    cp ../{input.hifilayout} ../{output.layout}
-fi
-
-#the map should be the same for both data types
-cp ../{input.hifimap} ../{output.scfmap}
-EOF
-
-chmod +x ./combineLayouts.sh
-
-./combineLayouts.sh > ../{log.err} 2>&1
+./createLayout.sh > ../{log.err} 2>&1
         '''

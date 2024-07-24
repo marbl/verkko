@@ -34,7 +34,7 @@ rule combineConsensus:
     input:
         packcns   = combineConsensusI,
         tigmap    = rules.buildPackages.output.tigmap,
-        scfmap    = rules.combineLayouts.output.scfmap,
+        scfmap    = rules.layoutContigs.output.scfmap,
         hificov   = rules.verkko.input.hifi5cov,
         finished  = rules.buildPackages.output.finished,
         pathstsv  = rules.rukki.output.pathstsv if config['ruk_enable'] == "True" else rules.emptyfile.output,

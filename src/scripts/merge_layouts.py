@@ -2,6 +2,14 @@
 
 import sys
 
+def read_list(file_path):
+   read_list = set()
+   with open(file_path, "r") as file:
+       for line in file:
+           line = line.strip().split("\t")
+           read_list.add(line[0])
+   return read_list
+
 def read_layout_file(file_path, flag):
     layout_data = []
     current_tig = None
@@ -29,50 +37,22 @@ def read_layout_file(file_path, flag):
 
 def merge_layout_files(file1, flag1, file2, flag2):
     layout1 = read_layout_file(file1, flag1)
-    layout2 = read_layout_file(file2, flag2)
+    layout2 = read_list(file2)
 
     merged_layout = []
 
     # Merge layout data for tigs present in both files
     for layout1_entry in layout1:
+        keepTig = False
         tig1 = layout1_entry["tig"]
-        layout2_entry_found = False
 
-        for layout2_entry in layout2:
-            if layout2_entry["tig"] == tig1:
-                layout2_entry_fixed_reads = []
-                layout2_entry_fixed_num_reads = 0
-                for read in layout2_entry["reads"]:
-                    if read["start"] >= layout1_entry["len"] and read["end"] >= layout1_entry["len"]:
-                        continue
-                    # if read["end"] >= layout1_entry["len"]:
-                    #     read["end"] = layout1_entry["len"]
-                    layout2_entry_fixed_reads.append(read)
-                    layout2_entry_fixed_num_reads += 1
-                merged_entry = {
-                    "tig": tig1,
-                    "len": layout1_entry["len"],
-                    "num_reads": layout1_entry["num_reads"] + layout2_entry_fixed_num_reads,
-                    "reads": layout1_entry["reads"] + layout2_entry_fixed_reads,
-                }
-                merged_entry["reads"].sort(key=lambda x: min(x['start'], x['end']))
-                layout2.remove(layout2_entry)
-                layout2_entry_found = True
-                break
+        for read in layout1_entry["reads"]:
+           if read['read'] in layout2:
+              read['flag'] = flag2
+           else:
+              keepTig = True
 
-        if not layout2_entry_found:
-            merged_entry = {
-                "tig": tig1,
-                "len": layout1_entry["len"],
-                "num_reads": layout1_entry["num_reads"],
-                "reads": layout1_entry["reads"],
-            }
-
-        merged_layout.append(merged_entry)
-
-    # don't add remaining layout data from layout2
-    # if these don't have usable reads (layout1) then they are useless to us
-    #merged_layout.extend(layout2)
+        if keepTig == True: merged_layout.append(layout1_entry)
 
     return merged_layout
 
@@ -87,8 +67,8 @@ for entry in merged_layout:
     print("tig", entry["tig"], sep='\t')
     print("len", entry["len"], sep='\t')
     print("rds", entry["num_reads"], sep='\t')
-    
+
     for read_entry in entry["reads"]:
         print(read_entry["read"], read_entry["start"], read_entry["end"], read_entry['flag'], sep='\t')
-    
+
     print("end")
