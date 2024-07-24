@@ -1261,11 +1261,20 @@ class ScaffoldGraph:
                     scores[orientation] *= self.REFERENCE_MULTIPLICATIVE_BONUS
             scores[orientation] /= self.INT_NORMALIZATION
 
-            #TODO: possibly do not need reordering from "wrong" end and compare with pathLength/2 after reordering removed?
-            #Only reevaluate short-long connections since short-short are too unreliable
+            very_short = 0
+            very_long = 0
             for i in range (0, 2):
-                if self.rukki_paths.getLength(path_ids[i]) < ScaffoldGraph.NEAR_PATH_END and self.rukki_paths.getLength(path_ids[1 - i]) > ScaffoldGraph.NEAR_PATH_END and self.rukki_paths.getLength(path_ids[i]) > ScaffoldGraph.MIN_PATH_TO_SCAFFOLD:
-                    scores[orientation] *= self.NEAR_PATH_END / self.rukki_paths.getLength(path_ids[i])
+                if self.rukki_paths.getLength(path_ids[i]) > ScaffoldGraph.NEAR_PATH_END:
+                    very_long += 1
+                #constant tweeeeeing
+                if self.rukki_paths.getLength(path_ids[i]) < ScaffoldGraph.NEAR_PATH_END/5:
+                    very_short += 1
+             #TODO: possibly do not need reordering from "wrong" end and compare with pathLength/2 after reordering removed?
+            #Never want to apply this bonus twice
+            if very_long <= 1 and very_short == 0:
+                coeff = self.NEAR_PATH_END / min(self.rukki_paths.getLength(path_ids[0]), self.rukki_paths.getLength(path_ids[1]))
+                self.logger.debug(f"Normalization is applied to {path_ids} , lens {self.rukki_paths.getLength(path_ids[0])} {self.rukki_paths.getLength(path_ids[1])} coefficent {coeff}")  
+                scores[orientation] *= coeff
         return scores
 
 #Do we need it for reruns?    
