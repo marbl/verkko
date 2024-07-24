@@ -459,15 +459,16 @@ class ScaffoldGraph:
             self.logger.info (f"very few links, best valid candidate {local_scores[best_ind]}")                 
             return "NONE", 0
         #not valid but waay best solution exists
-        elif len(local_scores) == 1:
-            self.logger.info (f"Only next one, {local_scores[best_ind]}") 
-            return local_scores[best_ind][0],0                      
- #       elif local_scores[best_ind][1] <  local_scores[second_best_ind][1] * ScaffoldGraph.CLEAR_MAJORITY:
- #           self.logger.info (f"Not found next, first {local_scores[best_ind]}, second best {local_scores[second_best_ind]}")
- #           return "NONE"
         elif self.scaffold_graph.nodes[local_scores[best_ind][0]]['telomere'][0]:
             self.logger.info (f"Best {local_scores[best_ind]}, is good count but actually are in telomere!")            
             return "NONE", 0
+        elif len(local_scores) == 1 or (len(local_scores) > 1 and  local_scores[second_best_ind][1] == 0):
+            self.logger.info (f"Only one next, {local_scores[best_ind]}") 
+            return local_scores[best_ind][0], ScaffoldGraph.CLEAR_MAJORITY*2                      
+ #       elif local_scores[best_ind][1] <  local_scores[second_best_ind][1] * ScaffoldGraph.CLEAR_MAJORITY:
+ #           self.logger.info (f"Not found next, first {local_scores[best_ind]}, second best {local_scores[second_best_ind]}")
+ #           return "NONE"
+
         else:
             self.logger.info (f"Really best {local_scores[best_ind]}, second best {local_scores[second_best_ind]}")            
             return local_scores[best_ind][0],local_scores[best_ind][1]/local_scores[second_best_ind][1]
@@ -1260,7 +1261,7 @@ class ScaffoldGraph:
                     scores[orientation] *= self.REFERENCE_MULTIPLICATIVE_BONUS
             scores[orientation] /= self.INT_NORMALIZATION
 
-            #TODO: possibly do not need reordering and compare with pathLengrh/2after this?
+            #TODO: possibly do not need reordering from "wrong" end and compare with pathLength/2 after reordering removed?
             for i in range (0, 2):
                 if self.rukki_paths.getLength(path_ids[i]) < ScaffoldGraph.NEAR_PATH_END:
                     scores[orientation] *= self.NEAR_PATH_END / self.rukki_paths.getLength(path_ids[i])
