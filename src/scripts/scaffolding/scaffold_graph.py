@@ -561,8 +561,8 @@ class ScaffoldGraph:
         self.logger.info("Starting last telomere tuning")
         component_tuned_paths = self.completeConnectedComponent(final_paths)
         telomere_cheating = len(final_paths.getPathIds()) - len(component_tuned_paths.getPathIds())
-        self.logger.warning (f"Total normal scaffolds {total_scf} last telomere tuned {telomere_cheating} total jumps {total_jumps + telomere_cheating} new T2T {total_new_t2t + telomere_cheating}")
         self.fixHaploidNames(component_tuned_paths)        
+        self.logger.warning (f"Total normal scaffolds {total_scf} last telomere tuned {telomere_cheating} total jumps {total_jumps + telomere_cheating} new T2T {total_new_t2t + telomere_cheating}")
         self.outputScaffolds(component_tuned_paths)
         return res
     
@@ -1263,7 +1263,7 @@ class ScaffoldGraph:
 
             #TODO: possibly do not need reordering from "wrong" end and compare with pathLength/2 after reordering removed?
             for i in range (0, 2):
-                if self.rukki_paths.getLength(path_ids[i]) < ScaffoldGraph.NEAR_PATH_END:
+                if self.rukki_paths.getLength(path_ids[i]) < ScaffoldGraph.NEAR_PATH_END and self.rukki_paths.getLength(path_ids[i]) > ScaffoldGraph.MIN_PATH_TO_SCAFFOLD:
                     scores[orientation] *= self.NEAR_PATH_END / self.rukki_paths.getLength(path_ids[i])
         return scores
 
