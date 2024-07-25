@@ -16,6 +16,8 @@ sge=$SGE_ROOT
 #  Test for LSF: if LSF_ENVDIR exists in the environment, assume LSF works.
 lsf=$LSF_ENVDIR
 
+# Test for PBS; if we have pbsnodes binary
+pbs=$(which pbsnodes 2> /dev/null)
 
 #  Check Slurm status.
 #
@@ -126,6 +128,26 @@ elif [ "x$lsf" != "x" ] ; then
    } \
    END { print stat }')
 
+elif [ "x$pbs" != "x" ]; then
+  jobstatus=$(qstat -f "$jobid" | \
+  awk \
+  'BEGIN { stat="running" } \
+   /job_state/ {state=$NF} /exit_status/ {exit_status=$NF} \
+   END { \
+    if      (state == "R")        { stat="running" } \
+    else if (state == "Q")        { stat="running" } \
+    else if (state == "H")        { stat="running" } \
+    else if (state == "T")        { stat="running" } \
+    else if (state == "W")        { stat="running" } \
+    else if (state == "S")        { stat="running" } \
+    else if (state == "B")        { stat="running" } \
+    else if (state == "E")        { stat="running" } \
+    else if (state == "C")        {                  \
+       if (exit_status == 0)      { stat="success" } \
+       else                       { stat="failed"  } \
+    }                                                \
+    else                          { stat="failed"  } \
+    print stat }')
 
 #  Otherwise, do what?  Fail!
 else

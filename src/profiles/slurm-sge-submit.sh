@@ -52,10 +52,12 @@ mkdir -p batch-scripts/
 #    Slurm: if sinfo is present, assume slurm works.
 #    SGE:   if SGE_ROOT exists in the environment, assume SGE works.
 #    LSF:   if LSF_ENVDIR exists in the environment, assume LSF works.
+#    PBS:   if pbsnodes present, assume PBS works
 #
 slurm=$(which sinfo 2> /dev/null)
 sge=$SGE_ROOT
 lsf=$LSF_ENVDIR
+pbs=$(which pbsnodes 2> /dev/null)
 
 ##########
 #
@@ -141,17 +143,39 @@ elif [ "x$lsf" != "x" ] ; then
   else
     mem=$(dc -e "3 k ${mem_gb} 1048576 * p")
   fi
+  mem_per_thread=$(dc -e "0 k ${mem} ${n_cpus} / p")
 
-  jobid=$(bsub -R "span[hosts=1] rusage[mem=${mem}]" -n ${n_cpus} -oo batch-scripts/${jobid}.${rule_n}.${jobidx}.out "$@" | grep -oE "Job <[0-9]+>" | awk '{print $2}' | tr -d '<>')
+  jobid=$(bsub -R \"span[hosts=1] rusage[mem=${mem_per_thread}]\" -n ${n_cpus} -oo batch-scripts/${jobid}.${rule_n}.${jobidx}.out "$@" | sed -E 's/.*<([0-9]+)>.*/\1/')
+  if [ "x$jobid" = "x" ]; then
+     exit 1
+  fi
 
   echo > batch-scripts/${jobid}.${rule_n}.${jobidx}.submit \
-          bsub -R "span[hosts=1] rusage[mem=${mem}]" -n ${n_cpus} -oo batch-scripts/${jobid}.${rule_n}.${jobidx}.out "$@"
+          bsub -R \"span[hosts=1] rusage[mem=${mem_per_thread}]\" -n ${n_cpus} -oo batch-scripts/${jobid}.${rule_n}.${jobidx}.out "$@"
+
+#  Submit to PBS.
+#  Other options:
+#    -A account
+#    -q queue
+#    -N job name
+#    -e err-out
+#    -o out-out
+#
+elif [ "x$pbs" != "x" ] ; then
+  jobid=$(qsub -j oe -l select=1:ncpus=${n_cpus}:mem=${mem_gb}gb:walltime=${time_h}:00:00 -o batch-scripts/${jobid}.${rule_n}.${jobidx}.out "$@" | cut -d. -f1)
+  if [ "x$jobid" = "x" ]; then
+     exit 1
+  fi
+
+  echo > batch-scripts/${jobid}.${rule_n}.${jobidx}.submit \
+          qsub -j oe -l select=1:ncpus=${n_cpus}:mem=${mem_gb}gb:walltime=${time_h}:00:00 -o batch-scripts/${jobid}.${rule_n}.${jobidx}.out "$@"
 
 ##########
 #
 #  Otherwise, fail.
 #
 else
+  echo "Error: unknown grid, only Slurm, SGE, LSF, and PBS are supported. Please check your environment or use --local instead"
   exit 1
 fi
 

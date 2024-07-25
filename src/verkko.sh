@@ -326,9 +326,8 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--bwa" ] ;                then bwa=$arg;           shift
     elif [ "$opt" = "--samtools" ] ;           then samtools=$arg;      shift
     elif [ "$opt" = "--local" ] ;              then grid="local";
-    elif [ "$opt" = "--sge" ] ;                then grid="slurm-sge";
-    elif [ "$opt" = "--slurm" ] ;              then grid="slurm-sge";
-    elif [ "$opt" = "--lsf" ] ;                then grid="lsf";
+    elif [ "$opt" = "--grid" ] ;               then grid="slurm-sge-lsf-pbs";
+    elif [ "$opt" = "--slurm" ] ;              then grid="slurm-sge-lsf-pbs";
     elif [ "$opt" = "--local-memory" ] ;       then local_mem=$arg;     shift
     elif [ "$opt" = "--local-cpus" ] ;         then local_cpus=$arg;    shift
     elif [ "$opt" = "--snakeopts" ] ;          then snakeopts=$arg;     shift
@@ -888,9 +887,7 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --local-memory           Specify the upper limit on memory to use, in GB, default 64"
     echo "    --local-cpus             Specify the number of CPUs to use, default 'all'"
     echo ""
-    echo "    --sge                    Enable Sun Grid Engine support."
-    echo "    --slurm                  Enable Slurm support."
-    echo "    --lsf                    Enable IBM Spectrum LSF support."
+    echo "    --grid                   Enable Grid support (SGE, Slurm, PBS, and LSF are supported)."
     echo ""
     echo "    --snakeopts <string>     Append snakemake options in \"string\" to the"
     echo "                             snakemake command.  Options MUST be quoted."
