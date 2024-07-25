@@ -129,7 +129,7 @@ To run in PoreC mode, reads should be provided using the --porec option. For exa
 Hi-C/PoreC integration was tested mostly on human and primate genomes. Please see the --rdna-scaff-ref, --rdna-tangle, --uneven-depth and --haplo-divergence options if you want to assemble something distant from human and/or have uneven coverage. If you encounter issues or have questions about appropriate parameters, please open an [issue](https://github.com/marbl/verkko/issues).
 
 ### Running on a grid
-By default, verkko will run the snakemake workflow and all compute on the local machine. Support for SGE, Slurm and LSF (untested) can be enabled with options `--sge`, `--slurm` and `--lsf`, respectively. This will run the snakemake workflow on the local machine but submit all compute to the grid. To launch the both the snakemake workflow and compute on the grid, wrap the verkko command in a shell script and submit using your scheduler. If you're using conda, you may need to make the conda-installed python your default. You can do this with the `--python` option when calling verkko
+By default, verkko will run the snakemake workflow and all compute on the local machine. Support for SGE, Slurm LSF, and PBS (untested) can be enabled with options `--grid`. This will run the snakemake workflow on the local machine but submit all compute to the grid. To launch the both the snakemake workflow and compute on the grid, wrap the verkko command in a shell script and submit using your scheduler. If you're using conda, you may need to make the conda-installed python your default. You can do this with the `--python` option when calling verkko
 
 <details>
 <summary>Customizing grid requests (QOS, partition, etc)</summary>
