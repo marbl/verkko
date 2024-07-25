@@ -113,6 +113,16 @@ def getMBGMemoryRequest(attempt):              #  Sum the input size, divide by 
 
    return int(math.ceil(math.ceil(mem)*scl))
 
+def getBuildPackagesInputONT(wildcards, withONT, withBAM):
+   result = []
+
+   if withONT == "True":
+      if withBAM == "True":
+         result=expand("../3-align/split/ont{nnnn}.fasta.gz", nnnn = splitONToutputs(wildcards))
+      else:
+          result.append("../%s"%(rules.extractONT.output.ont_subset))
+   return result
+
 def getBuildPackageMemoryRequest(attempt):     #  Sum the size of input files, 2-bit encoded,
    scl = 0.75 + attempt / 4.0                  #  then add 10% and 2GB.
    mem = float(config[f"par_mem_gb"])          #  But allow par_mem_gb to completely override.
@@ -121,7 +131,9 @@ def getBuildPackageMemoryRequest(attempt):     #  Sum the size of input files, 2
    if mem < 2.0:
       mem = 0
 
-      for f in rules.buildPackages.input.ont_subset:
+      for f in getBuildPackagesInputONT("", config['withONT'], config['withBAM']):
+      # strip leading ../ from name, we need it for buildPackages but not here
+         if f.startswith("../"): f = f[3:]
          mem += getFileBP(f)
 
       for f in HIFI_READS:

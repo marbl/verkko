@@ -1,15 +1,12 @@
 #!/usr/bin/env python
 
 import sys
+import graph_functions as gf
 
 pat_kmer_file = sys.argv[1]
 mat_kmer_file = sys.argv[2]
 # graph from stdin
 # csv to stdout
-
-def revcomp(s):
-	comp = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C', 'N': 'N'}
-	return "".join(comp[c] for c in s[::-1])
 
 def kmer_to_int(s):
 	result = 0
@@ -96,7 +93,7 @@ for l in sys.stdin:
 			fw_kmer = fw_kmer % (pow(4, kmer_size))
 			if fw_kmer in mat_kmers: mat_count += 1
 			if fw_kmer in pat_kmers: pat_count += 1
-	seqs = revcomp(parts[2]).split('N')
+	seqs = gf.revcomp(parts[2]).split('N')
 	for seq in seqs:
 		if len(seq) < kmer_size: continue
 		for i in range(0, kmer_size):

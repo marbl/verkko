@@ -151,3 +151,147 @@ def load_direct_graph(gfa_file, G):
             G.add_edge(line[1] + line[2], line[3] + line[4], mid_length = G.nodes[line[1]+line[2]]['length'] + G.nodes[line[3]+line[4]]['length'] - 2*overlap)
             G.add_edge(line[3] + rc[line[4]], line[1] + rc[line[2]], mid_length = G.nodes[line[1]+line[2]]['length'] + G.nodes[line[3]+line[4]]['length'] - 2*overlap)
 
+# https://bioinformatics.stackexchange.com/questions/3583/what-is-the-fastest-way-to-get-the-reverse-complement-of-a-dna-sequence-in-pytho
+trans = str.maketrans("ACTG", "TGAC")
+def revcomp(s):
+    return s.translate(trans)[::-1]
+
+def str2bool(v):
+    return v.lower() in ("yes", "true", "t", "1")
+
+def revnode(n):
+    assert len(n) >= 2
+    assert n[0] == "<" or n[0] == ">"
+    return (">" if n[0] == "<" else "<") + n[1:]
+
+def find(parent, key):
+    assert key in parent
+    while parent[key] != parent[parent[key]]:
+        parent[key] = parent[parent[key]]
+    return parent[key]
+
+def merge(parent, left, right):
+    left = find(parent, left)
+    right = find(parent, right)
+    parent[right] = left
+
+def canon(left, right):
+    fwstr = left + right
+    bwstr = revnode(right) + revnode(left)
+    if bwstr < fwstr: return (revnode(right), revnode(left))
+    return (left, right)
+
+def canontip(left, right):
+    fwstr = left + right
+    bwstr = right + left
+    if bwstr < fwstr: return (right, left)
+    return (left, right)
+
+def getone(s):
+    assert len(s) >= 1
+    for i in s:
+        return i
+
+def pathstr(p):
+    return "".join(p)
+
+def iterate_deterministic(l, end = ""):
+    tmp = list(l)
+    tmp.sort()
+
+    if end != "" and end in tmp:
+        tmp.remove(end)
+        tmp.insert(0, end)
+    for x in tmp:
+        yield x
+
+# https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm
+# iterative so we don't hit max recursion depth
+def strong_connect_iterative(start, i, index, lowlink, on_stack, result, edges):
+    stack = []
+    stack.append((0, start, 0))
+    S = []
+    while len(stack) > 0:
+        (state, node, neighbor_i) = stack[-1]
+        stack.pop()
+        if state == 0:
+            assert node not in on_stack
+            assert node not in index
+            assert node not in lowlink
+            index[node] = i
+            lowlink[node] = i
+            i += 1
+            S.append(node)
+            on_stack.add(node)
+            stack.append((1, node, 0))
+        elif state == 1:
+            if node in edges and neighbor_i < len(edges[node]):
+                neighbor = edges[node][neighbor_i][0]
+                if neighbor not in index:
+                    stack.append((2, node, neighbor_i))
+                    stack.append((0, neighbor, 0))
+                    continue
+                elif neighbor in on_stack:
+                    assert neighbor in index
+                    assert node in lowlink
+                    lowlink[node] = min(lowlink[node], index[neighbor])
+                neighbor_i += 1
+            if node in edges and neighbor_i < len(edges[node]):
+                stack.append((1, node, neighbor_i))
+            else:
+                stack.append((3, node, 0))
+        elif state == 2:
+            neighbor = edges[node][neighbor_i][0]
+            assert neighbor in lowlink
+            lowlink[node] = min(lowlink[node], lowlink[neighbor])
+            neighbor_i += 1
+            stack.append((1, node, neighbor_i))
+        elif state == 3:
+            assert node in lowlink
+            assert node in index
+            if lowlink[node] == index[node]:
+                result.append([])
+                stacknode = ""
+                while stacknode != node:
+                    assert len(S) > 0
+                    stacknode = S[-1]
+                    S.pop()
+                    assert stacknode in on_stack
+                    on_stack.remove(stacknode)
+                    result[-1].append(stacknode)
+        else:
+            assert False
+    assert len(S) == 0
+    return i
+
+# https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm
+def topological_sort(nodelens, edges):
+    index = {}
+    lowlink = {}
+    on_stack = set()
+    result = []
+    i = 0
+    for node in nodelens:
+        if ">" + node not in index:
+            old_i = i
+            i = strong_connect_iterative(">" + node, i, index, lowlink, on_stack, result, edges)
+            assert i > old_i
+        if "<" + node not in index:
+            old_i = i
+            i = strong_connect_iterative("<" + node, i, index, lowlink, on_stack, result, edges)
+            assert i > old_i
+    result = result[::-1]
+    belongs_to_component = {}
+    for i in range(0, len(result)):
+        assert len(result[i]) >= 1
+        for node in result[i]:
+            assert node not in belongs_to_component
+            belongs_to_component[node] = i
+    for node in nodelens:
+        assert ">" + node in belongs_to_component
+        assert "<" + node in belongs_to_component
+    for node in belongs_to_component:
+        if node in edges:
+            for edge in edges[node]:
+                assert belongs_to_component[edge[0]] >= belongs_to_component[node]
+    return (result, belongs_to_component)

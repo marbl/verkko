@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import graph_functions as gf
 
 graph_file = sys.argv[1]
 edge_trim = 0
@@ -9,9 +10,6 @@ if len(sys.argv) >= 3: edge_trim = int(sys.argv[2])
 if len(sys.argv) >= 4: ignore_file = sys.argv[3] 
 # gaf from stdin
 # gaf to stdout
-
-def revnode(n):
-	return (">" if n[0] == "<" else "<") + n[1:]
 
 ignore_reads = set()
 if ignore_file != "":
@@ -30,7 +28,7 @@ with open(graph_file) as f:
 			fromnode = (">" if parts[2] == "+" else "<") + parts[1]
 			tonode = (">" if parts[4] == "+" else "<") + parts[3]
 			edge_overlaps[(fromnode, tonode)] = int(parts[5][:-1])
-			edge_overlaps[(revnode(tonode), revnode(fromnode))] = int(parts[5][:-1])
+			edge_overlaps[(gf.revnode(tonode), gf.revnode(fromnode))] = int(parts[5][:-1])
 
 for l in sys.stdin:
 	parts = l.strip().split('\t')

@@ -1,22 +1,12 @@
 #!/usr/bin/env python
 
 import sys
+import graph_functions as gf
 
 min_len = 100000
 graph_file = sys.argv[1]
 cov_file = sys.argv[2]
 # graph to stdout
-
-def canontip(left, right):
-	fwstr = left + right
-	bwstr = right + left
-	if bwstr < fwstr: return (right, left)
-	return (left, right)
-
-def revnode(n):
-	assert len(n) >= 2
-	assert n[0] == ">" or n[0] == "<"
-	return (">" if n[0] == "<" else "<") + n[1:]
 
 nodelens = {}
 coverage = {}
@@ -46,7 +36,7 @@ with open(graph_file) as f:
 			if fromnode not in edge_overlaps:
 				edge_overlaps[fromnode] = set()
 			edge_overlaps[fromnode].add(tonode)
-			edges[canontip(fromnode, tonode)] = int(parts[5][:-1])
+			edges[gf.canontip(fromnode, tonode)] = int(parts[5][:-1])
 
 avg_coverage = long_coverage_cov_sum / long_coverage_len_sum
 
@@ -66,7 +56,7 @@ with open(graph_file) as f:
 			#sys.stderr.write("Checking loop at %s with node %s with coverage of %s and %s and theshold 0.5 is %s and 2.5 is %s\n"%(tonodeFwd, parts[1], (coverage[parts[1]] if parts[1] in coverage else "NA"), (coverage[tonodeFwd[1:]] if tonodeFwd[1:] in coverage else"NA"), 0.5*avg_coverage, 2.5*avg_coverage)) 
 			if parts[1] not in coverage or tonodeFwd[1:] not in coverage or coverage[parts[1]] > 1.5 * avg_coverage or coverage[tonodeFwd[1:]] <= 0.5 * avg_coverage or coverage[tonodeFwd[1:]] >= 2.5 * avg_coverage:
 				# if the loop has no coverage and is contained within its overlap and the doubly traversed node has single copy coverage has single copy count, we remove the loop by removing a node not unrolling
-				if parts[1] not in coverage and tonodeFwd[1:] in coverage and coverage[tonodeFwd[1:]] <= 1.5 * avg_coverage and nodelens[parts[1]] - edges[canontip(">"+parts[1], tonodeFwd)] < 10:
+				if parts[1] not in coverage and tonodeFwd[1:] in coverage and coverage[tonodeFwd[1:]] <= 1.5 * avg_coverage and nodelens[parts[1]] - edges[gf.canontip(">"+parts[1], tonodeFwd)] < 10:
 					removed.add(parts[1])
 					continue
 				else:
@@ -100,7 +90,7 @@ with open(graph_file) as f:
 			second_copy = ""
 			for s in iter(edge_overlaps[neighbor]):
 				if s[1:] == tonodeFwd[1:]:
-					second_copy = revnode(s)
+					second_copy = gf.revnode(s)
 					break 
 			assert(second_copy != "")
 			#sys.stderr.write("Neighbors are %s of second copy node %s and will be getting next node %s\n"%(neighbors, second_copy, edge_overlaps[neighbor]))

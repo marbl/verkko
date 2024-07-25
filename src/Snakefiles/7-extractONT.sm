@@ -19,7 +19,7 @@
 
 rule extractONT:
     input:
-        ont_gap_align  = rules.processONT.output.ont_gap_align,
+        ont_gap_align  = rules.processONT.output.ont_gap_align if config['withBAM'] == "False" else rules.splitONT.output.split_ids,
         split_finished = rules.splitONT.output.split_finished
     output:
         ont_subset_id  = '7-consensus/ont_subset.id',
@@ -29,6 +29,7 @@ rule extractONT:
         err            = '7-consensus/extractONT.err'
     params:
         ext_files      = lambda wildcards: expand("ont{nnnn}.fasta.gz", nnnn = splitONToutputs(wildcards)),
+        haveBAM        = config['withBAM']
     threads:
         int(config['sub_n_cpus'])
     resources:
@@ -66,6 +67,11 @@ sort -u > ../{output.ont_subset_id}
 
 rm -f ../{output.ont_subset_ex}
 
+if [ "{params.haveBAM}" = "True" ]; then
+   touch ../{output.ont_subset_ex}
+   touch ../{output.ont_subset}
+   exit 0
+fi
 for fn in {params.ext_files} ; do
   echo >> ../{output.ont_subset_ex} extract \\$fn ../{output.ont_subset_id} ../3-align/split/\\$fn
 done

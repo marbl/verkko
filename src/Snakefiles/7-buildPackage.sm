@@ -18,14 +18,16 @@
 
 checkpoint buildPackages:
     input:
-        hifi       = HIFI_READS,
-        layout     = {rules.layoutContigs.output.layout},
-        ont_subset = {rules.extractONT.output.ont_subset} if config['withONT'] == "True" else {rules.emptyfile.output},
+        hifi        = HIFI_READS,
+        layout      = {rules.layoutContigs.output.layout},
+        ont_subset  = {rules.extractONT.output.ont_subset}    if config['withONT'] == "True" else {rules.emptyfile.output},
         ont_id_file = {rules.extractONT.output.ont_subset_id} if config['withONT'] == "True" else {rules.emptyfile.output}
     output:
         tigmap     = "7-consensus/packages.tigName_to_ID.map",
         finished   = "7-consensus/packages.finished",
         packreport = "7-consensus/packages.report"
+    params:
+        ont_subset = lambda wildcards: getBuildPackagesInputONT(wildcards, config["withONT"], config["withBAM"]),
     log:
         err        = '7-consensus/buildPackages.err'
     threads:
@@ -50,7 +52,7 @@ mkdir -p packages
     -output packages/part###.cnspack \\\\
     -idmap  packages \\\\
     -partition 0.8 1.5 0.04 \\\\
-    -reads ../{input.ont_subset} {input.hifi} \\\\
+    -reads {params.ont_subset} {input.hifi} \\\\
   > ../{output.packreport} \\\\
 && \\\\
 touch ../{output.finished}

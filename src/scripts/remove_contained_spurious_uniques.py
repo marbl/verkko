@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import graph_functions as gf
 
 graph_file = sys.argv[1]
 paths_file = sys.argv[2]
@@ -9,22 +10,6 @@ min_safe_coverage = int(sys.argv[4])
 max_crosslink_coverage_fraction = float(sys.argv[5])
 max_crosslink_coverage_absolute = int(sys.argv[6])
 # new uniques to stdout
-
-def find(parent, n):
-	while parent[parent[n]] != parent[n]: parent[n] = parent[parent[n]]
-	return parent[n]
-
-def merge(parent, left, right):
-	left = find(parent, left)
-	right = find(parent, right)
-	assert parent[left] == left
-	assert parent[right] == right
-	parent[right] = left
-
-def revnode(n):
-	assert len(n) >= 2
-	assert n[0] == ">" or n[0] == "<"
-	return (">" if n[0] == "<" else "<") + n[1:]
 
 def tangle_is_valid(tips, paths, path_index):
 	global min_safe_coverage
@@ -41,8 +26,8 @@ def tangle_is_valid(tips, paths, path_index):
 		path = paths[i]
 		last_tip = None
 		for i in range(0, len(path)):
-			if last_tip is not None and revnode(path[i]) in tips:
-				this_tip = revnode(path[i])
+			if last_tip is not None and gf.revnode(path[i]) in tips:
+				this_tip = gf.revnode(path[i])
 				if last_tip not in tip_connections: tip_connections[last_tip] = {}
 				if this_tip not in tip_connections[last_tip]: tip_connections[last_tip][this_tip] = 0
 				tip_connections[last_tip][this_tip] += 1
@@ -80,7 +65,7 @@ def tangle_is_valid(tips, paths, path_index):
 def remove_contained(tips):
 	result = set()
 	for tip in tips:
-		if revnode(tip) not in tips: result.add(tip)
+		if gf.revnode(tip) not in tips: result.add(tip)
 	return result
 
 def get_invalid_tangle_group(start_tangle, tangle_parent, tangle_uniques, valid_tangles):
@@ -93,8 +78,8 @@ def get_invalid_tangle_group(start_tangle, tangle_parent, tangle_uniques, valid_
 		if top in tangles: continue
 		tangles.add(top)
 		for tip in tangle_uniques[top]:
-			if tangle_parent[revnode(tip)] not in valid_tangles:
-				stack.append(tangle_parent[revnode(tip)])
+			if tangle_parent[gf.revnode(tip)] not in valid_tangles:
+				stack.append(tangle_parent[gf.revnode(tip)])
 	return tuple(tangles)
 
 old_uniques = set()
@@ -127,18 +112,18 @@ with open(graph_file) as f:
 			if ">" + parts[1] not in tangle_parent: tangle_parent[">" + parts[1]] = ">" + parts[1]
 			if "<" + parts[1] not in tangle_parent: tangle_parent["<" + parts[1]] = "<" + parts[1]
 			if parts[1] not in old_uniques:
-				merge(tangle_parent, ">" + parts[1], "<" + parts[1])
+				gf.merge(tangle_parent, ">" + parts[1], "<" + parts[1])
 		if parts[0] == "L":
 			fromtip = (">" if parts[2] == "+" else "<") + parts[1]
 			totip = ("<" if parts[4] == "+" else ">") + parts[3]
 			if fromtip not in tangle_parent: tangle_parent[fromtip] = fromtip
 			if totip not in tangle_parent: tangle_parent[totip] = totip
-			merge(tangle_parent, fromtip, totip)
+			gf.merge(tangle_parent, fromtip, totip)
 
 tangle_uniques = {}
 for n in tangle_parent:
 	if n[1:] not in old_uniques: continue
-	key = find(tangle_parent, n)
+	key = gf.find(tangle_parent, n)
 	if key not in tangle_uniques: tangle_uniques[key] = set()
 	tangle_uniques[key].add(n)
 

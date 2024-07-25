@@ -1,24 +1,10 @@
 #!/usr/bin/env python
 
 import sys
+import graph_functions as gf
 
 graph_file = sys.argv[1]
 # graph to stdout
-
-def revnode(n):
-	assert len(n) >= 2
-	assert n[0] == ">" or n[0] == "<"
-	return (">" if n[0] == "<" else "<") + n[1:]
-
-def canontip(left, right):
-	fwstr = left + right
-	bwstr = right + left
-	if bwstr < fwstr: return (right, left)
-	return (left, right)
-
-def revcomp(s):
-	comp = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C', 'N': 'N'}
-	return "".join(comp[c] for c in s[::-1])
 
 not_tips = set()
 node_seqs = set()
@@ -51,17 +37,17 @@ with open(graph_file) as f:
 			fromnode = ("<" if parts[2] == "+" else ">") + parts[1]
 			tonode = (">" if parts[4] == "+" else "<") + parts[3]
 			if fromnode in tips:
-				tonode = revnode(tonode)
+				tonode = gf.revnode(tonode)
 				sys.stderr.write("The node %s is a tip and the list of nodes matching %s is %s\n"%(fromnode, tonode, edge_overlaps[tonode]))
 				for i in edge_overlaps[tonode]:
-					i=revnode(i)
+					i=gf.revnode(i)
 					if i not in edge_overlaps: continue
 				toadd.update(edge_overlaps[tonode])
 			elif tonode in tips:
-				fromnode = revnode(fromnode)
+				fromnode = gf.revnode(fromnode)
 				sys.stderr.write("The node %s is a tip and the list of nodes matching %s is %s\n"%(tonode, fromnode, edge_overlaps[fromnode]))
 				for i in edge_overlaps[fromnode]:
-					i=revnode(i)
+					i=gf.revnode(i)
 					if i not in edge_overlaps: continue
 				toadd.update(edge_overlaps[fromnode])
 

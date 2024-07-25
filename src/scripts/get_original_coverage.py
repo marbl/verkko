@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import graph_functions as gf
 
 graph_file = sys.argv[1]
 mapping_file = sys.argv[2]
@@ -9,25 +10,15 @@ nodelens_file = sys.argv[4]
 original_coverage_csv = sys.argv[5]
 # output coverage csv to stdout
 
-def revnode(n):
-	assert len(n) >= 2
-	assert n[0] == "<" or n[0] == ">"
-	return (">" if n[0] == "<" else "<") + n[1:]
-
-def canon(left, right):
-	if revnode(right) + revnode(left) < left + right:
-		return (revnode(right), revnode(left))
-	return (left, right)
-
 def get_leafs(path, mapping, edge_overlaps, raw_node_lens, coverages):
 	path_len = 0
 	for i in range(0, len(path)):
 		path_len += raw_node_lens[path[i][1:]]
-		if i > 0: path_len -= edge_overlaps[canon(path[i-1], path[i])]
+		if i > 0: path_len -= edge_overlaps[gf.canon(path[i-1], path[i])]
 	result = [(n, 0, raw_node_lens[n[1:]]) for n in path]
 	overlaps = []
 	for i in range(1, len(path)):
-		overlaps.append(edge_overlaps[canon(path[i-1], path[i])])
+		overlaps.append(edge_overlaps[gf.canon(path[i-1], path[i])])
 	current_len = 0
 	for i in range(0, len(result)):
 		assert result[i][2] > result[i][1]
@@ -50,7 +41,7 @@ def get_leafs(path, mapping, edge_overlaps, raw_node_lens, coverages):
 				part[0] = (part[0][0], part[0][1] + mapping[result[i][0][1:]][1], part[0][2])
 				part[-1] = (part[-1][0], part[-1][1], part[-1][2] - mapping[result[i][0][1:]][2])
 				if result[i][0][0] == "<":
-					part = [(revnode(n[0]), raw_node_lens[n[0][1:]] - n[2], raw_node_lens[n[0][1:]] - n[1]) for n in part[::-1]]
+					part = [(gf.revnode(n[0]), raw_node_lens[n[0][1:]] - n[2], raw_node_lens[n[0][1:]] - n[1]) for n in part[::-1]]
 				old_start_clip = result[i][1]
 				old_end_clip = (raw_node_lens[result[i][0][1:]] - result[i][2])
 				part[0] = (part[0][0], part[0][1] + old_start_clip, part[0][2])
@@ -58,7 +49,7 @@ def get_leafs(path, mapping, edge_overlaps, raw_node_lens, coverages):
 				new_result += part
 				if i > 0: new_overlaps.append(overlaps[i-1])
 				for j in range(1, len(part)):
-					new_overlaps.append(edge_overlaps[canon(part[j-1][0], part[j][0])])
+					new_overlaps.append(edge_overlaps[gf.canon(part[j-1][0], part[j][0])])
 		assert len(new_result) == len(new_overlaps)+1
 		assert len(new_result) >= len(result)
 		if not any_replaced: break
@@ -109,7 +100,7 @@ with open(edge_overlap_file) as f:
 		fromnode = (">" if parts[2] == "+" else "<") + parts[1]
 		tonode = (">" if parts[4] == "+" else "<") + parts[3]
 		overlap = int(parts[5][:-1])
-		key = canon(fromnode, tonode)
+		key = gf.canon(fromnode, tonode)
 		if key in edge_overlaps: assert edge_overlaps[key] == overlap
 		edge_overlaps[key] = overlap
 

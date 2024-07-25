@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import graph_functions as gf
 
 uniquefile = sys.argv[1]
 graphfile = sys.argv[2]
@@ -15,33 +16,19 @@ min_hifi_solid_coverage = int(sys.argv[9])
 
 length_solid_node_threshold = 200000
 
-def find(s, parent):
-	while parent[s] != parent[parent[s]]:
-		parent[s] = parent[parent[s]]
-	return parent[s]
-
 def union(s1, s2, parent, rank):
-	p1 = find(s1, parent)
-	p2 = find(s2, parent)
+	p1 = gf.find(parent, s1)
+	p2 = gf.find(parent, s2)
 	if rank[p1] < rank[p2]: (p1, p2) = (p2, p1)
 	parent[p2] = p1
 	if rank[p2] == rank[p1]: rank[p1] += 1
-
-def reverse(n):
-	return (">" if n[0] == '<' else '<') + n[1:]
-
-def canon(left, right):
-	fwstr = left + right
-	bwstr = reverse(right) + reverse(left)
-	if bwstr < fwstr: return (reverse(right), reverse(left))
-	return (left, right)
 
 edge_coverage = {}
 with open(pathsfile) as f:
 	for l in f:
 		path = l.replace('>', '\t>').replace('<', '\t<').strip().split('\t')
 		for i in range(1, len(path)):
-			key = canon(path[i-1], path[i])
+			key = gf.canon(path[i-1], path[i])
 			if key not in edge_coverage: edge_coverage[key] = 0
 			edge_coverage[key] += 1
 
@@ -124,10 +111,10 @@ with open(forbidden_connectionfile) as f:
 		for node in path:
 			if node[1:] in node_needs_connection: node_needs_connection.remove(node[1:])
 		for i in range(1, len(path)):
-			key = canon(path[i-1], path[i])
+			key = gf.canon(path[i-1], path[i])
 			if key in edge_needs_connection: edge_needs_connection.remove(key)
 		fwkey = path[0]
-		bwkey = reverse(path[-1])
+		bwkey = gf.revnode(path[-1])
 		has_connection.add(fwkey)
 		has_connection.add(bwkey)
 
@@ -140,10 +127,10 @@ with open(picked_connections_file) as f:
 		for node in path:
 			if node[1:] in node_needs_connection: node_needs_connection.remove(node[1:])
 		for i in range(1, len(path)):
-			key = canon(path[i-1], path[i])
+			key = gf.canon(path[i-1], path[i])
 			if key in edge_needs_connection: edge_needs_connection.remove(key)
 		fwkey = path[0]
-		bwkey = reverse(path[-1])
+		bwkey = gf.revnode(path[-1])
 		has_connection.add(fwkey)
 		has_connection.add(bwkey)
 
@@ -154,19 +141,19 @@ forbidden_tangles = set()
 
 for node in node_needs_connection:
 	if node not in parent: continue
-	forbidden_tangles.add(find(node, parent))
+	forbidden_tangles.add(gf.find(parent, node))
 for edge in edge_needs_connection:
 	if edge[0] not in parent or edge[1] not in parent: continue
-	forbidden_tangles.add(find(edge[0], parent))
+	forbidden_tangles.add(gf.find(parent, edge[0]))
 
 for node in unique_nodes:
 	if ">" + node not in has_connection:
-		forbidden_tangles.add(find(">" + node, parent))
+		forbidden_tangles.add(gf.find(parent, ">" + node))
 	if "<" + node not in has_connection:
-		forbidden_tangles.add(find("<" + node, parent))
+		forbidden_tangles.add(gf.find(parent, "<" + node))
 
 for node in unique_nodes:
-	if find(">" + node, parent) in forbidden_tangles:
+	if gf.find(parent, ">" + node) in forbidden_tangles:
 		print(">" + node)
-	if find("<" + node, parent) in forbidden_tangles:
+	if gf.find(parent, "<" + node) in forbidden_tangles:
 		print("<" + node)

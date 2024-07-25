@@ -1,14 +1,11 @@
 #!/usr/bin/env python
 
 import sys
-
-def str2bool(v):
-  return v.lower() in ("yes", "true", "t", "1")
-
+import graph_functions as gf
 
 read_file = sys.argv[1]
 filter_offset = int(sys.argv[2])
-invert = str2bool(sys.argv[3])
+invert = gf.str2bool(sys.argv[3])
 # alignments from stdin
 # alignments to stdout
 

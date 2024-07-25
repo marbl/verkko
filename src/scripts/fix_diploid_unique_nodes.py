@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import graph_functions as gf
 
 old_unique_nodes_file = sys.argv[1]
 aln_file = sys.argv[2]
@@ -9,18 +10,13 @@ ont_node_cov_file = sys.argv[4]
 graph_file = sys.argv[5]
 # new uniques to stdout
 
-def revnode(n):
-	assert len(n) >= 2
-	assert n[0] == '>' or n[0] == '<'
-	return ('>' if n[0] == '<' else '<') + n[1:] 
-
 def check_side(edges, node, ont_node_covs, hifi_node_covs):
 	min_ont_coverage = None
 	max_ont_coverage = None
 	min_hifi_coverage = None
 	max_hifi_coverage = None
 	for edge in edges[node]:
-		if len(edges[revnode(edge)]) != 1: return False
+		if len(edges[gf.revnode(edge)]) != 1: return False
 		if min_ont_coverage is None: min_ont_coverage = ont_node_covs[edge[1:]]
 		if max_ont_coverage is None: max_ont_coverage = ont_node_covs[edge[1:]]
 		min_ont_coverage = min(min_ont_coverage, ont_node_covs[edge[1:]])
@@ -60,7 +56,7 @@ def check_triplets(edges, node, triplet_coverages):
 	for i in range(0, copycount):
 		out_covered.add(triplets[i][2])
 		in_covered.add(triplets[i][0])
-	if len(in_covered) != len(edges[revnode(node)]): return False
+	if len(in_covered) != len(edges[gf.revnode(node)]): return False
 	if len(out_covered) != len(edges[node]): return False
 	if len(triplet_coverages[node]) > copycount and counts[copycount-1] < counts[copycount] * 2: return False
 	return True
@@ -100,8 +96,8 @@ with open(graph_file) as f:
 			tonode = ('>' if parts[4] == '+' else '<') + parts[3]
 			if fromnode not in edges: edges[fromnode] = set()
 			edges[fromnode].add(tonode)
-			if revnode(tonode) not in edges: edges[revnode(tonode)] = set()
-			edges[revnode(tonode)].add(revnode(fromnode))
+			if gf.revnode(tonode) not in edges: edges[gf.revnode(tonode)] = set()
+			edges[gf.revnode(tonode)].add(gf.revnode(fromnode))
 
 triplet_coverages = {}
 with open(aln_file) as f:
@@ -110,7 +106,7 @@ with open(aln_file) as f:
 		for i in range(1, len(path)-1):
 			triplet = (path[i-1], path[i], path[i+1])
 			if path[i][0] == "<":
-				triplet = (revnode(path[i+1]), revnode(path[i]), revnode(path[i-1]))
+				triplet = (gf.revnode(path[i+1]), gf.revnode(path[i]), gf.revnode(path[i-1]))
 			assert triplet[1][0] == ">"
 			if triplet[1] not in triplet_coverages: triplet_coverages[triplet[1]] = {}
 			if triplet not in triplet_coverages[triplet[1]]: triplet_coverages[triplet[1]][triplet] = 0

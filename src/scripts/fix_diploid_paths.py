@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+import graph_functions as gf
 
 unique_nodes_file = sys.argv[1]
 graph_file = sys.argv[2]
@@ -8,15 +9,6 @@ picked_paths_file = sys.argv[3]
 counted_paths_file = sys.argv[4]
 other_path_create_coverage_threshold = int(sys.argv[5])
 # new picked paths to stdout
-
-def getone(s):
-	for n in s:
-		return n
-
-def revnode(n):
-	assert len(n) >= 2
-	assert n[0] == '>' or n[0] == '<'
-	return ('>' if n[0] == '<' else '<') + n[1:]
 
 unique_nodes = set()
 with open(unique_nodes_file) as f:
@@ -35,8 +27,8 @@ with open(graph_file) as f:
 			tonode = ('>' if parts[4] == '+' else '<') + parts[3]
 			if fromnode not in edges: edges[fromnode] = set()
 			edges[fromnode].add(tonode)
-			if revnode(tonode) not in edges: edges[revnode(tonode)] = set()
-			edges[revnode(tonode)].add(revnode(fromnode))
+			if gf.revnode(tonode) not in edges: edges[gf.revnode(tonode)] = set()
+			edges[gf.revnode(tonode)].add(gf.revnode(fromnode))
 
 check_nodes = set()
 discarded_paths_per_checkable = {}
@@ -99,9 +91,9 @@ with open(counted_paths_file) as f:
 for node in check_nodes:
 	if node not in paths_per_checkable: continue
 	if len(paths_per_checkable[node]) == 1:
-		if path_counts[getone(paths_per_checkable[node])] >= other_path_create_coverage_threshold and len(discarded_paths_per_checkable[node]) == 0:
+		if path_counts[gf.getone(paths_per_checkable[node])] >= other_path_create_coverage_threshold and len(discarded_paths_per_checkable[node]) == 0:
 			used_nodes = set()
-			for part in getone(paths_per_checkable[node]).replace('>', '\t').replace('<', '\t').strip().split('\t'):
+			for part in gf.getone(paths_per_checkable[node]).replace('>', '\t').replace('<', '\t').strip().split('\t'):
 				used_nodes.add(part)
 			assert len(used_nodes) == 3
 			assert node in used_nodes
@@ -110,7 +102,7 @@ for node in check_nodes:
 			for edge in edges['<' + node]:
 				if edge[1:] in used_nodes: continue
 				assert prev_node is None
-				prev_node = revnode(edge)
+				prev_node = gf.revnode(edge)
 			for edge in edges['>' + node]:
 				if edge[1:] in used_nodes: continue
 				assert next_node is None

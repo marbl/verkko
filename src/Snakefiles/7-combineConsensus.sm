@@ -27,6 +27,8 @@ def combineConsensusI(wildcards):
     return expand("7-consensus/packages/part{nnnn}.fasta", nnnn = glob_wildcards("7-consensus/packages/part{xxxx}.cnspack").xxxx)
 def combineConsensusP(wildcards):
     return expand(            "packages/part{nnnn}.fasta", nnnn = glob_wildcards("7-consensus/packages/part{xxxx}.cnspack").xxxx)
+def combineConsensusB(wildcards):
+    return expand(            "packages/part{nnnn}.bam*.bam", nnnn = glob_wildcards("7-consensus/packages/part{xxxx}.cnspack").xxxx) 
 
 rule combineConsensus:
     input:
@@ -38,6 +40,7 @@ rule combineConsensus:
         pathstsv  = rules.rukki.output.pathstsv if config['ruk_enable'] == "True" else rules.emptyfile.output,
         graph     = rules.verkko.input.graph
     output:
+        bam       = rules.verkko.input.bam,
         cns       = rules.verkko.input.cns,
         cnshap1   = rules.verkko.input.cnshap1,
         cnshap2   = rules.verkko.input.cnshap2,
@@ -48,15 +51,18 @@ rule combineConsensus:
         err       = '7-consensus/combineConsensus.err'
     params:
         MASHMAP   = config.get('MASHMAP', "{VERKKO}/bin/mashmap"),
+        SAMTOOLS  = config.get('SAMTOOLS', "{VERKKO}/bin/samtools"),
         packcns   = combineConsensusP,
         keepinter = config['keep_intermediate'],
         short_len = config['short_contig_length'],
-        screens   = config['screen']
+        screens   = config['screen'],
+        packbam   = combineConsensusB,
+        haveBAM    = config['withBAM']
     threads:
-        1
+        8
     resources:
         job_id = 1,
-        n_cpus = 1,
+        n_cpus = 8,
         mem_gb = lambda wildcards, input, attempt: getAlignMemoryRequest(attempt, 1.25, input.packcns),
         time_h = 4
     shell:
@@ -87,7 +93,6 @@ echo ""
   ../{input.scfmap} \\\\
   {params.packcns}
 
-
 echo "--------------------"
 echo "Filtering short/disconnected and contaminants."
 echo ""
@@ -109,6 +114,17 @@ fi
 
 #  Copy the screened assembly to the output.
 cp assembly.fasta ../{output.cns}
+
+if [ "{params.haveBAM}" = "True" ]; then
+   echo "--------------------"
+   echo "Combining consensus bam results."
+   echo ""
+   mem_per_core=\`expr {resources.mem_gb} \/ {threads} | awk '{{if (\$1 < 1) print "1G"; else print \$1"G"}}'\`
+
+   {params.SAMTOOLS} merge -f -O bam --reference combined.fasta -@{threads} -u - {params.packbam} | {params.SAMTOOLS} sort -m \$mem_per_core -@{threads} -o ../{output.bam}
+else
+   touch ../{output.bam}
+fi
 
 #  Try to circularize, the script will output to the same file as input since it caches the sequences
 #  if it fails to circularize it will output sequence unchanged

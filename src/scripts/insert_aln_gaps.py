@@ -2,7 +2,7 @@
 
 import sys
 import networkx as nx
-import graph_functions
+import graph_functions as gf
 
 graph_file = sys.argv[1]
 input_aln_file = sys.argv[2]
@@ -15,21 +15,6 @@ allow_nontips = (True if sys.argv[8] == "y" else False)
 allow_onetip = (True if sys.argv[8] == "o" else False)
 max_read_clip = 0.05
 # graph to stdout
-
-def revnode(n):
-	assert len(n) >= 2
-	assert n[0] == ">" or n[0] == "<"
-	return (">" if n[0] == "<" else "<") + n[1:]
-
-def canontip(left, right):
-	fwstr = left + right
-	bwstr = right + left
-	if bwstr < fwstr: return (right, left)
-	return (left, right)
-
-def revcomp(s):
-	comp = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C', 'N': 'N'}
-	return "".join(comp[c] for c in s[::-1])
 
 not_tips = set()
 node_seqs = {}
@@ -46,7 +31,7 @@ with open(graph_file) as f:
 			fromnode = (">" if parts[2] == "+" else "<") + parts[1]
 #this is not to_node but reverse(to_node)
 			tonode = ("<" if parts[4] == "+" else ">") + parts[3]
-			edge_overlaps[canontip(fromnode, tonode)] = int(parts[5][:-1])
+			edge_overlaps[gf.canontip(fromnode, tonode)] = int(parts[5][:-1])
 			if parts[1] != parts[3]: # we will skip self-edges for this consideration, if you have a loop at a gap, try to patch it anyway
 				not_tips.add(fromnode)
 				not_tips.add(tonode)
@@ -56,8 +41,8 @@ if allow_nontips: not_tips = set()
 
 
 G = nx.Graph()
-graph_functions.load_indirect_graph(graph_file, G)
-tangles = graph_functions.nodes_in_tangles(G, 30000, 100)
+gf.load_indirect_graph(graph_file, G)
+tangles = gf.nodes_in_tangles(G, 30000, 100)
 or_tangles = set()
 for node in tangles:
 	for pref in (">", "<"):
@@ -83,7 +68,7 @@ with open(input_aln_file) as f:
 		readstart = int(parts[2])
 		readend = int(parts[3])
 		path = tuple(parts[5].replace(">", "\t>").replace("<", "\t<").strip().split('\t'))
-		alnstart = revnode(path[0])
+		alnstart = gf.revnode(path[0])
 		alnend = path[-1]
 		leftclip = int(parts[7])
 		rightclip = int(parts[6]) - int(parts[8])
@@ -121,7 +106,7 @@ for name in alns_per_read:
 		if not allow_onetip and (alns[i-1][3] in not_tips or alns[i][2] in not_tips): continue
 		if alns[i-1][5] > max_end_clip or alns[i][4] > max_end_clip: continue 
 		gap_len = (alns[i][0] - alns[i][4]) - (alns[i-1][1] + alns[i-1][5])
-		key = canontip(alns[i-1][3], alns[i][2])
+		key = gf.canontip(alns[i-1][3], alns[i][2])
 		# skip inserting gaps between contigs that already have edges or to ourselves
 		if alns[i-1][3][1:] == alns[i][2][1:] or key in edge_overlaps: continue
 		if key not in gaps: gaps[key] = []
@@ -151,19 +136,19 @@ for gap in gapkeys:
 		if overlap >= len(node_seqs[gap[0][1:]])-1: overlap = len(node_seqs[gap[0][1:]])-2
 		if overlap >= len(node_seqs[gap[1][1:]])-1: overlap = len(node_seqs[gap[1][1:]])-2
 		base_seq = node_seqs[gap[0][1:]]
-		if gap[0][0] == "<": base_seq = revcomp(base_seq)
+		if gap[0][0] == "<": base_seq = gf.revcomp(base_seq)
 		assert len(base_seq) > overlap+1
 		seq = base_seq[-overlap-1:]
 		base_seq = node_seqs[gap[1][1:]]
-		if gap[1][0] == ">": base_seq = revcomp(base_seq)
+		if gap[1][0] == ">": base_seq = gf.revcomp(base_seq)
 		assert len(base_seq) > overlap+1
 		seq += base_seq[overlap]
 	elif gap_len == 0:
 		base_seq = node_seqs[gap[0][1:]]
-		if gap[0][0] == "<": base_seq = revcomp(base_seq)
+		if gap[0][0] == "<": base_seq = gf.revcomp(base_seq)
 		seq = base_seq[-1]
 		base_seq = node_seqs[gap[1][1:]]
-		if gap[1][0] == ">": base_seq = revcomp(base_seq)
+		if gap[1][0] == ">": base_seq = gf.revcomp(base_seq)
 		seq += base_seq[0]
 		overlap = 1
 	else:
@@ -173,8 +158,8 @@ for gap in gapkeys:
 	if gap_len < 1: gap_len = 1
 	next_gap_id += 1
 	node_seqs[gap_name] = seq
-	edge_overlaps[canontip(gap[0], "<" + gap_name)] = overlap
-	edge_overlaps[canontip(">" + gap_name, gap[1])] = overlap
+	edge_overlaps[gf.canontip(gap[0], "<" + gap_name)] = overlap
+	edge_overlaps[gf.canontip(">" + gap_name, gap[1])] = overlap
 	overlap = str(overlap) + "M"
 	print("S\t" + gap_name + "\t" + seq)
 	print("L\t" + gap[0][1:] + "\t" + ("+" if gap[0][0] == ">" else "-") + "\t" + gap_name + "\t+\t" + overlap)
@@ -201,7 +186,7 @@ with open(gap_aln_file_out, "w") as f:
 			if allow_onetip and tangle_onetip(alns[i-1][3], alns[i][2], or_tangles, not_tips): continue			
 			if not allow_onetip and (alns[i-1][3] in not_tips or alns[i][2] in not_tips): continue
 			if alns[i-1][5] > max_end_clip or alns[i][4] > max_end_clip: continue
-			key = canontip(alns[i-1][3], alns[i][2])
+			key = gf.canontip(alns[i-1][3], alns[i][2])
 			if key not in allowed_gaps: continue
 			fw = (key == (alns[i-1][3], alns[i][2]))
 			gap_node = (">" if fw else "<") + gap_names[key]
@@ -229,7 +214,7 @@ with open(gap_aln_file_out, "w") as f:
 			path_length = len(node_seqs[current_path[0][1:]])
 			for j in range(1, len(current_path)):
 				path_length += len(node_seqs[current_path[j][1:]])
-				path_length -= edge_overlaps[canontip(current_path[j-1], revnode(current_path[j]))]
+				path_length -= edge_overlaps[gf.canontip(current_path[j-1], gf.revnode(current_path[j]))]
 			assert path_length > current_left_clip + current_right_clip
 			f.write(name + "\t" + str(alns[i][6]) + "\t" + str(current_read_start) + "\t" + str(current_read_end) + "\t+\t" + "".join(current_path) + "\t" + str(path_length) + "\t" + str(current_left_clip) + "\t" + str(path_length - current_right_clip) + "\t0\t0\t60\n")
 			last_used_index = i
@@ -244,7 +229,7 @@ with open(gap_aln_file_out, "w") as f:
 			path_length = len(node_seqs[current_path[0][1:]])
 			for j in range(1, len(current_path)):
 				path_length += len(node_seqs[current_path[j][1:]])
-				path_length -= edge_overlaps[canontip(current_path[j-1], revnode(current_path[j]))]
+				path_length -= edge_overlaps[gf.canontip(current_path[j-1], gf.revnode(current_path[j]))]
 			if path_length > current_left_clip + current_right_clip:
 				f.write(name + "\t" + str(alns[i][6]) + "\t" + str(current_read_start) + "\t" + str(current_read_end) + "\t+\t" + "".join(current_path) + "\t" + str(path_length) + "\t" + str(current_left_clip) + "\t" + str(path_length - current_right_clip) + "\t0\t0\t60\n")
 
@@ -257,7 +242,7 @@ with open(nongap_aln_file_out, "w") as f2:
 			readstart = int(parts[2])
 			readend = int(parts[3])
 			path = tuple(parts[5].replace(">", "\t>").replace("<", "\t<").strip().split('\t'))
-			alnstart = revnode(path[0])
+			alnstart = gf.revnode(path[0])
 			alnend = path[-1]
 			leftclip = int(parts[7])
 			rightclip = int(parts[6]) - int(parts[8])

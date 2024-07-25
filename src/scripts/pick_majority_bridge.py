@@ -1,18 +1,16 @@
 #!/usr/bin/env python
 
 import sys
+import graph_functions as gf
 
 forbidden_paths_out_file = sys.argv[1]
 # paths from stdin
 # allowed paths to stdout
 
-def pathstr(p):
-	return "".join(p)
-
 def canon(p):
-	ps = pathstr(p)
+	ps = gf.pathstr(p)
 	reverse = [('>' if n[0] == '<' else '<') + n[1:] for n in p[::-1]]
-	rps = pathstr(reverse)
+	rps = gf.pathstr(reverse)
 	if ps < rps: return p
 	return reverse
 
@@ -43,9 +41,9 @@ for key in connectors:
 	assert len(connectorlist) >= 1
 	for connection in connectorlist:
 		if connection[1]*2 >= connectorlist[0][1]:
-			print(pathstr(list(connection[0])))
+			print(gf.pathstr(list(connection[0])))
 		else:
-			forbidden.add(pathstr(list(connection[0])))
+			forbidden.add(gf.pathstr(list(connection[0])))
 
 with open(forbidden_paths_out_file, "w") as f:
 	for path in forbidden:
