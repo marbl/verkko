@@ -131,7 +131,18 @@ Hi-C/PoreC integration was tested mostly on human and primate genomes. Please se
 ### Running on a grid
 By default, verkko will run the snakemake workflow and all compute on the local machine. Support for SGE, Slurm and LSF (untested) can be enabled with options `--sge`, `--slurm` and `--lsf`, respectively. This will run the snakemake workflow on the local machine but submit all compute to the grid. To launch the both the snakemake workflow and compute on the grid, wrap the verkko command in a shell script and submit using your scheduler. If you're using conda, you may need to make the conda-installed python your default. You can do this with the `--python` option when calling verkko
 
-For cluster runs verkko uses different cpu/memory/time options for different parts of the pipeline. Usually a user does not need to change them, however advanced tuning is possible with --<stage_code>-run options.
+<details>
+<summary>Customizing grid requests (QOS, partition, etc)</summary>
+Verkko will submit jobs to the default queue on your grid environment. It is possible to customize how jobs are submitted to specify partitions or other options like accounting or QOS. For example:
+
+```
+--snakeopts '--cluster "./slurm-sge-submit.sh {threads} {resources.mem_gb} {resources.time_h} {rulename} {resources.job_id} --partition=quick --account=verkko_asm --qos=verkko_qos"'
+```
+
+on SLURM will request the 'quick' queue and pass account and qos options.
+</details>
+
+Verkko uses default cpu/memory/time options for different parts of the pipeline. Usually a user does not need to change them, however advanced tuning is possible with `--<stage_code>-run` options.
 <details>
 <summary>Here we list those options and briefly describe of corresponding verkko pipeline stages and affected scripts </summary>
 

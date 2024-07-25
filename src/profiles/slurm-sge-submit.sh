@@ -137,15 +137,15 @@ elif [ "x$lsf" != "x" ] ; then
   if   [ $mem_units = "GB" ] ; then
     mem=${mem_gb}
   elif [ $mem_units = "MB" ] ; then
-    mem=$(dc -e "3 k ${mem_gb} 1024 / p")
+    mem=$(dc -e "3 k ${mem_gb} 1024 * p")
   else
-    mem=$(dc -e "3 k ${mem_gb} 1048576 / p")
+    mem=$(dc -e "3 k ${mem_gb} 1048576 * p")
   fi
 
-  jobid=$(bsub -R span[hosts=1] -n ${n_cpus} -M ${mem} -oo batch-scripts/\$JOB_ID.${rule_n}.${jobidx}.out "$@")
+  jobid=$(bsub -R "span[hosts=1] rusage[mem=${mem}]" -n ${n_cpus} -oo batch-scripts/${jobid}.${rule_n}.${jobidx}.out "$@" | grep -oE "Job <[0-9]+>" | awk '{print $2}' | tr -d '<>')
 
   echo > batch-scripts/${jobid}.${rule_n}.${jobidx}.submit \
-          bsub -R span[hosts=1] -n ${n_cpus} -M ${mem} -oo batch-scripts/${jobid}.${rule_n}.${jobidx}.out "$@"
+          bsub -R "span[hosts=1] rusage[mem=${mem}]" -n ${n_cpus} -oo batch-scripts/${jobid}.${rule_n}.${jobidx}.out "$@"
 
 ##########
 #

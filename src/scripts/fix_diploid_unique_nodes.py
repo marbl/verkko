@@ -35,7 +35,7 @@ def check_side(edges, node, ont_node_covs, hifi_node_covs):
 			min_hifi_coverage = min(min_hifi_coverage, hifi_node_covs[edge[1:]])
 			max_hifi_coverage = max(max_hifi_coverage, hifi_node_covs[edge[1:]])
 	if max_ont_coverage > min_ont_coverage * 1.5: return False
-	if max_hifi_coverage > max_hifi_coverage * 1.5: return False
+	if max_hifi_coverage > min_hifi_coverage * 1.5: return False
 	# if ont_node_covs[node[1:]] > max_ont_coverage * (len(edges[node]) + 0.5): return False
 	# if ont_node_covs[node[1:]] < min_ont_coverage * (len(edges[node]) - 0.5): return False
 	# if hifi_node_covs[node[1:]] > max_hifi_coverage * (len(edges[node]) + 0.5): return False
@@ -45,7 +45,7 @@ def check_side(edges, node, ont_node_covs, hifi_node_covs):
 def check_triplets(edges, node, triplet_coverages):
 	copycount = len(edges[node])
 	if node not in triplet_coverages: return False
-	if len(triplet_coverages[node]) < copycount: return False
+	if len(triplet_coverages[node]) != copycount: return False
 	counts = [triplet_coverages[node][key] for key in triplet_coverages[node]]
 	counts.sort(key = lambda x: -x)
 	if counts[0] > counts[copycount-1] * 2: return False
