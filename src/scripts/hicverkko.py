@@ -25,8 +25,7 @@ if __name__ == "__main__":
     output_dir = sys.argv[3]
 
     os.makedirs(output_dir, exist_ok=True)
-    matches_file = os.path.join(output_dir, "mashmap.out")
- #   matches_file = os.path.join(output_dir, "unitigs.hpc50.mashmap")
+    matches_file = os.path.join(output_dir, "unitigs_hpc50.mashmap")
     hic_file = os.path.join(output_dir, "hic_mapping.byread.output")
     if not os.path.exists(hic_file):
         hic_file = os.path.join(output_dir, "hic.byread.compressed")
