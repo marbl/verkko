@@ -218,6 +218,8 @@ def get_valid_triplets(node, edges, paths_crossing, min_edge_support, min_covera
 
 def resolve_hairpins(nodelength, nodes, paths_crossing, node_seqs, node_lens, edges, maybe_resolvable, min_edge_support, min_coverage, removable_nodes):
 	hairpins = set()
+	unresolvable_hairpins = set()
+
 	for node in gf.iterate_deterministic(nodes):
 		if ">" + node not in edges: continue
 		if "<" + node not in edges: continue
@@ -225,7 +227,7 @@ def resolve_hairpins(nodelength, nodes, paths_crossing, node_seqs, node_lens, ed
 			unresolvable_hairpins.add(node)
 		if len(edges["<" + node]) >= 2 and ">" + node in edges["<" + node]:
 			unresolvable_hairpins.add(node)
-    if len(edges[">" + node]) == 1 and gf.getone(edges[">" + node]) == "<" + node:
+		if len(edges[">" + node]) == 1 and gf.getone(edges[">" + node]) == "<" + node:
 			hairpins.add(">" + node)
 		if len(edges["<" + node]) == 1 and gf.getone(edges["<" + node]) == ">" + node:
 			hairpins.add("<" + node)
