@@ -15,6 +15,29 @@
  ##
 
 
+findsnakemakeerror() {
+   local ret=$1
+
+   if [ $ret -ne 0 ]; then
+      lastLog=`ls -Art .snakemake/log/*|tail -n1`
+      failedJob=`cat $lastLog |grep -v error |grep err |grep sh`
+
+      echo "Verkko logging for failed commands: $failedJob"
+      for j in $failedJob; do
+         d=`dirname $j`
+         d=${d#*/}
+         j=`basename $j`
+         if [ "$(expr "$j" : ".*err$")" -gt 0 ]; then
+            for i in `find $d -maxdepth 2 -type f \( -name "*.err" -o -name "*.out" \)`; do
+               echo "$i:"
+               tail -n 5 $i | sed 's/^/\t/'
+            done
+            break
+         fi
+      done
+   fi
+}
+
 #  Use 'cd' and 'pwd' to find the full path to a file/directory.
 fullpath() {
   local ipath=$1
@@ -1342,6 +1365,7 @@ if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
            echo "ERROR!, HiC/Pore-C phasing failed, look above for error message."
            echo "Not running final consensus since no rukki paths are available!"
         fi
+        findsnakemakeerror $ret
         exit $ret
     fi
     newoutd=8-hicPipeline/final_contigs/
@@ -1396,4 +1420,5 @@ if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
        echo "ERROR: HiC-/PoreC consensus failed, look above for error message"
     fi
 fi
+findsnakemakeerror $ret
 exit $ret
