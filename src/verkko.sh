@@ -522,7 +522,7 @@ while [ $# -gt 0 ] ; do
     #  Post-processing options
     #
 
-    elif [ "$opt" = "--consensus-bam" ] ;       then withbam="True";
+    elif [ "$opt" = "--consensus-bam" ] ;       then withbam="True"; lay_mem_gb=`expr $lay_mem_gb \* 2`;
     elif [ "$opt" = "--discard-short" ] ;       then short_contig_length=$arg;   shift
     elif [ "$opt" = "--screen" ] ; then
       if [ "x$arg" = "xhuman" ] ; then
