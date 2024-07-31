@@ -63,7 +63,7 @@ rule combineConsensus:
     resources:
         job_id = 1,
         n_cpus = 8,
-        mem_gb = lambda wildcards, input, attempt: getAlignMemoryRequest(attempt, 1.25, input.packcns),
+        mem_gb = lambda wildcards, input, attempt: getAlignMemoryRequest(attempt, 2, input.packcns),
         time_h = 4
     shell:
         '''
