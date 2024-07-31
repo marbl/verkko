@@ -61,7 +61,7 @@ fi
     -threads {threads} \\\\
     -import ../{input.package} \\\\
     -A ../{output.consensus}.WORKING \\\\
-    -C 2 \\\\
+    -C 1 \\\\
     \$align \\\\
     -maxcoverage 50 \\\\
     -e  0.05 \\\\
