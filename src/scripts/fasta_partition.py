@@ -5,6 +5,7 @@ import os
 import re
 
 import fasta_util as seq
+import graph_functions as gf
 
 mode             =  None
 output_prefix    =  None
@@ -14,14 +15,15 @@ min_read_length =  0
 filenames        = []
 output_hpc       = 0
 
-if   (len(sys.argv) > 6) and (sys.argv[1] == 'partition'):
-  mode             =     sys.argv[1]
-  output_prefix    =     sys.argv[2]
-  output_max_bytes = int(sys.argv[3])
-  output_max_seqs  = int(sys.argv[4])
-  min_read_length =  int(sys.argv[5])
-  filenames        =     sys.argv[6:]
-  output_hpc       = 0
+if   (len(sys.argv) > 8) and (sys.argv[1] == 'partition'):
+  mode             =             sys.argv[1]
+  output_prefix    =             sys.argv[2]
+  output_max_bytes =         int(sys.argv[3])
+  output_max_seqs  =         int(sys.argv[4])
+  min_read_length  =         int(sys.argv[5])
+  output_names     = gf.str2bool(sys.argv[6])
+  output_hpc       = gf.str2bool(sys.argv[7])
+  filenames        =             sys.argv[8:]
 
 else:
   sys.stderr.write(f"usage:\n")
@@ -80,7 +82,7 @@ for filename in filenames:
         if outf == None:
           outf        = seq.openOutput(f"{output_prefix}{format(outf_index, '03d')}.fasta.gz")
         outf.write(f">{sName}\n{sSeq}\n".encode())
-        print(sName)
+        if output_names: print(sName)
 
     elif (line[0] == "@"):
       line, sName, sSeq, sQlt = seq.readFastQ(inf, line)
@@ -98,7 +100,7 @@ for filename in filenames:
         if outf == None:
           outf        = seq.openOutput(f"{output_prefix}{format(outf_index, '03d')}.fasta.gz")
         outf.write(f">{sName}\n{sSeq}\n".encode())
-        print(sName)
+        if output_names: print(sName)
 
     else:
       print(f"Unrecognized line '{line.strip()}'", file=sys.stderr)
