@@ -448,7 +448,7 @@ class ScaffoldGraph:
             if not self.forbiddenPair(cur_path_id, local_scores[i][0]):
                 best_ind = i
                 break
-        for j in range (i+1, len(local_scores)):
+        for j in range (best_ind+1, len(local_scores)):
             if not self.forbiddenPair(cur_path_id, local_scores[j][0]):
                 second_best_ind = j
                 break
