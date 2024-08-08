@@ -27,7 +27,7 @@ one_short_total = 0
 both_middle_total = 0
 one_middle_total = 0
 basic_filtered = 0
-
+sam_string_filtering = 0
 XA_self_mapped = 0
 output_bam = pysam.AlignmentFile('-', 'wb', template=bamfile)
 for cur_read in bamfile:
@@ -36,6 +36,15 @@ for cur_read in bamfile:
     if cur_read.is_unmapped or cur_read.reference_name == cur_read.next_reference_name or (cur_read.has_tag("XA") and cur_read.get_tag("XA").find(cur_read.next_reference_name+",") != -1) or (not cur_read.has_tag("XA") and cur_read.mapping_quality == 0):
         basic_filtered += 1
         continue
+    al_len = 0
+    for cigar_operation, length in cur_read.cigartuples:
+        if cigar_operation == 0:
+            al_len += length
+    if al_len * 2 < cur_read.query_length:
+        #sys.stderr.write (f"{cur_read.query_name} {cur_read.query_length} {al_len} {cur_read.cigarstring}")
+        sam_string_filtering += 1
+        continue
+
     cur_name = cur_read.query_name
     if cur_name == prev_name:
         #TODO: poreC is not compatible with this now
