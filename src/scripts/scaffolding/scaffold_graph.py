@@ -306,7 +306,7 @@ class ScaffoldGraph:
         return closest/2
 
     #not to be used directly, with IDs we presave dists in pathsStorage
-    def pathDist(self, path_from:list[str], path_to:list[str], check_homologous:bool):
+    def pathDist(self, path_from:list, path_to:list, check_homologous:bool):
         closest = ScaffoldGraph.TOO_FAR
         add_dist = 0
         for node in reversed(path_from):
@@ -415,11 +415,17 @@ class ScaffoldGraph:
         nor_to_path_id = to_path_id.strip('-+')
         #Heterogametic chromosomes get more links since there is no homologous one to absorb multiple alignments, so no connection of diploid and long enough ahploids    
         if nor_from_path_id in self.haploids and self.rukki_paths.getLength(nor_from_path_id) > ScaffoldGraph.LONG_HAPLOID_CUTOFF and not (nor_to_path_id in self.haploids):
-            self.logger.warning(f"Banning link from long haploid {from_path_id} to diploid {to_path_id}")
-            return True
+            if self.orPathIdDist(from_path_id, to_path_id, self.rukki_paths, True) > ScaffoldGraph.NEAR_PATH_END:
+                self.logger.warning(f"Banning distant link from long haploid {from_path_id} to diploid {to_path_id}")
+                return True
+            else:
+                self.logger.warning(f"Allowing link from long haploid {from_path_id} to diploid {to_path_id}, close in graph")
         if nor_to_path_id in self.haploids and self.rukki_paths.getLength(nor_to_path_id) > ScaffoldGraph.LONG_HAPLOID_CUTOFF and not (nor_from_path_id in self.haploids):
-            self.logger.warning(f"Banning link from diploid {from_path_id} to long haploid {to_path_id}")
-            return True
+            if self.orPathIdDist(from_path_id, to_path_id, self.rukki_paths, True) > ScaffoldGraph.NEAR_PATH_END:
+                self.logger.warning(f"Banning distant link from diploid {from_path_id} to long haploid {to_path_id}")
+                return True
+            else:
+                self.logger.warning(f"Allowing link from diploid {from_path_id} to long haploid {to_path_id}, close in graph")
         #relatively short fragments with telomere are special case, we may fail to detect orientation there but belive in telomere.
         if self.rukki_paths.getLength(nor_to_path_id) <= ScaffoldGraph.SHORT_TEL_CUTOFF and self.scaffold_graph.nodes[to_path_id]['telomere'][0]:
             self.logger.error(f"Banning link from {from_path_id} into short telomere, should not happen {to_path_id}")
@@ -526,6 +532,7 @@ class ScaffoldGraph:
                 if next_path_id == "NONE":
                     self.logger.info ("Failed to find regular extension for {next_path_id}, trying unique")
                     next_path_id = self.findNextPath(cur_path_id, nor_used_path_ids, "unique_weight")
+
                 if next_path_id == "DONE":
                     self.logger.info ("All done, stopped at telomere")
                     break
@@ -533,6 +540,17 @@ class ScaffoldGraph:
                     self.logger.info ("Failed to find extension, stopping")
                     break
                 else:
+                    hom_before = False
+                    for prev_path_id in cur_scaffold:
+                        nor_new_path_id = gf.nor_path_id(next_path_id)
+                        nor_prev_path_id = gf.nor_path_id(prev_path_id)
+                        if self.match_graph.isHomologousPath([self.rukki_paths.getPathById(nor_new_path_id), self.rukki_paths.getPathById(nor_prev_path_id)], [self.rukki_paths.getLength(nor_new_path_id), self.rukki_paths.getLength(nor_prev_path_id)]):
+                            #TODO: really not normal if we see that best extension is homologous to some path in scaffold, deserves investigation
+                            self.logger.warning(f"Trying to extend, had homologous path in same scaffold before! {nor_new_path_id} {nor_prev_path_id}")
+                            hom_before = True
+                    if hom_before:
+                        self.logger.info (f"Homologous paths before in scaffold, not extending {cur_path_id} with {next_path_id}")
+                        break
                     self.logger.info (f"Extending {cur_path_id} with {next_path_id}")
 
                     #possibly not do so with paths of length one? They can be more successful in other direction

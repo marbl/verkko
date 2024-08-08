@@ -170,7 +170,8 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
     #TODO: move constants to some more relevant place
     MIN_LEN = 200000  # best result so far with 200000
 
-    MAX_GRAPH_DIST = 10000000  # hi-c links over 10M are believed to be useless
+    #likely do not need
+    #MAX_GRAPH_DIST = 100000000  # hi-c links over 10M are believed to be useless
 
     KLIN_STARTS = 1000  # number of different starts of kernighan lin
     KLIN_ITER = 10000  # number of iterations inside kernighan lin
@@ -398,7 +399,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
     #TODO: likely this is not needed anymore since we already added links between homologous edges.
                 for e0like in similar_edges[0]:
                     for e1like in similar_edges[1]:
-                        if e0like in dists and e1like in dists[e0like] and dists[e0like][e1like] < MAX_GRAPH_DIST + G.nodes[e1like]['length']:
+                        if e0like in dists and e1like in dists[e0like]: #and dists[e0like][e1like] < MAX_GRAPH_DIST + G.nodes[e1like]['length']:
                             C.add_edge(e[0], e[1], weight=hicGraph[e[0]][e[1]]['weight'])
                             break
         logging_f.write(f'Currently {C.number_of_nodes()} in current component\n')
