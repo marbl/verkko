@@ -739,7 +739,22 @@ class ScaffoldGraph:
             nor_path_id = gf.nor_path_id(or_ids[i])
             if i != 0:
                 #something non-default
-                scf_path.append(f"[N{ScaffoldGraph.DEFAULT_GAP_SIZE}N:scaffold]")
+                if or_ids[i][-1] == "+":
+                    after_gap = prefinal_paths.getPathById(nor_path_id)[0]
+                else:
+                    after_gap = gf.rc_path(prefinal_paths.getPathById(nor_path_id))[0]
+                prev_nor_id = gf.nor_path_id(or_ids[i-1])
+                if or_ids[i - 1][-1] == "+":
+                    before_gap = prefinal_paths.getPathById(prev_nor_id)[-1]
+                else:
+                    before_gap = gf.rc_path(prefinal_paths.getPathById(prev_nor_id))[-1]
+                gap_len = ScaffoldGraph.DEFAULT_GAP_SIZE 
+                if before_gap in self.dists and after_gap in self.dists[before_gap]:
+                    gap_len = min(gap_len, self.dists[before_gap][after_gap])
+                if gap_len != 0:
+                    scf_path.append(f"[N{gap_len}N:scaffold]")
+                else:
+                    self.logger.info(f"Zero gap between {or_ids[i-1]} and {or_ids[i]}")
             if or_ids[i][-1] == "+":
                 scf_path.extend(prefinal_paths.getPathById(nor_path_id))
             else:
