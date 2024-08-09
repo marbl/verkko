@@ -252,7 +252,7 @@ class ScaffoldGraph:
         res = ScaffoldGraph.TOO_FAR
         if from_node in self.dists:
             if to_node in self.dists[from_node]:
-                res = self.dists[from_node][to_node] - self.compressed_lens[gf.nor_node(from_node)] - self.compressed_lens[gf.nor_node(to_node)]
+                res = (self.dists[from_node][to_node] - self.compressed_lens[gf.nor_node(from_node)] - self.compressed_lens[gf.nor_node(to_node)])/2
         return res
     
     #Dist from node end to path. Allowed to go not in the first path node, but then additional length in path is added
