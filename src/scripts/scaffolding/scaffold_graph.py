@@ -127,17 +127,7 @@ class ScaffoldGraph:
 
         self.match_graph = match_graph.MatchGraph(matches_file, G, -239239239, ScaffoldGraph.MATCHGRAPH_LONG_NODE, ScaffoldGraph.MATCHGRAPH_MIN_ALIGNMENT, logger)
 
-        #block for reassignment testing
-        '''
-        self.compressed_lens = {}
-        for node in self.upd_G.nodes:
-            self.compressed_lens[node] = self.upd_G.nodes[node]['length']      
-            self.compressed_lens[node.strip("-+")] = self.upd_G.nodes[node]['length'] 
-        self.dists = dict(nx.all_pairs_dijkstra_path_length(self.upd_G, weight=lambda u, v, d: self.upd_G.edges[u, v]['mid_length']))
-        self.logger.info (hic_alignment_file)
-        self.fixHaploidNames(rukki_paths)
-        exit()
-        '''
+        
         all_connections, unique_connections = self.get_connections_bam(hic_alignment_file, interesting_nodes, True)
 
         
@@ -254,36 +244,21 @@ class ScaffoldGraph:
         for nor_path_id in paths.getPathIds():
             if self.isHaploidPath(paths, nor_path_id):
                 haploids.add(nor_path_id)
-            '''
-            #let's leave for the graph.
-            homs = {}
-            total_hom = 0
-            for or_node in paths.getPathById(nor_path_id):
-                nor_node = or_node.strip("-+")
-                #TODO function wrapper,  
-                for next in self.match_graph.getHomologousNodes(nor_node, True):
-                    if len (nodes_to_path_ids[next]) > 1:
-                        #soemthing weird, ignoring
-                        continue
-                    next_id = nodes_to_path_ids[next][0]
-                    if not (next_id in homs):
-                        homs[next_id] = 0
-                    homs[next_id] += self.match_graph.getEdgeAttribute(nor_node, next, 'homology_len')
-                    total_hom += self.match_graph.getEdgeAttribute(nor_node, next, 'homology_len')
-            path_len = paths.getLength(nor_path_id)
-            #TODO: should exclude homozygous nodes here
-            if total_hom * 2 < path_len:
-                haploids.add(nor_path_id)
-                #DEBUG ONLY                
-                if path_len > 2000000:
-                    self.logger.info(f"Found haploid path {nor_path_id} with homology {total_hom} and len {path_len} ")
-            '''
         return haploids
-
+    
+    #TODO a lot of graph-only code should be moved in or_graph wrapper class
+    #we store double dists from middle to middle, transforming to dist from end to    
+    def orNodeDist(self, from_node, to_node):
+        res = ScaffoldGraph.TOO_FAR
+        if from_node in self.dists:
+            if to_node in self.dists[from_node]:
+                res = self.dists[from_node][to_node] - self.compressed_lens[gf.nor_node(from_node)] - self.compressed_lens[gf.nor_node(to_node)]
+        return res
+    
     #Dist from node end to path. Allowed to go not in the first path node, but then additional length in path is added
     #Optionally allowing to use homologous nodes (to improve in gaps)
     def nodeToPathDist(self, node, path, check_homologous):
-        closest = ScaffoldGraph.TOO_FAR * 2
+        closest = ScaffoldGraph.TOO_FAR 
         add_dist = 0
         for path_node in path:
             #self.logger.debug (f"Checking nodepair dist from {node} to {path_node}")
@@ -291,19 +266,17 @@ class ScaffoldGraph:
                 #TODO: likely this is not needed
 #                if path_node == node:
 #                    closest = 0
-#                else:
-                if path_node in self.dists[node]:
-                    closest = min(closest, self.dists[node][path_node] + add_dist - self.compressed_lens[node.strip("-+")] - self.compressed_lens[path_node.strip("-+")])
+#                else:                
+                closest = min(closest, add_dist + self.orNodeDist(node, path_node))
                 if check_homologous:
                     #self.logger.debug(f"Checking homologous to node {path_node}: {self.homologousOrNodes(path_node)}")
                     for hom_node in self.match_graph.getHomologousOrNodes(path_node, True):
                         #self.logger.debug (f"Checking homologous nodepair dist from {node} to {hom_node}")
                         if hom_node == node:
-                            closest = 0
-                        elif hom_node in self.dists[node]:
-                            closest = min(closest, self.dists[node][hom_node] + add_dist - self.compressed_lens[node.strip("-+")] - self.compressed_lens[hom_node.strip("-+")])
-                add_dist += 2* self.compressed_lens[path_node.strip("-+")]
-        return closest/2
+                            closest = 0                        
+                        closest = min(closest, add_dist + self.orNodeDist(node, hom_node))
+                add_dist += self.compressed_lens[gf.nor_node(path_node)]
+        return closest
 
     #not to be used directly, with IDs we presave dists in pathsStorage
     def pathDist(self, path_from:list, path_to:list, check_homologous:bool):
@@ -747,10 +720,8 @@ class ScaffoldGraph:
                 if or_ids[i - 1][-1] == "+":
                     before_gap = prefinal_paths.getPathById(prev_nor_id)[-1]
                 else:
-                    before_gap = gf.rc_path(prefinal_paths.getPathById(prev_nor_id))[-1]
-                gap_len = ScaffoldGraph.DEFAULT_GAP_SIZE 
-                if before_gap in self.dists and after_gap in self.dists[before_gap]:
-                    gap_len = min(gap_len, self.dists[before_gap][after_gap])
+                    before_gap = gf.rc_path(prefinal_paths.getPathById(prev_nor_id))[-1]                
+                gap_len = min(ScaffoldGraph.DEFAULT_GAP_SIZE, self.orNodeDist(before_gap, after_gap))
                 if gap_len != 0:
                     scf_path.append(f"[N{gap_len}N:scaffold]")
                 else:
