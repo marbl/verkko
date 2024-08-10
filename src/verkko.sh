@@ -1363,11 +1363,11 @@ ret=$?
 
 #Failed to do it with snakemake
 if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
-    if [ ! -e "8-hicPipeline/rukki.paths.gaf" ]; then
+    if [ $ret -ne 0 -o ! -e "8-hicPipeline/rukki.paths.gaf" ]; then
         if [ $ret -ne 0 ]; then
            echo "ERROR!, HiC/Pore-C phasing failed, look above for error message."
-           echo "Not running final consensus since no rukki paths are available!"
         fi
+        echo "Not running final consensus since no rukki paths are available!"
         findsnakemakeerror $ret
         exit $ret
     fi
