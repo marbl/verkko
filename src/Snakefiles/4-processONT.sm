@@ -88,9 +88,9 @@ echo Step 2a
 
 cat alns-ont-nogap-2.gaf alns-ont-gap1.gaf alns-ont-gap2.gaf | {PYTHON} {VERKKO}/scripts/maybe_trim_alignment.py gapped-twice-unitig-unrolled-hifi-resolved.gfa 100 selected-winnowmap.ids > alns-cut-trim.gaf
 
-{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-twice-unitig-unrolled-hifi-resolved.gfa alns-cut-trim.gaf 10 100 alns-ont-nogap-3.gaf alns-ont-gap3.gaf cutgap o > gapped-thrice-unitig-unrolled-hifi-resolved.gfa
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-twice-unitig-unrolled-hifi-resolved.gfa alns-cut-trim.gaf 10 100 alns-ont-nogap-3.gaf alns-ont-gap3.gaf gapcut o > gapped-thrice-unitig-unrolled-hifi-resolved.gfa
 
-{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-thrice-unitig-unrolled-hifi-resolved.gfa alns-ont-nogap-3.gaf 2 0 alns-ont-nogap.gaf alns-ont-gap4.gaf extragap1 o > gapped-unitig-unrolled-hifi-resolved.gfa
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-thrice-unitig-unrolled-hifi-resolved.gfa alns-ont-nogap-3.gaf 2 0 alns-ont-nogap.gaf alns-ont-gap4.gaf gapextra1 o > gapped-unitig-unrolled-hifi-resolved.gfa
 
 cat alns-ont-gap1.gaf alns-ont-gap2.gaf alns-ont-gap3.gaf alns-ont-gap4.gaf > ../{output.ont_gap_align}
 
