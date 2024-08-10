@@ -187,7 +187,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
     LOGGING_FILENAME = "hicverkko.log"
 
     CLEAR_HOMOLOGY = 500000 #for clear bulge like structures this limmit is decreased
-    MIN_ALIGNMENT = 100000 #smaller alingments will be filtered out
+    MIN_ALIGNMENT = 50000 #smaller alingments will be filtered out
     MAX_COV = 100  # tempora# ry coverage cutoff, currently replaced by median coverage from gfa
     FIXED_WEIGHT = 100000  # best result so far with 100000 #currently replaced with max pairwise weight among datasets
 
