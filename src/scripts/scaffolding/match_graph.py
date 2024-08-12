@@ -224,7 +224,7 @@ class MatchGraph:
             #homology storage may be asymetric, mashmap do not guararntee anything        
             #possibly should forcely symmetrize... 
             if self.hom_storage.isValid(ec[0], ec[1]) and (not G.has_edge(ec[0], ec[1])):
-                long_enough = True
+                long_enough = False
                 for i in range (0, 2):
                     best_homology = True
                     best_len = self.matchGraph.edges[ec]['homology_len']
@@ -233,8 +233,8 @@ class MatchGraph:
                             best_homology = False
                     clear_best_match = clear_best_match or best_homology
                     #we have total length of homologous sequences without joining and approximate positions with joining, check if any is long enough
-                    if max(best_len, self.hom_storage.getApproximatePositionLength(ec[0], ec[1], i)) < self.hom_storage.getLength(ec[i]) * MatchGraph.REQUIRED_COVERAGE_FRACTION:
-                        long_enough = False
+                    if max(best_len, self.hom_storage.getApproximatePositionLength(ec[0], ec[1], i)) > self.hom_storage.getLength(ec[i]) * MatchGraph.REQUIRED_COVERAGE_FRACTION:
+                        long_enough = True
                 if clear_best_match and long_enough:
                     self.matchGraph.add_edge(ec[0], ec[1], weight = homology_weight, homology_len = best_len, intervals = self.hom_storage.homologies[ec[0]][ec[1]].filtered_intervals, 
                                         orientation = self.hom_storage.homologies[ec[0]][ec[1]].orientation)
