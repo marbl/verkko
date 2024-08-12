@@ -721,7 +721,7 @@ class ScaffoldGraph:
                     before_gap = prefinal_paths.getPathById(prev_nor_id)[-1]
                 else:
                     before_gap = gf.rc_path(prefinal_paths.getPathById(prev_nor_id))[-1]                
-                gap_len = min(ScaffoldGraph.DEFAULT_GAP_SIZE, self.orNodeDist(before_gap, after_gap))
+                gap_len = min(ScaffoldGraph.DEFAULT_GAP_SIZE, round(self.orNodeDist(before_gap, after_gap)))
                 if gap_len != 0:
                     scf_path.append(f"[N{gap_len}N:scaffold]")
                 else:
