@@ -503,7 +503,7 @@ class ScaffoldGraph:
             while True:
                 next_path_id = self.findNextPath(cur_path_id, nor_used_path_ids, "weight")
                 if next_path_id == "NONE":
-                    self.logger.info ("Failed to find regular extension for {next_path_id}, trying unique")
+                    self.logger.info (f"Failed to find regular extension for {cur_path_id}, trying unique")
                     next_path_id = self.findNextPath(cur_path_id, nor_used_path_ids, "unique_weight")
 
                 if next_path_id == "DONE":
