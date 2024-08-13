@@ -424,11 +424,11 @@ class ScaffoldGraph:
         best_ind = -1
         second_best_ind = -1        
         for i in range (0, len(local_scores)):
-            if not self.forbiddenPair(cur_path_id, local_scores[i][0]):
+            if (type != "unique_weight") or not self.forbiddenPair(cur_path_id, local_scores[i][0]):
                 best_ind = i
                 break
         for j in range (best_ind+1, len(local_scores)):
-            if not self.forbiddenPair(cur_path_id, local_scores[j][0]):
+            if (type != "unique_weight") or not self.forbiddenPair(cur_path_id, local_scores[j][0]):
                 second_best_ind = j
                 break
         if len(local_scores) == 0:            
