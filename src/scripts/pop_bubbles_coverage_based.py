@@ -141,7 +141,7 @@ def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage, nodele
 	# set minimum coverage, for 3-node (transitive) bubbles we are conservative always, otherwise be agressive in haploid genomes and when we are surrounded by large likely resolved nodes (e.g. within haplotype bubble)
 	comp_coverage = find_component_coverage(start, belongs_to_component, component_coverage_sum, component_length_sum)
 	if conservative == True:
-		max_poppable_coverage = 0.15 * comp_coverage
+		max_poppable_coverage = 0.25 * comp_coverage
 	elif len(bubble_nodes) == 3:
 		max_poppable_coverage = 0.5*comp_coverage
 	elif start[1:] in coverage and end[1:] in coverage and nodelens[start[1:]] > max_poppable_node_size and nodelens[end[1:]] > max_poppable_node_size and coverage[start[1:]] <= 1.5*comp_coverage and coverage[start[1:]] >= 0.5 * comp_coverage and coverage[end[1:]] <= 1.5*comp_coverage and coverage[end[1:]] >= 0.5*comp_coverage:
@@ -353,10 +353,10 @@ for node in gf.iterate_deterministic(nodelens):
 	chain_coverage = chain_coverage_sum[key] / chain_length_sum[key]
 
 	if not bubble:
-		try_pop_tip(">" + node, edges, coverage, removed_nodes, removed_edges, comp_coverage * 0.75 if chain_coverage <= comp_coverage * 1.5 else comp_coverage * 0.15, nodelens)
+		try_pop_tip(">" + node, edges, coverage, removed_nodes, removed_edges, comp_coverage * 0.75 if chain_coverage <= comp_coverage * 1.5 else comp_coverage * 0.25, nodelens)
 	bubble = find_bubble("<" + node, edges, nodelens, max_poppable_node_size)
 	if not bubble:
-		try_pop_tip("<" + node, edges, coverage, removed_nodes, removed_edges, comp_coverage * 0.75 if chain_coverage <= comp_coverage * 1.5 else comp_coverage * 0.15, nodelens)
+		try_pop_tip("<" + node, edges, coverage, removed_nodes, removed_edges, comp_coverage * 0.75 if chain_coverage <= comp_coverage * 1.5 else comp_coverage * 0.25, nodelens)
 
 for node in removed_nodes:
 	sys.stderr.write(node + "\n")
