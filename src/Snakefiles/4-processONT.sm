@@ -66,7 +66,7 @@ echo Step 1a
 # select best alignment from winnowmap and graphaligner
 # we try to close gaps with the graphaligner alignments and exclude reads used for a patch, if still not closed, we will select the best between the two
 cat ../{input.ont_paths} |awk '{{if (\$12 >= 20) print; }}' > graphaln-mapqfilter.gaf
-{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py ../{input.graph} graphaln-mapqfilter.gaf 3 50 alns-graphalgn-nogap-1.gaf alns-graphalign-gap1.gaf gapgraphalign1 o \\\\
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py ../{input.graph} graphaln-mapqfilter.gaf 3 100 alns-graphalgn-nogap-1.gaf alns-graphalign-gap1.gaf gapgraphalign1 o \\\\
    > gapped-graphaln.gfa
 
 # we first trim up to 5kb from the graphaligner hits (to avoid extending past haplotype end point) then compare these alignments to winnowmap
@@ -80,7 +80,7 @@ cat ../{input.ont_paths} | awk -F "\\t" '{{if (\$4-\$3 >= \$2*0.8 && \$12 >= 20)
 
 echo ""
 echo Step 2a
-{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py chopped-unitig-unrolled-hifi-resolved.gfa alns-cut.gaf 3 50 alns-ont-nogap-1.gaf alns-ont-gap1.gaf gapont1 o \\\\
+{PYTHON} {VERKKO}/scripts/insert_aln_gaps.py chopped-unitig-unrolled-hifi-resolved.gfa alns-cut.gaf 3 100 alns-ont-nogap-1.gaf alns-ont-gap1.gaf gapont1 o \\\\
   > gapped-once-unitig-unrolled-hifi-resolved.gfa
 
 {PYTHON} {VERKKO}/scripts/insert_aln_gaps.py gapped-once-unitig-unrolled-hifi-resolved.gfa alns-ont-nogap-1.gaf 5 1500 alns-ont-nogap-2.gaf alns-ont-gap2.gaf gapont2 n \\\\
