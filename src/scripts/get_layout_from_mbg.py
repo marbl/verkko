@@ -19,6 +19,7 @@ layscf_output = sys.argv[7]
 
 min_read_len_fraction = 0.5
 min_read_fromend_fraction = min_read_len_fraction/1.5
+min_exact_len_fraction = min_read_len_fraction/3
 
 #transform paths to base elements - mbg nodes and gaps.
 def get_leafs(path, mapping, edge_overlaps, raw_node_lens):
@@ -353,6 +354,8 @@ for readname in matches_per_read:
 			if gap:
 				len_readstart = 0
 				len_readend = readlen
+				readstart = 0
+				readend = readlen
 			contig_contains_reads[contig][readname].append((contigpos, contigpos + readlen, len_readstart, len_readend, readlen, readstart, readend))
 		else:
 			contigpos = contig_node_offsets[contig][contigstart]
@@ -370,6 +373,8 @@ for readname in matches_per_read:
 			if gap:
 				len_readstart = 0
 				len_readend = readlen
+				readstart = 0
+				readend = readlen
 			contig_contains_reads[contig][readname].append((contigpos + readlen, contigpos, len_readstart, len_readend, readlen, readstart, readend))
 
 #here we clusterize separate matches to the nodes in the path to clusters (by match position in contig)
@@ -461,7 +466,8 @@ for contig in contig_contains_reads:
 				elif contigstart < fwcluster[0] + 50 and contigend < fwcluster[1] + 50:
 					fwcluster = (contigstart, contigend, min(fwcluster[2], readstart), max(fwcluster[3], readend), fwcluster[4] + [(real_readstart, real_readend)])
 				else:
-					if fwcluster[3] - fwcluster[2] >= readlen * min_read_len_fraction:
+					#sys.stderr.write("Checking read %s in contig %s with len %s and span %s and exact %s matches fw norm %s\n"%(readname, contig, readlen, (fwcluster[3] - fwcluster[2]), get_exact_match_length(fwcluster[4]), fwcluster[4]))
+					if fwcluster[3] - fwcluster[2] >= readlen * min_read_len_fraction and get_exact_match_length(fwcluster[4]) >= readlen * min_exact_len_fraction:
 						read_clusters[readname].append((contig, fwcluster[0], fwcluster[1], get_exact_match_length(fwcluster[4])))
 					fwcluster = (contigstart, contigend, readstart, readend, [(real_readstart, real_readend)])
 			else:
@@ -470,7 +476,8 @@ for contig in contig_contains_reads:
 				elif contigstart < bwcluster[0] + 50 and contigend < bwcluster[1] + 50:
 					bwcluster = (contigstart, contigend, min(bwcluster[2], readstart), max(bwcluster[3], readend), bwcluster[4] + [(real_readstart, real_readend)])
 				else:
-					if bwcluster[3] - bwcluster[2] >= readlen * min_read_len_fraction:
+					#sys.stderr.write("Checking read %s in contig %s with len %s and span %s and exact %s matches bw norm %s\n"%(readname, contig, readlen, (bwcluster[3] - bwcluster[2]), get_exact_match_length(bwcluster[4]), bwcluster[4]))
+					if bwcluster[3] - bwcluster[2] >= readlen * min_read_len_fraction and get_exact_match_length(bwcluster[4]) >= readlen * min_exact_len_fraction:
 						read_clusters[readname].append((contig, bwcluster[1], bwcluster[0], get_exact_match_length(bwcluster[4])))
 					bwcluster = (contigstart, contigend, readstart, readend, [(real_readstart, real_readend)])
 		if fwcluster is not None:
@@ -479,7 +486,9 @@ for contig in contig_contains_reads:
 			if from_end > min_read_fromend_fraction * readlen:
 				total_banned += 1
 
-			if fwcluster[3] - fwcluster[2] >= readlen * min_read_len_fraction and from_end <= min_read_fromend_fraction * readlen:
+			#sys.stderr.write("Checking read %s in contig %s with len %s and span %s and exact %s matches fw end %s\n"%(readname, contig, readlen, (fwcluster[3] - fwcluster[2]), get_exact_match_length(fwcluster[4]), fwcluster[4]))
+
+			if fwcluster[3] - fwcluster[2] >= readlen * min_read_len_fraction and from_end <= min_read_fromend_fraction * readlen and get_exact_match_length(fwcluster[4]) >= readlen * min_exact_len_fraction:
 				read_clusters[readname].append((contig, fwcluster[0], fwcluster[1], get_exact_match_length(fwcluster[4])))
 		if bwcluster is not None:
 			if bwcluster[0] < 0: from_end = bwcluster[1] - (bwcluster[3] - bwcluster[2])
@@ -487,7 +496,8 @@ for contig in contig_contains_reads:
 			if from_end > min_read_fromend_fraction * readlen:
 				total_banned += 1
 
-			if bwcluster[3] - bwcluster[2] >= readlen * min_read_len_fraction and from_end <= min_read_fromend_fraction * readlen:
+			#sys.stderr.write("Checking read %s in contig %s with len %s and span %s and exact %s matches bw end %s\n"%(readname, contig, readlen, (bwcluster[3] - bwcluster[2]), get_exact_match_length(bwcluster[4]), bwcluster[4]))
+			if bwcluster[3] - bwcluster[2] >= readlen * min_read_len_fraction and from_end <= min_read_fromend_fraction * readlen and get_exact_match_length(bwcluster[4]) >= readlen * min_exact_len_fraction:
 				read_clusters[readname].append((contig, bwcluster[1], bwcluster[0], get_exact_match_length(bwcluster[4])))
 print (f"Banned {total_banned} allowed {total_notbanned} read-paths")
 contig_actual_lines = {}
