@@ -168,6 +168,7 @@ rule run_seqtktelo:
         err    = '8-hicPipeline/run_seqtktelo.err'
     params:
         SEQTK   = config.get('SEQTK', "{VERKKO}/bin/seqtk"),
+        TELO    = config.get("telomere_motif", "CCCTAA"),
     threads:
         int(config['fhc_n_cpus'])
 
@@ -184,7 +185,7 @@ cat > ./run_seqtktelo.sh <<EOF
 #!/bin/sh
 set -e
 echo "---Running seqtk telo"
-{params.SEQTK} telo ../{input.unitigs} > ../{output.unitigs_telo}
+{params.SEQTK} telo -m {params.TELO} ../{input.unitigs} > ../{output.unitigs_telo}
 EOF
 
 chmod +x ./run_seqtktelo.sh

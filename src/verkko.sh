@@ -199,13 +199,11 @@ ruk_fract="0.9"
 
 #  HiC heuristics
 haplo_divergence=0.05
-rdna_scaff_ref="chm13_rDNAs.fa"
 rdna_scaff="True"
 #possibly this should be used not only for hic
 uneven_depth="False"
 no_rdna_tangle="False"
-
-
+telomere_seq="CCCTAA"
 
 #  split_hic, partitioning illumina hic reads for alignment
 #Do not want to use shc_bases at all because of synchronization between left and right that will be broken in case of some precorrecion or trimming
@@ -513,10 +511,9 @@ while [ $# -gt 0 ] ; do
     #
 
     elif [ "$opt" = "--no-rdna-tangle" ];       then no_rdna_tangle="True";
-#   elif [ "$opt" = "--rdna-scaff" ];           then rdna_scaff="True";
-    elif [ "$opt" = "--rdna-scaff-ref" ];      then rdna_scaff_ref=$arg; shift
     elif [ "$opt" = "--uneven-depth" ];         then uneven_depth="True";
     elif [ "$opt" = "--haplo-divergence" ];     then haplo_divergence=$arg;     shift
+    elif [ "$opt" = "--telomere-motif" ];       then telomere_seq=$arg; shift
 
     #
     #  Post-processing options
@@ -820,35 +817,18 @@ if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" -o "x$withbam" = "xTrue" ]
    if [ "x$withhic" = "xTrue" -a "x$withporec" = "xTrue" ]; then
       errors="${errors}Both --hic1/--hic2 and --porec cannot be specified at the same time, please only specify one\n"
    fi
-   # check that ref for rdna is present and can be found
-   if [ ! -z "$rdna_scaff_ref" ] ; then
-      dtpath="$verkko/data/$rdna_scaff_ref"
-      if [ -e "$rdna_scaff_ref" ] ; then
-         if [ ! -e "/$rdna_scaff_ref" ] ; then
-            rdna_scaff_ref="`pwd`/$rdna_scaff_ref"
-         fi
-      elif [ "x$rdna_scaff_ref" = "xnone" ]; then
-         rdna_scaff="False"
-      elif [ -e "$dtpath" ] ; then
-         rdna_scaff_ref=$dtpath
-      else
-         errors=${errors}"ERROR: Can't find screen '$rdna_scaff_ref' rDNA reference data file.  Looked for:\n"
-         errors=${errors}"  user-supplied:   '$rdna_scaff_ref' and\n"
-         errors=${errors}"  verkko-supplied: '$dtpath'\n"
-      fi
-    fi
 
-    if   [ "x$samtools" = "x" ] ; then
-        errors="${errors}Can't find Samtools executable in \$PATH or \$VERKKO/bin/samtools.\n"
-    elif [ ! -e "$samtools" ] ; then
-        errors="${errors}Can't find Samtools executable at '$samtools'.\n"
-    fi
+   if   [ "x$samtools" = "x" ] ; then
+       errors="${errors}Can't find Samtools executable in \$PATH or \$VERKKO/bin/samtools.\n"
+   elif [ ! -e "$samtools" ] ; then
+       errors="${errors}Can't find Samtools executable at '$samtools'.\n"
+   fi
 
-    if   [ "x$seqtk" = "x" ] ; then
-        errors="${errors}Can't find seqtk executable in \$PATH or \$VERKKO/bin/seqtk.\n"
-    elif [ ! -e "$seqtk" ] ; then
-        errors="${errors}Can't find seqtk executable at '$seqtk'.\n"
-    fi
+   if   [ "x$seqtk" = "x" ] ; then
+       errors="${errors}Can't find seqtk executable in \$PATH or \$VERKKO/bin/seqtk.\n"
+   elif [ ! -e "$seqtk" ] ; then
+       errors="${errors}Can't find seqtk executable at '$seqtk'.\n"
+   fi
 fi
 
 #
@@ -890,11 +870,10 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "                             uncompressed or gzip/bzip2/xz compressed.  Any"
     echo "                             number of files can be supplied; *.gz works."
     echo "    --no-rdna-tangle         Switch off option that helps to proceed large rDNA tangles which may connect multiple chromosomes."
-    echo "    --rdna-scaff-ref         Switch to user-supplied reference for HiC scaffolding rather than human rDNA, experimental use to scaffold across other repeat classes."
-    echo "                             By default, rDNA representatives from CHM13 human assembly are used"
-    echo "                             Use '--rdna-scaff-ref none' to switch off scaffolding over rdna or other large repeat clusters"
-    echo "    --uneven-depth           Disable coverage-based heuristics in homozygous nodes detection for phasing."
-    echo "    --haplo-divergence       Estimation on maximum divergence between haplotypes, is used only with hic data. Should be increased for species with divergence significantly higher than in human. Default: 0.05, min 0, max 0.2"
+    echo "    --telomere-motif         Switch to user-supplied telomere motif, automatically searched in fwd/revcomp version."
+    echo "                             By default, the cannonical vertebrate 'CCCTAA' motif is used during Hi-C scaffolding."
+    echo "    --uneven-depth           Disable coverage-based heuristics in homozygous nodes detection for Hi-C/PoreC phasing."
+    echo "    --haplo-divergence       Estimation on maximum divergence between haplotypes, is used only with Hi-C/PoreC data. Should be increased for species with divergence significantly higher than in human. Default: 0.05, min 0, max 0.2"
     echo ""
     echo "    --screen <option>        Identify common contaminants and remove from the assembly, saving 1 (circularized) exemplar."
     echo "                             For human, '--screen human' will attempt to remove rDNA, mitochondria, and EBV."
@@ -1115,7 +1094,7 @@ echo >> ${outd}/verkko.yml "#  HiC algo options"
 echo >> ${outd}/verkko.yml "no_rdna_tangle:      '${no_rdna_tangle}'"
 echo >> ${outd}/verkko.yml "uneven_depth:        '${uneven_depth}'"
 echo >> ${outd}/verkko.yml "haplo_divergence:    '${haplo_divergence}'"
-echo >> ${outd}/verkko.yml "rdna_scaff_ref:      '${rdna_scaff_ref}'"
+echo >> ${outd}/verkko.yml "telomere_motif:      '${telomere_seq}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  Aligning hic reads"
 echo >> ${outd}/verkko.yml "shc_bases:           '${shc_bases}'"
