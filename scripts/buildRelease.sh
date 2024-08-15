@@ -60,7 +60,7 @@ for dir in paper src ; do
   rsync -a -f'exclude .git*' -f 'exclude .vscode' -f 'exclude benchmarks' $dir verkko-v${version}/
 done
 
-cat src/Makefile | sed s/^VERSION.\*/VERSION\ :=\ verkko\ release\ v${version}/ > verkko-v${version}/src/Makefile
+cat src/main.mk | sed s/^VERSION\ \*:=.\*/VERSION\ :=\ release\ v${version}/ > verkko-v${version}/src/Makefile
 
 tar -cf verkko-v${version}.tar verkko-v${version}
 gzip -9v verkko-v${version}.tar

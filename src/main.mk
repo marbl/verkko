@@ -1,5 +1,5 @@
 MODULE       := verkko
-VERSION      := snapshot v2.0
+VERSION      := snapshot v2.2
 VERSION_H    := ${CANUROOT}utility/src/version.H
 
 TARGET       := libverkko.a
