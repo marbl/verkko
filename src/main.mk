@@ -285,10 +285,10 @@ FILES        += \
                 scripts/circularize_ctgs.py                   -> ../lib/verkko/scripts/circularize_ctgs.py \
                 scripts/cluster.py                            -> ../lib/verkko/scripts/cluster.py \
                 scripts/graph_functions.py                    -> ../lib/verkko/scripts/graph_functions.py \
-                scripts/hicverkko.py                          -> ../lib/verkko/scripts/hicverkko.py \
+                scripts/launch_phasing.py                     -> ../lib/verkko/scripts/launch_phasing.py \
                 scripts/parse_sam_pairs.py                    -> ../lib/verkko/scripts/parse_sam_pairs.py \
                 scripts/hic_prefilter.py     				  -> ../lib/verkko/scripts/hic_prefilter.py \
-                scripts/rdna_scaff.py                         -> ../lib/verkko/scripts/rdna_scaff.py \
+                scripts/launch_scaffolding.py                 -> ../lib/verkko/scripts/launch_scaffolding.py \
                 scripts/remove_nodes_add_telomere.py          -> ../lib/verkko/scripts/remove_nodes_add_telomere.py \
                 scripts/scaffolding/logger_wrap.py            -> ../lib/verkko/scripts/scaffolding/logger_wrap.py \
                 scripts/scaffolding/match_graph.py            -> ../lib/verkko/scripts/scaffolding/match_graph.py \

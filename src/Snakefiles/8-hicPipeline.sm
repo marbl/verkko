@@ -510,7 +510,7 @@ cd 8-hicPipeline
 cat > ./hic_phasing.sh <<EOF
 #!/bin/sh
 set -e
-{PYTHON} {VERKKO}/scripts/hicverkko.py {params.NO_RDNA} {params.UNEVEN_DEPTH} .
+{PYTHON} {VERKKO}/scripts/launch_phasing.py {params.NO_RDNA} {params.UNEVEN_DEPTH} .
 EOF
 
 chmod +x ./hic_phasing.sh
@@ -577,6 +577,7 @@ chmod +x ./rukki_hic.sh
         '''
 
 #TODO: python script params
+
 rule HiC_rdnascaff:
     input:
         graph = '8-hicPipeline/unitigs.hpc.noseq.gfa',
@@ -585,12 +586,14 @@ rule HiC_rdnascaff:
         unitigs_telo = '8-hicPipeline/unitigs.telo',
         unitigs_nohpc50 =  '8-hicPipeline/unitigs_nonhpc50.mashmap',
         path_mashmap = rules.prepareScaffolding.output.path_mashmap,
-        prefiltered_bam = rules.scaffoldMergeBWA.output.alignments
+        prefiltered_aln = rules.scaffoldMergeBWA.output.alignments if config['withPOREC'] == "False" else rules.transformBWA.output.byread_mapping
     output:
         scaff_tsv_path = '8-hicPipeline/scaff_rukki.paths.tsv',
         scaff_gaf_path = '8-hicPipeline/scaff_rukki.paths.gaf',
         final_tsv_path = '8-hicPipeline/rukki.paths.tsv',
         final_gaf_path = '8-hicPipeline/rukki.paths.gaf',
+    params:
+        withporec = config['withPOREC']
     log:
         err    = '8-hicPipeline/hic_scaff.err'
     threads:
@@ -607,7 +610,7 @@ cd 8-hicPipeline
 cat > ./hic_scaff.sh <<EOF
 #!/bin/sh
 set -e
-{PYTHON} {VERKKO}/scripts/rdna_scaff.py . 
+{PYTHON} {VERKKO}/scripts/launch_scaffolding.py . {params.withporec}
 
 
 cp ../{output.scaff_tsv_path} ../{output.final_tsv_path}

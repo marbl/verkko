@@ -112,7 +112,7 @@ class ScaffoldGraph:
     #to check whether paths have similar lengths, in cheating t2t connection
     SIMILAR_LEN_FRAC = 0.7
 
-    def __init__(self, rukki_paths, telomere_locations_file, hic_alignment_file, matches_file, G, uncompressed_fasta, path_mashmap, logger):
+    def __init__(self, rukki_paths, telomere_locations_file, hic_alignment_file, matches_file, G, uncompressed_fasta, path_mashmap, porec, logger):
         self.logger = logger_wrap.UpdatedAdapter(logger, self.__class__.__name__)
         self.rukki_paths = rukki_paths        
         self.uncompressed_lens = gf.get_lengths(uncompressed_fasta)
@@ -126,17 +126,15 @@ class ScaffoldGraph:
         self.logger.debug(self.tel_nodes)
 
         self.match_graph = match_graph.MatchGraph(matches_file, G, -239239239, ScaffoldGraph.MATCHGRAPH_LONG_NODE, ScaffoldGraph.MATCHGRAPH_MIN_ALIGNMENT, logger)
-
         
-        all_connections, unique_connections = self.get_connections_bam(hic_alignment_file, interesting_nodes, True)
-
-        
+        if porec == True:
+            self.logger.info ("Loading pore-c alignments")
+            all_connections, unique_connections = self.get_connections_porec(hic_alignment_file, True)
+        else:
+            self.logger.info ("Loading Hi-C alignments")
+            all_connections, unique_connections = self.get_connections_bam(hic_alignment_file, True)        
         self.output_basename = "scaff_rukki.paths"
 
-
-        #presaved_pathscores = self.loadPresavedScores("precomputed.pathscores")
-
-        #Used for scaffolding starts and debug, 
         telomeric_ends = self.getTelomericEnds()
         self.hic_alignment_file = hic_alignment_file
 
@@ -210,15 +208,6 @@ class ScaffoldGraph:
             nor_node = or_node.strip("-+")
 
             for next in self.match_graph.getHomologousNodes(nor_node, True):
-                ''''
-                if len (nodes_to_path_ids[next]) > 1:
-                    #soemthing weird, ignoring
-                    continue
-                next_id = nodes_to_path_ids[next][0]
-                if not (next_id in homs):
-                    homs[next_id] = 0
-                homs[next_id] += self.match_graph.getEdgeAttribute(nor_node, next, 'homology_len')
-                '''
                 total_hom += self.match_graph.getEdgeAttribute(nor_node, next, 'homology_len')
         path_len = paths.getLength(nor_path_id)
         #TODO: should exclude homozygous nodes here
@@ -380,7 +369,6 @@ class ScaffoldGraph:
                                 if aligned[mid].query_len * ScaffoldGraph.INTERMEDIATE_PATH_FRACTION < inconsistency_len:
                                     return False
                         return True
-                        
         return False
 
     def forbiddenPair(self, from_path_id, to_path_id):    
@@ -834,44 +822,38 @@ class ScaffoldGraph:
                 tsv_file.write(final_paths.getPathTsv(path_id) + "\n")
                 gaf_file.write(final_paths.getPathGaf(path_id) + "\n")
         return
-
-    #returns: dict {(start_id, end_id):[[start_pos1, end_pos1]]}. Coords not compressed!
-    def get_connections(self, alignment_file, use_multimappers:bool):
+    #TODO: this works with hic_mapping.byread.output file that should be exterminated after phasing refactoring
+    def get_connections_porec(self, alignment_file, use_multimappers:bool):
         res = {}
+        unique_storage = {}
         #A01660:39:HNYM7DSX3:1:1101:1696:29982   utig4-73        utig4-1056      1       16949880        78591191
         ind = 0
         for line in open (alignment_file):
             ind += 1
-            if (ind % 1000000 == 0):
-                self.logger.debug (f"Processed {ind} alignments")
+            if (ind % 10000000 == 0):
+                self.logger.debug (f"Processed {ind} pore-c alignments")
 
             arr = line.split()
-            if not (use_multimappers) and (arr[1].find(",") != -1 or arr[2].find(",") != -1):
-                continue
-            first = arr[1].split(",")
-            second = arr[2].split(",")
-            first_coords = arr[4].split(",")
-            second_coords = arr[5].split(",")
-            weight = 1 / (len (first) * len(second))
-            #efficiently 1/2, 1/3, 1/4, 2/2 are allowed for now.
-            if weight < 0.24:
-                continue
-
-            for i in range (0, len(first)):
-                node_f = first[i]
-                for j in range (0, len(second)):
-                    node_s = second[j]
-                    if not (node_f, node_s) in res:
-                        res[(node_f, node_s)] = []
-                    next = [int(first_coords[i]), int(second_coords[j]), weight]
-                    res[(node_f, node_s)].append(next)
-
-                    if not (node_s, node_f) in res:
-                        res[(node_s, node_f)] = []
-                    res[(node_s, node_f)].append([int(second_coords[j]), int(first_coords[i]), weight])  
-        return res
-
-    def get_connections_bam(self, bam_filename, interesting_names, use_multimappers:bool):
+            first = arr[1]
+            second = arr[2]
+            first_coords = int(arr[4])
+            second_coords = int(arr[5])
+            if first > second:
+                first, second = second, first
+                first_coords, second_coords = second_coords, first_coords
+            weight = self.INT_NORMALIZATION
+            names_pair = (first, second)
+            coords_pair = (first_coords, second_coords)
+            if not names_pair in res:
+                res[names_pair] = []
+            if not names_pair in unique_storage:
+                unique_storage[names_pair] = []
+            res[names_pair].append((coords_pair[0], coords_pair[1], weight))
+            unique_storage[names_pair].append((coords_pair[0], coords_pair[1], weight))
+        self.logger.debug (f"Finally processed {ind} pore-c alignments")
+        return res, unique_storage
+    
+    def get_connections_bam(self, bam_filename, use_multimappers:bool):
         res = {}
         unique_storage = {}
         #A01660:39:HNYM7DSX3:1:1101:1696:29982   utig4-73        utig4-1056      1       16949880        78591191

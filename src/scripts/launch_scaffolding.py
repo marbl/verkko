@@ -18,7 +18,7 @@ from scaffolding import scaffold_graph, logger_wrap, path_storage
 debug = False
 
 run_dir = sys.argv[1]
-
+porec = (sys.argv[2] == "True")
 #TODO: deprectated
 telomere_script = "/data/antipovd2/devel/scripts/verkko_output_analysis//getOnlyTelomere.sh"
 hap_assign_script = "/data/antipovd2/devel/scripts/verkko_output_analysis//get.sh"
@@ -50,7 +50,10 @@ path_mashmap = os.path.join(hicrun_dir, "paths2ref.mashmap")
 #path_mashmap = os.path.join(hicrun_dir, "paths2chm13100K.mashmap")
 rukki_path_storage = path_storage.PathStorage(G)
 rukki_path_storage.readFromFile(old_rukki_tsv_file)
-#sf.try_to_scaff(rukki_paths, telomere_locations_file, os.path.join(hicrun_dir, "hic_mapping.byread.output"), os.path.join(hicrun_dir, "unitigs.matches"), G, indirectG, uncompressed_nodes)
-sg = scaffold_graph.ScaffoldGraph(rukki_path_storage, telomere_locations_file, os.path.join(hicrun_dir, "hic_nodefiltered.bam"), os.path.join(hicrun_dir, "unitigs_nonhpc50.mashmap"), G, uncompressed_nodes, path_mashmap, logger) 
+if porec:
+    read_aln = os.path.join(hicrun_dir, "hic_mapping.byread.output")
+else:
+    read_aln = os.path.join(hicrun_dir, "hic_nodefiltered.bam")
+sg = scaffold_graph.ScaffoldGraph(rukki_path_storage, telomere_locations_file, read_aln, os.path.join(hicrun_dir, "unitigs_nonhpc50.mashmap"), G, uncompressed_nodes, path_mashmap, porec, logger) 
 res = sg.generateScaffolds()
 
