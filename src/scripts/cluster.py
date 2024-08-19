@@ -432,7 +432,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                 random.seed(seed)
                 p1 = []
                 p2 = []
-                for n in C.nodes():
+                for n in sorted(C.nodes()):
                     if n in matchGraph and len(matchGraph.edges(n)) > 0:
                         #TODO: replace with something reasonable! multiple nodes will not work here. Transform each homology component into one node before?.. Anyway, it still should be fixed later with K-L iterations.
                         for ec in matchGraph.edges(n): 
@@ -534,13 +534,13 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
             best_part[1].update(add_part[1])
             right = False
             for ind in range (0, 2):
-                for contig in best_part[ind]:
+                for contig in sorted(best_part[ind]):
                     if contig in current_component:
                         if ind == 1:
                             tsv_file.write(f'{contig}\t0\t100000\t0:100000\t#8888FF\n')
                         else:
                             tsv_file.write(f'{contig}\t100000\t0\t100000:0\t#FF8888\n')
-            for contig in only_weights.keys():
+            for contig in sorted(only_weights.keys()):
                 tsv_file.write(f'{contig}\t{only_weights[contig][0]}\t{only_weights[contig][1]}\t{only_weights[contig][0]}:{only_weights[contig][1]}\t#88FF88\n')
 
 
