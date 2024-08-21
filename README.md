@@ -67,7 +67,7 @@ and create a `verkko.yml` file.
 
 Run `verkko` with no options will list all available options with brief descriptions. At the minimum verkko requires high-accuracy long reads, provided with the `--hifi` option. You can provide any combination of PacBio HiFi/Oxford Nanopore duplex/both to the `--hifi` parameter. However, we strongly recommend including some ultra-long sequence data using the `--nano` parameter and phasing information (see below). For HERRO corrected reads, provide the corrected reads with the `--hifi` option and the uncorrected reads as `--nano`. The output of verkko will be phased scaffolds. Note that no attempt is made to generate a primary or pseudo-haplotype assembly.
 
-### Phasing an assembly.
+### Phasing:
 Verkko supports extended phasing using using [rukki](https://github.com/marbl/rukki) using either trio or Hi-C information.
 
 To run in trio mode, you must first generate [merqury](https://github.com/marbl/merqury) hapmer databases and pass them to verkko.
@@ -128,7 +128,19 @@ To run in PoreC mode, reads should be provided using the --porec option. For exa
 
 Hi-C/PoreC integration was tested mostly on human and primate genomes. Please see  --rdna-tangle, --uneven-depth and --haplo-divergence options if you want to assemble something distant from human and/or have uneven coverage. If you encounter issues or have questions about appropriate parameters, please open an [issue](https://github.com/marbl/verkko/issues).
 
-### Running on a grid
+### Scaffolding:
+Verkko includes a separate scaffolding module which is used when Hi-C or Pore-C data are provided (Rukki also can connect some contigs into scaffolds even with trio)
+Verkko tries to makes rough estimations on gap size, and when gap size was estimated and is smaller than 100K we report that rough estimated values. Otherwise, gaps are reported as 100K N's.
+For scaffolding we use telomere positions in assembly (detected with `seqtk telo`), so if your species has telomeric repeat sequence different to vertebrates (CCCTAA), it should be provided with `--telomere-motif` option.
+
+
+If available, you can provide genome of another individual of same or closely related species with `--ref` option. It is _not_ reference-based assembly &mdash; reference will be only used as guidance in scaffolding.
+
+
+Scaffolding module relies on diploid structure of assembly and thus is not compatible with `--haploid` &mdash; we recommend to use [YaHS](https://github.com/c-zhou/yahs) standalone scaffolder for such cases.
+Polyploid scaffolding and phasing is not supported yet.
+
+### Running on a grid:
 By default, verkko will run the snakemake workflow and all compute on the local machine. Support for SGE, Slurm LSF, and PBS (untested) can be enabled with options `--grid`. This will run the snakemake workflow on the local machine but submit all compute to the grid. To launch the both the snakemake workflow and compute on the grid, wrap the verkko command in a shell script and submit using your scheduler. If you're using conda, you may need to make the conda-installed python your default. You can do this with the `--python` option when calling verkko
 
 <details>
@@ -169,18 +181,18 @@ Default values can be found in verkko bash script, i.e.  `grep par_ bin/verkko`.
 
 You can pass through snakemake options to restrict CPU/memory/cluster resources by adding the `--snakeopts` option to verkko. You can also pass arbitrary Snakemake options this way. For example, `--snakeopts "--dry-run"` will print a plan of what jobs will run while `--snakeopts "--cores 1000"` would restrict grid runs to at most 1000 cores across all submited jobs. Running with `--snakeopts "--touch"` will reset all timestamps to be consistent and avoid re-generating any files which already exist. We recommend using `--snakeopts "--dry-run"`, especially when restarting or modifying intermediates in an assembly to check that only the expected steps will run.
 
-### Filtering common contaminants
+### Filtering common contaminants:
 
 Verkko has the ability to filter common contaminants from an assembly using the `--screen` option. For human samples, you can specify `--screen human` which will automatically filter the mitochonrdia, rDNA, and EBV sequences. For other samples you can specify an arbitrary number of targets using `--screen exampleN exampleN.fasta`. For each contaminant, verkko will remove all sequences matching the target from the main assembly output. It will also identify a 'cannonical' reprentative by coverage and circularize it to remove self-similarity at the start/end.
 
-## Outputs
+## Outputs:
 The final assembly result is under `asm/assembly.fasta`. The final graph (in homopolymer-compressed space) is under `asm/assembly.homopolymer-compressed.gfa` along with coverage files in `asm/assembly*csv`. There is also an `asm/assembly.scfmap` file which translates the final sequence name in `assembly.fasta` to graph nodes. You can find intermediate graphs and coverage files under `asm/*/unitig-*gfa` and `asm/*/unitig-*csv`.
 
 If you provided phasing information, you will also have `asm/assembly.haplotype[12].fasta`, `asm/assembly.colors.csv`, and `asm/assembly.paths.tsv`. The latter two files provide information on the colors obtained from phasing information for each node in the graph and the paths selected to phase the assembly.
 
 If you provided screening information, you will also have an `asm/assembly.exampleN.fasta` and `asm/assembly.exampleN.exemplar.fasta` files which specify all sequences removed from the assembly maching contaminant 'exampleN' as well as the circularized (when possible) selected cannonical sequence.
 
-## Test data
+## Test data:
 To test your installation we have an E. coli K12 dataset available.
 
     curl -L https://obj.umiacs.umd.edu/sergek/shared/ecoli_hifi_subset24x.fastq.gz -o hifi.fastq.gz
