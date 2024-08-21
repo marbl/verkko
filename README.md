@@ -129,15 +129,15 @@ To run in PoreC mode, reads should be provided using the --porec option. For exa
 Hi-C/PoreC integration was tested mostly on human and primate genomes. Please see  --rdna-tangle, --uneven-depth and --haplo-divergence options if you want to assemble something distant from human and/or have uneven coverage. If you encounter issues or have questions about appropriate parameters, please open an [issue](https://github.com/marbl/verkko/issues).
 
 ### Scaffolding:
-Verkko includes a separate scaffolding module which is used when Hi-C or Pore-C data are provided (Rukki also can connect some contigs into scaffolds even with trio)
-Verkko tries to makes rough estimations on gap size, and when gap size was estimated and is smaller than 100K we report that rough estimated values. Otherwise, gaps are reported as 100K N's.
-For scaffolding we use telomere positions in assembly (detected with `seqtk telo`), so if your species has telomeric repeat sequence different to vertebrates (CCCTAA), it should be provided with `--telomere-motif` option.
+Verkko includes a separate scaffolding module which is used when Hi-C or Pore-C data are provided (this is separate from Rukki's ability to connect some contigs into scaffolds with just trio)
+Verkko tries to makes a rough estimate of the gap size based on the assembly graph. When the gap size estimate is smaller than 100K we report the estimated value. For larger gaps or gaps were a size cannot be estimated, we always report 100K N's.
 
+The scaffolding module uses telomere positions in the assembly (detected with `seqtk telo`), so if your species has a different telomeric repeat motif than vertebrates (CCCTAA), provide it with the `--telomere-motif` option.
 
-If available, you can provide genome of another individual of same or closely related species with `--ref` option. It is _not_ reference-based assembly &mdash; reference will be only used as guidance in scaffolding.
+If available, you can provide the genome of another individual of the same or closely related species with the `--ref` option. It is _not_ reference-based assembly; the reference will be only used as guidance in scaffolding.
 
+Since the ccaffolding module relies on the diploid structure of an assembly, it is not compatible with the `--haploid` option; we recommend the [YaHS](https://github.com/c-zhou/yahs) standalone scaffolder for such cases.
 
-Scaffolding module relies on diploid structure of assembly and thus is not compatible with `--haploid` &mdash; we recommend to use [YaHS](https://github.com/c-zhou/yahs) standalone scaffolder for such cases.
 Polyploid scaffolding and phasing is not supported yet.
 
 ### Running on a grid:
