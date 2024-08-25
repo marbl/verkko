@@ -200,8 +200,8 @@ class ScaffoldGraph:
                     self.logger.debug (f"Final unique scores {from_path_id} {to_path_id} {unique_scores[from_path_id][to_path_id]}")
 
 #TODO: move all rc_<smth> somewhere, not right place 
-
     
+
     def isHaploidPath(self, paths, nor_path_id):
         total_hom = 0
         for or_node in paths.getPathById(nor_path_id):
@@ -482,6 +482,8 @@ class ScaffoldGraph:
         starting_paths = tel_starting_paths + middle_paths
         self.logger.info ("Starting paths")
         self.logger.info (starting_paths)
+        #from ID to amount of scaffolds
+        scaff_sizes = {}
         for or_from_path_id in starting_paths:
             if or_from_path_id.strip('-+') in nor_used_path_ids:
                 continue            
@@ -519,15 +521,17 @@ class ScaffoldGraph:
                     nor_used_path_ids.add(next_path_id.strip('-+'))
                     cur_path_id = next_path_id
             self.logger.info(f"scaffold {cur_scaffold}\n")
-            res.append(cur_scaffold)
+            if len(cur_scaffold) > 1:
+                res.append(cur_scaffold)
+            else:
+                # not scaffolded, do not want it here because of rephasing
+                nor_used_path_ids.remove(gf.nor_node(cur_path_id))
 
         total_scf = 0
         total_jumps = 0
         total_new_t2t = 0     
         final_paths = path_storage.PathStorage(self.upd_G)   
-        for nor_path_id in self.rukki_paths.getPathIds():
-            if not (nor_path_id in nor_used_path_ids):
-                final_paths.addPath(self.rukki_paths.getPathTsv(nor_path_id))
+        scaffolded_rephased = []
         for scf in res:
             scaff_result = self.scaffoldFromOrPathIds(scf, self.rukki_paths)
             total_jumps += scaff_result[2]
@@ -535,7 +539,24 @@ class ScaffoldGraph:
                 total_scf += 1
             if scaff_result[1]:
                 total_new_t2t += 1
+            scaffolded_rephased.extend(scaff_result[3])
             final_paths.addPath(scaff_result[0])
+        self.logger.info (f"Rephased scaffolds to other haplo, need to check homologous {scaffolded_rephased}")
+
+        #this should be better done after completeConnectedComponent but it is very weird case if it matters         
+        rephased_fix = self.getAdditionalRephase(scaffolded_rephased, nor_used_path_ids, self.rukki_paths)
+        self.logger.info(f"Rephased fix {rephased_fix}")
+        self.logger.info(f"used_ids {nor_used_path_ids}")
+        
+        for nor_path_id in self.rukki_paths.getPathIds():
+            self.logger.debug(f"Checking {nor_path_id}")
+            if not (nor_path_id in nor_used_path_ids):
+                
+                if nor_path_id in rephased_fix:
+                    self.logger.debug(f"in reph fix {nor_path_id}")
+                    final_paths.addPath(rephased_fix[nor_path_id])
+                else:
+                    final_paths.addPath(self.rukki_paths.getPathTsv(nor_path_id))
 
         self.logger.info("Starting last telomere tuning")
         component_tuned_paths = self.completeConnectedComponent(final_paths)
@@ -545,8 +566,35 @@ class ScaffoldGraph:
         self.outputScaffolds(component_tuned_paths)
         return res
     
-
-    #if only too paths with one telomere missing remains in connected component and all other long nodes are in T2T and some conditions on distance and length then we connect
+    #returns dict {old_id: new_str}
+    def getAdditionalRephase(self, scaffolded_rephased, used_ids, paths):
+        res = {}
+        label_switch = {"HAPLOTYPE1": "HAPLOTYPE2", "HAPLOTYPE2": "HAPLOTYPE1"}
+        prefix_switch = {"pat": "mat", "mat": "pat", "haplotype1": "haplotype2", "haplotype2": "haplotype1"}
+        for nor_old_id in scaffolded_rephased:
+            if not self.isHaploidPath(paths, nor_old_id):
+                #very unoptimal but this should not be frequent
+                for alt_path_id in paths.getPathIds():
+                    #scaffolded path should not be significantly shorter than homologous alternative to recolor
+                    if paths.getLength(nor_old_id) * 2 > paths.getLength(alt_path_id) and self.match_graph.isHomologousPath([paths.getPathById(nor_old_id), paths.getPathById(alt_path_id)], [paths.getLength(nor_old_id), paths.getLength(alt_path_id)]):
+                        #alt_path_id is homologous to something rephased and thus should be rephased too.
+                        old_label = paths.getLabel(alt_path_id)
+                        splitted_id = alt_path_id.split("_")
+                        old_prefix = splitted_id[0]
+                        if alt_path_id in used_ids:
+                            self.logger.info(f"Not rephasing {alt_path_id} because it is scaffolded anyway")
+                            continue
+                        if old_label in label_switch and old_prefix in prefix_switch:
+                            new_label = label_switch[old_label]
+                            new_prefix = prefix_switch[old_prefix]                            
+                            new_id = new_prefix + "_" + "_".join(splitted_id[1:])
+                            self.logger.warning(f"Rephasing {alt_path_id} to {new_id} because of {nor_old_id} scaffolded")
+                            new_tsv = "\t".join([new_id, paths.getPathString(alt_path_id), new_label])
+                            res[alt_path_id] = new_tsv
+                        else:
+                            self.logger.warning(f"Rephasing failed for {alt_path_id} initiated by {nor_old_id}")                            
+        return res
+    #if only two paths with one telomere missing remains in connected component and all other long nodes are in T2T and some conditions on distance and length then we connect
     def completeConnectedComponent(self, prefinal_paths):
         res = path_storage.PathStorage(self.upd_G)
   
@@ -688,9 +736,8 @@ class ScaffoldGraph:
                 res.addPath(prefinal_paths.getPathTsv(path_id))
         self.logger.warning (f"Total last telomere tuned scaffolds (all t2t) {added_t2t}, jumps {total_jumps}")
         return res                            
-    #Returns (new_tsv_line, is_t2t, num_jumps)
-
     
+    #Returns (new_tsv_line, is_t2t, num_jumps, nor_rephased_ids)
     def scaffoldFromOrPathIds(self, or_ids, prefinal_paths):
         scf_path = []
         largest_label = "NA"
@@ -723,7 +770,12 @@ class ScaffoldGraph:
                 largest_len = prefinal_paths.getLength(nor_path_id)
                 largest_id = nor_path_id
                 largest_label = prefinal_paths.getLabel(nor_path_id)
-
+        rephased = []
+        for or_id in or_ids:
+            nor_path_id = gf.nor_path_id(or_id)
+            label = prefinal_paths.getLabel(nor_path_id)
+            if label != "NA" and label != largest_label:
+                rephased.append(nor_path_id)
         #dangerous_nodes can be not correct on non-first iteration, but anyway debug only
         for i in range (0, len(or_ids) - 1):
             swap_info = (or_ids[i].strip('-+'), or_ids[i+1].strip('-+'), or_ids[i][-1] + or_ids[i+1][-1])
@@ -739,7 +791,7 @@ class ScaffoldGraph:
                 telo_start = True
         if len(or_ids) > 1:
             self.logger.info (f"Added SCAFFOLD {or_ids} {telo_start} {telo_end} ") 
-        return (path_str, (telo_start and telo_end), len(or_ids) - 1)
+        return (path_str, (telo_start and telo_end), len(or_ids) - 1, rephased)
 
 #large haploid paths should be assigned based on connectivity. Complete human chrX will always be in hap1 
 #TODO revisit after rukki's update!
