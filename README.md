@@ -106,8 +106,8 @@ Make sure to count k-mers in compressed space. Child data is optional, in this c
     verkko -d asm \
       --hifi hifi/*.fastq.gz \
       --nano  ont/*.fastq.gz \
-      --hap-kmers maternal_compress.k30.hapmer.meryl \
-                  paternal_compress.k30.hapmer.meryl \
+      --hap-kmers paternal_compress.k30.hapmer.meryl \
+                  maternal_compress.k30.hapmer.meryl \
                   trio
 
 
