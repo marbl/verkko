@@ -824,7 +824,7 @@ class ScaffoldGraph:
 
         large_haploid_info = []
         reassigned = 0
-        reassigning_hap_id = 1
+        reassigning_hap_id = 2
         not_connected_hap_assign = 0
         for i in range (0, len(large_haploid_ids)):
             path_id = large_haploid_ids[i]
