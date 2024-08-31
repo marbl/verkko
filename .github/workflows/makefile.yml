@@ -30,7 +30,7 @@ jobs:
     - name: Setup Python 3.10
       uses: actions/setup-python@v2
       with:
-        python-version: 3.10
+        python-version: 3.10.14
 
     - name: Install Conda
       uses: conda-incubator/setup-miniconda@v3
@@ -38,7 +38,7 @@ jobs:
         auto-update-conda: true
         mamba-version: "*"
         channels: conda-forge,bioconda
-        python-version: 3.10
+        python-version: 3.10.14
         
     - name: Install dependencies
       run: |
