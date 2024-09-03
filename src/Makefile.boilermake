@@ -160,10 +160,17 @@ endef
 define ADD_FILE_COPY_RULE
   doall: $${TARGET_DIR}/$2
   ifeq ($3,executable)
+  ifeq ($(suffix $(1)),.sh)
   $${TARGET_DIR}/$2: $1
 		@mkdir -p $$(dir $${TARGET_DIR}/$2)
 		cat $1 |sed s/'version=""'/'version="$(VERSION)"'/g > $${TARGET_DIR}/$2
 		chmod +x $${TARGET_DIR}/$2
+  else
+  $${TARGET_DIR}/$2: $1
+		@mkdir -p $$(dir $${TARGET_DIR}/$2)
+		cp $1 $${TARGET_DIR}/$2
+		chmod +x $${TARGET_DIR}/$2
+  endif
   else
   $${TARGET_DIR}/$2: $1
 		@mkdir -p $$(dir $${TARGET_DIR}/$2)

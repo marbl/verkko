@@ -127,9 +127,9 @@ define SET_DEFAULT_FLAGS
   else
     TOOLCHAIN  := LLVM
     TOOLCHAINV := $$(shell ${CXX} -dumpversion)
-    CFLAGS     := -pthread -fopenmp -fPIC -std=c17   ${1}
-    CXXFLAGS   := -pthread -fopenmp -fPIC -std=c++20 ${1}
-    LDFLAGS    := -pthread -fopenmp                  ${2} -lm
+    CFLAGS     := -DBOOST_NO_CXX98_FUNCTION_BASE -pthread -fopenmp -fPIC -std=c17   ${1}
+    CXXFLAGS   := -DBOOST_NO_CXX98_FUNCTION_BASE -pthread -fopenmp -fPIC -std=c++20 ${1}
+    LDFLAGS    := -DBOOST_NO_CXX98_FUNCTION_BASE -pthread -fopenmp                  ${2} -lm
   endif
 
   #  Build up our preferred set of flags.
