@@ -151,19 +151,20 @@ def fixUnbalanced(part, C, G):
     if curswap > 0:
         print (f"Fixing uneven component, moved {curswap} bases and {edge_swapped} nodes")
 
-def getMedianCov(nodeset, sorted_nodes):
+def getMedianCov(nodeset):
     med_cov = -1
     total_length = 0
     for node in nodeset:
         total_length += node[1]['length']
     sum_l = 0
+    sorted_nodes = sorted(nodeset, key=lambda node: node[1]['coverage'])
     for node in sorted_nodes:
-        if node in nodeset:
-            sum_l += node[1]['length']
-            if 2*sum_l > total_length:
-                med_cov = node[1]['coverage']
-                print (f'Median coverage is {med_cov}\n')
-                break
+        print (f'Node {node[0]} coverage {node[1]["coverage"]} length {node[1]["length"]}')
+        sum_l += node[1]['length']
+        if 2*sum_l > total_length:
+            med_cov = node[1]['coverage']
+            print (f'Median coverage is {med_cov}\n')
+            break
     return med_cov
 
 def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, uneven_depth):
@@ -270,7 +271,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
     #dirty calculation median coverage, considering that most of the phasing is done
     
     sorted_nodes = sorted(G.nodes(data=True), key=lambda node: node[1]['length'])
-    med_cov = getMedianCov(G.nodes(data=True), sorted_nodes)
+    med_cov = getMedianCov(G.nodes(data=True))
     MAX_COV = med_cov * 1.5
     
     if (uneven_depth):
@@ -340,7 +341,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
             print (n)
             if G.nodes[n]['coverage'] < MAX_COV:
                 not_to_big.append((n, G.nodes[n]))
-        local_max_cov = 1.5 * getMedianCov(not_to_big, sorted_nodes)
+        local_max_cov = 1.5 * getMedianCov(not_to_big)
         if local_max_cov < 0:
             local_max_cov = MAX_COV
         for n in C.nodes():
