@@ -817,6 +817,9 @@ if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" -o "x$withbam" = "xTrue" ]
    if [ "x$withhic" = "xTrue" -a "x$withporec" = "xTrue" ]; then
       errors="${errors}Both --hic1/--hic2 and --porec cannot be specified at the same time, please only specify one\n"
    fi
+   if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] && [ "x$ruk_enable" = "xTrue" ]; then
+      errors="${errors}Both --hic1/--hic2 or --porec cannot be specified at the same time as trio information, please only specify ont\n"
+   fi
 
    if   [ "x$samtools" = "x" ] ; then
        errors="${errors}Can't find Samtools executable in \$PATH or \$VERKKO/bin/samtools.\n"
@@ -1261,7 +1264,7 @@ if [ "x$cnspaths" != "x" ] ; then
         cp -p ${cnsassembly}/6-layoutContigs/nodelens.txt             ${outd}/6-layoutContigs/nodelens.txt
     fi
 
-    if [ ! -e "${outd}/7-consensus" ] ; then
+    if [ ! -e "${outd}/7-consensus" ] && [ "x$withont" = "xTrue" ] ; then
         mkdir ${outd}/7-consensus
         cp -p ${cnsassembly}/7-consensus/ont_subset.fasta.gz          ${outd}/7-consensus/ont_subset.fasta.gz
         cp -p ${cnsassembly}/7-consensus/ont_subset.id                ${outd}/7-consensus/ont_subset.id
@@ -1373,7 +1376,7 @@ if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
         cp -p 6-layoutContigs/nodelens.txt             ${newoutd}/6-layoutContigs/nodelens.txt
     fi
 
-    if [ ! -e "${newoutd}/7-consensus" ] ; then
+    if [ ! -e "${newoutd}/7-consensus" ] && [ "x$withont" = "xTrue" ] ; then
         mkdir ${newoutd}/7-consensus
         cp -p 7-consensus/ont_subset.fasta.gz          ${newoutd}/7-consensus/ont_subset.fasta.gz
         cp -p 7-consensus/ont_subset.id                ${newoutd}/7-consensus/ont_subset.id
@@ -1391,7 +1394,9 @@ if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
     ret=$?
     if [ $ret -eq 0 ]; then
         cp *.fasta ../../
-        cp *.bam ../../
+        if [ "x$withbam" = "xTrue" ] ; then
+           cp *.bam ../../
+        fi
         cp *.gfa ../../
         cp *.layout ../../
         cp *.scfmap ../../
