@@ -296,6 +296,7 @@ FILES        += \
                 scripts/scaffolding/scaff_prefilter.py        -> ../lib/verkko/scripts/scaffolding/scaff_prefilter.py \
                 scripts/prepare_scaffolding.py                -> ../lib/verkko/scripts/prepare_scaffolding.py \
                 scripts/scaffolding/scaffold_graph.py         -> ../lib/verkko/scripts/scaffolding/scaffold_graph.py \
+                scripts/bam_rename.py                         -> ../lib/verkko/scripts/bam_rename.py \
                 \
                 Snakefile                                     -> ../lib/verkko/Snakefile \
                 Snakefiles/1-buildGraph.sm                    -> ../lib/verkko/Snakefiles/1-buildGraph.sm \
