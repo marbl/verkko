@@ -89,7 +89,7 @@ cat {params.aligns} ../{input.paths} \\\\
 > ../{output.hifialns}
 
 cat ../{input.ontgaps} |cut -f 1 > ../6-layoutContigs/ont-gapfill.txt
-{PYTHON} {VERKKO}/scripts/replace_path_nodes.py ../{input.ontalns} ../{output.nodemap} |grep -v -w -f ../6-layoutContigs/ont-gapfill.txt > ../{output.ontalns} || true
+{PYTHON} {VERKKO}/scripts/replace_path_nodes.py ../{input.ontalns} ../{output.nodemap} |grep -F -v -w -f ../6-layoutContigs/ont-gapfill.txt > ../{output.ontalns} || true
 
 cat ../{input.graph} \\\\
 | awk 'BEGIN \\\\
