@@ -14,6 +14,82 @@
  #
  ##
 
+getNumberOfCPUs() {
+    local os=$(uname | tr '[:upper:]' '[:lower:]')
+    local ncpu=1
+
+    if [[ "$os" == "freebsd" ]]; then
+        ncpu=$(sysctl -n hw.ncpu)
+    fi
+
+    if [[ "$os" == "darwin" ]]; then
+        ncpu=$(getconf _NPROCESSORS_ONLN)
+    fi
+
+    if [[ "$os" == "linux" || "$os" == "cygwin" ]]; then
+        ncpu=$(getconf _NPROCESSORS_ONLN)
+    fi
+
+    if [[ -n "${OMP_NUM_THREADS}" ]]; then
+        ncpu=${OMP_NUM_THREADS}
+    fi
+
+    if [[ -n "${SLURM_JOB_CPUS_PER_NODE}" ]]; then
+        ncpu=${SLURM_JOB_CPUS_PER_NODE}
+    fi
+
+    if [[ -n "${PBS_NCPUS}" ]]; then
+        ncpu=${PBS_NCPUS}
+    fi
+
+    if [[ -n "${PBS_NUM_PPN}" ]]; then
+        ncpu=${PBS_NUM_PPN}
+    fi
+
+    if [[ -n "${NSLOTS}" ]]; then
+        ncpu=${NSLOTS}
+    fi
+
+    echo $ncpu
+}
+
+getPhysicalMemorySize() {
+    local os=$(uname | tr '[:upper:]' '[:lower:]')
+    local memory=1
+
+    if [[ "$os" == "freebsd" ]]; then
+        memory=$(($(sysctl -n hw.physmem) / 1024 / 1024 / 1024))
+    fi
+
+    if [[ "$os" == "darwin" ]]; then
+        memory=$(($(sysctl -n hw.memsize) / 1024 / 1024 / 1024))
+    fi
+
+    if [[ "$os" == "linux" || "$os" == "cygwin" ]]; then
+        while read -r line; do
+            if [[ $line =~ ^MemTotal:\ +([0-9]+) ]]; then
+                memory=$((${BASH_REMATCH[1]} / 1024 / 1024))
+            fi
+        done < /proc/meminfo
+    fi
+
+    if [[ -n "${SLURM_MEM_PER_CPU}" && -n "${SLURM_JOB_CPUS_PER_NODE}" ]]; then
+        memory=$((${SLURM_MEM_PER_CPU} * ${SLURM_JOB_CPUS_PER_NODE}))
+    fi
+
+    if [[ -n "${SLURM_MEM_PER_NODE}" ]]; then
+        memory=$((${SLURM_MEM_PER_NODE} / 1024))
+    fi
+
+    if [[ -n "${PBS_RESC_MEM}" ]]; then
+        memory=$((${PBS_RESC_MEM} / 1024 / 1024 / 1024))
+    fi
+
+    # Round to nearest integer
+    memory=$(echo "$memory + 0.5" | bc | awk '{print int($1)}')
+
+    echo $memory
+}
 
 findsnakemakeerror() {
    local ret=$1
@@ -97,9 +173,8 @@ python=
 perl=
 
 grid="local"
-local_cpus=all
-local_mem=64
-
+local_cpus=$(getNumberOfCPUs)
+local_mem=$(getPhysicalMemorySize)
 snakeopts=""
 
 
