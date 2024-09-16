@@ -66,11 +66,8 @@ getPhysicalMemorySize() {
     fi
 
     if [[ "$os" == "linux" || "$os" == "cygwin" ]]; then
-        while read -r line; do
-            if [[ $line =~ ^MemTotal:\ +([0-9]+) ]]; then
-                memory=$((${BASH_REMATCH[1]} / 1024 / 1024))
-            fi
-        done < /proc/meminfo
+       memory=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)
+       memory=$(($memory / 1024 / 1024))  # Convert from kB to GB
     fi
 
     if [[ -n "${SLURM_MEM_PER_CPU}" && -n "${SLURM_JOB_CPUS_PER_NODE}" ]]; then
@@ -176,7 +173,6 @@ grid="local"
 local_cpus=$(getNumberOfCPUs)
 local_mem=$(getPhysicalMemorySize)
 snakeopts=""
-
 
 #  Set shell variable 'verkko' and environment variable VERKKO to the
 #  location of the Verkko components (e.g., /software/verkko/lib/verkko or
