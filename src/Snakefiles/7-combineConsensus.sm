@@ -121,7 +121,7 @@ if [ "{params.haveBAM}" = "True" ]; then
    echo ""
    mem_per_core=\`expr {resources.mem_gb} \/ {threads} | awk '{{if (\$1 < 1) print "1G"; else print \$1"G"}}'\`
 
-   {params.SAMTOOLS} merge -f -O bam --reference combined.fasta -@{threads} -u - {params.packbam} | {params.SAMTOOLS} sort -m \$mem_per_core -@{threads} | {PYTHON} {VERKKO}/scripts/bam_rename.py ../{input.scfmap} ../{input.tigmap} {params.packcns} > ../{output.bam} 2> sortBAM.err
+   {params.SAMTOOLS} merge -f -O bam --reference combined.fasta -@{threads} -u - {params.packbam} | {PYTHON} {VERKKO}/scripts/bam_rename.py ../{input.scfmap} ../{input.tigmap} {params.packcns} | {params.SAMTOOLS} sort -m \$mem_per_core -@{threads} -o ../{output.bam}
 else
    touch ../{output.bam}
 fi
