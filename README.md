@@ -183,8 +183,7 @@ You can pass through snakemake options to restrict CPU/memory/cluster resources 
 
 ### Filtering common contaminants:
 
-Verkko has the ability to filter common contaminants from an assembly using the `--screen` option. For human samples, you can specify `--screen human` which will automatically filter the mitochonrdia, rDNA, and EBV sequences. For other samples you can specify an arbitrary number of targets using `--screen exampleN exampleN.fasta`. For each contaminant, verkko will remove all sequences matching the target from the main assembly output. It will also identify a 'cannonical' reprentative by coverage and circularize it to remove self-similarity at the start/end.
-
+Verkko has the ability to filter common contaminants from an assembly using the `--screen` option. You can specify an arbitrary number of targets using multiple `--screen <contaminant_N_name> <contaminant_N_sequence.fasta>`  commands. For each contaminant, verkko will remove all sequences matching the target from the main assembly output. It will also identify a ‘canonical’ representative by coverage and circularize it to remove self-similarity at the start/end. For typical contaminants of human assemblies we have special option `--screen-human-contaminants` which requires no parameters and is a shortcut for `--screen rDNA rdna.fasta --screen mitochondria mito.fasta --screen EBV ebv.fasta`.
 ## Outputs:
 The final assembly result is under `asm/assembly.fasta`. The final graph (in homopolymer-compressed space) is under `asm/assembly.homopolymer-compressed.gfa` along with coverage files in `asm/assembly*csv`. There is also an `asm/assembly.scfmap` file which translates the final sequence name in `assembly.fasta` to graph nodes. You can find intermediate graphs and coverage files under `asm/*/unitig-*gfa` and `asm/*/unitig-*csv`.
 
