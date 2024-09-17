@@ -592,21 +592,17 @@ while [ $# -gt 0 ] ; do
 
     elif [ "$opt" = "--consensus-bam" ] ;       then withbam="True"; lay_mem_gb=`expr $lay_mem_gb \* 2`;
     elif [ "$opt" = "--discard-short" ] ;       then short_contig_length=$arg;   shift
-    elif [ "$opt" = "--screen" ] ; then
-      if [ "x$arg" = "xhuman" ] ; then
+    elif [ "$opt" = "--screen-human-contaminants" ]; then
           screen="$screen ebv  human-ebv-AJ507799.2.fasta.gz"
           screen="$screen mito human-mito-NC_012920.1.fasta.gz"
           screen="$screen rdna human-rdna-KY962518.1.fasta.gz"
-          shift
-      else
+    elif [ "$opt" = "--screen" ] ; then
           if [ "x$arg" = 'x' ] || [ "x$arh" = 'x' ]; then
               errors="${errors}Invalid screen option: '$arg', '$arh'. Provide both contaminant name and contaminant file.\n"
           fi
           screen="$screen $arg $arh"
           shift   #  Both arg and arh are processed.
           shift
-      fi
-
     #
     #  run-time options
     #
