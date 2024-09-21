@@ -377,6 +377,7 @@ rule scaffoldMergeBWA:
     params:
         SAMTOOLS       = config.get('SAMTOOLS', "{VERKKO}/bin/samtools"),
         alignments     = lambda wildcards: expand("mapped{nnnn}_nodefiltered.bam", nnnn = splitHICoutputs(wildcards)),
+        alignments_old = lambda wildcards: expand("mapped{nnnn}.bam", nnnn = splitHICoutputs(wildcards)),
         keepinter      = config['keep_intermediate']
     threads:
         int(config['fhc_n_cpus'])
@@ -394,6 +395,18 @@ cat > ./scaffold_mergeBWA.sh <<EOF
 set -e
 
 {params.SAMTOOLS} merge -n -@ {threads}  ../{output.alignments} {params.alignments}
+
+if [ {params.keepinter} = False ] ; then
+  rm -f {params.alignments}
+  rm -f {params.alignments_old}
+
+  rm -f ./align_bwa*.err
+  rm -f ./align_bwa*.sh
+  rm -f ./scaffold_prefilter*.err
+  rm -f ./scaffold_prefilter*.sh
+
+  rm -f ./unitigs.fasta.*
+fi
 
 EOF
 
@@ -416,7 +429,6 @@ rule mergeBWA:
     params:
         SAMTOOLS       = config.get('SAMTOOLS', "{VERKKO}/bin/samtools"),
         alignments     = lambda wildcards: expand("mapped{nnnn}.bam", nnnn = splitHICoutputs(wildcards)),
-        keepinter      = config['keep_intermediate']
     threads:
         int(config['fhc_n_cpus'])
     resources:
@@ -434,15 +446,6 @@ set -e
 
 {params.SAMTOOLS} merge -n -@ {threads}  - {params.alignments} | samtools view -q 1 -o ../{output.alignments}
 
-
-if [ {params.keepinter} = False ] ; then
-  rm -f {params.alignments}
-
-  rm -f ./align_bwa*.err
-  rm -f ./align_bwa*.sh
-
-  rm -f ./unitigs.fasta.*
-fi
 
 EOF
 
