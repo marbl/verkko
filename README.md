@@ -140,6 +140,10 @@ Since the scaffolding module relies on the diploid structure of an assembly, it 
 
 Polyploid scaffolding and phasing is not supported yet.
 
+### Consensus for user-provided paths:
+
+With `--paths` option one can generate contigs from user-provided file with paths through the assembly graph. Paths should be provided in gaf file formatted as follows: `name >utig4-1<utig4-2 HAPLOTYPE1` with one path per line, where utig4-1 is in fwd orientation and utig4-2 is in reverse complement. This option requires also to provide an existing assembly directory specified by `--assembly <path_to_assembly>` and input reads. Output is specified as `-d <output_dir>` (<output_dir> should not be equal to <path_to_assembly>).
+
 ### Running on a grid:
 By default, verkko will run the snakemake workflow and all compute on the local machine. Support for SGE, Slurm LSF, and PBS (untested) can be enabled with options `--grid`. This will run the snakemake workflow on the local machine but submit all compute to the grid. To launch the both the snakemake workflow and compute on the grid, wrap the verkko command in a shell script and submit using your scheduler. If you're using conda, you may need to make the conda-installed python your default. You can do this with the `--python` option when calling verkko
 
