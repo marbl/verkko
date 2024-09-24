@@ -316,3 +316,24 @@ class MatchGraph:
             return True
         else:
             return False
+        
+    def getHomologousPaths(self, path_storage, path_id):
+        homologous_paths = []
+        homologous_nodes = set()
+        for node in path_storage.getEdgeSequenceById(path_id):
+            if node in self.matchGraph.nodes:
+                for hom_node in self.matchGraph.neighbors(node):
+                    if self.matchGraph.edges[node, hom_node]['weight'] < 0:
+                        homologous_nodes.add(hom_node)
+        self.logger.debug(f"For path {path_id} counted homologous nodes {homologous_nodes}")
+        paths_to_check = set()
+        for node in homologous_nodes:
+            paths_to_check.update(path_storage.getPathsFromNode(node))
+        self.logger.debug(f"For path {path_id} suspicious homologous paths {paths_to_check}")
+
+        for susp_path_id in paths_to_check:
+            if self.isHomologousPath([path_storage.getPathById(path_id), path_storage.getPathById(susp_path_id)], [path_storage.getLength(path_id), path_storage.getLength(susp_path_id)]):
+                homologous_paths.append(susp_path_id)
+        self.logger.debug(f"For path {path_id} found {len(paths_to_check)} homologous paths {paths_to_check}")
+
+        return homologous_paths

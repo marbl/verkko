@@ -22,6 +22,9 @@ class PathStorage:
         self.G = G
         self.pairwise_dists = {}
 
+        self.node_to_paths = {}
+        self.node_to_paths_counted = False
+
     def getPathById(self, path_id):
         return self.paths[path_id]
     
@@ -150,3 +153,16 @@ class PathStorage:
                         else:
                             overlap = 0
                 f.write(f"\n")
+
+    def getPathsFromNode(self, node_id):
+        if not self.node_to_paths_counted:
+            for path_id in self.paths:
+                for node in self.getEdgeSequenceById(path_id):
+                    if not node in self.node_to_paths:
+                        self.node_to_paths[node] = []
+                    self.node_to_paths[node].append(path_id)
+            self.node_to_paths_counted = True
+        if node_id in self.node_to_paths:
+            return self.node_to_paths[node_id]
+        else:
+            return []

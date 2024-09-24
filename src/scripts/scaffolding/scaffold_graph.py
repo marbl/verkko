@@ -103,6 +103,7 @@ class ScaffoldGraph:
     #Just too long/far
     TOO_FAR = 1000000000
 
+    
     #efficiantly it is so because of bwa behaviour on XA tags but not used directly
     MAX_ALIGNMENTS = 6
 
@@ -111,6 +112,10 @@ class ScaffoldGraph:
 
     #to check whether paths have similar lengths, in cheating t2t connection
     SIMILAR_LEN_FRAC = 0.7
+
+    #Constants to switch off distance counting for huge graphs
+    MAX_GRAPH_FOR_DISTANCES = 1000000
+    MAX_COMPONENT_FOR_DISTANCES = 50000
 
     def __init__(self, rukki_paths, telomere_locations_file, hic_alignment_file, matches_file, G, uncompressed_fasta, path_mashmap, porec, logger):
         self.logger = logger_wrap.UpdatedAdapter(logger, self.__class__.__name__)
@@ -132,9 +137,11 @@ class ScaffoldGraph:
             all_connections, unique_connections = self.get_connections_porec(hic_alignment_file, True)
         else:
             self.logger.info ("Loading Hi-C alignments")
-            all_connections, unique_connections = self.get_connections_bam(hic_alignment_file, True)        
-        self.output_basename = "scaff_rukki.paths"
+            all_connections, unique_connections = self.get_connections_bam(hic_alignment_file, True) 
+        self.all_connections = all_connections
+        self.unique_connections = unique_connections
 
+        self.output_basename = "scaff_rukki.paths"
         telomeric_ends = self.getTelomericEnds()
         self.hic_alignment_file = hic_alignment_file
 
@@ -166,12 +173,25 @@ class ScaffoldGraph:
         #possilby unefficient but whelp
         scores = {}
         unique_scores = {}
-        self.dists = dict(nx.all_pairs_dijkstra_path_length(self.upd_G, weight=lambda u, v, d: self.upd_G.edges[u, v]['mid_length']))
-        self.logger.info("Pairwise distances in assembly graph calculated")
+        self.dists = {}
+        if G.number_of_nodes() > ScaffoldGraph.MAX_GRAPH_FOR_DISTANCES:
+            self.logger.info(f"Graph is too big {G.number_of_nodes()}, not calculating pairwise distances")
+        else:
+            max_comp_size = len(max(nx.weakly_connected_components(G), key=len))    
+            if max_comp_size > ScaffoldGraph.MAX_COMPONENT_FOR_DISTANCES:
+                self.logger.info(f"Biggest component is too big {len(max_comp_size)}, not calculating pairwise distances")
+            else:
+                self.logger.info("Calculating pairwise distances for assembly graph nodes")
+                self.dists = dict(nx.all_pairs_dijkstra_path_length(self.upd_G, weight=lambda u, v, d: self.upd_G.edges[u, v]['mid_length']))
+                self.logger.info("Pairwise distances in assembly graph calculated")
+
         self.haploids = self.getHaploidPaths(self.rukki_paths)
         #bam should be prefiltered
         #all_connections = self.get_connections_bam("../", True)
 
+        self.scores = {}
+        self.unique_scores = {}
+        '''
         for from_path_id in self.rukki_paths.getPathIds():
             scores[from_path_id] = {}
             unique_scores[from_path_id] = {}
@@ -195,11 +215,9 @@ class ScaffoldGraph:
                         or_from_path_id = from_path_id + from_dir
                         or_to_path_id = to_path_id + to_dir
                         self.scaffold_graph.add_edge(or_from_path_id, or_to_path_id, weight = scores[from_path_id][to_path_id][from_dir + to_dir], unique_weight = unique_scores[from_path_id][to_path_id][from_dir + to_dir])
-                if self.rukki_paths.getLength(from_path_id) >= ScaffoldGraph.MIN_PATH_TO_SCAFFOLD  and self.rukki_paths.getLength(from_path_id) >= ScaffoldGraph.MIN_PATH_TO_SCAFFOLD:
+                if self.rukki_paths.getLength(from_path_id) >= ScaffoldGraph.MIN_PATH_TO_SCAFFOLD and self.rukki_paths.getLength(from_path_id) >= ScaffoldGraph.MIN_PATH_TO_SCAFFOLD:
                     self.logger.debug (f"Final not-unique scores {from_path_id} {to_path_id} {scores[from_path_id][to_path_id]}")
-                    self.logger.debug (f"Final unique scores {from_path_id} {to_path_id} {unique_scores[from_path_id][to_path_id]}")
-
-#TODO: move all rc_<smth> somewhere, not right place 
+                    self.logger.debug (f"Final unique scores {from_path_id} {to_path_id} {unique_scores[from_path_id][to_path_id]}")'''
     
 
     def isHaploidPath(self, paths, nor_path_id):
@@ -393,6 +411,50 @@ class ScaffoldGraph:
             return True
         return False
     
+
+    def getScores(self, or_path_id, path_storage, type):
+        res = []
+        if type == "weight":
+            cur_scores = self.scores
+            connections = self.all_connections
+        elif type == "unique_weight":
+            cur_scores = self.unique_scores
+            connections = self.unique_connections
+        else:
+            self.logger.error(f"Unknown type {type}")
+            return res
+        nor_path_id = gf.nor_path_id(or_path_id)
+        precounted = True
+
+        homologous_paths = self.match_graph.getHomologousPaths(path_storage, nor_path_id)
+        #Counting only necessary scores, cashing in global dict 
+        if not (or_path_id in cur_scores):
+            cur_scores[or_path_id] = {}
+            cur_scores[gf.rc_path_id(or_path_id)] = {}
+            precounted = False
+        for next_or_path in self.scaffold_graph.nodes():
+            #Counting all orientations together so no need to double count
+            if next_or_path[-1] == "-":
+                continue
+            next_nor_path = gf.nor_path_id(next_or_path)
+            #TODO: optimize homology counting, once per all paths
+            if next_nor_path in homologous_paths:
+                continue
+            else:
+                if not precounted:
+                    nor_scores = self.getPathPairConnections([nor_path_id, next_nor_path], connections, self.uncompressed_lens)                
+                    for from_dir in ('-', '+'):
+                        for to_dir in ('-', '+'):
+                            or_from_path_id = nor_path_id + from_dir
+                            or_to_path_id = next_nor_path + to_dir
+                            if nor_scores[from_dir + to_dir] > 0:
+                                cur_scores[or_from_path_id][or_to_path_id] = nor_scores[from_dir + to_dir]
+        for next_or_path in self.scaffold_graph.nodes():
+            if next_or_path in cur_scores[or_path_id]:
+                res.append([next_or_path, cur_scores[or_path_id][next_or_path]])
+        res.sort(key=lambda x: x[1], reverse=True)
+        return res
+    
     #Main logic is here!     
     # returns NONE/DONE/next_path_id   
     #type: weight/unique_weight
@@ -404,11 +466,21 @@ class ScaffoldGraph:
         if self.scaffold_graph.nodes[cur_path_id]['telomere'][1]:
             self.logger.info (f"Stopped at the telomere")
             return "DONE",0
+        '''
         for next_node in self.scaffold_graph.successors(cur_path_id):
             #specific hacks to avoid
             local_scores.append([next_node, self.scaffold_graph.edges[cur_path_id, next_node][type]])            
-
         local_scores.sort(key=lambda x: x[1], reverse=True)
+        alt_scores = self.getScores(cur_path_id, self.rukki_paths, type)
+
+        if len(alt_scores) > 0 and alt_scores[0]!= local_scores[0]:
+            self.logger.warning(f"Difference! local scores {local_scores[0]} alt scores {alt_scores[0]}")
+            for i in range (0,10):
+                self.logger.warning(f"Alt scores {i} {alt_scores[i]}")
+        elif len(alt_scores) == 0 and len(local_scores) > 0:
+            self.logger.warning(f"Local scores but no alt scores, best extension {local_scores[0]}")
+        '''
+        local_scores = self.getScores(cur_path_id, self.rukki_paths, type)
         best_ind = -1
         second_best_ind = -1        
         for i in range (0, len(local_scores)):
@@ -504,10 +576,12 @@ class ScaffoldGraph:
                     break
                 else:
                     hom_before = False
+                    nor_new_path_id = gf.nor_path_id(next_path_id)
+                    homologous_paths = self.match_graph.getHomologousPaths(self.rukki_paths, gf.nor_path_id(nor_new_path_id))
                     for prev_path_id in cur_scaffold:
-                        nor_new_path_id = gf.nor_path_id(next_path_id)
                         nor_prev_path_id = gf.nor_path_id(prev_path_id)
-                        if self.match_graph.isHomologousPath([self.rukki_paths.getPathById(nor_new_path_id), self.rukki_paths.getPathById(nor_prev_path_id)], [self.rukki_paths.getLength(nor_new_path_id), self.rukki_paths.getLength(nor_prev_path_id)]):
+                        if nor_prev_path_id in homologous_paths:
+#                        self.match_graph.isHomologousPath([self.rukki_paths.getPathById(nor_new_path_id), self.rukki_paths.getPathById(nor_prev_path_id)], [self.rukki_paths.getLength(nor_new_path_id), self.rukki_paths.getLength(nor_prev_path_id)]):
                             #TODO: really not normal if we see that best extension is homologous to some path in scaffold, deserves investigation
                             self.logger.warning(f"Trying to extend, had homologous path in same scaffold before! {nor_new_path_id} {nor_prev_path_id}")
                             hom_before = True
@@ -574,9 +648,11 @@ class ScaffoldGraph:
         for nor_old_id in scaffolded_rephased:
             if not self.isHaploidPath(paths, nor_old_id):
                 #very unoptimal but this should not be frequent
+                homologous_paths = self.match_graph.getHomologousPaths(paths, nor_old_id)
                 for alt_path_id in paths.getPathIds():
                     #scaffolded path should not be significantly shorter than homologous alternative to recolor
-                    if paths.getLength(nor_old_id) * 2 > paths.getLength(alt_path_id) and self.match_graph.isHomologousPath([paths.getPathById(nor_old_id), paths.getPathById(alt_path_id)], [paths.getLength(nor_old_id), paths.getLength(alt_path_id)]):
+                    if paths.getLength(nor_old_id) * 2 > paths.getLength(alt_path_id) and alt_path_id in homologous_paths:
+                    #and self.match_graph.isHomologousPath([paths.getPathById(nor_old_id), paths.getPathById(alt_path_id)], [paths.getLength(nor_old_id), paths.getLength(alt_path_id)]):
                         #alt_path_id is homologous to something rephased and thus should be rephased too.
                         old_label = paths.getLabel(alt_path_id)
                         splitted_id = alt_path_id.split("_")
@@ -1333,3 +1409,23 @@ class ScaffoldGraph:
                     tel_end = True
             res[id] = [tel_start, tel_end]                
         return res
+
+    #For each paths returns its connected component. If multiple, then 0
+    def getPathColors(self, rukki_paths, graph):
+        components = sorted(nx.weakly_connected_components(self.upd_G),key=len, reverse=True)
+        node_colors = {}
+        path_colors = {}
+        for i in range (0, len(components)):
+            for node in components[i]:
+                node_colors[node] = i + 1
+        for path_id in rukki_paths.getPathIds():
+            current_colors = set()
+            for node in rukki_paths.getPathById(path_id):
+                current_colors.add(node_colors[gf.nor_node(node)])
+            if len (current_colors) == 1:
+                path_colors[path_id] = current_colors.pop()
+            else:
+                path_colors[path_id] = 0
+        return path_colors
+    
+    
