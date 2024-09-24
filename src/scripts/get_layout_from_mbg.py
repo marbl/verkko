@@ -17,6 +17,7 @@ nodelens_file = sys.argv[5]
 layout_output = sys.argv[6]
 layscf_output = sys.argv[7]
 
+min_contig_no_trim = 500000
 min_read_len_fraction = 0.5
 min_read_fromend_fraction = min_read_len_fraction/1.5
 min_exact_len_fraction = min_read_len_fraction/3
@@ -243,7 +244,7 @@ with open(paths_file) as f:
 		#  Find all words that
 		#    begin with [<>], contain anything but [
 		#    begin with [N, contain digits and end with N] or N:optional-description]
-                #    we dump the description here and anly keep the N, digits N] part
+		#    we dump the description here and anly keep the N, digits N] part
 		#
 		fullname = lp[0]
 		pathfull = re.findall(r"([<>][^[]+|\[N\d+N(?:[^\]]+){0,1}\])", lp[1])
@@ -530,6 +531,7 @@ nul_layout_file = open(f"{layscf_output}.dropped", mode="w")
 #  contig actually has pieces, output the scaffold map.  (The header line
 #  output from rukki looks like a contig with no pieces.)
 #
+no_trim = set()
 nameid = 1
 for contig in sorted(contig_pieces.keys()):
 	npieces = ngaps = nempty = 0
@@ -615,6 +617,7 @@ for contig in sorted(contig_pieces.keys()):
 		print(f"path {outname} {contig}", file=scf_layout_file)
 
 		for line in contig_pieces[contig]:
+			if len(contig_pieces[contig]) > 2 and (line == contig_pieces[contig][0] or line == contig_pieces[contig][-2]): no_trim.add(line)
 			print(line, file=scf_layout_file)
 
 		nameid += 1
@@ -622,7 +625,6 @@ for contig in sorted(contig_pieces.keys()):
 		print(f"{contig} has no reads assigned and is not output.", file=nul_layout_file)
 
 del nameid
-
 
 for contig in sorted(contig_actual_lines.keys()):
 	if len(contig_actual_lines[contig]) == 0: continue
@@ -637,6 +639,10 @@ for contig in sorted(contig_actual_lines.keys()):
 		end_pos = max(end_pos, line[2])
 	print(f"tig\t{contig}", file=tig_layout_file)
 	print(f"len\t{end_pos - start_pos}", file=tig_layout_file)
+	if end_pos-start_pos >= min_contig_no_trim or contig in no_trim:
+		print(f"trm\t1", file=tig_layout_file)
+	else:
+		print(f"trm\t0", file=tig_layout_file)
 	print(f"rds\t{len(contig_actual_lines[contig])}", file=tig_layout_file)
 	for line in contig_actual_lines[contig]:
 		bgn = line[1] - start_pos
