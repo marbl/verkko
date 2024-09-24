@@ -40,6 +40,7 @@ for l in fileinput.input():
 		current_len = int(parts[1])
 	elif parts[0] == "rds": continue
 	elif parts[0] == "end": continue
+	elif parts[0] == "trm": continue
 	else:
 		start = int(parts[1])
 		end = int(parts[2])
