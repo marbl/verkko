@@ -8,14 +8,27 @@ import re
 # in the case of scaffolds, offset the start coordinate by the start of the sequence in the scaffold
 #
 bamfile = pysam.AlignmentFile("-", "rb")
-scfmap   = seq.readScfMap(sys.argv[1])
-namedict = seq.readNameMap(sys.argv[2])
+layout   = sys.argv[1]
+gap_info = sys.argv[2]
+scfmap   = seq.readScfMap(sys.argv[3])
+namedict = seq.readNameMap(sys.argv[4])
 lens     = dict()
 offsets  = dict()  
 names    = dict()
 tigtohap = dict()
+readtorg = dict()
 
-for filename in sys.argv[3:]:
+with open(layout) as f:
+   for l in f:
+      parts = l.strip().split('\t')
+      if len(parts) > 2:
+         readtorg[parts[0]] = "LA" if (int(parts[-1]) == 0) else "UL"
+with open(gap_info) as f:
+   for l in f:
+      parts = l.strip().split('\t')
+      readtorg[parts[0]] = "UL-gap"
+
+for filename in sys.argv[5:]:
   sys.stderr.write("Starting file %s\n"%(filename))
   inf  = seq.openInput(filename)
 
@@ -52,18 +65,26 @@ for clist in scfmap:
 # drop the old reference names
 header['SQ'] = [sq_entry for sq_entry in header['SQ'] if sq_entry['SN'] in scfmap]
 
+# add read tags to note which reads are LA, LA gapfill, or UL
+if 'RG' not in header:
+    header['RG'] = []
+header['RG'].append({'ID' : "LA"})
+header['RG'].append({'ID' : "UL-gap"})
+header['RG'].append({'ID' : "UL"})
+
 # now loop through and update, keeping only the mapped reads
 output_bam = pysam.AlignmentFile('-', 'wb', header=header)
 for read in bamfile:
     if not read.is_unmapped:
        reference_name = bamfile.get_reference_name(read.reference_id)
-       if reference_name not in offsets or tigtohap[reference_name] not in output_bam.references:
+       if reference_name not in offsets or tigtohap[reference_name] not in output_bam.references or read.query_name not in readtorg:
           sys.stderr.write("Error: I didn't find how to translate %s\n"%(reference_name))
           sys.exit(1)
      
        # make a copy of the existing read in the new bam, replacing the string reference
        new_read = pysam.AlignedSegment.fromstring(read.to_string().replace(f'\t{reference_name}\t', f'\t{tigtohap[reference_name]}\t'), output_bam.header)
 
+       new_read.set_tag('RG', readtorg[read.query_name])
        # update the coordinate
        new_read.reference_start = read.reference_start + offsets[reference_name]
        output_bam.write(new_read)
