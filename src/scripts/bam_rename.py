@@ -22,11 +22,12 @@ with open(layout) as f:
    for l in f:
       parts = l.strip().split('\t')
       if len(parts) > 2:
-         readtorg[parts[0]] = "LA" if (int(parts[-1]) == 0) else "UL"
+         readtorg[parts[0]] = "LA" if (int(parts[-1]) == 0 or len(parts) == 3) else "UL"
 with open(gap_info) as f:
    for l in f:
       parts = l.strip().split('\t')
-      readtorg[parts[0]] = "UL-gap"
+      if parts[0] in readtorg and readtorg[parts[0]] == "LA":
+          readtorg[parts[0]] = "UL-gap"
 
 for filename in sys.argv[5:]:
   sys.stderr.write("Starting file %s\n"%(filename))

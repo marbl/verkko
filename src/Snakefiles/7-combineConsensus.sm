@@ -36,6 +36,7 @@ rule combineConsensus:
         tigmap    = rules.buildPackages.output.tigmap,
         scfmap    = rules.layoutContigs.output.scfmap,
         layout    = rules.layoutContigs.output.layout,
+        ontalns   = rules.generateLayoutContigsInputs.output.ontalns,
         hificov   = rules.verkko.input.hifi5cov,
         finished  = rules.buildPackages.output.finished,
         pathstsv  = rules.rukki.output.pathstsv if config['ruk_enable'] == "True" else rules.emptyfile.output,
@@ -122,7 +123,7 @@ if [ "{params.haveBAM}" = "True" ]; then
    echo ""
    mem_per_core=\`expr {resources.mem_gb} \/ {threads} | awk '{{if (\$1 < 1) print "1G"; else print \$1"G"}}'\`
 
-   {params.SAMTOOLS} merge -f -O bam --reference combined.fasta -@{threads} -u - {params.packbam} | {PYTHON} {VERKKO}/scripts/bam_rename.py ../{input.layout} ../6-layoutContigs/ont-gapfill.txt ../{input.scfmap} ../{input.tigmap} {params.packcns} | {params.SAMTOOLS} sort -m \$mem_per_core -@{threads} -o ../{output.bam}
+   {params.SAMTOOLS} merge -f -O bam --reference combined.fasta -@{threads} -u - {params.packbam} | {PYTHON} {VERKKO}/scripts/bam_rename.py ../{input.layout} ../{input.ontalns} ../{input.scfmap} ../{input.tigmap} {params.packcns} | {params.SAMTOOLS} sort -m \$mem_per_core -@{threads} -o ../{output.bam}
 else
    touch ../{output.bam}
 fi
