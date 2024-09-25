@@ -26,6 +26,8 @@ def read_layout_file(file_path, flag):
             elif line.startswith("rds"):
                 num_reads = int(line.split("\t")[1])
                 layout_data[-1]["num_reads"] = num_reads
+            elif line.startswith("trm"):
+                layout_data[-1]["trm"] = int(line.split("\t")[1])
             elif line == "end":
                 current_tig = None
             else:
@@ -66,6 +68,7 @@ merged_layout = merge_layout_files(file1_path, 0, file2_path, 1)
 for entry in merged_layout:
     print("tig", entry["tig"], sep='\t')
     print("len", entry["len"], sep='\t')
+    print("trm", entry["trm"], sep='\t')
     print("rds", entry["num_reads"], sep='\t')
 
     for read_entry in entry["reads"]:
