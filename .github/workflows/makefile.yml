@@ -36,7 +36,8 @@ jobs:
       uses: conda-incubator/setup-miniconda@v3
       with:
         auto-update-conda: true
-        mamba-version: "*"
+        miniforge-version: latest
+        use-mamba: true
         channels: conda-forge,bioconda
         python-version: 3.11
         
