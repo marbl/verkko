@@ -138,8 +138,12 @@ class ScaffoldGraph:
         else:
             self.logger.info ("Loading Hi-C alignments")
             all_connections, unique_connections = self.get_connections_bam(hic_alignment_file, True) 
+
+        
         self.all_connections = all_connections
         self.unique_connections = unique_connections
+        self.all_connections_nodemap = self.getConnectionsNodemap(all_connections)
+        self.unique_connections_nodemap = self.getConnectionsNodemap(unique_connections)
 
         self.output_basename = "scaff_rukki.paths"
         telomeric_ends = self.getTelomericEnds()
@@ -186,40 +190,21 @@ class ScaffoldGraph:
                 self.logger.info("Pairwise distances in assembly graph calculated")
 
         self.haploids = self.getHaploidPaths(self.rukki_paths)
-        #bam should be prefiltered
-        #all_connections = self.get_connections_bam("../", True)
-
         self.scores = {}
         self.unique_scores = {}
-        '''
-        for from_path_id in self.rukki_paths.getPathIds():
-            scores[from_path_id] = {}
-            unique_scores[from_path_id] = {}
 
-            for to_path_id in self.rukki_paths.getPathIds():
-                if to_path_id == from_path_id:
-                    continue               
-                scores[from_path_id][to_path_id] = self.getPathPairConnections([from_path_id, to_path_id], all_connections, self.uncompressed_lens)
-                unique_scores[from_path_id][to_path_id] = self.getPathPairConnections([from_path_id, to_path_id], unique_connections, self.uncompressed_lens)
-
-                #scores[from_path_id][to_path_id] = self.getPresavedPathPairConnections([from_path_id, to_path_id], presaved_pathscores)
-                
-        for from_path_id in rukki_paths.getPathIds():
-            for to_path_id in rukki_paths.getPathIds():       
-                if to_path_id == from_path_id:
-                    continue 
-                if self.match_graph.isHomologousPath([rukki_paths.getPathById(from_path_id), rukki_paths.getPathById(to_path_id)], [rukki_paths.getLength(from_path_id), rukki_paths.getLength(to_path_id)]):
-                    continue
-                for from_dir in ('-', '+'):
-                    for to_dir in ('-', '+'):
-                        or_from_path_id = from_path_id + from_dir
-                        or_to_path_id = to_path_id + to_dir
-                        self.scaffold_graph.add_edge(or_from_path_id, or_to_path_id, weight = scores[from_path_id][to_path_id][from_dir + to_dir], unique_weight = unique_scores[from_path_id][to_path_id][from_dir + to_dir])
-                if self.rukki_paths.getLength(from_path_id) >= ScaffoldGraph.MIN_PATH_TO_SCAFFOLD and self.rukki_paths.getLength(from_path_id) >= ScaffoldGraph.MIN_PATH_TO_SCAFFOLD:
-                    self.logger.debug (f"Final not-unique scores {from_path_id} {to_path_id} {scores[from_path_id][to_path_id]}")
-                    self.logger.debug (f"Final unique scores {from_path_id} {to_path_id} {unique_scores[from_path_id][to_path_id]}")'''
     
-
+    def getConnectionsNodemap(self, connections):
+        nodemap = {}
+        for node_pair in connections.keys():
+            if not node_pair[0] in nodemap:
+                nodemap[node_pair[0]] = set()
+            if not node_pair[1] in nodemap:
+                nodemap[node_pair[1]] = set()          
+            nodemap[node_pair[0]].add(node_pair[1])
+            nodemap[node_pair[1]].add(node_pair[0])
+        return nodemap
+    
     def isHaploidPath(self, paths, nor_path_id):
         total_hom = 0
         for or_node in paths.getPathById(nor_path_id):
@@ -412,14 +397,29 @@ class ScaffoldGraph:
         return False
     
 
+    def getAnyLinkPaths(self, nor_path_id, path_storage, connection_map):
+        connected_nodes = set()
+        for node in path_storage.getPathById(nor_path_id):
+            nor_node = gf.nor_node(node)
+            if nor_node in connection_map:
+                connected_nodes.update(connection_map[nor_node])
+        connected_paths = set()
+        for nor_node in connected_nodes:
+            connected_paths.update(path_storage.getPathsFromNode(nor_node))
+        return connected_paths
+
+
     def getScores(self, or_path_id, path_storage, type):
         res = []
         if type == "weight":
             cur_scores = self.scores
             connections = self.all_connections
+            connection_nodemap = self.all_connections_nodemap
         elif type == "unique_weight":
             cur_scores = self.unique_scores
             connections = self.unique_connections
+            connection_nodemap = self.unique_connections_nodemap
+
         else:
             self.logger.error(f"Unknown type {type}")
             return res
@@ -432,12 +432,9 @@ class ScaffoldGraph:
             cur_scores[or_path_id] = {}
             cur_scores[gf.rc_path_id(or_path_id)] = {}
             precounted = False
-        for next_or_path in self.scaffold_graph.nodes():
-            #Counting all orientations together so no need to double count
-            if next_or_path[-1] == "-":
-                continue
-            next_nor_path = gf.nor_path_id(next_or_path)
-            #TODO: optimize homology counting, once per all paths
+        connected_nor_paths = self.getAnyLinkPaths(nor_path_id, path_storage, connection_nodemap)
+
+        for next_nor_path in connected_nor_paths:
             if next_nor_path in homologous_paths or next_nor_path == nor_path_id:
                 continue
             else:
@@ -449,9 +446,10 @@ class ScaffoldGraph:
                             or_to_path_id = next_nor_path + to_dir
                             if nor_scores[from_dir + to_dir] > 0:
                                 cur_scores[or_from_path_id][or_to_path_id] = nor_scores[from_dir + to_dir]
-        for next_or_path in self.scaffold_graph.nodes():
-            if next_or_path in cur_scores[or_path_id]:
-                res.append([next_or_path, cur_scores[or_path_id][next_or_path]])
+        
+        for next_or_path in cur_scores[or_path_id].keys():
+            res.append([next_or_path, cur_scores[or_path_id][next_or_path]])
+
         res.sort(key=lambda x: x[1], reverse=True)
         return res
     
@@ -466,21 +464,8 @@ class ScaffoldGraph:
         if self.scaffold_graph.nodes[cur_path_id]['telomere'][1]:
             self.logger.info (f"Stopped at the telomere")
             return "DONE",0
-        '''
-        for next_node in self.scaffold_graph.successors(cur_path_id):
-            #specific hacks to avoid
-            local_scores.append([next_node, self.scaffold_graph.edges[cur_path_id, next_node][type]])            
-        local_scores.sort(key=lambda x: x[1], reverse=True)
-        alt_scores = self.getScores(cur_path_id, self.rukki_paths, type)
-
-        if len(alt_scores) > 0 and alt_scores[0]!= local_scores[0]:
-            self.logger.warning(f"Difference! local scores {local_scores[0]} alt scores {alt_scores[0]}")
-            for i in range (0,10):
-                self.logger.warning(f"Alt scores {i} {alt_scores[i]}")
-        elif len(alt_scores) == 0 and len(local_scores) > 0:
-            self.logger.warning(f"Local scores but no alt scores, best extension {local_scores[0]}")
-        '''
         local_scores = self.getScores(cur_path_id, self.rukki_paths, type)
+
         best_ind = -1
         second_best_ind = -1        
         for i in range (0, len(local_scores)):
@@ -504,10 +489,6 @@ class ScaffoldGraph:
         elif len(local_scores) == 1 or (len(local_scores) > 1 and  local_scores[second_best_ind][1] == 0):
             self.logger.info (f"Only one next, {local_scores[best_ind]}") 
             return local_scores[best_ind][0], ScaffoldGraph.CLEAR_MAJORITY*2                      
- #       elif local_scores[best_ind][1] <  local_scores[second_best_ind][1] * ScaffoldGraph.CLEAR_MAJORITY:
- #           self.logger.info (f"Not found next, first {local_scores[best_ind]}, second best {local_scores[second_best_ind]}")
- #           return "NONE"
-
         else:
             self.logger.info (f"Really best {local_scores[best_ind]}, second best {local_scores[second_best_ind]}")            
             return local_scores[best_ind][0],local_scores[best_ind][1]/local_scores[second_best_ind][1]

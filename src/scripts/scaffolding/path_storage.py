@@ -76,6 +76,7 @@ class PathStorage:
         edges = list(filter(None, edges))
         self.paths[arr[0]] = edges
         self.path_lengths[arr[0]] = total_l
+        self.node_to_paths_counted = False
 
     def addPathWithId(self, id, path):
         total_l = 0
@@ -85,6 +86,7 @@ class PathStorage:
                 total_l += self.G.nodes[node]['length']
         self.paths[id] = path
         self.path_lengths[id] = total_l
+        self.node_to_paths_counted = False
     
     def getLabel(self, path_id):
         return self.hap_labels[path_id]
@@ -95,6 +97,7 @@ class PathStorage:
             if arr[0] == "name":
                 continue
             self.addPath(line.strip())
+        self.node_to_paths_counted = False
     
     def getEdgeMultiplicities(self):
         multiplicities = {}
