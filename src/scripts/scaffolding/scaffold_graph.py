@@ -438,7 +438,7 @@ class ScaffoldGraph:
                 continue
             next_nor_path = gf.nor_path_id(next_or_path)
             #TODO: optimize homology counting, once per all paths
-            if next_nor_path in homologous_paths:
+            if next_nor_path in homologous_paths or next_nor_path == nor_path_id:
                 continue
             else:
                 if not precounted:
@@ -562,6 +562,8 @@ class ScaffoldGraph:
             cur_scaffold = [or_from_path_id]
             cur_path_id = or_from_path_id            
             nor_used_path_ids.add(or_from_path_id.strip('-+'))
+            #lets add bidirectional expansion
+            tried_reverse = False
             while True:
                 next_path_id = self.findNextPath(cur_path_id, nor_used_path_ids, "weight")
                 if next_path_id == "NONE":
@@ -570,10 +572,29 @@ class ScaffoldGraph:
 
                 if next_path_id == "DONE":
                     self.logger.info ("All done, stopped at telomere")
-                    break
+                    if tried_reverse:
+                        break
+                    else:
+                        self.logger.info (f"Reversing {cur_scaffold}")
+                        cur_scaffold = [gf.rc_path_id(x) for x in cur_scaffold]
+                        cur_scaffold.reverse()
+                        self.logger.info (f"Reversed {cur_scaffold}")
+                        cur_path_id = cur_scaffold[-1]
+                        tried_reverse = True
+                        continue
                 elif next_path_id == "NONE":
                     self.logger.info ("Failed to find extension, stopping")
-                    break
+                    if tried_reverse:
+                        break
+                    else:
+                        self.logger.info (f"Reversing {cur_scaffold}")
+                        cur_scaffold = [gf.rc_path_id(x) for x in cur_scaffold]
+                        cur_scaffold.reverse()
+                        self.logger.info (f"Reversed {cur_scaffold}")
+                        cur_path_id = cur_scaffold[-1]
+                        tried_reverse = True
+                        continue
+                    
                 else:
                     hom_before = False
                     nor_new_path_id = gf.nor_path_id(next_path_id)
@@ -587,13 +608,23 @@ class ScaffoldGraph:
                             hom_before = True
                     if hom_before:
                         self.logger.info (f"Homologous paths before in scaffold, not extending {cur_path_id} with {next_path_id}")
-                        break
+                        if tried_reverse:
+                            break
+                        else:
+                            cur_scaffold = [gf.rc_path_id(x) for x in cur_scaffold]
+                            cur_scaffold.reverse()
+                            cur_path_id = cur_scaffold[-1]
+                            tried_reverse = True
+                            continue                                            
                     self.logger.info (f"Extending {cur_path_id} with {next_path_id}")
 
                     #possibly not do so with paths of length one? They can be more successful in other direction
                     cur_scaffold.append(next_path_id)
                     nor_used_path_ids.add(next_path_id.strip('-+'))
                     cur_path_id = next_path_id
+            #Reversing for comparison with previous runs only
+            cur_scaffold = [gf.rc_path_id(x) for x in cur_scaffold]
+            cur_scaffold.reverse()
             self.logger.info(f"scaffold {cur_scaffold}\n")
             if len(cur_scaffold) > 1:
                 res.append(cur_scaffold)

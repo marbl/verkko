@@ -589,6 +589,7 @@ rule HiC_rdnascaff:
         unitigs_telo = '8-hicPipeline/unitigs.telo',
         unitigs_nohpc50 =  '8-hicPipeline/unitigs_nonhpc50.mashmap',
         path_mashmap = rules.prepareScaffolding.output.path_mashmap,
+        contigs = rules.copyFiles.output.unitig_fasta,
         prefiltered_aln = rules.scaffoldMergeBWA.output.alignments if config['withPOREC'] == "False" else rules.transformBWA.output.byread_mapping
     output:
         scaff_tsv_path = '8-hicPipeline/scaff_rukki.paths.tsv',
