@@ -17,6 +17,7 @@ nodelens_file = sys.argv[5]
 layout_output = sys.argv[6]
 layscf_output = sys.argv[7]
 
+MAX_GAP_SIZE = 100000
 min_contig_no_trim = 500000
 min_read_len_fraction = 0.5
 min_read_fromend_fraction = min_read_len_fraction/1.5
@@ -255,7 +256,8 @@ with open(paths_file) as f:
 			#pp is either path without gaps or gap. In latest case do nothing
 			gp = re.match(r"\[(N\d+N)(?:[^\]]+){0,1}\]", pp)
 			if gp:
-				contig_pieces[fullname].append("[" + gp.group(1) + "]")
+				tuned_numn = min(round(int(gp.group(1)[1:-1]) * 1.5), MAX_GAP_SIZE)
+				contig_pieces[fullname].append("[N" + str(tuned_numn) + "N]")
 				continue
 
 			pieceid = pieceid + 1

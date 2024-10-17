@@ -4,8 +4,6 @@ import sys
 import fasta_util as seq
 import re
 
-MAX_GAP_SIZE=100000
-
 # rename a bam based on the input scfmap and tig name mapping files
 # in the case of scaffolds, offset the start coordinate by the start of the sequence in the scaffold
 #
@@ -56,9 +54,7 @@ for clist in scfmap:
    for piece in scfmap[clist]:
       numn = re.match(r"\[N(\d+)N]", piece)
       if numn:
-         #1.5 - approximation for hpc->non-hpc transformation.
-         tuned_numn = min(round(int(numn[1]) * 1.5), MAX_GAP_SIZE)
-         offset += int(tuned_numn)
+         offset += int(numn[1])
       elif piece in lens:
          offsets[names[piece]] = offset
          #sys.stderr.write("The offset for %s is %s\n"%(names[piece], offset))

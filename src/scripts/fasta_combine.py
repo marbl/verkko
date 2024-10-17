@@ -6,9 +6,6 @@ import re
 
 import fasta_util as seq
 
-#TODO: constant to verkko.yml_sample
-MAX_GAP_SIZE     = 100000
-
 mode             = None
 output_name      = None
 namedict         = dict()
@@ -90,12 +87,10 @@ if scfmap:  #  For 'combine' combine the contig pieces and gaps into scaffolds.
     for piece in scfmap[clist]:
       numn = re.match(r"\[N(\d+)N]", piece)
       if numn:
-        #1.5 - approximation for hpc->non-hpc transformation. 
-        tuned_numn = min(round(int(numn[1]) * 1.5), MAX_GAP_SIZE)
         if not seq:
            print(f"ERROR:piece {prev} missing from gapped contig {clist}.", file=sys.stderr)
            sys.exit(1)
-        seq += "N" * int(tuned_numn)
+        seq += "N" * int(numn[1])
       elif piece in pieces:
         seq += pieces[piece]
       elif seq:
