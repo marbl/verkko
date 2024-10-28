@@ -15,74 +15,84 @@
  ##
 
 getNumberOfCPUs() {
-    local os=$(uname | tr '[:upper:]' '[:lower:]')
-    local ncpu=1
+    os=$(uname | tr '[:upper:]' '[:lower:]')
+    ncpu=1
 
-    if [[ "$os" == "freebsd" ]]; then
+    # Check for FreeBSD
+    if [ "$os" = "freebsd" ]; then
         ncpu=$(sysctl -n hw.ncpu)
     fi
 
-    if [[ "$os" == "darwin" ]]; then
+    # Check for macOS (Darwin) and Linux or Cygwin
+    if [ "$os" = "darwin" ]; then
         ncpu=$(getconf _NPROCESSORS_ONLN)
     fi
 
-    if [[ "$os" == "linux" || "$os" == "cygwin" ]]; then
+    if [ "$os" = "linux" ] || [ "$os" = "cygwin" ]; then
         ncpu=$(getconf _NPROCESSORS_ONLN)
     fi
 
-    if [[ -n "${OMP_NUM_THREADS}" ]]; then
-        ncpu=${OMP_NUM_THREADS}
+    # Override with environment variables if set
+    if [ -n "$OMP_NUM_THREADS" ]; then
+        ncpu=$OMP_NUM_THREADS
     fi
 
-    if [[ -n "${SLURM_JOB_CPUS_PER_NODE}" ]]; then
-        ncpu=${SLURM_JOB_CPUS_PER_NODE}
+    if [ -n "$SLURM_JOB_CPUS_PER_NODE" ]; then
+        ncpu=$SLURM_JOB_CPUS_PER_NODE
     fi
 
-    if [[ -n "${PBS_NCPUS}" ]]; then
-        ncpu=${PBS_NCPUS}
+    if [ -n "$PBS_NCPUS" ]; then
+        ncpu=$PBS_NCPUS
     fi
 
-    if [[ -n "${PBS_NUM_PPN}" ]]; then
-        ncpu=${PBS_NUM_PPN}
+    if [ -n "$PBS_NUM_PPN" ]; then
+        ncpu=$PBS_NUM_PPN
     fi
 
-    if [[ -n "${NSLOTS}" ]]; then
-        ncpu=${NSLOTS}
+    if [ -n "$NSLOTS" ]; then
+        ncpu=$NSLOTS
     fi
 
     echo $ncpu
 }
 
 getPhysicalMemorySize() {
-    local os=$(uname | tr '[:upper:]' '[:lower:]')
-    local memory=1
+    os=$(uname | tr '[:upper:]' '[:lower:]')
+    memory=1
 
-    if [[ "$os" == "freebsd" ]]; then
-        memory=$(($(sysctl -n hw.physmem) / 1024 / 1024 / 1024))
+    # Check for FreeBSD
+    if [ "$os" = "freebsd" ]; then
+        memory=$(sysctl -n hw.physmem)
+        memory=$(($memory / 1024 / 1024 / 1024))
     fi
 
-    if [[ "$os" == "darwin" ]]; then
-        memory=$(($(sysctl -n hw.memsize) / 1024 / 1024 / 1024))
+    # Check for macOS (Darwin)
+    if [ "$os" = "darwin" ]; then
+        memory=$(sysctl -n hw.memsize)
+        memory=$(($memory / 1024 / 1024 / 1024))
     fi
 
-    if [[ "$os" == "linux" || "$os" == "cygwin" ]]; then
+    # Check for Linux or Cygwin
+    if [ "$os" = "linux" ] || [ "$os" = "cygwin" ]; then
        memory=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)
        memory=$(($memory / 1024 / 1024))  # Convert from kB to GB
     fi
 
-    if [[ -n "${SLURM_MEM_PER_CPU}" && -n "${SLURM_JOB_CPUS_PER_NODE}" ]]; then
-        memory=$((${SLURM_MEM_PER_CPU} * ${SLURM_JOB_CPUS_PER_NODE}))
+    # Check for SLURM environment variables
+    if [ -n "$SLURM_MEM_PER_CPU" ] && [ -n "$SLURM_JOB_CPUS_PER_NODE" ]; then
+        memory=$(($SLURM_MEM_PER_CPU * $SLURM_JOB_CPUS_PER_NODE))
     fi
 
-    if [[ -n "${SLURM_MEM_PER_NODE}" ]]; then
-        memory=$((${SLURM_MEM_PER_NODE} / 1024))
+    if [ -n "$SLURM_MEM_PER_NODE" ]; then
+        memory=$(($SLURM_MEM_PER_NODE / 1024))
     fi
 
-    if [[ -n "${PBS_RESC_MEM}" ]]; then
-        memory=$((${PBS_RESC_MEM} / 1024 / 1024 / 1024))
+    # Check for PBS environment variable
+    if [ -n "$PBS_RESC_MEM" ]; then
+        memory=$(($PBS_RESC_MEM / 1024 / 1024 / 1024))
     fi
 
-    # Round to nearest integer
+    # Round to the nearest integer
     memory=$(echo "$memory + 0.5" | bc | awk '{print int($1)}')
 
     echo $memory
