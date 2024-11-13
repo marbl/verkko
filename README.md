@@ -19,12 +19,9 @@ creates contig consensus sequences using Canu's consensus module.
 ## Install:
 
 Installing with a 'package manager' is recommended:
-  * `conda install -c conda-forge -c bioconda -c defaults verkko`
-
-or
   * `conda create -n verkko -c conda-forge -c bioconda -c defaults verkko`
 
-if you prefer to install verkko in a separate environment. Alternatively, you can download and compile the source for a recent [release](https://github.com/marbl/verkko/releases).
+Alternatively, you can download and compile the source for a recent [release](https://github.com/marbl/verkko/releases).
 
 <details>
 <summary><b>Compile from source</b></summary>
