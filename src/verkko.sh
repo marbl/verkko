@@ -121,6 +121,58 @@ findsnakemakeerror() {
    fi
 }
 
+# Functions to parse and process YAML sections
+checkOptionEnabled() {
+  yaml_file="$1"            # File from previous asm
+  section_enabled_key="$2"  # Key for checking if section is enabled, e.g., withHIFI (can be empty)
+
+  if [ -n "$section_enabled_key" ]; then
+    # Use awk to extract the value of the enabled key (True or False)
+    section_enabled=$(awk -F': ' "/^$section_enabled_key:/ { gsub(/^[[:space:]'\''\"]+|[[:space:]'\''\"]+$/, \"\", \$2); print \$2 }" "$yaml_file")
+
+    if [ "$section_enabled" != "True" ]; then
+       echo "False"
+    else
+       echo "True"
+    fi
+  else
+     echo "True" # if the key is blank, assume always enabled
+  fi
+}
+findInputFiles() {
+  yaml_file="$1"            # File from previous asm
+  section_enabled_key="$2"  # Key for checking if section is enabled, e.g., withHIFI (can be empty)
+  section_key="$3"          # Key for the list of entries, e.g., HIFI_READS or ONT_READS
+
+  section_enabled=`checkOptionEnabled "$yaml_file" "$section_enabled_key"`
+  if [ "$section_enabled" != "True" ]; then
+    echo ""
+    return
+  fi
+
+  # Extract the list of files from the section
+
+  # Use awk to extract all the file entries
+  entries=$(awk -v section_key="$section_key" '
+    BEGIN { in_section=0 }
+    $1 == section_key ":" { in_section=1; next }  # When the section starts, enable flag
+    in_section && /^[[:space:]]+-/ {                    # Match list entries starting with -
+      print $0
+    }
+    $in_section && $0 !~ /^[[:space:]]/ { in_section=0 }     # Stop when the section ends (non-dash line)
+  ' "$yaml_file")
+
+  # If no entries are found, exit the function
+  if [ -z "$entries" ]; then
+    echo "No entries found for $section_key."
+    return
+  fi
+
+  # Clean up entries: remove leading and trailing spaces and quotes
+  cleaned_entries=$(echo "$entries" | sed -e 's/^[[:space:]]*-[[:space:]]*["\x27]*//;s/["\x27]*[[:space:]]*$//')
+  echo "$cleaned_entries"
+}
+
 #  Use 'cd' and 'pwd' to find the full path to a file/directory.
 fullpath() {
   local ipath=$1
@@ -737,6 +789,31 @@ fi
 
 if [ "x$cnspaths" != "x" ] ; then
   correction_enabled=False
+
+  oldp=$cnspaths
+  olda=$cnsassembly
+  cnsassembly=$(fullpath $cnsassembly)   #  convert to full path.
+  cnspaths=$(fullpath $cnspaths)         #  Convert to full
+
+  if [ ! -e $cnspaths ] || [ "x$cnspaths" = "x" ] ; then
+     echo "Can't find --paths '$oldp'"
+     exit 1
+  fi
+
+  if [ ! -d $cnsassembly ] || [ "x$cnsassembly" = "x" ]; then
+     echo "Can't find --assembly '$olda'"
+     exit 1
+  fi
+
+  # find the input files from the assembly and re-use them
+  for i in `findInputFiles "${cnsassembly}/verkko.yml" "" "HIFI_READS"`; do
+     hifi="$hifi $i"
+  done
+  for i in `findInputFiles "${cnsassembly}/verkko.yml" "withONT" "ONT_READS"`; do
+     withont="True"
+     nano="$nano $i"
+  done
+  withbam=`checkOptionEnabled "${cnsassembly}/verkko.yml" "withBAM"`;
 fi
 
 #
@@ -1300,19 +1377,6 @@ fi
 
 if [ "x$cnspaths" != "x" ] ; then
     target="cnspath"
-
-    cnspaths=$(fullpath $cnspaths)         #  Convert to full
-    cnsassembly=$(fullpath $cnsassembly)   #  path.
-
-    if [ ! -e $cnspaths ] ; then
-        echo "Can't find --paths ${cnspaths}."
-        exit 1
-    fi
-
-    if [ ! -d $cnsassembly ] ; then
-        echo "Can't find --assembly ${cnsassembly}."
-        exit 1
-    fi
 
     #  Copy pieces from the previous assembly to the new run directory.  This
     #  is done - instead of symlinking - to prevent Snakemake from
