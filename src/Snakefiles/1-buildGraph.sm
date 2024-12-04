@@ -54,7 +54,7 @@ rule buildGraph:
     resources:
         job_id = 1,
         n_cpus = int(config['chg_n_cpus']),
-        mem_gb = lambda wildcards, input, attempt: getChunkgraphMemoryRequest(attempt),
+        mem_gb = lambda wildcards, input, attempt: getChunkgraphMemoryRequest(attempt, input.reads),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'chg')
     shell:
         '''
