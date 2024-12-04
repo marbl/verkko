@@ -142,7 +142,6 @@ fi
   --multimap-score-fraction {params.multi_score_f} \\\\
   --precise-clipping {params.clipping} \\\\
   --min-alignment-score {params.min_score} \\\\
-  --hpc-collapse-reads \\\\
   --discard-cigar \\\\
   --clip-ambiguous-ends {params.end_clipping} \\\\
   --overlap-incompatible-cutoff {params.incompat_cutoff} \\\\

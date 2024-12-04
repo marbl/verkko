@@ -220,6 +220,7 @@ cnsdir=""
 errors=""
 verkko=""
 
+chunkgraph=""
 mbg=""
 graphaligner=""
 mashmap=""
@@ -289,6 +290,10 @@ cor_min_overlap=1000
 cor_index_batches=16
 cor_overlap_batches=32
 
+#  buildGraph, parameters for chunkgraph
+chunkgraph_baseK=11
+chunkgraph_window=5000
+chunkgraph_hap_coverage=20
 #  buildGraph, parameters for MBG
 mbg_baseK=1001
 mbg_maxK=15000
@@ -378,6 +383,9 @@ red_mem_gb=32
 red_time_h=4
 
 #  build-graph
+chg_n_cpus=32
+chg_mem_gb=0
+chg_time_h=72
 mbg_n_cpus=4
 mbg_mem_gb=0
 mbg_time_h=72
@@ -476,6 +484,7 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--cleanup" ] ;            then keepinter="False";
     elif [ "$opt" = "--python" ] ;             then python=$arg;        shift
     elif [ "$opt" = "--perl" ] ;               then perl=$arg;          shift
+    elif [ "$opt" = "--chunkgraph" ] ;         then chunkgraph=$arg;           shift
     elif [ "$opt" = "--mbg" ] ;                then mbg=$arg;           shift
     elif [ "$opt" = "--graphaligner" ] ;       then graphaligner=$arg;  shift
     elif [ "$opt" = "--mashmap" ] ;            then mashmap=$arg;       shift
@@ -604,6 +613,14 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--correct-overlap-batches" ] ;    then cor_overlap_batches=$arg;  shift
 
     #
+    #  chunkgraph options
+    #
+
+    elif [ "$opt" = "--chunkgraph-base-k" ] ;        then chunkgraph_baseK=$arg;   shift
+    elif [ "$opt" = "--chunkgraph-window" ] ;        then chunkgraph_window=$arg;  shift
+    elif [ "$opt" = "--chunkgraph-hap-coverage" ] ;  then chunkgraph_hap_coverage=$arg;  shift
+
+    #
     #  MBG options
     #
 
@@ -675,6 +692,7 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--ovb-run" ] ;  then ovb_n_cpus=$1; ovb_mem_gb=$2; ovb_time_h=$3; shift; shift; shift;
     elif [ "$opt" = "--ovs-run" ] ;  then ovs_n_cpus=$1; ovs_mem_gb=$2; ovs_time_h=$3; shift; shift; shift;
     elif [ "$opt" = "--red-run" ] ;  then red_n_cpus=$1; red_mem_gb=$2; red_time_h=$3; shift; shift; shift;
+    elif [ "$opt" = "--chg-run" ] ;  then chg_n_cpus=$1; chg_mem_gb=$2; chg_time_h=$3; shift; shift; shift;
     elif [ "$opt" = "--mbg-run" ] ;  then mbg_n_cpus=$1; mbg_mem_gb=$2; mbg_time_h=$3; shift; shift; shift;
     elif [ "$opt" = "--utg-run" ] ;  then utg_n_cpus=$1; utg_mem_gb=$2; utg_time_h=$3; shift; shift; shift;
     elif [ "$opt" = "--spl-run" ] ;  then spl_n_cpus=$1; spl_mem_gb=$2; spl_time_h=$3; shift; shift; shift;
@@ -703,6 +721,16 @@ done
 #
 #  Set stuff not set by a user-supplied option.
 #
+
+if [ "x$chunkgraph" = "x" ] ; then    #  Not set by an option,
+  chunkgraph=${verkko}/bin/chunkgraph        #  Set it to our bin/ directory.
+fi
+if [ ! -e $chunkgraph ] ; then        #  Not in the bin directory,
+  chunkgraph=$(which chunkgraph 2>/dev/null) #  Set it to whatever is in the PATH.
+fi
+if [ "x$chunkgraph" != "x" ]; then
+  chunkgraph=$(fullpath $chunkgraph)
+fi
 
 if [ "x$mbg" = "x" ] ; then    #  Not set by an option,
   mbg=${verkko}/bin/MBG        #  Set it to our bin/ directory.
@@ -919,6 +947,12 @@ for exe in bin/findErrors \
   fi
 done
 
+if   [ "x$chunkgraph" = "x" ] ; then
+    errors="${errors}Can't find chunkgraph executable in \$PATH or \$VERKKO/bin/chunkgraph.\n"
+elif [ ! -e "$chunkgraph" ] ; then
+    errors="${errors}Can't find chunkgraph executable at '$chunkgraph'.\n"
+fi
+
 if   [ "x$mbg" = "x" ] ; then
     errors="${errors}Can't find MBG executable in \$PATH or \$VERKKO/bin/MBG.\n"
 elif [ ! -e "$mbg" ] ; then
@@ -1048,6 +1082,7 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "  COMPUTATIONAL PARAMETERS:"
     echo "    --python <interpreter>   Path or name of a python interpreter.  Default: 'python'."
     echo "    --perl <interpreter>     Path of name of a perl interpreter.  Default: 'perl'."
+    echo "    --chunkgraph <path>      Path to chunkgraph.             Default for all three"
     echo "    --mbg <path>             Path to MBG.             Default for all three"
     echo "    --graphaligner <path>    Path to GraphAligner.    one packaged with verkko."
     echo "    --mashmap <path>         Path to MashMap."
@@ -1073,6 +1108,7 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --ovb-run                Format: number-of-cpus memory-in-gb time-in-hours"
     echo "    --ovs-run                  --cns-run 8 32 2"
     echo "    --red-run"
+    echo "    --chg-run"
     echo "    --mbg-run"
     echo "    --utg-run"
     echo "    --spl-run"
@@ -1096,6 +1132,12 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --correct-min-overlap-length   Set the minimum overlap length (1000)"
     echo "    --correct-batch-size           Set the RED batch size, in Mbp (30000)"
     echo "                                   (might also need to adjust --red-run)"
+    echo "    "
+    echo "chunkgraph:"
+    echo "    --chunkgraph-base-k"
+    echo "    --chunkgraph-window"
+    echo "    --threads"
+    echo "    --chunkgraph-hap-coverage"
     echo "    "
     echo "MBG:"
     echo "    --base-k"
@@ -1151,6 +1193,7 @@ echo >> ${outd}/verkko.yml "#  Changes will be overwritten."
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "VERKKO:              '${verkko}'"
 echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "chunkgraph:          '${chunkgraph}'"
 echo >> ${outd}/verkko.yml "MBG:                 '${mbg}'"
 echo >> ${outd}/verkko.yml "GRAPHALIGNER:        '${graphaligner}'"
 echo >> ${outd}/verkko.yml "MASHMAP:             '${mashmap}'"
@@ -1205,6 +1248,10 @@ echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "cor_index_batches:   '${cor_index_batches}'"
 echo >> ${outd}/verkko.yml "cor_overlap_batches: '${cor_overlap_batches}'"
 echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "#  build-graph, chunkgraph"
+echo >> ${outd}/verkko.yml "chunkgraph_baseK:          '${chunkgraph_baseK}'"
+echo >> ${outd}/verkko.yml "chunkgraph_window:         '${chunkgraph_window}'"
+echo >> ${outd}/verkko.yml "chunkgraph_hap_coverage:   '${chunkgraph_hap_coverage}'"
 echo >> ${outd}/verkko.yml "#  build-graph, MBG"
 echo >> ${outd}/verkko.yml "mbg_baseK:           '${mbg_baseK}'"
 echo >> ${outd}/verkko.yml "mbg_maxK:            '${mbg_maxK}'"
@@ -1288,6 +1335,9 @@ echo >> ${outd}/verkko.yml "red_mem_gb:          '${red_mem_gb}'"
 echo >> ${outd}/verkko.yml "red_time_h:          '${red_time_h}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "#  build-graph"
+echo >> ${outd}/verkko.yml "chg_n_cpus:          '${chg_n_cpus}'"
+echo >> ${outd}/verkko.yml "chg_mem_gb:          '${chg_mem_gb}'"
+echo >> ${outd}/verkko.yml "chg_time_h:          '${chg_time_h}'"
 echo >> ${outd}/verkko.yml "mbg_n_cpus:          '${mbg_n_cpus}'"
 echo >> ${outd}/verkko.yml "mbg_mem_gb:          '${mbg_mem_gb}'"
 echo >> ${outd}/verkko.yml "mbg_time_h:          '${mbg_time_h}'"

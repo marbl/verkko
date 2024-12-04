@@ -63,6 +63,7 @@ $(eval $(call INIT_SUBMODULE,canu/src/utility,))
 $(eval $(call INIT_SUBMODULE,canu/src/meryl,))
 $(eval $(call INIT_SUBMODULE,canu/src/seqrequester,))
 $(eval $(call INIT_SUBMODULE,rukki,))
+$(eval $(call INIT_SUBMODULE,AlnDBG,--recursive))
 $(eval $(call INIT_SUBMODULE,MBG,--recursive))
 $(eval $(call INIT_SUBMODULE,hifioverlapper,--recursive))
 

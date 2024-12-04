@@ -43,22 +43,18 @@ rule buildGraph:
     log:
         err              = '1-buildGraph/buildGraph.err'
     params:
-        MBG              = config['MBG'],
+        chunkgraph       = config['chunkgraph'],
 
-        baseK            = config['mbg_baseK'],
-        maxK             = config['mbg_maxK'],
-        window           = config['mbg_window'],
-        maxR             = config['mbg_max_resolution'],
-        hifi_coverage    = config['mbg_hifi_coverage'],
-        kmer_abundance   = 1,                   #  MBG default = 1
-        unitig_abundance = config['mbg_unitig_abundance']
+        baseK            = config['chunkgraph_baseK'],
+        window           = config['chunkgraph_window'],
+        hifi_coverage    = config['chunkgraph_hap_coverage']
     threads:
-        int(config['mbg_n_cpus'])
+        int(config['chg_n_cpus'])
     resources:
         job_id = 1,
-        n_cpus = int(config['mbg_n_cpus']),
-        mem_gb = lambda wildcards, input, attempt: getMBGMemoryRequest(attempt),
-        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'mbg')
+        n_cpus = int(config['chg_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getChunkgraphMemoryRequest(attempt),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'chg')
     shell:
         '''
 cd 1-buildGraph
@@ -85,19 +81,19 @@ echo ""
 #  Build the graph.
 #    (rule build_graph in the original)
 #
-{params.MBG} \\\\
+{params.chunkgraph} \\\\
   \$iopt \\\\
   -t {resources.n_cpus} \\\\
   -k {params.baseK} \\\\
-  -r {params.maxK} -R {params.maxR} \\\\
   -w {params.window} \\\\
-  --kmer-abundance {params.kmer_abundance} \\\\
-  --unitig-abundance {params.unitig_abundance} \\\\
-  --error-masking=collapse-msat \\\\
-  --output-sequence-paths ../{output.paths} \\\\
-  --hpc-variant-onecopy-coverage {params.hifi_coverage} \\\\
-  --do-unsafe-guesswork-resolutions \\\\
-  --out ../{output.graph}
+  --max-error-rate 0.03 \\\\
+  --avg-hap-coverage {params.hap_coverage}
+
+cp graph-fragmented-final.gfa ../{output.graph}
+
+# todo fix: chunkgraph path unitig positions are currently not always correct.
+# fix the ones which have impossible positions and ignore the ones which have incorrect but possible positions
+awk 'BEGIN{FS="\t";OFS="\t"}{if ($8>$7) {$8=0;} if ($9>$7) {$9=$7;} if ($8<$9) {print;}}' < paths-fragmented-final.gaf > ../{output.paths}
 
 #  Find coverage.
 #    (rule hifi_coverage_csv in the original Snakefile)

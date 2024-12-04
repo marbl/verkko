@@ -57,6 +57,7 @@ awk 'BEGIN \\\\
           print ">"\$2, \$3; \\\\
      }}' \\\\
 < ../{input.graph} \\\\
+| {PYTHON} {VERKKO}/scripts/rle.py \\\\
 > ../{output.fasta}
 
 #

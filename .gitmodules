@@ -10,3 +10,6 @@
 [submodule "src/hifioverlapper"]
 	path = src/hifioverlapper
 	url = https://github.com/maickrau/hifioverlapper
+[submodule "src/AlnDBG"]
+	path = src/AlnDBG
+	url = https://github.com/maickrau/AlnDBG.git

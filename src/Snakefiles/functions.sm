@@ -113,6 +113,22 @@ def getMBGMemoryRequest(attempt):              #  Sum the input size, divide by 
 
    return int(math.ceil(math.ceil(mem)*scl))
 
+def getChunkgraphMemoryRequest(attempt):              #  Sum the input size, divide by three.
+   scl = 0.75 + attempt / 4.0                  #  https://github.com/marbl/verkko/issues/34
+   mem = float(config[f"chg_mem_gb"])          #
+   gib = 1024.0 * 1024.0 * 1024.0
+
+   if mem < 2.0:
+      mem = 0
+
+      mem += getFileBP(rules.correctHiFi.output.fasta)
+      mem = mem * 1.10    #  Expand by 10%
+      mem = mem / 2       #  chunkgraph uses ~50Gb memory for ~120Gbp sequence, guess ~half
+      mem = mem / gib     #  Convert to GB
+      mem = mem + 2.0     #  Add 2 GB
+
+   return int(math.ceil(math.ceil(mem)*scl))
+
 def getBuildPackagesInputONT(wildcards, withONT, withBAM):
    result = []
 

@@ -297,6 +297,7 @@ FILES        += \
                 scripts/prepare_scaffolding.py                -> ../lib/verkko/scripts/prepare_scaffolding.py \
                 scripts/scaffolding/scaffold_graph.py         -> ../lib/verkko/scripts/scaffolding/scaffold_graph.py \
                 scripts/bam_rename.py                         -> ../lib/verkko/scripts/bam_rename.py \
+                scripts/rle.py                                -> ../lib/verkko/scripts/rle.py \
                 \
                 Snakefile                                     -> ../lib/verkko/Snakefile \
                 Snakefiles/1-buildGraph.sm                    -> ../lib/verkko/Snakefiles/1-buildGraph.sm \
@@ -373,6 +374,17 @@ doclean-mbg:
 
 EXECUTABLES  += MBG/bin/MBG -> ../lib/verkko/bin/MBG
 endif
+
+# chunkgraph
+
+doclean: doclean-chunkgraph
+.PHONY: doclean-chunkgraph
+doclean-mbg:
+	cd AlnDBG ; $(MAKE) clean
+
+AlnDBG/bin/chunkgraph:
+	cd AlnDBG ; $(MAKE) all
+EXECUTABLES  += AlnDBG/bin/chunkgraph -> ../lib/verkko/bin/chunkgraph
 
 #
 #  hifioverlapper doesn't fit into this build system and is added as a special case.
