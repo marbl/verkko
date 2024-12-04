@@ -379,7 +379,7 @@ endif
 
 doclean: doclean-chunkgraph
 .PHONY: doclean-chunkgraph
-doclean-mbg:
+doclean-chunkgraph:
 	cd AlnDBG ; $(MAKE) clean
 
 AlnDBG/bin/chunkgraph:
