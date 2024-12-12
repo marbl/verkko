@@ -294,6 +294,7 @@ cor_overlap_batches=32
 chunkgraph_baseK=11
 chunkgraph_window=5000
 chunkgraph_hap_coverage=20
+chunkgraph_resolve_size=10000
 #  buildGraph, parameters for MBG
 mbg_baseK=1001
 mbg_maxK=15000
@@ -619,6 +620,7 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--chunkgraph-base-k" ] ;        then chunkgraph_baseK=$arg;   shift
     elif [ "$opt" = "--chunkgraph-window" ] ;        then chunkgraph_window=$arg;  shift
     elif [ "$opt" = "--chunkgraph-hap-coverage" ] ;  then chunkgraph_hap_coverage=$arg;  shift
+    elif [ "$opt" = "--chunkgraph-resolve-size" ] ;  then chunkgraph_resolve_size=$arg;   shift
 
     #
     #  MBG options
@@ -1252,6 +1254,7 @@ echo >> ${outd}/verkko.yml "#  build-graph, chunkgraph"
 echo >> ${outd}/verkko.yml "chunkgraph_baseK:          '${chunkgraph_baseK}'"
 echo >> ${outd}/verkko.yml "chunkgraph_window:         '${chunkgraph_window}'"
 echo >> ${outd}/verkko.yml "chunkgraph_hap_coverage:   '${chunkgraph_hap_coverage}'"
+echo >> ${outd}/verkko.yml "chunkgraph_resolve_size:   '${chunkgraph_resolve_size}'"
 echo >> ${outd}/verkko.yml "#  build-graph, MBG"
 echo >> ${outd}/verkko.yml "mbg_baseK:           '${mbg_baseK}'"
 echo >> ${outd}/verkko.yml "mbg_maxK:            '${mbg_maxK}'"

@@ -48,7 +48,8 @@ rule buildGraph:
 
         baseK            = config['chunkgraph_baseK'],
         window           = config['chunkgraph_window'],
-        hap_coverage    = config['chunkgraph_hap_coverage']
+        hap_coverage     = config['chunkgraph_hap_coverage'],
+        resolve_size     = config['chunkgraph_resolve_size']
     threads:
         int(config['chg_n_cpus'])
     resources:
@@ -94,6 +95,7 @@ echo ""
   -t {resources.n_cpus} \\\\
   -k {params.baseK} \\\\
   -w {params.window} \\\\
+  -r {params.resolve_size} \\\\
   --max-error-rate 0.03 \\\\
   --avg-hap-coverage {params.hap_coverage}
 
