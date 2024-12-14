@@ -22,6 +22,7 @@ min_contig_no_trim = 500000
 min_read_len_fraction = 0.5
 min_read_fromend_fraction = min_read_len_fraction/1.5
 min_exact_len_fraction = min_read_len_fraction/3
+maximum_node_copycount = 1000
 
 #transform paths to base elements - mbg nodes and gaps.
 def get_leafs(path, mapping, edge_overlaps, raw_node_lens):
@@ -302,6 +303,15 @@ for contigname in contig_nodeseqs:
 		else:
 			if nodename not in node_poses: node_poses[nodename] = []
 			node_poses[nodename].append((contigname, i, False))
+
+# filter out very highly covered nodes
+highly_covered_nodes = set()
+for node in node_poses:
+	if len(node_poses[node]) <= maximum_node_copycount: continue
+	highly_covered_nodes.add(node)
+	sys.stderr.write("filter out node " + node + " with copy count " + str(len(node_poses[node])) + "\n")
+for node in highly_covered_nodes:
+	del node_poses[node]
 
 read_name_to_id = {}
 next_read_id = 0
