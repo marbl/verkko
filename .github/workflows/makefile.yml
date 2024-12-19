@@ -45,7 +45,7 @@ jobs:
       run: |
         sudo apt-get update
         mamba install -c conda-forge -c bioconda 'python=3.11' 'pulp<=2.7.0' 'snakemake-minimal>7,<8' GraphAligner mashmap winnowmap
-        sudo apt-get install libcurl4-openssl-dev
+        sudo apt-get install libcurl4-openssl-dev liblzma-dev
         pip install networkx
 
         echo ""
