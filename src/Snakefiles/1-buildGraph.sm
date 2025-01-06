@@ -99,11 +99,9 @@ echo ""
   --max-error-rate 0.03 \\\\
   --avg-hap-coverage {params.hap_coverage}
 
-cp graph-fragmented-final.gfa ../{output.graph}
+cp graph-resolved-final.gfa ../{output.graph}
 
-# todo fix: chunkgraph path unitig positions are currently not always correct.
-# fix the ones which have impossible positions and ignore the ones which have incorrect but possible positions
-awk 'BEGIN{{FS="\\t";OFS="\\t"}}{{if (\$8 > \$7) {{\$8 = 0;}} if (\$9 > \$7) {{\$9 = \$7;}} if (\$8 < \$9) {{print;}} }}' < paths-fragmented-final.gaf > ../{output.paths}
+cp paths-resolved-final.gaf ../{output.paths}
 
 #  Find coverage.
 #    (rule hifi_coverage_csv in the original Snakefile)
