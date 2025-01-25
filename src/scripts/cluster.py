@@ -304,7 +304,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
         if v1 in G.nodes and v2 in G.nodes and matchGraph[v1][v2]['weight'] < 0:    
             if component_colors[v1] != component_colors[v2]:
                 logging_f.write(f"Adding graph link between homologous {v1} {v2}, components {component_colors[v1]} and {component_colors[v2]}\n")
-                G.add_edge(v1, v2)
+#                G.add_edge(v1, v2)
                 
 
 
@@ -405,13 +405,12 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                             break
         logging_f.write(f'Currently {C.number_of_nodes()} in current component\n')
 
-        
+
         if C.number_of_nodes() > 1:
-            for u, v, w in matchGraph.edges.data("weight"):
+            '''for u, v, w in matchGraph.edges.data("weight"):
                 if u in C and v in C:
                     if w != None:
-                        C.add_edge(u, v, weight=w)
-
+                        C.add_edge(u, v, weight=w)'''
 
 
             res = checkXYcomponent(current_component, matchGraph, G, edges)
