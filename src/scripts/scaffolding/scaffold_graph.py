@@ -183,7 +183,7 @@ class ScaffoldGraph:
         else:
             max_comp_size = len(max(nx.weakly_connected_components(G), key=len))    
             if max_comp_size > ScaffoldGraph.MAX_COMPONENT_FOR_DISTANCES:
-                self.logger.info(f"Biggest component is too big {len(max_comp_size)}, not calculating pairwise distances")
+                self.logger.info(f"Biggest component is too big {max_comp_size}, not calculating pairwise distances")
             else:
                 self.logger.info("Calculating pairwise distances for assembly graph nodes")
                 self.dists = dict(nx.all_pairs_dijkstra_path_length(self.upd_G, weight=lambda u, v, d: self.upd_G.edges[u, v]['mid_length']))
