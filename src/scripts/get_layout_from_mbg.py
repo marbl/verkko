@@ -263,9 +263,11 @@ with open(paths_file) as f:
 			pieceid = pieceid + 1
 			pathname = f"piece{pieceid:06d}"
 
-			contig_pieces[fullname].append(pathname)
-
 			(path, overlaps) = get_leafs(re.findall(r"[<>][^<>]+", pp), node_mapping, edge_overlaps, raw_node_lens)
+			# skip a path if the only thing in it is a gapfill
+			if len(path) == 1 and path[0][0][1:4] == "gap":
+				continue
+			contig_pieces[fullname].append(pathname)
 
 			contig_nodeseqs[pathname] = path
 			contig_nodeoverlaps[pathname] = overlaps
