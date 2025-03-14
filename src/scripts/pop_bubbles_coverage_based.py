@@ -92,10 +92,13 @@ def find_bubble(s, edges, nodelens, max_size):
 def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage, nodelens, conservative = False):
 	bubble_nodes = set()
 	bubble_edges = set()
+	visited	  = set()
 	max_bubble_node_size = 0
 	predecessor = {}
 	stack = []
 	stack.append((start, start, coverage.get(start[1:], 0)))
+	visited.add(start)
+
 	while len(stack) > 0:
 		(top, before, pathwidth) = stack.pop()
 		if top in predecessor:
@@ -112,7 +115,9 @@ def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage, nodele
 			max_bubble_node_size = nodelens[top[1:]]
 		if top == end: continue
 		for edge in gf.iterate_deterministic(edges[top], end):
-			stack.append((edge, top, min(pathwidth, coverage.get(edge[1:], 0))))
+			if edge not in visited:
+				visited.add(edge)
+				stack.append((edge, top, min(pathwidth, coverage.get(edge[1:], 0))))
 	assert end in predecessor
 	#sys.stderr.write("Processing bubble from %s to %s and conservative mode is %s\n"%(start, end, conservative))
 	# TODO: when our coverage is more trustworthy (e.g. low coverage isn't due to no unique nodes in a path, we can run this in conservative popping mode to remove noise, until then do nothing in these bubbles, also do nothign for 3-node bubbles in high coverage
@@ -271,7 +276,7 @@ for current_component in sorted(nx.connected_components(G), key=len, reverse=Tru
 		if node in coverage:
 			component_length_sum[comp] += nodelens[node]
 			component_coverage_sum[comp] += coverage[node] * nodelens[node]
-			component_long_nodes[comp] += 1  
+			component_long_nodes[comp] += 1
 
 chain_coverage_sum = {}
 chain_length_sum = {}
