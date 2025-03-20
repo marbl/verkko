@@ -121,7 +121,7 @@ ont_solid_cov=\`awk '{{ \\\\
      }} \\
      END \\\\
      {{ \\\\
-        print int({params.cov_fraction} * sum / count); \\\\
+        if (count > 0) print int({params.cov_fraction} * sum / count); else print 0; \\\\
      }}' \\\\
   < ../{output.ont_node_cov}\`
 
@@ -173,7 +173,7 @@ hifi_solid_cov=\`awk '{{ \\\\
      }} \\
      END \\\\
      {{ \\\\
-        print int({params.cov_fraction} * sum / count); \\\\
+        if (count > 0) print int({params.cov_fraction} * sum / count); else print 0; \\\\
      }}' \\\\
   < hifi-nodecov-gapped-unitig-unrolled-hifi-resolved.csv\`
 

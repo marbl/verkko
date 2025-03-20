@@ -142,7 +142,7 @@ coverage_count = 0.0
 for node in maybe_long_nodes:
 	coverage_sum += node_coverage[node] * nodelens[node]
 	coverage_count += nodelens[node]
-global_average_coverage = float(coverage_sum) / float(coverage_count)
+global_average_coverage = float(coverage_sum) / float(coverage_count) if float(coverage_count) > 0.0 else 0
 
 sys.stderr.write("first unique coverage estimate: " + str(global_average_coverage) + "\n")
 
@@ -153,7 +153,7 @@ for node in maybe_long_nodes:
 	coverage_sum += node_coverage[node] * nodelens[node]
 	coverage_count += nodelens[node]
 
-global_average_coverage = float(coverage_sum) / float(coverage_count)
+global_average_coverage = float(coverage_sum) / float(coverage_count) if float(coverage_count) > 0.0 else 0
 sys.stderr.write("refined unique coverage estimate: " + str(global_average_coverage) + "\n")
 
 long_nodes = set()
