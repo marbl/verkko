@@ -64,7 +64,7 @@ for node in uniques:
 	coverage_sum += coverages[node] * nodelens[node]
 	coverage_len += nodelens[node]
 
-avg_coverage = coverage_sum / coverage_len
+avg_coverage = coverage_sum / coverage_len if float(coverage_len) > 0.0 else 0.0
 
 new_uniques = set()
 
