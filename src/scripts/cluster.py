@@ -217,6 +217,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
             old_colors[e] = cur_col
         cur_col += 1
 
+#TODO: no_rdna is false, so efficiently we are still removing rDNA component. Should we?
     if not (no_rdna):
         #Store rDNA component, not to add additional links from matchGraph
         #sys.stderr.write(f"Found an rDNA huge component of {len(largest_component)} edges\n")
@@ -323,6 +324,8 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
         total_l = 0
         for n in current_component:
             total_l += G.nodes[n]['length']
+        #TODO: currently just a debug message!
+        # we likely need to skip phasing for non-diploids and assign the same color for the component, but this can cause troubles for short arms until we stop removing rDNA tangle.
         if total_l > 1000000 and not mg.isDiploid(current_component):
             logging_f.write(f"Component is not diploid!\n")
             
@@ -330,8 +333,6 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
         C = nx.Graph()
         # rebuild the graph from this component using only edges in the hic graph
         C.add_nodes_from(current_component)
-    #    if "utig4-1014" not in C.nodes():
-    #        continue
 
         # first we ignore any nodes that are too short or have too few links.
         short = []
