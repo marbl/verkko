@@ -233,7 +233,9 @@ class MatchGraph:
                             best_homology = False
                     clear_best_match = clear_best_match or best_homology
                     #we have total length of homologous sequences without joining and approximate positions with joining, check if any is long enough
-                    if max(best_len, self.hom_storage.getApproximatePositionLength(ec[0], ec[1], i)) > self.hom_storage.getLength(ec[i]) * MatchGraph.REQUIRED_COVERAGE_FRACTION:
+                    # comparing both node length                                                                                                   
+                    if (max(best_len, self.hom_storage.getApproximatePositionLength(ec[0], ec[1], i)) > self.hom_storage.getLength(ec[i]) * MatchGraph.REQUIRED_COVERAGE_FRACTION or                                                                                                                    
+                        max(best_len, self.hom_storage.getApproximatePositionLength(ec[0], ec[1], 1 -i)) > self.hom_storage.getLength(ec[1 - i]) * MatchGraph.REQUIRED_COVERAGE_FRACTION ):                     
                         long_enough = True
                 if clear_best_match and long_enough:
                     self.matchGraph.add_edge(ec[0], ec[1], weight = homology_weight, homology_len = best_len, intervals = self.hom_storage.homologies[ec[0]][ec[1]].filtered_intervals, 

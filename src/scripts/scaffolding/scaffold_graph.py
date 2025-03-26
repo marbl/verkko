@@ -244,7 +244,11 @@ class ScaffoldGraph:
         res = ScaffoldGraph.TOO_FAR
         if from_node in self.dists:
             if to_node in self.dists[from_node]:
-                res = (self.dists[from_node][to_node] - self.compressed_lens[gf.nor_node(from_node)] - self.compressed_lens[gf.nor_node(to_node)])/2
+                # special case since dijkstra dist from middle to middle of itself will  be 0                                                                                                                                                                                                           
+                if from_node == to_node:                                                                                                                                                                                                                                                                
+                    res = 0                                                                                                                                                                                                                                                                             
+                else:                                                                                                                                                                                                                                                                                   
+                    res = (self.dists[from_node][to_node] - self.compressed_lens[gf.nor_node(from_node)] - self.compressed_lens[gf.nor_node(to_node)])/2                 
         return res
     
     #Dist from node end to path. Allowed to go not in the first path node, but then additional length in path is added
@@ -286,6 +290,9 @@ class ScaffoldGraph:
     
     #Optionally allowing to use homologous nodes (to improve in gaps)
     def orPathIdDist(self, or_path_id_from:str, or_path_id_to:str, paths:path_storage.PathStorage, check_homologous:bool):
+        #there can be still homologous nodes in haploid paths, let's avoid using that "homology"                                                                                                                                                                                                        
+        if gf.nor_path_id(or_path_id_from) in self.haploids:                                                                                                                                                                                                                                            
+            check_homologous = False
         precounted = paths.getStoredDist(or_path_id_from, or_path_id_to, check_homologous)
         if precounted != -1:
             return precounted
@@ -1172,6 +1179,7 @@ class ScaffoldGraph:
                             self.logger.debug (f"moving {incorrect_pair} to {correct_pair}")
                             if self.rukki_paths.getLength(path_ids[i]) <= self.NEAR_PATH_END:
                                 scores[correct_pair] += scores[incorrect_pair]
+                                #Logic different with connectivity! we never want to connect through telomere 
                             else:
                                 if scores[incorrect_pair] >= ScaffoldGraph.MIN_LINKS * self.INT_NORMALIZATION and scores[incorrect_pair]  > scores[correct_pair]:
                                     self.logger.debug(f"Dangerous telomeric tuning pair too long to move {path_ids}, i {i} scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}")                    
@@ -1212,12 +1220,11 @@ class ScaffoldGraph:
                             self.logger.debug(f"Dangerous connectivity tuning pair {path_ids}, i {i} scores {scores}from {incorrect_pair} to {correct_pair}")                    
                         if self.rukki_paths.getLength(path_ids[i]) <= self.NEAR_PATH_END:
                             scores[correct_pair] += scores[incorrect_pair]
+                            scores[incorrect_pair] = 0
                         else:
                             if scores[incorrect_pair] >= ScaffoldGraph.MIN_LINKS * self.INT_NORMALIZATION and scores[incorrect_pair]  > scores[correct_pair]:
                                 self.logger.debug(f"Dangerous connectivity  tuning pair too long to move {path_ids}, i {i} scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}")                    
-                        #TODO: this may happen twice or once!!!
-                        #scores[correct_pair] *= self.CONNECTIVITY_MULTIPLICATIVE_BONUS
-                        scores[incorrect_pair] = 0 
+                                #Do not want to trust graph connectivity more than hi-c links, so not setting scores of incorrect links to zero. Not the same as in telomere cheat!                                                                                                                                                       
                         #self.logger.debug (f"Connectivity tuned pair {path_ids}, scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}") 
             #Code duplication:(
             for first_or in ('-', '+'):
