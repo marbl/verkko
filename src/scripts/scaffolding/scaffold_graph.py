@@ -239,12 +239,19 @@ class ScaffoldGraph:
         return haploids
     
     #TODO a lot of graph-only code should be moved in or_graph wrapper class
-    #we store double dists from middle to middle, transforming to dist from end to    
+    #we store double dists from middle to middle, transforming to dist from end of from_node to start of to_node
+    # (thus dist between node and itself is not zero but the size of shortest loop)  
     def orNodeDist(self, from_node, to_node):
         res = ScaffoldGraph.TOO_FAR
         if from_node in self.dists:
             if to_node in self.dists[from_node]:
-                res = (self.dists[from_node][to_node] - self.compressed_lens[gf.nor_node(from_node)] - self.compressed_lens[gf.nor_node(to_node)])/2
+                # special case since dijkstra dist from middle to middle of itself will  be 0                                                                                                                                                                                                           
+                if from_node == to_node:
+                    for next in self.upd_G.successors(from_node):
+                        if next in self.dists and from_node in self.dists[next]:
+                            res = min(res, (self.dists[next][to_node] + self.compressed_lens[gf.nor_node(next)] - self.compressed_lens[gf.nor_node(from_node)])/2)                                                                                                                                                                                                                                                                             
+                else:                                                                                                                                                                                                                                                                                   
+                    res = (self.dists[from_node][to_node] - self.compressed_lens[gf.nor_node(from_node)] - self.compressed_lens[gf.nor_node(to_node)])/2                 
         return res
     
     #Dist from node end to path. Allowed to go not in the first path node, but then additional length in path is added
@@ -271,22 +278,30 @@ class ScaffoldGraph:
         return closest
 
     #not to be used directly, with IDs we presave dists in pathsStorage
-    def pathDist(self, path_from:list, path_to:list, check_homologous:bool):
+    def pathDist(self, path_from:list, path_to:list, check_homologous_from:bool, check_homologous_to:bool):
         closest = ScaffoldGraph.TOO_FAR
         add_dist = 0
         for node in reversed(path_from):
             if node in self.upd_G.nodes:
-                closest = min(closest, self.nodeToPathDist(node, path_to, check_homologous) + add_dist)
-                if check_homologous:
+                closest = min(closest, self.nodeToPathDist(node, path_to, check_homologous_to) + add_dist)
+                if check_homologous_from:
                     for hom_node in self.match_graph.getHomologousOrNodes(node, True) :
                         #self.logger.debug (f"Checking homologous dist from {hom_node} to {path_to} add_dist {add_dist}")
-                        closest = min(closest, (self.nodeToPathDist(hom_node, path_to, check_homologous) + add_dist))
+                        closest = min(closest, (self.nodeToPathDist(hom_node, path_to, check_homologous_to) + add_dist))
                 add_dist += self.compressed_lens[node.strip("-+")]
         return closest
     
     #Optionally allowing to use homologous nodes (to improve in gaps)
     def orPathIdDist(self, or_path_id_from:str, or_path_id_to:str, paths:path_storage.PathStorage, check_homologous:bool):
-        precounted = paths.getStoredDist(or_path_id_from, or_path_id_to, check_homologous)
+        #there can be still homologous nodes in haploid paths, let's avoid using that "homology"                                                                                                                                                                                                     
+        check_homologous_from = check_homologous
+        check_homologous_to = check_homologous
+        if gf.nor_path_id(or_path_id_from) in self.haploids:                                                                                                                                                                                                                                            
+            check_homologous_from = False
+        if gf.nor_path_id(or_path_id_to) in self.haploids:                                                                                                                                                                                                                                            
+            check_homologous_to = False
+
+        precounted = paths.getStoredDist(or_path_id_from, or_path_id_to, check_homologous_from, check_homologous_to)
         if precounted != -1:
             return precounted
         ids = [or_path_id_from, or_path_id_to]
@@ -296,8 +311,8 @@ class ScaffoldGraph:
                 to_dists.append(gf.rc_path(paths.getPathById(ids[k][:-1])))
             else:
                 to_dists.append(paths.getPathById(ids[k][:-1]))
-        dist = self.pathDist(to_dists[0], to_dists[1], check_homologous)
-        paths.storeDist(or_path_id_from, or_path_id_to, check_homologous, dist)
+        dist = self.pathDist(to_dists[0], to_dists[1], check_homologous_from, check_homologous_to)
+        paths.storeDist(or_path_id_from, or_path_id_to, check_homologous_from, check_homologous_to, dist)
         return dist
 
     def norPathIdDist(self, nor_path_id_from:str, nor_path_id_to:str, paths:path_storage.PathStorage, check_homologous:bool):
@@ -1172,6 +1187,7 @@ class ScaffoldGraph:
                             self.logger.debug (f"moving {incorrect_pair} to {correct_pair}")
                             if self.rukki_paths.getLength(path_ids[i]) <= self.NEAR_PATH_END:
                                 scores[correct_pair] += scores[incorrect_pair]
+                                #Logic different with connectivity! we never want to connect through telomere 
                             else:
                                 if scores[incorrect_pair] >= ScaffoldGraph.MIN_LINKS * self.INT_NORMALIZATION and scores[incorrect_pair]  > scores[correct_pair]:
                                     self.logger.debug(f"Dangerous telomeric tuning pair too long to move {path_ids}, i {i} scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}")                    
@@ -1212,12 +1228,11 @@ class ScaffoldGraph:
                             self.logger.debug(f"Dangerous connectivity tuning pair {path_ids}, i {i} scores {scores}from {incorrect_pair} to {correct_pair}")                    
                         if self.rukki_paths.getLength(path_ids[i]) <= self.NEAR_PATH_END:
                             scores[correct_pair] += scores[incorrect_pair]
+                            scores[incorrect_pair] = 0
                         else:
                             if scores[incorrect_pair] >= ScaffoldGraph.MIN_LINKS * self.INT_NORMALIZATION and scores[incorrect_pair]  > scores[correct_pair]:
                                 self.logger.debug(f"Dangerous connectivity  tuning pair too long to move {path_ids}, i {i} scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}")                    
-                        #TODO: this may happen twice or once!!!
-                        #scores[correct_pair] *= self.CONNECTIVITY_MULTIPLICATIVE_BONUS
-                        scores[incorrect_pair] = 0 
+                                #Do not want to trust graph connectivity more than hi-c links, so not setting scores of incorrect links to zero. Not the same as in telomere cheat!                                                                                                                                                       
                         #self.logger.debug (f"Connectivity tuned pair {path_ids}, scores {scores}, tels {self.scaffold_graph.nodes[path_ids[i]+'+']['telomere']}") 
             #Code duplication:(
             for first_or in ('-', '+'):
