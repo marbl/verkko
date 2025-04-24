@@ -27,6 +27,7 @@ checkpoint buildPackages:
         finished   = "7-consensus/packages.finished",
         packreport = "7-consensus/packages.report"
     params:
+        minread   = config['cor_min_read'],
         ont_subset = lambda wildcards: getBuildPackagesInputONT(wildcards, config["withONT"], config["withBAM"]),
     log:
         err        = '7-consensus/buildPackages.err'
@@ -47,13 +48,21 @@ set -e
 
 mkdir -p packages
 
+rm -rf ./packages.seqStore
+{VERKKO}/bin/sqStoreCreate \\\\
+  -o packages.seqStore \\\\
+  -minlength {params.minread} \\\\
+  -raw -nanopore raw {params.ont_subset} {input.hifi}
+
 {VERKKO}/bin/layoutToPackage \\\\
     -layout ../{input.layout} \\\\
     -output packages/part###.cnspack \\\\
     -idmap  packages \\\\
     -partition 0.8 1.5 0.04 \\\\
-    -reads {params.ont_subset} {input.hifi} \\\\
+    -store packages.seqStore \\\\
   > ../{output.packreport} \\\\
+&& \\\\
+rm -rf ./packages.seqStore \\\\
 && \\\\
 touch ../{output.finished}
 EOF

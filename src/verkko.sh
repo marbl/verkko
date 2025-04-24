@@ -424,7 +424,7 @@ sub_time_h=24
 
 #  partition_consensus
 par_n_cpus=8
-par_mem_gb=0
+par_mem_gb=8
 par_time_h=24
 
 #  cns
