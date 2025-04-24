@@ -33,7 +33,8 @@ rule generateConsensus:
         err        = '7-consensus/packages/part{nnnn}.err'
     params:
         ont_ids    = lambda wildcards: getNumLines({rules.extractONT.output.ont_subset_id}) if config['withONT'] == "True" else 0,
-        bam        = '7-consensus/packages/part{nnnn}.bam' if config['withBAM'] == "True" else rules.emptyfile.output
+        bam        = '7-consensus/packages/part{nnnn}.bam' if config['withBAM'] == "True" else rules.emptyfile.output,
+        minread    = config['cor_min_read']
     threads:
         int(config['cns_n_cpus']),
     resources:
@@ -57,6 +58,11 @@ else
    align="-norealign"
 fi
 
+minread=100
+if [ "\$(expr {params.minread} - 1000)" -gt 0 ]; then
+    minread=`expr {params.minread} - 1000`
+fi
+
 {VERKKO}/bin/utgcns \\\\
     -threads {threads} \\\\
     -import ../{input.package} \\\\
@@ -67,7 +73,7 @@ fi
     -e  0.05 \\\\
     -em 0.20 \\\\
     -EM {params.ont_ids} \\\\
-    -l 3000 \\\\
+    -l \$minread \\\\
     -edlib \\\\
 && \\\\
 mv ../{output.consensus}.WORKING ../{output.consensus} \\\\
