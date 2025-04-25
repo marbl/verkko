@@ -60,7 +60,7 @@ rule generateLayoutContigsInputs:
     params:
         maps       = getAllMappings(6),
         graphs     = getAllGraphs(6),
-        aligns     = getAllAlignments(6)
+        aligns     = getAllAlignments(4)
     threads:
         int(config['lay_n_cpus'])
     resources:
@@ -85,11 +85,14 @@ cat {params.graphs} \\\\
 | grep '^L' \\\\
 > ../{output.edges}
 
-cat {params.aligns} ../{input.paths} \\\\
+# two step process, first all the input HiFi data, second all the ont data with read names having ont_ prepended to avoid name conflicts
+cat {params.aligns} ../{input.paths} | sed 's/^/hifi_/' \\\\
 > ../{output.hifialns}
+cat ../{input.ontgaps} | sed 's/^/ont_/' >> ../{output.hifialns}
 
+# now get the ONT alignments, again prepending ont_ but ignoring any reads we've already included due to it being used as a gap fill
 cat ../{input.ontgaps} |cut -f 1 > ../6-layoutContigs/ont-gapfill.txt
-{PYTHON} {VERKKO}/scripts/replace_path_nodes.py ../{input.ontalns} ../{output.nodemap} |grep -F -v -w -f ../6-layoutContigs/ont-gapfill.txt > ../{output.ontalns} || true
+{PYTHON} {VERKKO}/scripts/replace_path_nodes.py ../{input.ontalns} ../{output.nodemap} |grep -F -v -w -f ../6-layoutContigs/ont-gapfill.txt | sed 's/^/ont_/' > ../{output.ontalns} || true
 
 cat ../{input.graph} \\\\
 | awk 'BEGIN \\\\

@@ -52,7 +52,7 @@ rm -rf ./packages.seqStore
 {VERKKO}/bin/sqStoreCreate \\\\
   -o packages.seqStore \\\\
   -minlength {params.minread} \\\\
-  -raw -nanopore raw {params.ont_subset} {input.hifi}
+  -raw -nanopore ont {params.ont_subset} -raw -pacbio hifi {input.hifi}
 
 {VERKKO}/bin/layoutToPackage \\\\
     -layout ../{input.layout} \\\\
