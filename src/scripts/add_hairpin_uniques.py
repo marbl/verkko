@@ -37,7 +37,9 @@ coverages = {}
 with open(coverage_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
-		if parts[0] == "node" and parts[1] == "coverage": continue
+		if parts[0] == "node":
+			assert(parts[1] == "coverage" and parts[2] == "length")
+			continue
 		coverages[parts[0]] = float(parts[1])
 
 nodelens = {}

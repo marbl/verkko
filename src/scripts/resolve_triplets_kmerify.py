@@ -682,8 +682,10 @@ def read_node_coverages(node_coverage_file):
 	with open(node_coverage_file) as f:
 		for l in f:
 			parts = l.strip().split('\t')
-			if parts[0] == 'node': continue
-			node_coverage[parts[0]] = float(parts[2])
+			if parts[0] == "node":
+				assert(parts[1] == "coverage" and parts[2] == "length")
+				continue
+			node_coverage[parts[0]] = float(parts[1])
 	return node_coverage
 
 def resolve(node_lens, edge_overlaps, node_seqs, edges, paths_crossing, min_edge_support, min_coverage, removable_nodes):

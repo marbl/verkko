@@ -41,7 +41,9 @@ hifi_solid_nodes = set()
 with open(hificoveragefile) as f:
 	for l in f:
 		parts = l.strip().split('\t')
-		if parts[1] == "coverage": continue
+		if parts[0] == "node":
+			assert(parts[1] == "coverage" and parts[2] == "length")
+			continue
 		if float(parts[1]) < min_hifi_solid_coverage: continue
 		if parts[0] in unique_nodes: continue
 		hifi_solid_nodes.add(parts[0])
@@ -51,10 +53,12 @@ ont_solid_nodes = set()
 with open(ontcoveragefile) as f:
 	for l in f:
 		parts = l.strip().split('\t')
-		if parts[2] == "coverage": continue
+		if parts[0] == "node":
+			assert(parts[1] == "coverage" and parts[2] == "length")
+			continue
 		if parts[0] in unique_nodes: continue
-		if float(parts[2]) >= min_ont_solid_coverage: ont_solid_nodes.add(parts[0])
-		if int(parts[1]) >= length_solid_node_threshold: length_solid_nodes.add(parts[0])
+		if float(parts[1]) >= min_ont_solid_coverage: ont_solid_nodes.add(parts[0])
+		if int(parts[2]) >= length_solid_node_threshold: length_solid_nodes.add(parts[0])
 
 solid_nodes = set()
 for node in hifi_solid_nodes:

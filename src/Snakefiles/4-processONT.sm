@@ -114,9 +114,9 @@ cut -f 6 < alns-ont-filter-trim.gaf > paths.txt
 echo ""
 echo Step 3a
 ont_solid_cov=\`awk '{{ \\\\
-        if (\$2 >= 100000) {{ \\\\
+        if (\$NF >= 100000) {{ \\\\
           sum += \$2 * \$3; \\\\
-          count += \$2; \\\\
+          count += \$NF; \\\\
         }} \\\\
      }} \\
      END \\\\

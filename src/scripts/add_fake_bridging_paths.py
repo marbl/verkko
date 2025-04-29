@@ -29,8 +29,10 @@ with open(old_coverage_csv_in) as f:
 	with open(new_coverage_csv_out, "w") as out:
 		for l in f:
 			parts = l.strip().split('\t')
+			if parts[0] == "node":
+				assert(parts[1] == "coverage" and parts[2] == "length")
 			if parts[0] in nodes_with_extra_coverage:
-				parts[2] = str(float(parts[2]) + extra_coverage)
+				parts[1] = str(float(parts[1]) + extra_coverage)
 			out.write("\t".join(parts) + "\n")
 
 

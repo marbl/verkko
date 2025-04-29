@@ -129,7 +129,9 @@ node_coverage = {}
 with open(node_coverage_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
-		if parts[0] == "node" and parts[1] == "coverage": continue
+		if parts[0] == "node":
+			assert(parts[1] == "coverage" and parts[2] == "length")
+			continue
 		assert parts[0] in nodelens
 		assert parts[0] not in node_coverage
 		node_coverage[parts[0]] = float(parts[1])
