@@ -216,7 +216,7 @@ class ScaffoldGraph:
         #TODO: should exclude homozygous nodes here
         if total_hom * 2 < path_len:            
             #DEBUG ONLY                
-            if path_len > 2000000:
+            if path_len > ScaffoldGraph.MIN_EXPECTED_T2T:
                 self.logger.info(f"Found haploid path {nor_path_id} with homology {total_hom} and len {path_len} ")
             return True
         else:
@@ -809,10 +809,15 @@ class ScaffoldGraph:
                     similar_len_t2t = 0
                     distant_len_t2t = 0
                     haploid_paths = 0
+                    short_haploid_paths = 0
                     for alt_path_id in comp_paths_ids:
                         cur_len = prefinal_paths.getLength(alt_path_id) 
                         if self.isHaploidPath(prefinal_paths, alt_path_id):
-                            haploid_paths += 1
+                            if cur_len > ScaffoldGraph.MIN_EXPECTED_T2T:
+                                haploid_paths += 1
+                            else:
+                                self.logger.debug(f"Path {alt_path_id} is haploid but too short")
+                                short_haploid_paths += 1
                         if telos[alt_path_id][0] and telos[alt_path_id][1] and cur_len > ScaffoldGraph.MIN_EXPECTED_T2T:
                             if cur_len > sum_len * ScaffoldGraph.SIMILAR_LEN_FRAC and cur_len * ScaffoldGraph.SIMILAR_LEN_FRAC < sum_len:
                                 similar_len_t2t += 1
@@ -830,7 +835,7 @@ class ScaffoldGraph:
                         for i in range(0, 2):
                             scaffolded_paths.add(to_scaffold[i].strip('-+'))
                     else:
-                        self.logger.info(f"t2t connectivity cheat {or_ids} failed, total_len {sum_len} distant len count {distant_len_t2t} haploid paths {haploid_paths} similar len {similar_len_t2t}")
+                        self.logger.info(f"t2t connectivity cheat {or_ids} failed, total_len {sum_len} distant len count {distant_len_t2t} haploid paths {haploid_paths} similar len {similar_len_t2t} short haploid paths: {short_haploid_paths}")
                 else:
                     self.logger.info(f"t2t connectivity cheat {or_ids} failed, too far {dist}")
 
