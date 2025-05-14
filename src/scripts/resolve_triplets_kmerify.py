@@ -288,6 +288,7 @@ def resolve_hairpins(nodelength, nodes, paths_crossing, node_seqs, node_lens, ed
 			edge_overlaps[gf.canon(key[0], ">" + fwname)] = edge_overlaps[gf.canon(key[0], node)]
 			edge_overlaps[gf.canon(">" + bwname, key[1])] = edge_overlaps[gf.canon(gf.revnode(node), key[1])]
 		remove_graph_node(node[1:], node_seqs, edges)
+		sys.stderr.write(f"Removing node hairpin {node}\n")
 		for path in iterate_paths(paths_crossing, node[1:]):
 			remove_paths.append(path)
 			if len(path) < 4: continue
@@ -322,9 +323,32 @@ def resolve_hairpins(nodelength, nodes, paths_crossing, node_seqs, node_lens, ed
 		add_path(paths_crossing, path)
 	return (new_node_names, resolved)
 
+def our_debug(paths_crossing):
+    sys.stderr.write(f"{next(iter(paths_crossing.items()))}\n")
+    count = 0
+    for p1 in ["<", ">"]:
+        for p2 in ["<", ">"]:
+            shit = "utig1-3906"
+            sys.stderr.write(f"{shit}\n")
+            for p in iterate_paths(paths_crossing, shit):
+                if p2 +"utig1-3825" in p or p2 +"unitig_1407" in p:
+                    count += 1
+                    sys.stderr.write(f"our path {p}  \n")
+    exit()
 def resolve_nodes(nodelength, nodes, paths_crossing, node_seqs, node_lens, edges, maybe_resolvable, min_edge_support, min_coverage, removable_nodes):
 	resolvable = set()
 	triplets = []
+	sys.stderr.write(f"starting with {len(paths_crossing)} paths\n")
+	count = 0
+	for p1 in ["<", ">"]:
+		for p2 in ["<", ">"]:
+			for p in iterate_paths(paths_crossing, p1 + "utig1-3906"):
+				if p2 +"utig1-3825" in p or p2 +"unitig_1407" in p:
+					count += 1
+					sys.stderr.write(f"our path {p}  \n")
+				sys.stderr.write(f"{p} \n")
+	sys.stderr.write(f"Total {count} paths survived \n")
+
 	for node in gf.iterate_deterministic(nodes):
 		triplets_here = get_valid_triplets(node, edges, paths_crossing, min_edge_support, min_coverage, removable_nodes, node_seqs)
 		if len(triplets_here) == 0:
@@ -381,6 +405,8 @@ def resolve_nodes(nodelength, nodes, paths_crossing, node_seqs, node_lens, edges
 			key = (gf.revnode(triplet[1]), gf.revnode(triplet[0]))
 			if key[1][1:] in maybe_resolvable or get_unitig_len(node_lens, edge_overlaps, node_seqs, key[1][1:]) - edge_overlaps[gf.canon(key[0], key[1])] > 1:
 				nodename = "edge_" + str(key[0][1:]) + ("fw" if key[0][0] == ">" else "bw") + "_" + str(key[1][1:]) + ("fw" if key[1][0] == ">" else "bw")
+				sys.stderr.write(f"created {nodename}\n")
+				sys.stderr.write(f"triplet {triplet}\n")
 				new_edgenodes[key] = nodename
 				assert key[0][0] == "<"
 				if key[0][0] == ">":
@@ -564,7 +590,11 @@ def resolve_nodes(nodelength, nodes, paths_crossing, node_seqs, node_lens, edges
 		assert key not in edge_overlaps
 		edge_overlaps[key] = overlap
 	replace_path_nodes(resolvable, paths_crossing, new_edgenodes, maybe_resolvable)
-	for node in gf.iterate_deterministic(resolvable): remove_graph_node(node, node_seqs, edges)
+	for node in gf.iterate_deterministic(resolvable): 
+		sys.stderr.write(f"Removing node wtf {node}\n")
+		for p in iterate_paths(paths_crossing, node):
+			sys.stderr.write(f"WTF path still alife for {node} {p}\n")
+		remove_graph_node(node, node_seqs, edges)
 	self_edge_coverage = {}
 	new_paths = []
 	found_identities = set()
@@ -586,10 +616,14 @@ def resolve_nodes(nodelength, nodes, paths_crossing, node_seqs, node_lens, edges
 		if last_split != 0:
 			split_add_paths.append(path[last_split:])
 			remove_add_paths.append(path)
+	sys.stderr.write(f"Path removed wtf {node} {len(remove_add_paths)} added {len(split_add_paths)}\n")
 	for path in remove_add_paths:
+		sys.stderr.write(f"Removing path wtf {node} {path}\n")
 		remove_path(paths_crossing, path)
 	for path in split_add_paths:
+		sys.stderr.write(f"Adding path wtf {node} {path}\n")
 		add_path(paths_crossing, path)
+	sys.stderr.write(f"ending resolve_nodes {node} with {len(paths_crossing)} paths\n")
 	return (new_node_names, resolvable)
 
 def add_safe_unitig(node, edges, safe_nodes, safe_edges):
@@ -720,6 +754,8 @@ def resolve(node_lens, edge_overlaps, node_seqs, edges, paths_crossing, min_edge
 		if len(new_nodes) > 0:
 			assert len(resolved) > 0
 			sys.stderr.write("resolve k=" + str(current_length) + ", extended " + str(len(resolved)) + " nodes into " + str(len(new_nodes)) + " nodes" + "\n")
+			sys.stderr.write(f"resolved {resolved}\n")
+			sys.stderr.write(f"new_nodes {new_nodes}\n")
 		else:
 			assert len(resolved) == 0
 		if len(resolved) > 0:
@@ -765,6 +801,8 @@ def get_unitig_len_path(node_lens, edge_overlaps, path, left_clip, right_clip):
 	return unitig_len
 
 def iterate_paths(paths_crossing, node):
+	if not (node in paths_crossing):
+		return None
 	paths = [paths_crossing[node][pathid] for pathid in paths_crossing[node]]
 	paths.sort()
 	for path in paths:
@@ -789,6 +827,7 @@ def add_path(paths_crossing, path):
 def replace_unitig(node_seqs, node_lens, edges, paths_crossing, unitig):
 	global next_unitig_num
 	new_node = "unitig_" + str(next_unitig_num)
+	sys.stderr.write(f"Creating {new_node} {unitig}\n")
 	next_unitig_num += 1
 	node_seqs[new_node] = []
 	assert len(unitig) >= 1
@@ -878,6 +917,7 @@ def replace_unitig(node_seqs, node_lens, edges, paths_crossing, unitig):
 		for n in unitig: print(node_seqs[n[1:]])
 	assert len(unitig) == len(set(n[1:] for n in unitig))
 	for node in unitig:
+		sys.stderr.write(f"Removing node normal {node}\n")
 		remove_graph_node(node[1:], node_seqs, edges)
 	replaceable_paths = []
 	found_identities = set()
@@ -886,7 +926,9 @@ def replace_unitig(node_seqs, node_lens, edges, paths_crossing, unitig):
 			if id(path) in found_identities: continue
 			found_identities.add(id(path))
 			replaceable_paths.append(path)
+	old_paths = len(paths_crossing)
 	for path in replaceable_paths:
+		sys.stderr.write(f"Removing path for node {node[1:]} {path}\n")
 		remove_path(paths_crossing, path)
 	is_forward = {}
 	for n in unitig:
@@ -909,7 +951,9 @@ def replace_unitig(node_seqs, node_lens, edges, paths_crossing, unitig):
 				path_end += 1
 			next_start = path_end
 			new_path.append((">" if (is_forward[path[i][1:]] == (path[i][0] == ">")) else "<") + new_node)
+		sys.stderr.write(f"Adding path for node {node[1:]} {new_path}\n")
 		add_path(paths_crossing, new_path)
+	sys.stderr.write(f"After exterminating node {node} into {new_node} lost {old_paths - len(paths_crossing)} paths, replacable {len(replaceable_paths)} \n")
 	return new_node
 
 def extend_forward(node, edges):
@@ -936,6 +980,10 @@ def unitigify_one(node_seqs, node_lens, edges, paths_crossing, node):
 	if len(forward_extension) == 1 or forward_extension[0] != forward_extension[-1]:
 		backward_extension = extend_forward("<" + node, edges)
 		assert len(backward_extension) >= 1
+	sys.stderr.write(f"Unitigify_one_node {node}\n")
+	sys.stderr.write(f"Unitigify_one_fw {forward_extension}\n")
+	sys.stderr.write(f"Unitigify_one_bw {backward_extension}\n")
+#	sys.stderr.write(f"Paths{paths_crossing}\n")
 	if len(forward_extension) + len(backward_extension) == 2: return node
 	unitig = [gf.revnode(n) for n in backward_extension[::-1]][:-1] + forward_extension
 	if unitig[0] == unitig[-1]: unitig.pop()
@@ -990,7 +1038,8 @@ for l in sys.stdin:
 	if len(path) <= 1: continue
 	add_path(paths_crossing, path)
 	initial_paths.append(path)
-
+sys.stderr.write("FIRST")
+our_debug(paths_crossing)
 node_coverage = read_node_coverages(node_coverage_file)
 removable_nodes = set()
 for n in node_lens:
@@ -998,11 +1047,20 @@ for n in node_lens:
 		removable_nodes.add(n)
 remove_and_split_low_coverage(node_seqs, edges, initial_paths, paths_crossing, 0, node_coverage)
 del initial_paths
+sys.stderr.write("FIRST")
+our_debug(paths_crossing)
+
+
 unitigify_all(node_seqs, node_lens, edges, paths_crossing)
+
+sys.stderr.write("FIRST")
+our_debug(paths_crossing)
 
 for coverage in resolve_steps:
 	sys.stderr.write("resolve with edge support " + str(coverage) + "\n")
 	resolve(node_lens, edge_overlaps, node_seqs, edges, paths_crossing, coverage, min_allowed_coverage, removable_nodes)
+	sys.stderr.write("FIRST")
+	our_debug(paths_crossing)
 
 del node_lens
 
