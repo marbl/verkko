@@ -1539,6 +1539,7 @@ if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
         cp *.gfa ../../
         cp *.layout ../../
         cp *.scfmap ../../
+        cp *.csv ../../
         cp ../rukki.paths.tsv ../../assembly.paths.tsv
         cp ../hicverkko.colors.tsv ../../assembly.colors.csv
     else
