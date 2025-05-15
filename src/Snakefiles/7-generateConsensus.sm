@@ -59,8 +59,8 @@ else
 fi
 
 minread=100
-if [ "\$(expr {params.minread} - 1000)" -gt 0 ]; then
-    minread=`expr {params.minread} - 1000`
+if [ "\$(expr {params.minread} - 500)" -gt 0 ]; then
+    minread=500
 fi
 
 {VERKKO}/bin/utgcns \\\\
