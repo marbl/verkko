@@ -671,6 +671,7 @@ for contig in sorted(contig_actual_lines.keys()):
 		end_pos = max(end_pos, line[2])
 		assigned_read_count += 1
 
+	if (assigned_read_count == 0): continue
 	print(f"tig\t{contig}", file=tig_layout_file)
 	print(f"len\t{end_pos - start_pos}", file=tig_layout_file)
 	if end_pos-start_pos >= min_contig_no_trim or contig in no_trim:
