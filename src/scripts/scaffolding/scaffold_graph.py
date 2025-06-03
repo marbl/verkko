@@ -865,10 +865,9 @@ class ScaffoldGraph:
                 else:
                     before_gap = gf.rc_path(prefinal_paths.getPathById(prev_nor_id))[-1]                
                 gap_len = min(ScaffoldGraph.DEFAULT_GAP_SIZE, round(self.orNodeDist(before_gap, after_gap)))
-                if gap_len != 0:
-                    scf_path.append(f"[N{gap_len}N:scaffold]")
-                else:
-                    self.logger.info(f"Zero gap between {or_ids[i-1]} and {or_ids[i]}")
+                #Decided to enforce nonzero gap even for successive paths
+                gap_len = max(5000, gap_len)                
+                scf_path.append(f"[N{gap_len}N:scaffold]")                
             if or_ids[i][-1] == "+":
                 scf_path.extend(prefinal_paths.getPathById(nor_path_id))
             else:
