@@ -70,15 +70,19 @@ ont_node_covs = {}
 with open(ont_node_cov_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
-		if parts[0] == 'node': continue
+		if parts[0] == "node":
+			assert(parts[1] == "coverage" and parts[2] == "length")
+			continue
 		assert parts[0] not in ont_node_covs
-		ont_node_covs[parts[0]] = float(parts[2])
+		ont_node_covs[parts[0]] = float(parts[1])
 
 hifi_node_covs = {}
 with open(hifi_node_cov_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
-		if parts[0] == 'node': continue
+		if parts[0] == "node":
+			assert(parts[1] == "coverage" and parts[2] == "length")
+			continue
 		assert parts[0] not in hifi_node_covs
 		hifi_node_covs[parts[0]] = float(parts[1])
 

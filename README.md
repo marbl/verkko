@@ -201,3 +201,4 @@ To test your installation we have an E. coli K12 dataset available.
 
 ## Citations:
  - Rautiainen M, Nurk S, Walenz BP, Logsdon GA, Porubsky D, Rhie A, Eichler EE, Phillippy AM, Koren S. [Telomere-to-telomere assembly of diploid chromosomes with Verkko](https://doi.org/10.1038/s41587-023-01662-6). Nat Biotech. (2023). `doi:10.1038/s41587-023-01662-6`
+ - Antipov D, Rautiainen M, Nurk S, Walenz BP, Solar SJ, Phillippy AM, Koren S. Verkko2 integrates proximity ligation data with long-read De Bruijn graphs for efficient telomere-to-telomere genome assembly, phasing, and scaffolding. Genome Research (2025). `10.1101/gr.280383.124` 

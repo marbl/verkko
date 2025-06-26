@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import random
 import sys
 import re
 import graph_functions as gf
@@ -241,12 +242,12 @@ contig_node_offsets = {}
 contig_pieces = {}
 with open(paths_file) as f:
 	for l in f:
-		lp    = l.strip().split('\t')
+		lp	= l.strip().split('\t')
 
 		#  Find all words that
-		#    begin with [<>], contain anything but [
-		#    begin with [N, contain digits and end with N] or N:optional-description]
-		#    we dump the description here and anly keep the N, digits N] part
+		#	begin with [<>], contain anything but [
+		#	begin with [N, contain digits and end with N] or N:optional-description]
+		#	we dump the description here and anly keep the N, digits N] part
 		#
 		fullname = lp[0]
 		pathfull = re.findall(r"([<>][^[]+|\[N\d+N(?:[^\]]+){0,1}\])", lp[1])
@@ -264,9 +265,11 @@ with open(paths_file) as f:
 			pieceid = pieceid + 1
 			pathname = f"piece{pieceid:06d}"
 
-			contig_pieces[fullname].append(pathname)
-
 			(path, overlaps) = get_leafs(re.findall(r"[<>][^<>]+", pp), node_mapping, edge_overlaps, raw_node_lens)
+			# skip a path if the only thing in it is a gapfill
+			if len(path) == 1 and path[0][0][1:4] == "gap":
+				continue
+			contig_pieces[fullname].append(pathname)
 
 			contig_nodeseqs[pathname] = path
 			contig_nodeoverlaps[pathname] = overlaps
@@ -514,6 +517,8 @@ for contig in contig_contains_reads:
 				read_clusters[readname].append((contig, bwcluster[1], bwcluster[0], get_exact_match_length(bwcluster[4])))
 print (f"Banned {total_banned} allowed {total_notbanned} read-paths")
 contig_actual_lines = {}
+read_actual_counts = {}
+read_actual_contigs = {}
 #selecting best alignment to the contig, if multiple best use all of them.
 for readname in read_clusters:
 	longest = []
@@ -528,7 +533,9 @@ for readname in read_clusters:
 	for line in longest:
 		if line[0] not in contig_actual_lines: contig_actual_lines[line[0]] = []
 		contig_actual_lines[line[0]].append((readname, line[1], line[2]))
-
+		read_actual_counts[readname] = read_actual_counts.get(readname, 0) + 1
+		if readname not in read_actual_contigs: read_actual_contigs[readname] = set()
+		read_actual_contigs[readname].add(line[0])
 
 tig_layout_file = open(f"{layout_output}", mode="w")
 scf_layout_file = open(f"{layscf_output}", mode="w")
@@ -605,15 +612,15 @@ for contig in sorted(contig_pieces.keys()):
 		#  something we'll present to the user.
 		#
 		#  Without rukki, contig names are:
-		#    utig4-0
+		#	utig4-0
 		#
 		#  With rukki, they are:
-		#    ladybug-hap1_from_utig4-1736
-		#    ladybug-hap2_unused_utig4-0
-		#    na_unused_utig4-1
+		#	ladybug-hap1_from_utig4-1736
+		#	ladybug-hap2_unused_utig4-0
+		#	na_unused_utig4-1
 		#  (where ladybug-hap1/2 is supplied by the user)
 		#
-		isna     = re.search(r"^na_unused_(.*)$", contig)
+		isna	 = re.search(r"^na_unused_(.*)$", contig)
 		isunused = re.search(r"^(.*)_unused_(.*)$", contig)
 		isfrom   = re.search(r"^(.*)_from_(.*)$", contig)
 
@@ -638,28 +645,57 @@ for contig in sorted(contig_pieces.keys()):
 
 del nameid
 
+# we will update the count after randomly assigning reads between their equal locations
+# high count reads are output in all locations to avoid introducing coverage but simple hom nodes are randomly assigned
+read_output_counts = {}
 for contig in sorted(contig_actual_lines.keys()):
 	if len(contig_actual_lines[contig]) == 0: continue
 	assert len(contig_actual_lines[contig]) > 0
 	contig_actual_lines[contig].sort(key=lambda x: min(x[1], x[2]))
 	start_pos = contig_actual_lines[contig][0][1]
 	end_pos = contig_actual_lines[contig][0][1]
+	assigned_read_count = 0
+
 	for line in contig_actual_lines[contig]:
+		# we look at randomly placed reads and pick a single location for each one
+		# if we're first we'll select a location, single value between 1 and number of times it's used
+		if line[0] not in read_output_counts:
+			read_output_counts[line[0]] = ("", "", 0)
+			#sys.stderr.write("For reach %s which occurs %d times in contigs %s we are seing it for the first time in %s and selecting"%(line[0], read_actual_counts[line[0]], str(read_actual_contigs[line[0]]), contig))
+			if len(read_actual_contigs[line[0]]) <= 1:
+				#sys.stderr.write(" read is used %d times in %s contigs so placing everywhere "%(read_actual_counts[line[0]], str(read_actual_contigs[line[0]])))
+				read_actual_counts[line[0]] = -1 # place everywhere
+			else:
+				read_actual_counts[line[0]] =  random.randint(1, read_actual_counts[line[0]])
+			#sys.stderr.write(" position %d\n"%(read_actual_counts[line[0]]))
+		#check if we are we right instance
+		read_output_counts[line[0]] = (read_output_counts[line[0]][0], read_output_counts[line[0]][1], read_output_counts[line[0]][2] + 1)
+		#sys.stderr.write("The count for read %s is now %s\n"%(line[0], str(read_output_counts[line[0]])))
+		if read_actual_counts[line[0]] > 0 and read_output_counts[line[0]][2] != read_actual_counts[line[0]]: continue
+
+		# record the contig and coordinate we will use
+		read_output_counts[line[0]] = (contig, line[1], read_actual_counts[line[0]])
 		start_pos = min(start_pos, line[1])
 		start_pos = min(start_pos, line[2])
 		end_pos = max(end_pos, line[1])
 		end_pos = max(end_pos, line[2])
+		assigned_read_count += 1
+
+	if (assigned_read_count == 0): continue
 	print(f"tig\t{contig}", file=tig_layout_file)
 	print(f"len\t{end_pos - start_pos}", file=tig_layout_file)
 	if end_pos-start_pos >= min_contig_no_trim or contig in no_trim:
 		print(f"trm\t1", file=tig_layout_file)
 	else:
 		print(f"trm\t0", file=tig_layout_file)
-	print(f"rds\t{len(contig_actual_lines[contig])}", file=tig_layout_file)
+	print(f"rds\t{assigned_read_count}", file=tig_layout_file)
+
 	for line in contig_actual_lines[contig]:
 		bgn = line[1] - start_pos
 		end = line[2] - start_pos
-		print(f"{line[0]}\t{bgn}\t{end}", file=tig_layout_file)
+		#sys.stderr.write("For read %s which has been selected to be in position %s we are expecting %d\n"%(line[0], str(read_output_counts[line[0]]), read_actual_counts[line[0]]))
+		if read_actual_counts[line[0]] < 0 or (read_output_counts[line[0]][0] == contig and read_output_counts[line[0]][1] == line[1]):
+			print(f"{line[0]}\t{bgn}\t{end}", file=tig_layout_file)
 	print(f"end", file=tig_layout_file)
 
 tig_layout_file.close()

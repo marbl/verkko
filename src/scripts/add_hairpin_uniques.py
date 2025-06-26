@@ -37,7 +37,9 @@ coverages = {}
 with open(coverage_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
-		if parts[0] == "node" and parts[1] == "coverage": continue
+		if parts[0] == "node":
+			assert(parts[1] == "coverage" and parts[2] == "length")
+			continue
 		coverages[parts[0]] = float(parts[1])
 
 nodelens = {}
@@ -64,7 +66,7 @@ for node in uniques:
 	coverage_sum += coverages[node] * nodelens[node]
 	coverage_len += nodelens[node]
 
-avg_coverage = coverage_sum / coverage_len
+avg_coverage = coverage_sum / coverage_len if float(coverage_len) > 0.0 else 0.0
 
 new_uniques = set()
 

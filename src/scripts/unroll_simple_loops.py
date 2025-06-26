@@ -38,7 +38,9 @@ with open(graph_file) as f:
 			edge_overlaps[fromnode].add(tonode)
 			edges[gf.canontip(fromnode, tonode)] = int(parts[5][:-1])
 
-avg_coverage = long_coverage_cov_sum / long_coverage_len_sum
+avg_coverage = 0
+if long_coverage_len_sum != 0:
+   avg_coverage = long_coverage_cov_sum / long_coverage_len_sum
 
 tounroll = set()
 copy2edges = set()

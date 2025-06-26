@@ -433,7 +433,7 @@ sub_time_h=24
 
 #  partition_consensus
 par_n_cpus=8
-par_mem_gb=0
+par_mem_gb=8
 par_time_h=24
 
 #  cns
@@ -1592,6 +1592,7 @@ if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
         cp *.gfa ../../
         cp *.layout ../../
         cp *.scfmap ../../
+        cp *.csv ../../
         cp ../rukki.paths.tsv ../../assembly.paths.tsv
         cp ../hicverkko.colors.tsv ../../assembly.colors.csv
     else

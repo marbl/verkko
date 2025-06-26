@@ -89,8 +89,10 @@ original_coverages = {}
 with open(original_coverage_csv) as f:
 	for l in f:
 		parts = l.strip().split('\t')
-		if parts[0] == "node": continue
-		original_coverages[parts[0]] = float(parts[2])
+		if parts[0] == "node":
+			assert(parts[1] == "coverage" and parts[2] == "length")
+			continue
+		original_coverages[parts[0]] = float(parts[1])
 
 edge_overlaps = {}
 with open(edge_overlap_file) as f:

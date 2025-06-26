@@ -45,78 +45,8 @@ cat > ./rukki.sh <<EOF
 set -e
 
 #
-#  Extract the sequence from the graph.
-#
-
-awk 'BEGIN \\\\
-     {{ \\\\
-        OFS="\\n"; \\\\
-     }} \\\\
-     (\$1 == "S") && (\$3 != "*") \\\\
-     {{ \\\\
-          print ">"\$2, \$3; \\\\
-     }}' \\\\
-< ../{input.graph} \\\\
-| {PYTHON} {VERKKO}/scripts/rle.py \\\\
-> ../{output.fasta}
-
-#
-#  This is hap_blob.sh from Merqury, with an intermediate file stripped
-#  out and Rukki-format color output written directly.
-#
-#  meryl-lookup output is:
-#    contig-name  kmers-in-contig  kmers-in-db-1  kmers-contig-and-db-1  kmers-in-db-2  kmers-contig-and-db-2
-#
-#  rukki expects:  (it will ignore columns 4 and higher)
-#    contig-name  kmers-contig-and-db-1  kmers-contig-and-db-2
-#
-
-{VERKKO}/bin/meryl-lookup -existence -threads {threads} \\\\
-  -mers {params.hap1mers} {params.hap2mers} \\\\
-  -sequence ../{output.fasta} \\\\
-| \\\\
-awk \\\\
-  'BEGIN \\\\
-   {{ \\\\
-     FS="[ \\t]+"; OFS="\\t"; \\\\
-     print "node\tmat\tpat\tmat:pat\tcolor"; \\\\
-   }} \\\\
-   \$1 != "Assembly" \\\\
-   {{ color = "#AAAAAA"; \\\\
-      if (\$4+\$6 > 100) {{ \\\\
-         if      (\$4 > (\$4+\$6)*{params.fraction}) {{ color = "#FF8888"; }} \\\\
-         else if (\$6 > (\$4+\$6)*{params.fraction}) {{ color = "#8888FF"; }} \\\\
-         else                                        {{ color = "#FFFF00"; }} \\\\
-      }} \\\\
-      print \$1, \$4, \$6, \$4 ":" \$6, color; \\\\
-   }}' \\\\
-> ../{output.colors}
-
-#
-#  Inject coverage into the graph.
-#
-
-awk < ../{input.graph} \\\\
-  'BEGIN \\\\
-   {{ \\\\
-     FS="[ \\t]+"; OFS="\\t"; \\\\
-   }} \\\\
-   {{ \\\\
-     if (\$1 == "S") {{ \\\\
-       print "S", \$2, "*", "LN:i:"length(\$3); \\\\
-     }} else {{ \\\\
-       print \$0; \\\\
-     }} \\\\
-   }}' \\\\
-| \\\\
-{PYTHON} {VERKKO}/scripts/inject_coverage.py --allow-absent \\\\
-  ../{input.hificov} \\\\
-> ../{output.graph}
-
-#
 #  Figure out haplotype labels from the meryl database names.
 #
-
 echo '{params.hap1mers}' \\\\
 | \\\\
 awk \\\\
@@ -161,6 +91,74 @@ echo "Haplotype label 1 is '\$label1'."
 echo "Haplotype label 2 is '\$label2'."
 echo ""
 
+#
+#  Extract the sequence from the graph.
+#
+
+awk 'BEGIN \\\\
+     {{ \\\\
+        OFS="\\n"; \\\\
+     }} \\\\
+     (\$1 == "S") && (\$3 != "*") \\\\
+     {{ \\\\
+          print ">"\$2, \$3; \\\\
+     }}' \\\\
+< ../{input.graph} \\\\
+| {PYTHON} {VERKKO}/scripts/rle.py \\\\
+> ../{output.fasta}
+
+#
+#  This is hap_blob.sh from Merqury, with an intermediate file stripped
+#  out and Rukki-format color output written directly.
+#
+#  meryl-lookup output is:
+#    contig-name  kmers-in-contig  kmers-in-db-1  kmers-contig-and-db-1  kmers-in-db-2  kmers-contig-and-db-2
+#
+#  rukki expects:  (it will ignore columns 4 and higher)
+#    contig-name  kmers-contig-and-db-1  kmers-contig-and-db-2
+#
+
+{VERKKO}/bin/meryl-lookup -existence -threads {threads} \\\\
+  -mers {params.hap1mers} {params.hap2mers} \\\\
+  -sequence ../{output.fasta} \\\\
+| \\\\
+awk -v H1="\$label1" -v H2="\$label2" \\\\
+  'BEGIN \\\\
+   {{ \\\\
+     FS="[ \\t]+"; OFS="\\t"; \\\\
+     print "node\t"H1"\t"H2"\t"H1":"H2"\tcolor"; \\\\
+   }} \\\\
+   \$1 != "Assembly" \\\\
+   {{ color = "#AAAAAA"; \\\\
+      if (\$4+\$6 > 100) {{ \\\\
+         if      (\$4 > (\$4+\$6)*{params.fraction}) {{ color = "#8888FF"; }} \\\\
+         else if (\$6 > (\$4+\$6)*{params.fraction}) {{ color = "#FF8888"; }} \\\\
+         else                                        {{ color = "#FFFF00"; }} \\\\
+      }} \\\\
+      print \$1, \$4, \$6, \$4 ":" \$6, color; \\\\
+   }}' \\\\
+> ../{output.colors}
+
+#
+#  Inject coverage into the graph.
+#
+
+awk < ../{input.graph} \\\\
+  'BEGIN \\\\
+   {{ \\\\
+     FS="[ \\t]+"; OFS="\\t"; \\\\
+   }} \\\\
+   {{ \\\\
+     if (\$1 == "S") {{ \\\\
+       print "S", \$2, "*", "LN:i:"length(\$3); \\\\
+     }} else {{ \\\\
+       print \$0; \\\\
+     }} \\\\
+   }}' \\\\
+| \\\\
+{PYTHON} {VERKKO}/scripts/inject_coverage.py --allow-absent \\\\
+  ../{input.hificov} \\\\
+> ../{output.graph}
 
 #
 #  Run Rukki.  Once for Bandage input, once for Consensus.

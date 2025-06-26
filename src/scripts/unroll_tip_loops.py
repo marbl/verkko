@@ -26,7 +26,9 @@ coverage_cov_sum = 0
 with open(cov_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
-		if "node" in parts[0]: continue
+		if "node" in parts[0]:
+			assert(parts[1] == "coverage" and parts[2] == "length")
+			continue
 		coverage[parts[0]] = float(parts[1])
 		nodelen = int(parts[2])
 		coverage_len_sum += nodelen

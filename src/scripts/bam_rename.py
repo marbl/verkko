@@ -7,7 +7,8 @@ import re
 # rename a bam based on the input scfmap and tig name mapping files
 # in the case of scaffolds, offset the start coordinate by the start of the sequence in the scaffold
 #
-bamfile = pysam.AlignmentFile("-", "rb")
+prefixes = [ 'hifi_', 'ont_' ]
+bamfile  = pysam.AlignmentFile("-", "rb")
 layout   = sys.argv[1]
 gap_info = sys.argv[2]
 scfmap   = seq.readScfMap(sys.argv[3])
@@ -79,13 +80,15 @@ for read in bamfile:
     if not read.is_unmapped:
        reference_name = bamfile.get_reference_name(read.reference_id)
        if reference_name not in offsets or tigtohap[reference_name] not in output_bam.references or read.query_name not in readtorg:
-          sys.stderr.write("Error: I didn't find how to translate %s\n"%(reference_name))
+          sys.stderr.write("Error: I didn't find how to translate '%s'\n"%(reference_name))
           sys.exit(1)
      
        # make a copy of the existing read in the new bam, replacing the string reference
        new_read = pysam.AlignedSegment.fromstring(read.to_string().replace(f'\t{reference_name}\t', f'\t{tigtohap[reference_name]}\t'), output_bam.header)
 
        new_read.set_tag('RG', readtorg[read.query_name])
+       # update the name to strip layout prefix
+       new_read.query_name = next((new_read.query_name[len(p):] for p in prefixes if new_read.query_name.startswith(p)), new_read.query_name)
        # update the coordinate
        new_read.reference_start = read.reference_start + offsets[reference_name]
        output_bam.write(new_read)

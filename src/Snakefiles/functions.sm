@@ -145,22 +145,6 @@ def getBuildPackageMemoryRequest(attempt):     #  Sum the size of input files, 2
    mem = float(config[f"par_mem_gb"])          #  But allow par_mem_gb to completely override.
    gib = 1024.0 * 1024.0 * 1024.0
 
-   if mem < 2.0:
-      mem = 0
-
-      for f in getBuildPackagesInputONT("", config['withONT'], config['withBAM']):
-      # strip leading ../ from name, we need it for buildPackages but not here
-         if f.startswith("../"): f = f[3:]
-         mem += getFileBP(f)
-
-      for f in HIFI_READS:
-         mem += getFileBP(f)
-
-      mem = mem * 1.10    #  Expand by 10%
-      mem = mem / gib     #  Convert to GB
-      mem = mem / 4       #  2-bit encoding divide by 4
-      mem = mem + 2.0     #  Add 2 GB
-
    return int(math.ceil(math.ceil(mem)*scl))
 
 def getConsensusMemoryRequest(attempt, jobid):    #  Figure out what partitioning claims each

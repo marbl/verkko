@@ -33,9 +33,12 @@ with open(input_connected_graph_file) as f:
 with open(output_fake_node_coverages_file, "w") as f:
 	with open(input_node_coverages_csv_file) as f2:
 		for l in f2:
+			parts=l.strip().split('\t')
+			if parts[0] == "node":
+				assert(parts[1] == "coverage" and parts[2] == "length")
 			f.write(l)
 	for node in fake_nodes:
-		f.write(node + "\t" + str(fake_nodes[node]) + "\t" + str(int(fake_nodes[node]) * fake_coverage) + "\n")
+		f.write(node + "\t" + str(int(fake_nodes[node]) * fake_coverage) + "\t" + str(fake_nodes[node]) + "\n")
 
 fake_edges = list(fake_edges)
 fake_edges.sort()

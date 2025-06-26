@@ -53,8 +53,8 @@ for l in sys.stdin:
 	if nodename not in node_average_coverages: node_average_coverages[nodename] = 0.0
 	node_average_coverages[nodename] += float(node_sizes[nodename] - right_clip) / float(node_sizes[nodename])
 
-print("node\tlength\tcoverage")
+print("node\tcoverage\tlength")
 for node in node_sizes:
 	cov = 0.0
 	if node in node_average_coverages: cov = node_average_coverages[node]
-	print(node + "\t" + str(node_sizes[node]) + "\t" + str(cov))
+	print(node + "\t" + str(cov) + "\t" + str(node_sizes[node]))

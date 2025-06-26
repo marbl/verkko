@@ -45,8 +45,10 @@ jobs:
       run: |
         sudo apt-get update
         mamba install -c conda-forge -c bioconda 'python=3.11' 'pulp<=2.7.0' 'snakemake-minimal>7,<8' GraphAligner mashmap winnowmap
-        sudo apt-get install libcurl4-openssl-dev
+        sudo apt-get install gcc-11 g++-11 libcurl4-openssl-dev liblzma-dev libbz2-dev
         pip install networkx
+        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100
+        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 100
 
         echo ""
         echo "CONDA LIST"
