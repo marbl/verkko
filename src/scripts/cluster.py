@@ -15,7 +15,7 @@ MIN_LEN = 200000  # best result so far with 200000
 #likely do not need
 #MAX_GRAPH_DIST = 100000000  # hi-c links over 10M are believed to be useless
 
-KLIN_STARTS = 30  # number of different starts of kernighan lin
+KLIN_STARTS = 100  # number of different starts of kernighan lin
 KLIN_ITER = 10000  # number of iterations inside kernighan lin
 
 MAX_SHORT_COMPONENT = 100 # we remove from consideration each connected compoents of edges < MIN_SHORT_LEN that is larger than MAX_SHORT_COMPONENT
@@ -30,7 +30,7 @@ HIC_COMPRESSED_FILENAME = "hic.byread.compressed"
 CLEAR_HOMOLOGY = 250000 #for clear bulge like structures this limmit is decreased
 MIN_ALIGNMENT = 50000 #smaller alingments will be filtered out
 MAX_COV = 100  # tempora# ry coverage cutoff, currently replaced by median coverage from gfa
-FIXED_WEIGHT = 100000  # best result so far with 100000 #currently replaced with max pairwise weight among datasets
+FIXED_HOMOLOGY_WEIGHT = -1000000  # best result so far with 100000 #currently replaced with max pairwise weight among datasets
 
 MAX_RDNA_COMPONENT = 10000000 # maximal size of rDNA component, used for filtering out rDNA cluster only
 MIN_RDNA_COMPONENT = 500000 
@@ -88,95 +88,6 @@ def collapseOrientedNode (edges, node):
         if ornode in edges:
             edges.pop(ornode)
 
-#returns pair of nodes near PAR that should be connected via fake homology, currently placeholder
-#TODO: this is likely subject for reconsidering when we'll move to other species
-
-def checkXYcomponent(current_component, matchgraph, G, edges):
-#minimal comp size. XY is vulnerable to gaps, so not 150M
-    MIN_COMP_SIZE = 80000000
-#maximal homozygous, PAR region
-    MAX_HOM_LEN = 5000000     
-#cutoff for additional fake homozygocity
-    MIN_NEAR_PAR = 3000000
-#TODO these constants are ABSOLUTELY human focused, and even if we'll save the function should be reconsidered.
-#TODO: right way with new matchGraph...
-    total_l = 0
-    total_hom_len = 0
-    for node in current_component:
-        if node in G.nodes:
-            total_l += G.nodes[node]['length']
-            if node in matchgraph:
-                total_hom_len += G.nodes[node]['length']
-
-    if total_hom_len == 0 or total_hom_len > MAX_HOM_LEN or total_l < MIN_COMP_SIZE:
-        return [0, 0]
-    fake_hom = []
-    for f_node in current_component:
-        for s_node in current_component:
-            if f_node < s_node and G.nodes[f_node]['length'] > MIN_NEAR_PAR and G.nodes[s_node]['length'] > MIN_NEAR_PAR:
-                for fp in ['<', '>']:
-                    for sp in ['<', '>']:
-                        f_or = fp + f_node
-                        s_or = sp + s_node
-                        if not (f_or in edges) or not (s_or in edges):
-                            continue
-                        for nxt in edges[f_or]:
-                            if nxt in edges[s_or]:
-                                if len(fake_hom) == 0 or fake_hom[-1][0] != f_node or fake_hom[-1][1] != s_node:
-                                    fake_hom.append([f_node, s_node])
-    if len(fake_hom) > 1:
-        logger.warning("MULTIPLE CANDIDATES FOR FAKE HOMOLOGY IN XY\n")
-        for pair in fake_hom:
-            logger.warning(f"{pair[0]} --- {pair[1]}\n")
-        return [0, 0]
-    elif len(fake_hom) == 1:
-        logger.info(f"Adding FAKE HOMOLOGY between {fake_hom[0][0]} --- {fake_hom[0][1]}")
-        return [fake_hom[0][0], fake_hom[0][1]]
-    return [0, 0]
-        
-def fixUnbalanced(part, C, G):
-    auxs = [0, 0]
-    lens = [0, 0]
-    for ind in range (0, 2):
-        for node in part[ind]:
-            if node.startswith('Aux'):
-                auxs[ind] += 1
-            elif node in G.nodes:
-                lens[ind] += G.nodes[node]['length']
-            else:
-                print(f"Someting went wrong with node {node}")
-#    print (f"In fix unbalanced {lens[0]} {lens[1]}")
-    #just _a_ limitation on the swap length is required
-    maxswap = min(lens[0]/10, lens[1]/10)
-    curswap = 0
-    edge_swapped =0
-    for ind in range(0, 2):
-        #do not move edges _to_ the part where aux edge is present -otherwise it could be swapped with aux
-        if auxs[1 - ind] == 0:
-#            print(f'processing components {part[0]} {part[1]}')
-            changed = True
-            while changed:
-                changed = False
-                for node in part[ind]:
-                    if node in G:
-                        cost = 0
-                        for i in part[ind]:
-                            if [i, node] in C.edges:
-                                cost += C.edges[i, node]['weight']
-                        for j in part[1 - ind]:
-                            if [j, node] in C.edges:
-                                cost -= C.edges[j, node]['weight']
-                        if cost < 0 and curswap + G.nodes[node]['length'] < maxswap:
-                            changed = True
-                            curswap += G.nodes[node]['length']
-                            part[1 - ind].add(node)
-                            part[ind].remove(node)
-                            edge_swapped +=1
-                            print (f"SWAPPED {node}")
-                            break
-    if curswap > 0:
-        print (f"Fixing uneven component, moved {curswap} bases and {edge_swapped} nodes")
-
 def getMedianCov(nodeset):
     med_cov = -1
     total_length = 0
@@ -199,8 +110,8 @@ def report_phased_node(node_id, hap, output_file):
     elif hap == 0:
         output_file.write(f'{node_id}\t100000\t0\t100000:0\t#FF8888\n')
 
-def create_initial_partition_noKL(C, matchGraph, seed):
-    random.seed(seed)
+def create_initial_partition_noKL(C, matchGraph):
+    random.seed(239)
     neg_graph = nx.Graph()
     for ec in matchGraph.edges():
         if ec[0] in C and ec[1] in C:
@@ -230,38 +141,75 @@ def create_initial_partition_noKL(C, matchGraph, seed):
                         enemies[n].append(other)
             logger.debug(f"Friends of {n}: {friends[n]}")
             logger.debug(f"Enemies of {n}: {enemies[n]}")
-
     parts = [set(), set()]
-    swap_together = {}
-
-    #TODO: place for randomization
-    
     C_nodes = list(C.nodes())
+    processed_nodes = set()
+    opposite = {}
     for n in C_nodes:
         #lets remove non-homologous nodes
         if not n in enemies and n.find("Aux") == -1:
             C.remove_node(n)
             logger.debug(f"Removing node {n}")
         else:
-            swap_together[n] = [n]
             start_component = random.randint(0, 1)
-            if not n in parts[0] and not n in parts[1]:
-                parts[start_component].add(n)
-                if n in friends:
-                    for f in friends[n]:
-                        parts[start_component].add(f)
-                    for f in enemies[n]:
-                        parts[1 - start_component].add(f)
-    
-    for n in friends:
-        for f in friends[n]:
-            swap_together[n].append(f)
-        for f in enemies[n]:
-            swap_together[n].append(f)    
-    
-    return parts, swap_together
+            if not n in processed_nodes:
+                friends[n].append(n)
+                if len (friends[n]) > 1:
+                    f = glue_nodes(C, friends[n])
+                else:
+                    f = friends[n][0]
+                if len (enemies[n]) > 1:
+                    e = glue_nodes(C, enemies[n])
+                else:
+                    e = enemies[n][0]                
+                for n in friends[n]:
+                    processed_nodes.add(n)
+                for n in enemies[n]:
+                    processed_nodes.add(n)
+                parts[start_component].add(f)
+                parts[1 - start_component].add(e)
+                opposite[f] = e
+                opposite[e] = f
+    return parts, opposite
 
+def random_swap(parts, opposite, seed):
+    random.seed(seed)
+    used = set()
+    res = [set(),set()]
+    for ind in range (2):
+        for n in parts[ind]:
+            if not n in used:
+                swap = random.randint(0,1)
+                if swap:
+                    n_ind = 1  - ind
+                else:
+                    n_ind = ind
+                res[n_ind].add(n)
+                res[1 - n_ind].add(opposite[n])
+                used.add(n)
+                used.add(opposite[n])
+    return res
 
+def glue_nodes(C, node_list):
+    new_node = '_'.join(node_list)
+    C.add_node(new_node)
+    for n in node_list:
+        for neighbor in C.neighbors(n):
+            if neighbor not in C.neighbors(new_node):
+                C.add_edge(new_node, neighbor, weight=C.edges[n, neighbor]['weight'])
+            else:
+                C[new_node][neighbor]['weight'] += C.edges[n, neighbor]['weight']
+    C.remove_nodes_from(node_list)
+    return new_node
+
+def unglue_nodes(parts):
+    new_parts = [set(), set()]
+    for ind in range(2):
+        for n in parts[ind]:        
+            original_nodes = n.split('_')
+            for orig in original_nodes:
+                new_parts[ind].add(orig)
+    return new_parts
 
 def optimize_partition(C, parts, swap_together):
     cur_score = score_partition(C, parts)
@@ -291,59 +239,6 @@ def optimize_partition(C, parts, swap_together):
         not_changed += 1
 
     return parts
-
-
-
-#TODO: rewrite, leaving old version for better tests
-def create_initial_partition(C, matchGraph):
-    p1 = []
-    p2 = []
-    for n in sorted(C.nodes()):
-        if n in matchGraph and len(matchGraph.edges(n)) > 0:
-            #TODO: replace with something reasonable! multiple nodes will not work here. Transform each homology component into one node before?.. Anyway, it still should be fixed later with K-L iterations.
-            #TODO: distance from starting vertex in match graph % 2
-            for ec in matchGraph.edges(n): 
-                if matchGraph.edges[ec]['weight'] >= 0:
-                    continue
-                if ec[0] == n and ec[1] in p1:
-                    if n not in p1:
-                        p2.append(n)
-                elif ec[0] == n and ec[1] in p2:
-                    if n not in p2:
-                        p1.append(n)
-                elif ec[1] == n and ec[0] in p1:
-                    if n not in p1:
-                        p2.append(n)
-                elif ec[1] == n and ec[0] in p2:
-                    if n not in p2:
-                        p1.append(n)
-                elif n not in p1 and n not in p2:
-                    if random.random() <= 0.5:
-                        p1.append(n)
-                    else:
-                        p2.append(n)
-
-            if n not in p1 and n not in p2:
-                if random.random() <= 0.5:
-                    p1.append(n)
-                else:
-                    p2.append(n)
-        else:
-            if random.random() <= 0.5:
-                p1.append(n)
-            else:
-                p2.append(n)
-#            print("Initial partitions are %s and %s" % (set(p1), set(p2)))
-    if len(p1) * len(p2) > 0:
-#                    logger.info (f"{len(p1)} {len(p2)} {len(C.nodes())}")
-        #Debug for weird crashes
-        inter = list(set(p1).intersection(p2))
-        missing = set(C.nodes()) - set(p1) - set(p2)
-        if len(inter) > 0:
-            logger.info (f"Intersecting {inter}")
-        if len(missing) > 0:
-            logger.info (f"Missing {missing}")
-    return [set(p1), set(p2)]
 
 def create_graph_to_phase(current_component, G, matchGraph, hicGraph, uneven_depth, edges, dists):
 
@@ -394,13 +289,6 @@ def create_graph_to_phase(current_component, G, matchGraph, hicGraph, uneven_dep
 
     C.remove_nodes_from(short)
     logger.info(f'Currently {C.number_of_nodes()} nodes')
-    # Adding some auxilary vertices to allow slightly unbalanced partitions
-    # sqrt/2 is quite arbitrary and subject to change
-    aux_nodes = int(math.sqrt(C.number_of_nodes() // 2))
-    if C.number_of_nodes() <= 3:
-        aux_nodes = 0
-    for i in range(0, aux_nodes):
-        C.add_node("Aux" + str(i))
     for e in hicGraph.edges(current_component):
         # currently only added edges if these nodes are in the component and not matches (homologous) but should allow links to singletons too (to phase disconnected nodes correctly)
         if e[0] in C and e[1] in C and matchGraph.get_edge_data(e[0], e[1]) == None:
@@ -414,12 +302,6 @@ def create_graph_to_phase(current_component, G, matchGraph, hicGraph, uneven_dep
                 similar_edges[ind].add(e[ind])
 #TODO: likely this is not needed anymore since we already added links between homologous edges.
             C.add_edge(e[0], e[1], weight=hicGraph[e[0]][e[1]]['weight'])
-            #Possibly we'll need to restore tis for backcomp
-#            for e0like in similar_edges[0]:
-#                for e1like in similar_edges[1]:
-#                    if e0like in dists and e1like in dists[e0like]: #and dists[e0like][e1like] < MAX_GRAPH_DIST + G.nodes[e1like]['length']:
-#                        C.add_edge(e[0], e[1], weight=hicGraph[e[0]][e[1]]['weight'])
-#                        break
     logger.info(f'Currently {C.number_of_nodes()} in current component')
     logger.debug(C.nodes())
     if C.number_of_nodes() > 1:
@@ -427,15 +309,8 @@ def create_graph_to_phase(current_component, G, matchGraph, hicGraph, uneven_dep
             if u in C and v in C:
                 if w != None:
                     C.add_edge(u, v, weight=w)
-        res = checkXYcomponent(current_component, matchGraph, G, edges)
-        if res != [0, 0]:
-            sys.stderr.write(f"XY found, {res[0]} {res[1]}, adding fake links\n")
-            if res[0] in C and res[1] in C:
-                C.add_edge(res[0], res[1], weight=-10 * FIXED_WEIGHT)
-                C.add_edge(res[1], res[0], weight=-10 * FIXED_WEIGHT)
         for edge in C.edges:
             logger.debug(f'HIC edge: {edge} {C.edges[edge]}')
-
     return C
 
 def score_partition(C, partition):
@@ -547,12 +422,6 @@ def process_haploid_component(current_component, G, tsv_file, haploid_component_
         for n in nodes_to_report:
             report_phased_node(n, haplotype, tsv_file)
 
-def only_aux(C):
-    for n in C.nodes():
-        if not n.startswith('Aux'):
-            return False
-    return True
-
 def output_graph_stats(G):
     degrees = [val for (node, val) in G.degree()]
     mean = sum(degrees) / G.number_of_nodes()
@@ -575,21 +444,10 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
             old_colors[e] = cur_col
         cur_col += 1
 
-#TODO: no_rdna is false, so efficiently we are still removing rDNA component. Should we?
-    '''
-    if not (no_rdna):
-        #Store rDNA component, not to add additional links from matchGraph
-        #sys.stderr.write(f"Found an rDNA huge component of {len(largest_component)} edges\n")
-        #Here we remove large connected components of short edge, just to exclude rDNA cluster
-        delete_set = gf.remove_large_tangles(G, MAX_SHORT_LEN, MAX_SHORT_COMPONENT,MIN_RDNA_COMPONENT, MAX_RDNA_COMPONENT)
-    else:
-        sys.stderr.write(f"Not using rDNA component removal heuristics\n")
-    '''
     filtered_graph = open(os.path.join(output_dir, FILTERED_GFA_FILENAME), 'w')
     tsv_output = os.path.join(output_dir, RESULT_FILENAME)
     tsv_file = open(tsv_output, 'w')
     tsv_file.write("node\tmat\tpat\tmat:pat\tcolor\n")
-
     translate = open(graph_gfa, 'r')
 
     for line in translate:
@@ -639,18 +497,14 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
     # load hic connections based on mappings, weight corresponds to number of times we see a connection
     hicGraph = gf.loadHiCGraph(hic_byread)
     compressed_file = open(os.path.join(output_dir, HIC_COMPRESSED_FILENAME), 'w')
-    max_w = 0
+
     for node1, node2 in hicGraph.edges():
-        if max_w < hicGraph[node1][node2]["weight"]:
-            max_w = hicGraph[node1][node2]["weight"]
         compressed_file.write(f'X {node1} {node2} {hicGraph[node1][node2]["weight"]}\n')
-    FIXED_WEIGHT = max_w
-    logger.info(f'Constant for homologous edges: {-10 * FIXED_WEIGHT}')
 
     #Adding link between matched edges to include separated sequence to main component
 
     #TODO: only one of those should be used
-    mg = match_graph.MatchGraph(mashmap_sim, G, -10*FIXED_WEIGHT, CLEAR_HOMOLOGY, MIN_ALIGNMENT, logger)
+    mg = match_graph.MatchGraph(mashmap_sim, G, FIXED_HOMOLOGY_WEIGHT, CLEAR_HOMOLOGY, MIN_ALIGNMENT, logger)
     matchGraph = mg.getMatchGraph()
     
     component_colors = gf.getComponentColors(G)
@@ -676,7 +530,8 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
     haploid_component_count = 0
     dists =  dict(nx.all_pairs_dijkstra_path_length(or_G, weight=lambda u, v, d: or_G.edges[u, v]['mid_length']))
     for current_component in sorted(nx.connected_components(G), key=len, reverse=True):
-        logger.info("Connected component with %d nodes is: %s" % (len(current_component), current_component))
+        if len(current_component) > 1:
+            logger.info("Connected component with %d nodes is: %s" % (len(current_component), current_component))
                 
         cleared = remove_pseudo_homology(current_component, or_G, dists, mg)
         #only backward compatibility with KL
@@ -693,15 +548,12 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
         #TODO: cycle for randomized starts        
         #optimize_partition(C, parts, swap_together)
         
-        best_score = - FIXED_WEIGHT * C.number_of_nodes() * C.number_of_nodes()
+        best_score = FIXED_HOMOLOGY_WEIGHT * C.number_of_nodes() * C.number_of_nodes()
         best_part = [set(), set()]
-
+        init_parts, opposite = create_initial_partition_noKL(C, matchGraph)
         for seed in range(0, KLIN_STARTS):  # iterate on starting partition
             random.seed(seed)
-            parts, swap_together = create_initial_partition_noKL(C, matchGraph, seed)
-            if only_aux(C):
-                logger.info("Only aux nodes left in component, skipping")
-                continue            
+            parts = random_swap(init_parts, opposite, seed)
             part = community.kernighan_lin.kernighan_lin_bisection(C, partition=parts, max_iter=KLIN_ITER, weight='weight', seed=seed)
             logger.debug(f"init_part:\n{sorted(part[0])}\n{sorted(part[1])}")
 
@@ -712,6 +564,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                 best_part = part
                 best_score = sum_w
                 logger.debug(f"best_part:\n{sorted(best_part[0])}\n{sorted(best_part[1])}")
+        best_part = unglue_nodes(best_part)
         #try to move relatively short edges to fix case of unbalanced haplo sizes (complex repeats on only one haplo)
 #        best_part = community.kernighan_lin.kernighan_lin_bisection(C, partition=parts, max_iter=KLIN_ITER, weight='weight', seed=seed)
 #        logger.debug(f"parts:\n{sorted(parts[0])}\n{sorted(parts[1])}")
@@ -739,7 +592,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                         total_w += hicGraph[e[0]][e[1]]["weight"]
                 if weights[0] > SIGNIFICANT_MAJORITY * weights[1]:
                     add_part[0].add(n)
-                    logger.info(f"Edge {n} assigned color 0")
+                    logger.debug(f"Edge {n} assigned color 0")
                 elif weights[1] > SIGNIFICANT_MAJORITY * weights[0]:
                     add_part[1].add(n)
                     logger.debug(f"Edge {n} assigned color 1")
@@ -761,7 +614,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                 logger.debug(f"Edge {n} did not pass coverage check")
 
         logger.info(f'Added {len(add_part[0]) + len (add_part[1])} short edges to bipartition')
-        logger.info(f'RES\t{add_part}')
+        logger.info(f'Added short edges\t{add_part}')
         best_part[0].update(add_part[0])
         best_part[1].update(add_part[1])
         for ind in range (0, 2):
