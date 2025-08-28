@@ -186,7 +186,7 @@ class MatchGraph:
         self.logger = logger_wrap.UpdatedAdapter(logger, self.__class__.__name__)
 
         
-        #Do not want to think whether we use diGraph or Graph
+        #Do not want to think whether we use diGraph or Graph, internal structures are not oriented
         neighbours = {}
         indirect_nodes = set()
         for node in G.nodes():
@@ -199,7 +199,6 @@ class MatchGraph:
         for node1 in self.hom_storage.homologies:
             for node2 in self.hom_storage.homologies[node1]:
                 #we deleted some nodes after mashmap
-                #sys.stderr.write(f"Checking {node1} {node2} {self.hom_storage.homologies[node1][node2].getMinCovered()} {min_big_homology}\n")
                 if node1 in indirect_nodes and node2 in indirect_nodes:
                     cur_homology = self.hom_storage.homologies[node1][node2].getCoveredLen()
                     if cur_homology > min_big_homology:
@@ -247,7 +246,7 @@ class MatchGraph:
             else:
                 self.matchGraph.remove_edge(ec[0],ec[1])
 
-        self.logger.info("Loaded match info with %d nodes and %d edges\n" % (self.matchGraph.number_of_nodes(), self.matchGraph.number_of_edges()))
+        self.logger.info("Loaded match info with %d nodes and %d edges" % (self.matchGraph.number_of_nodes(), self.matchGraph.number_of_edges()))
 
         for d in sorted(self.matchGraph.edges()):
             self.logger.debug(f"homology edge {d} : {self.matchGraph.edges[d]}")
@@ -275,6 +274,9 @@ class MatchGraph:
     
     def getEdgeAttribute(self, node1, node2, attr):
         return self.matchGraph.edges[node1, node2][attr]
+
+    def getHomologyLength(self, node1, node2):
+        return self.getEdgeAttribute(node1, node2, 'homology_len')
 
     def isHomologousNodes(self, node1, node2, strict:bool):
         if self.matchGraph.has_edge(node1, node2) and ((not strict) or self.matchGraph.edges[node1, node2]['weight'] < 0):

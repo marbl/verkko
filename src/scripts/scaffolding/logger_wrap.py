@@ -27,8 +27,10 @@ class UpdatedAdapter(logging.LoggerAdapter):
 
 def initLogger(log_file):
     logger = logging.getLogger('HiCPipeline')
-    #        self.logger = ClassNameLoggerAdapter(logger, self.__class__.__name__)
-
+    
+    # Clear any existing handlers to prevent duplication and unexpected behavior
+    logger.handlers.clear()
+    
     logger.setLevel(logging.DEBUG)
     console_handler = logging.StreamHandler()
     console_handler.setLevel(logging.INFO)
@@ -39,4 +41,8 @@ def initLogger(log_file):
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
+    
+    # Prevent propagation to root logger (which might have its own handlers)
+    logger.propagate = False
+    
     return logger
