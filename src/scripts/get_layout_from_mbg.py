@@ -5,6 +5,8 @@ import sys
 import re
 import graph_functions as gf
 
+random.seed(42)
+
 mapping_file = sys.argv[1]
 edge_overlap_file = sys.argv[2]
 
@@ -650,7 +652,7 @@ for contig in sorted(contig_actual_lines.keys()):
 		# we look at randomly placed reads and pick a single location for each one
 		# if we're first we'll select a location, single value between 1 and number of times it's used
 		if line[0] not in read_output_counts:
-			read_output_counts[line[0]] = ("", "", 0)
+			read_output_counts[line[0]] = ("", "", 0, read_actual_counts[line[0]])
 			#sys.stderr.write("For reach %s which occurs %d times in contigs %s we are seing it for the first time in %s and selecting"%(line[0], read_actual_counts[line[0]], str(read_actual_contigs[line[0]]), contig))
 			if len(read_actual_contigs[line[0]]) <= 1:
 				#sys.stderr.write(" read is used %d times in %s contigs so placing everywhere "%(read_actual_counts[line[0]], str(read_actual_contigs[line[0]])))
@@ -659,12 +661,12 @@ for contig in sorted(contig_actual_lines.keys()):
 				read_actual_counts[line[0]] =  random.randint(1, read_actual_counts[line[0]])
 			#sys.stderr.write(" position %d\n"%(read_actual_counts[line[0]]))
 		#check if we are we right instance
-		read_output_counts[line[0]] = (read_output_counts[line[0]][0], read_output_counts[line[0]][1], read_output_counts[line[0]][2] + 1)
+		read_output_counts[line[0]] = (read_output_counts[line[0]][0], read_output_counts[line[0]][1], read_output_counts[line[0]][2] + 1, read_output_counts[line[0]][3])
 		#sys.stderr.write("The count for read %s is now %s\n"%(line[0], str(read_output_counts[line[0]])))
 		if read_actual_counts[line[0]] > 0 and read_output_counts[line[0]][2] != read_actual_counts[line[0]]: continue
 
 		# record the contig and coordinate we will use
-		read_output_counts[line[0]] = (contig, line[1], read_actual_counts[line[0]])
+		read_output_counts[line[0]] = (contig, line[1], read_actual_counts[line[0]], read_output_counts[line[0]][3])
 		start_pos = min(start_pos, line[1])
 		start_pos = min(start_pos, line[2])
 		end_pos = max(end_pos, line[1])
@@ -685,7 +687,7 @@ for contig in sorted(contig_actual_lines.keys()):
 		end = line[2] - start_pos
 		#sys.stderr.write("For read %s which has been selected to be in position %s we are expecting %d\n"%(line[0], str(read_output_counts[line[0]]), read_actual_counts[line[0]]))
 		if read_actual_counts[line[0]] < 0 or (read_output_counts[line[0]][0] == contig and read_output_counts[line[0]][1] == line[1]):
-			print(f"{line[0]}\t{bgn}\t{end}", file=tig_layout_file)
+			print(f"{line[0]}\t{bgn}\t{end}\t{read_output_counts[line[0]][3]}", file=tig_layout_file)
 	print(f"end", file=tig_layout_file)
 
 tig_layout_file.close()

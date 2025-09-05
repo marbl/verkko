@@ -28,7 +28,7 @@ def combineConsensusI(wildcards):
 def combineConsensusP(wildcards):
     return expand(            "packages/part{nnnn}.fasta", nnnn = glob_wildcards("7-consensus/packages/part{xxxx}.cnspack").xxxx)
 def combineConsensusB(wildcards):
-    return expand(            "packages/part{nnnn}.bam*.bam", nnnn = glob_wildcards("7-consensus/packages/part{xxxx}.cnspack").xxxx) 
+    return expand(            "packages/part{nnnn}.bam*.bam", nnnn = glob_wildcards("7-consensus/packages/part{xxxx}.cnspack").xxxx)
 
 rule combineConsensus:
     input:
@@ -36,7 +36,7 @@ rule combineConsensus:
         tigmap    = rules.buildPackages.output.tigmap,
         scfmap    = rules.layoutContigs.output.scfmap,
         layout    = rules.layoutContigs.output.layout,
-        ontalns   = rules.generateLayoutContigsInputs.output.ontalns,
+        ontalns   = rules.generateLayoutContigsInputs.output.ontgapaln if config['withONT'] == "True" else {rules.emptyfile.output},
         hificov   = rules.verkko.input.hifi5cov,
         finished  = rules.buildPackages.output.finished,
         pathstsv  = rules.rukki.output.pathstsv if config['ruk_enable'] == "True" else rules.emptyfile.output,
@@ -65,8 +65,8 @@ rule combineConsensus:
     resources:
         job_id = 1,
         n_cpus = 8,
-        mem_gb = lambda wildcards, input, attempt: getAlignMemoryRequest(attempt, 2, input.packcns),
-        time_h = 4
+        mem_gb = lambda wildcards, input, attempt: getAlignMemoryRequest(attempt, 5, input.packcns),
+        time_h = 48
     shell:
         '''
 cd 7-consensus
@@ -82,8 +82,8 @@ if [ -e ../../label2 ] ; then label2=`cat ../../label2` ; fi
 
 
 cat > ./combineConsensus.sh <<EOF
-#!/bin/sh
-set -e
+#!/bin/bash
+set -e -o pipefail
 
 
 echo "--------------------"
@@ -121,7 +121,8 @@ if [ "{params.haveBAM}" = "True" ]; then
    echo "--------------------"
    echo "Combining consensus bam results."
    echo ""
-   mem_per_core=\`expr {resources.mem_gb} \/ {threads} | awk '{{if (\$1 < 1) print "1G"; else print \$1"G"}}'\`
+   mem_per_core=\`(expr \( {resources.mem_gb} \* 70 \) / \( 100 \* {threads} \) | awk '{{if (\$1 < 1) print "1G"; else print \$1"G"}}') || true\`
+   rm -f ../{output.bam}.tmp.*
 
    {params.SAMTOOLS} merge -f -O bam --reference combined.fasta -@{threads} -u - {params.packbam} | {PYTHON} {VERKKO}/scripts/bam_rename.py ../{input.layout} ../{input.ontalns} ../{input.scfmap} ../{input.tigmap} {params.packcns} | {params.SAMTOOLS} sort -m \$mem_per_core -@{threads} -o ../{output.bam}
 else

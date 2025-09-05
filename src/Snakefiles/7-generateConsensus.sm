@@ -34,7 +34,9 @@ rule generateConsensus:
     params:
         ont_ids    = lambda wildcards: getNumLines({rules.extractONT.output.ont_subset_id}) if config['withONT'] == "True" else 0,
         bam        = '7-consensus/packages/part{nnnn}.bam' if config['withBAM'] == "True" else rules.emptyfile.output,
-        minread    = config['cor_min_read']
+        minread    = config['cor_min_read'],
+        iterations = config['cns_num_iter'],
+        coverage   = config['cns_max_cov']
     threads:
         int(config['cns_n_cpus']),
     resources:
@@ -67,11 +69,11 @@ fi
     -threads {threads} \\\\
     -import ../{input.package} \\\\
     -A ../{output.consensus}.WORKING \\\\
-    -C 2 \\\\
+    -I {params.iterations} -C 2 \\\\
     \$align \\\\
-    -maxcoverage 50 \\\\
+    -maxcoverage {params.coverage} \\\\
     -e  0.05 \\\\
-    -em 0.20 \\\\
+    -em 0.10 \\\\
     -EM {params.ont_ids} \\\\
     -l \$minread \\\\
     -edlib \\\\

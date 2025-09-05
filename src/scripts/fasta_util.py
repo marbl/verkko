@@ -144,6 +144,7 @@ def replaceName(name, namedict, mode):
 #
 def readScfMap(filename):
   scfmap  = dict()
+  names   = dict()
   ctgname = ""
   ctglist = []
 
@@ -153,11 +154,13 @@ def readScfMap(filename):
 
       if words[0] == "path":
         ctgname = words[1]
+        path    = words[2]
         ctglist = []
       elif words[0] == "end":
         scfmap[ctgname] = ctglist
+        names[ctgname]  = path
       else:
         ctglist.append(words[0])
 
-  return(scfmap)
+  return(scfmap, names)
 

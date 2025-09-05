@@ -16,7 +16,7 @@ def check_alns(current_tig, current_len, current_alns):
 		if current_start > last_end:
 			print(current_tig + "\t" + str(last_end) + "\t" + str(current_start) + " (len " + str(current_len) + ")")
 		if current_start < 0 or current_end > current_len:
-			print("layout outside contig: " + current_tig + "\t" + current_start + "\t" + current_end + "\t" + " (len " + str(current_len) + ")")
+			print("layout outside contig: " + current_tig + "\t" + str(current_start) + "\t" + str(current_end) + "\t" + " (len " + str(current_len) + ")")
 		last_end = max(last_end, current_end)
 	if last_end < current_len:
 		print(current_tig + "\t" + str(last_end) + "\t" + str(current_len) + " (len " + str(current_len) + ")")

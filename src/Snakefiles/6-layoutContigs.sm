@@ -53,6 +53,7 @@ rule generateLayoutContigsInputs:
         edges      = '6-layoutContigs/combined-edges.gfa',
         hifialns   = '6-layoutContigs/hifi.alignments.gaf',
         ontalns    = '6-layoutContigs/ont.alignments.gaf',
+        ontgapaln  = '6-layoutContigs/ont-gapfill.txt',
         paths      = '6-layoutContigs/consensus_paths.txt',
         lengths    = '6-layoutContigs/nodelens.txt'
     log:
@@ -91,8 +92,8 @@ cat {params.aligns} ../{input.paths} | sed 's/^/hifi_/' \\\\
 cat ../{input.ontgaps} | sed 's/^/ont_/' >> ../{output.hifialns}
 
 # now get the ONT alignments, again prepending ont_ but ignoring any reads we've already included due to it being used as a gap fill
-cat ../{input.ontgaps} |cut -f 1 > ../6-layoutContigs/ont-gapfill.txt
-{PYTHON} {VERKKO}/scripts/replace_path_nodes.py ../{input.ontalns} ../{output.nodemap} |grep -F -v -w -f ../6-layoutContigs/ont-gapfill.txt | sed 's/^/ont_/' > ../{output.ontalns} || true
+cat ../{input.ontgaps} |cut -f 1 > ../{output.ontgapaln}
+{PYTHON} {VERKKO}/scripts/replace_path_nodes.py ../{input.ontalns} ../{output.nodemap} |grep -F -v -w -f ../{output.ontgapaln} | sed 's/^/ont_/' > ../{output.ontalns} || true
 
 cat ../{input.graph} \\\\
 | awk 'BEGIN \\\\
@@ -144,6 +145,7 @@ rule layoutContigs:
     output:
         layout     = rules.verkko.input.layout,
         scfmap     = rules.verkko.input.scfmap,
+        dropped    = '6-layoutContigs/unitig-popped.layout.scfmap.dropped',
         gaps       = '6-layoutContigs/gaps.txt'
     params:
        haveONT     = config['withONT'],
@@ -180,15 +182,18 @@ fi
   ../{input.paths} \\\\
   ../{input.lengths} \\\\
   ../6-layoutContigs/unitig_initial.layout \\\\
-  ../{output.scfmap}
+  ../6-layoutContigs/unitig_initial.layout.scfmap
 
 if [ "{params.haveONT}" = "True" ] && [ "{params.haveBAM}" = "True" ]; then
+   cp ../6-layoutContigs/unitig_initial.layout.scfmap.dropped ../{output.dropped}
    {PYTHON} {VERKKO}/scripts/merge_layouts.py \\\\
         ../6-layoutContigs/unitig_initial.layout \\\\
         ../{input.ontalns} \\\\
-        > ../{output.layout}
+        ../{output.layout}
 else
-   cp ../6-layoutContigs/unitig_initial.layout  ../{output.layout}
+   cp ../6-layoutContigs/unitig_initial.layout.scfmap.dropped ../{output.dropped}
+   cp ../6-layoutContigs/unitig_initial.layout.scfmap         ../{output.scfmap}
+   cp ../6-layoutContigs/unitig_initial.layout                ../{output.layout}
 fi
 
 {PYTHON} {VERKKO}/scripts/check_layout_gaps.py < ../{output.layout} > ../{output.gaps}

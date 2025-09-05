@@ -77,9 +77,10 @@ def getAlignMemoryRequest(attempt, factor, files):
    mem = float(config['ali_mem_gb'])
 
    sum = 0
-   for filename in files:
-      if os.path.exists(filename):
-         sum += os.path.getsize(filename)
+   for wildcard in files:
+      for filename in glob.glob(wildcard):
+         if os.path.exists(filename):
+            sum += os.path.getsize(filename)
    if sum > 0:
       mem = factor * sum / 1024 / 1024 / 1024
 
@@ -141,7 +142,7 @@ def getConsensusMemoryRequest(attempt, jobid):    #  Figure out what partitionin
             for l in f:
                words = l.strip().split();
                if jobid == words[5]:
-                  mem = max(mem, 5.0 + 0.80 * float(words[4]))
+                  mem = max(mem, 5.0 + 0.90 * float(words[4]))
 
    return int(math.ceil(math.ceil(mem)*scl))
 
