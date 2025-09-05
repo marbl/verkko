@@ -44,9 +44,9 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt-get update
-        mamba install -c conda-forge -c bioconda 'python=3.11' 'pulp<=2.7.0' 'snakemake-minimal>7,<8' GraphAligner mashmap winnowmap
-        sudo apt-get install gcc-11 g++-11 libcurl4-openssl-dev liblzma-dev libbz2-dev
-        pip install networkx
+        mamba install -c conda-forge -c bioconda 'python=3.11' 'pulp<=2.7.0' 'snakemake-minimal>7,<8' GraphAligner mashmap winnowmap samtools seqtk
+        sudo apt-get install gcc-11 g++-11 libcurl4-openssl-dev liblzma-dev libbz2-dev bamtools libbamtools-dev
+        pip install networkx pysam
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100
         sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 100
 
@@ -73,6 +73,10 @@ jobs:
         echo >> x.py "G = nx.Graph()"
         echo >> x.py "print(G)"
         python x.py
+
+        echo ""
+        echo "BAMTOOLS TEST"
+        echo "  "`command -v bamtools`
 
     - name: Compile
       run: |
@@ -120,10 +124,12 @@ jobs:
         echo  > lib/verkko/bin/utgcns '#!/bin/sh'
         echo >> lib/verkko/bin/utgcns 'if [ ! -e part001.fasta ]; then'
         echo >> lib/verkko/bin/utgcns 'cp ../../cache/part001.fasta packages/part001.fasta.WORKING'
+        echo >> lib/verkko/bin/utgcns 'samtools dict ../../cache/part001.fasta | samtools view -b -S > packages/part001.bam00000002.bam'
         echo >> lib/verkko/bin/utgcns 'fi'
         echo >> lib/verkko/bin/utgcns ''
         echo >> lib/verkko/bin/utgcns 'if [ ! -e part002.fasta ]; then'
         echo >> lib/verkko/bin/utgcns 'cp ../../cache/part002.fasta packages/part002.fasta.WORKING'
+        echo >> lib/verkko/bin/utgcns 'samtools dict ../../cache/part002.fasta | samtools view -b -S > packages/part002.bam00000001.bam'
         echo >> lib/verkko/bin/utgcns 'fi'
         
         chmod 755 mbg.sh
