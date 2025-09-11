@@ -121,8 +121,6 @@ pieceid = 0
 #all these contains info about contigs - here nodes or rukki paths splitted by N
 #paths are transformed into mbg nodes and gaps with get_leafs procedure
 contig_lens = {}
-contig_nodeseqs = {}
-contig_nodeoverlaps = {}
 contig_node_offsets = {}
 contig_pieces = {}
 with open(paths_file) as f:
@@ -155,14 +153,16 @@ with open(paths_file) as f:
 			if len(path) == 1 and path[0][0][1:4] == "gap":
 				continue
 
-			contig_nodeseqs[pathname] = path
-			contig_nodeoverlaps[pathname] = overlaps
 			contig_node_offsets[pathname] = []
+			contig_offsets = {}
 			pos = 0
+			end = -1
 			for i in range(0, len(path)-1):
 				contig_node_offsets[pathname].append(pos)
+				contig_offsets[path[i][0]] = pos
 				pos += path[i][2] - path[i][1]
 				pos -= overlaps[i]
+			contig_offsets[path[-1][0]] = pos
 			contig_node_offsets[pathname].append(pos)
 			contig_lens[pathname] = contig_node_offsets[pathname][-1] + path[-1][2] - path[-1][1]
 			check_len = 0
@@ -172,23 +172,32 @@ with open(paths_file) as f:
 			assert contig_lens[pathname] == check_len
 			pathstr = ""
 			for i in range(0, len(path)):
-				pathstr += path[i][0] # + ":" + str(path[i][1]) + ":" + str(path[i][2]) + "(" + str(contig_node_offsets[pathname][i]) + ")"
-				if path[i][1] != 0 or path[i][2] != raw_node_lens[path[i][0][1:]]:
-					new_name = ""
+				assert path[i][0] in contig_offsets
+				# build a name using the contig without the <> but also append coordinates if it's partial match to check for cut node
+				# if a cut version exists, use that name instead, otherwise use the original node name
+				new_name = path[i][0][1:]
+				if path[i][1] != 0 or path[i][2] != raw_node_lens[new_name]:
 					if path[i][0][0] == ">":
 						new_name = path[i][0][1:] + ":" + str(path[i][1]) + ":" + str(path[i][2])
 					else:
-						new_name = path[i][0][1:] + ":" + str(raw_node_lens[path[i][0][1:]]-path[i][2]) + ":" + str(raw_node_lens[path[i][0][1:]]-path[i][1])
+						new_name = path[i][0][1:] + ":" + str(raw_node_lens[new_name]-path[i][2]) + ":" + str(raw_node_lens[new_name]-path[i][1])
+					if new_name not in cut_mapping:
+						new_name = path[i][0][1:] 
+
+				# when we see the name in our path already and the offset is earlier than the largest we have already seen, this is an overlap
+				# we skip these overlapping nodes from the path and continue at the new unique/larger offset node
+				if contig_offsets[path[i][0]] <= end and new_name in pathstr:
+					continue
+				end = contig_offsets[path[i][0]]
+				if path[i][1] != 0 or path[i][2] != raw_node_lens[path[i][0][1:]]:
 					if (new_name in cut_mapping):
-						pathstr += "_" + cut_mapping[new_name].strip().split("_")[-1]
-				#if i < len(path)-1: pathstr += "-" + str(overlaps[i])
-			#sys.stdout.write(pathname + "\t" + pathstr + "\n")
+						pathstr += path[i][0] + "_" + cut_mapping[new_name].strip().split("_")[-1]
+					else:
+						pathstr += path[i][0]
+				else:
+					pathstr += path[i][0]
 			contig_pieces[fullname].append(pathstr)
-
-
-		#contig_pieces[fullname].append("end")
 
 for fullname in contig_pieces:		
 	if "name" in fullname: continue
 	sys.stdout.write(fullname + "\t" + "".join(contig_pieces[fullname]) + "\n")
-
