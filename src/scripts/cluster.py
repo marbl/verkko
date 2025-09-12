@@ -121,7 +121,8 @@ def create_initial_partition_noKL(C, matchGraph):
                         neg_graph.add_node(ec[i])
                 neg_graph.add_edge(ec[0], ec[1])
         elif (ec[0] in C or ec[1] in C) and matchGraph.edges[ec]['weight'] < 0:
-            logger.warning(f"Weird, edge {ec} partially in component{C}")
+            #This may happen since we delete high-covered nodes, although should not be often
+            logger.info(f"Weird, edge {ec} partially in component{C}")
             #exit(1)
     dists = dict(nx.all_pairs_shortest_path_length(neg_graph))
     #friends - should always be in the same component
@@ -544,13 +545,20 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
             continue
 
         C = create_graph_to_phase(current_component, G, matchGraph, hicGraph, uneven_depth, edges, dists)
-
-        #TODO: cycle for randomized starts        
+        if len(C.nodes) == 1:
+            continue
+        #TODO: cycle for randomized starts
         #optimize_partition(C, parts, swap_together)
         
         best_score = FIXED_HOMOLOGY_WEIGHT * C.number_of_nodes() * C.number_of_nodes()
         best_part = [set(), set()]
         init_parts, opposite = create_initial_partition_noKL(C, matchGraph)
+        if len(init_parts[0]) == 0 or len(init_parts[1]) == 0:
+            logger.warning(f"Trying to phase component with empty set in initial partition, reporting it as haploid")
+            #May happen in weird cases of uneven coverage when some nodes from connected_component are removed from C
+            haploid_component_count += 1
+            process_haploid_component(current_component, G, tsv_file, haploid_component_count)
+            continue
         for seed in range(0, KLIN_STARTS):  # iterate on starting partition
             random.seed(seed)
             parts = random_swap(init_parts, opposite, seed)
@@ -624,7 +632,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
                     report_phased_node(contig, ind, tsv_file)
         for contig in sorted(only_weights.keys()):
             tsv_file.write(f'{contig}\t{only_weights[contig][0]}\t{only_weights[contig][1]}\t{only_weights[contig][0]}:{only_weights[contig][1]}\t#88FF88\n')
-
+    logger.info("Phasing successfully finished")
 
 if __name__ == "__main__":
     if len(sys.argv) != 7:
