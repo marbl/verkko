@@ -154,15 +154,12 @@ with open(paths_file) as f:
 				continue
 
 			contig_node_offsets[pathname] = []
-			contig_offsets = {}
 			pos = 0
 			end = -1
 			for i in range(0, len(path)-1):
 				contig_node_offsets[pathname].append(pos)
-				contig_offsets[path[i][0]] = pos
 				pos += path[i][2] - path[i][1]
 				pos -= overlaps[i]
-			contig_offsets[path[-1][0]] = pos
 			contig_node_offsets[pathname].append(pos)
 			contig_lens[pathname] = contig_node_offsets[pathname][-1] + path[-1][2] - path[-1][1]
 			check_len = 0
@@ -172,7 +169,6 @@ with open(paths_file) as f:
 			assert contig_lens[pathname] == check_len
 			pathstr = ""
 			for i in range(0, len(path)):
-				assert path[i][0] in contig_offsets
 				# build a name using the contig without the <> but also append coordinates if it's partial match to check for cut node
 				# if a cut version exists, use that name instead, otherwise use the original node name
 				new_name = path[i][0][1:]
@@ -182,13 +178,14 @@ with open(paths_file) as f:
 					else:
 						new_name = path[i][0][1:] + ":" + str(raw_node_lens[new_name]-path[i][2]) + ":" + str(raw_node_lens[new_name]-path[i][1])
 					if new_name not in cut_mapping:
-						new_name = path[i][0][1:] 
+						new_name = path[i][0][1:]
 
 				# when we see the name in our path already and the offset is earlier than the largest we have already seen, this is an overlap
 				# we skip these overlapping nodes from the path and continue at the new unique/larger offset node
-				if contig_offsets[path[i][0]] <= end and new_name in pathstr:
+				#sys.stderr.write("Checking node %s with coordinates %d-%d and offset is %d vs %d and is already used is %d\n"%(path[i][0], path[i][1], path[i][2], (contig_node_offsets[pathname][i]-path[i][1]), end, (new_name in pathstr)))
+				if (contig_node_offsets[pathname][i]-path[i][1]) <= end and new_name in pathstr:
 					continue
-				end = contig_offsets[path[i][0]]
+				end = contig_node_offsets[pathname][i]-path[i][1]
 				if path[i][1] != 0 or path[i][2] != raw_node_lens[path[i][0][1:]]:
 					if (new_name in cut_mapping):
 						pathstr += path[i][0] + "_" + cut_mapping[new_name].strip().split("_")[-1]
