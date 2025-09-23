@@ -308,6 +308,7 @@ def topological_sort(nodelens, edges):
                 assert belongs_to_component[edge[0]] >= belongs_to_component[node]
     return (result, belongs_to_component)
 
+#Likely not used anymore
 def loadHiCGraph(hic_byread_file):
     hicGraph = nx.Graph()
     hic_file = open(hic_byread_file, 'r')

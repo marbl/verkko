@@ -3,13 +3,15 @@ import networkx as nx
 import graph_functions as gf
 import sys
 from scaffolding import logger_wrap
-
 #classes for matchGraph construction
+
+#TODO: only filtered intervals are really used. So we will fail for genomes with diverged haplotypes...
 class HomologyInfo:
     #when counting approximate positions, do not allow jumps longer than this * neighboring intervals_lens
     JUMP_JOINING_FRACTION = 0.5
     #DO not want huge jumps anyway
     JUMP_JOINING_ABSOLUTE = 5000000
+    FILTERED_IDY_CUTOFF = 0.995
 
     def __init__(self, node1, node2, len1, len2, logger):
         self.nodes = [node1, node2]
@@ -33,7 +35,7 @@ class HomologyInfo:
     def addInterval(self, intervals, orientation, idy):
         real_idy = self.parseIDY(idy)
         #Constant not depending on genome, intervals too similar for hi-c alignment to use
-        if real_idy > 0.995:
+        if real_idy > self.FILTERED_IDY_CUTOFF:
             for i in range(0, 2):
                 self.filtered_intervals[i].append(intervals[i])
 
@@ -47,6 +49,13 @@ class HomologyInfo:
             self.largest_interval = int_len
             self.orientation = orientation
             self.largest_interval_center = [(intervals[0][1] + intervals[0][0])/2, (intervals[1][1] + intervals[1][0])/2]
+
+    def isInFilteredInterval(self, coord1, coord2):
+        for i in range(0, 2):
+            for interval in self.filtered_intervals[i]:
+                if interval[0] <= coord1 <= interval[1] and interval[0] <= coord2 <= interval[1]:
+                    return True
+        return False
 
 #TODO: whether we should use orientation.
     def fillCoverage(self):
@@ -110,7 +119,7 @@ class HomologyInfo:
         return min(self.len[0], self.len[1])
 
 class HomologyStorage:
-    #{node1: {node2: HomologyInfo(node_1, node_2)}}
+    #{node1: {node2: HomologyInfo(node_1, node_2)}}    
     def __init__(self, logger, mashmap_file, min_alignment):
         self.homologies = {}   
         self.lens = {}
@@ -133,6 +142,7 @@ class HomologyStorage:
                 continue
             used_lines +=1
             #utig4-0 2145330 0       990000  +       utig4-0 2145330 12      994065  37      994053  51      id:f:0.999992   kc:f:0.874893
+            
             self.addHomology(arr[0], arr[5], int(arr[1]), int(arr[6]), [[int(arr[2]), int(arr[3])], [int(arr[7]), int(arr[8])]], arr[4], arr[12])
         self.logger.info(f"Loaded {used_lines} out of {total_lines} mashmap lines")
         self.logger.info(f"{len(self.homologies)} nodes have at least one used homology")
@@ -162,6 +172,13 @@ class HomologyStorage:
     def getLength(self, node):
         return self.lens[node]
 
+    def isInFilteredInterval(self, node1, node2, coord1, coord2):
+        if not self.isValid(node1, node2):
+            return False
+        if self.homologies[node1][node2].isInFilteredInterval(coord1, coord2):
+            return True        
+        return False
+    
     def getApproximatePositionLength(self, node1, node2, ind):
         if not self.isValid(node1, node2):
             return 0        

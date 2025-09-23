@@ -34,6 +34,8 @@ FIXED_HOMOLOGY_WEIGHT = -1000000  # best result so far with 100000 #currently re
 
 MAX_RDNA_COMPONENT = 10000000 # maximal size of rDNA component, used for filtering out rDNA cluster only
 MIN_RDNA_COMPONENT = 500000 
+
+
 logger = logger_wrap.initLogger("phasing.log")
 
 
@@ -292,7 +294,7 @@ def create_graph_to_phase(current_component, G, matchGraph, hicGraph, uneven_dep
     logger.info(f'Currently {C.number_of_nodes()} nodes')
     for e in hicGraph.edges(current_component):
         # currently only added edges if these nodes are in the component and not matches (homologous) but should allow links to singletons too (to phase disconnected nodes correctly)
-        if e[0] in C and e[1] in C and matchGraph.get_edge_data(e[0], e[1]) == None:
+        if e[0] in C and e[1] in C and (matchGraph.get_edge_data(e[0], e[1]) == None or matchGraph.get_edge_data(e[0], e[1])['weight'] == 0):
             # if edges are too distant in graph, hi-c info is trash
             # using homologous edges when counting distances to help with coverage gaps
             similar_edges = [set(), set()]
@@ -308,7 +310,8 @@ def create_graph_to_phase(current_component, G, matchGraph, hicGraph, uneven_dep
     if C.number_of_nodes() > 1:
         for u, v, w in matchGraph.edges.data("weight"):
             if u in C and v in C:
-                if w != None:
+                #No more clearing of links between nonhomologous nodes with similar regions.
+                if w != None and w != 0:
                     C.add_edge(u, v, weight=w)
         for edge in C.edges:
             logger.debug(f'HIC edge: {edge} {C.edges[edge]}')
@@ -431,7 +434,43 @@ def output_graph_stats(G):
     logger.info("Loaded a graph with %d nodes and %d edges avg degree %f and stdev %f max is %f" % (
     G.number_of_nodes(), G.number_of_edges(), mean, res, mean + 5 * res))
 
-def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, uneven_depth):
+def loadHiCWithFiltering(hic_byread, mashmap_nonhpc, min_alignment):
+    #mashmap line:  utig4-345       198652527       104460000       104510000       +       utig4-838       52114952        34308831        34345700        7       50000   13      id:f:0.951746   kc:f:0.940909
+    hicGraph = nx.Graph()
+    nonhpcHomology = match_graph.HomologyStorage(logger, mashmap_nonhpc, min_alignment)
+    hic_file = open(hic_byread, 'r')
+    for line in hic_file:
+        if "#" in line:
+            continue
+        line = line.strip().split()        
+        if len(line) < 3:
+            continue
+        #introducing multimappers
+        if line[1].find(",") != -1 or line[2].find(",") != -1:
+            continue
+        if line[1] == line[2]:
+            continue        
+        hicGraph.add_node(line[1])
+        hicGraph.add_node(line[2])
+        if len(line) == 6:
+            first_coord = int(line[4])
+            second_coord = int(line[5])
+            if nonhpcHomology.isInFilteredInterval(line[1], line[2], first_coord, second_coord):
+                continue
+        if len(line) > 3:
+            add_w = int(line[3])
+        else:
+            add_w = 1
+        w = hicGraph.get_edge_data(line[1], line[2], 0)
+        if w == 0:
+            hicGraph.add_edge(line[1], line[2], weight=add_w)
+        else:
+            w = w['weight'] + add_w
+            hicGraph[line[1]][line[2]]['weight'] = w
+    return hicGraph
+
+#We use nonhpc_mashmap for read filtering and hpc_mashmap for homology detection. Cound use nonhpc for both, but then there'll be hpc/nonhpc length-related issues
+def run_clustering (graph_gfa, hpc_mashmap, nonhpc_mashmap, hic_byread, output_dir, no_rdna, uneven_depth):
     G = nx.Graph()
     gf.load_indirect_graph(graph_gfa, G)
     output_graph_stats(G)
@@ -493,10 +532,10 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
         logger.info(f"Will not use coverage based homozygous nodes detection")
     else:
         logger.info(f"Will use coverage based homozygous nodes detection, cutoff: {MAX_COV}")
-        
- 
+         
     # load hic connections based on mappings, weight corresponds to number of times we see a connection
-    hicGraph = gf.loadHiCGraph(hic_byread)
+    hicGraph = loadHiCWithFiltering(hic_byread, nonhpc_mashmap, MIN_ALIGNMENT)
+    #hicGraph = gf.loadHiCGraph(hic_byread)
     compressed_file = open(os.path.join(output_dir, HIC_COMPRESSED_FILENAME), 'w')
 
     for node1, node2 in hicGraph.edges():
@@ -505,7 +544,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
     #Adding link between matched edges to include separated sequence to main component
 
     #TODO: only one of those should be used
-    mg = match_graph.MatchGraph(mashmap_sim, G, FIXED_HOMOLOGY_WEIGHT, CLEAR_HOMOLOGY, MIN_ALIGNMENT, logger)
+    mg = match_graph.MatchGraph(hpc_mashmap, G, FIXED_HOMOLOGY_WEIGHT, CLEAR_HOMOLOGY, MIN_ALIGNMENT, logger)
     matchGraph = mg.getMatchGraph()
     
     component_colors = gf.getComponentColors(G)
@@ -635,7 +674,7 @@ def run_clustering (graph_gfa, mashmap_sim, hic_byread, output_dir, no_rdna, une
     logger.info("Phasing successfully finished")
 
 if __name__ == "__main__":
-    if len(sys.argv) != 7:
-        print(f'Usage: {sys.argv[0]} graph.gfa homologous_nodes.matches hic_byread output_dir, no_rdna, uneven_depth')
+    if len(sys.argv) != 8:
+        print(f'Usage: {sys.argv[0]} graph.gfa hpc.mashmap nonhpc.mashmap hic_byread output_dir no_rdna uneven_depth')
         exit()
-    run_clustering(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6])
+    run_clustering(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6], sys.argv[7])
