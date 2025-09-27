@@ -6,7 +6,7 @@ import math
 import os
 from networkx.algorithms import community
 import graph_functions as gf
-from scaffolding import match_graph, logger_wrap
+from scaffolding import match_graph
 
 
 #TODO: move constants to some more relevant place
@@ -35,8 +35,6 @@ FIXED_HOMOLOGY_WEIGHT = -1000000  # best result so far with 100000 #currently re
 MAX_RDNA_COMPONENT = 10000000 # maximal size of rDNA component, used for filtering out rDNA cluster only
 MIN_RDNA_COMPONENT = 500000 
 
-
-logger = logger_wrap.initLogger("phasing.log")
 
 
 def check_non_empty(part, G):
@@ -98,11 +96,11 @@ def getMedianCov(nodeset):
     sum_l = 0
     sorted_nodes = sorted(nodeset, key=lambda node: node[1]['coverage'])
     for node in sorted_nodes:
-        logger.debug(f'Node {node[0]} coverage {node[1]["coverage"]} length {node[1]["length"]}')
+        logging.debug(f'Node {node[0]} coverage {node[1]["coverage"]} length {node[1]["length"]}')
         sum_l += node[1]['length']
         if 2*sum_l > total_length:
             med_cov = node[1]['coverage']
-            logger.info(f'Median coverage is {med_cov}')
+            logging.info(f'Median coverage is {med_cov}')
             break
     return med_cov
 
@@ -124,7 +122,7 @@ def create_initial_partition_noKL(C, matchGraph):
                 neg_graph.add_edge(ec[0], ec[1])
         elif (ec[0] in C or ec[1] in C) and matchGraph.edges[ec]['weight'] < 0:
             #This may happen since we delete high-covered nodes, although should not be often
-            logger.info(f"Weird, edge {ec} partially in component{C}")
+            logging.info(f"Weird, edge {ec} partially in component{C}")
             #exit(1)
     dists = dict(nx.all_pairs_shortest_path_length(neg_graph))
     #friends - should always be in the same component
@@ -142,8 +140,8 @@ def create_initial_partition_noKL(C, matchGraph):
                         friends[n].append(other)
                     else:
                         enemies[n].append(other)
-            logger.debug(f"Friends of {n}: {friends[n]}")
-            logger.debug(f"Enemies of {n}: {enemies[n]}")
+            logging.debug(f"Friends of {n}: {friends[n]}")
+            logging.debug(f"Enemies of {n}: {enemies[n]}")
     parts = [set(), set()]
     C_nodes = list(C.nodes())
     processed_nodes = set()
@@ -152,7 +150,7 @@ def create_initial_partition_noKL(C, matchGraph):
         #lets remove non-homologous nodes
         if not n in enemies and n.find("Aux") == -1:
             C.remove_node(n)
-            logger.debug(f"Removing node {n}")
+            logging.debug(f"Removing node {n}")
         else:
             start_component = random.randint(0, 1)
             if not n in processed_nodes:
@@ -228,7 +226,7 @@ def optimize_partition(C, parts, swap_together):
         for n in all_nodes:
 
             score_change = score_swap(C, parts, swap_together[n])
-            logger.debug(f"Trying to move {n} and its neighbors {swap_together[n]}, old_score {cur_score}, swap score {score_change}") 
+            logging.debug(f"Trying to move {n} and its neighbors {swap_together[n]}, old_score {cur_score}, swap score {score_change}") 
             if score_change > 0:
                 upd_score = cur_score + score_change
                 for swap_node in swap_together[n]:
@@ -238,7 +236,7 @@ def optimize_partition(C, parts, swap_together):
                             parts[j].remove(swap_node)
                             break
                 not_changed = 0
-                logger.debug(f"Moved {n} and its neighbors {swap_together[n]},improving score")
+                logging.debug(f"Moved {n} and its neighbors {swap_together[n]},improving score")
         not_changed += 1
 
     return parts
@@ -265,10 +263,10 @@ def create_graph_to_phase(current_component, G, matchGraph, hicGraph, uneven_dep
             sys.stderr.write("Error, got a node not in original graph %s !" % (n))
             sys.exit()
         if G.nodes[n]['coverage'] > local_max_cov and (not uneven_depth):
-            logger.debug("While partitoning dropping node %s coverage too high" % (n))
+            logging.debug("While partitoning dropping node %s coverage too high" % (n))
             short.append(n)
         elif not (n in matchGraph) and uneven_depth:
-            logger.info("While partitoning dropping node %s uneven coverage and no matches" % (n))
+            logging.info("While partitoning dropping node %s uneven coverage and no matches" % (n))
             short.append(n)                
         elif G.nodes[n]['length'] < MIN_LEN:
             collapseOrientedNode(edges, n)
@@ -287,11 +285,11 @@ def create_graph_to_phase(current_component, G, matchGraph, hicGraph, uneven_dep
                         break
                             
             if not good:
-                logger.info("While partitoning dropping node %s low links count" % (n))
+                logging.info("While partitoning dropping node %s low links count" % (n))
                 short.append(n)
 
     C.remove_nodes_from(short)
-    logger.info(f'Currently {C.number_of_nodes()} nodes')
+    logging.info(f'Currently {C.number_of_nodes()} nodes')
     for e in hicGraph.edges(current_component):
         # currently only added edges if these nodes are in the component and not matches (homologous) but should allow links to singletons too (to phase disconnected nodes correctly)
         if e[0] in C and e[1] in C and (matchGraph.get_edge_data(e[0], e[1]) == None or matchGraph.get_edge_data(e[0], e[1])['weight'] == 0):
@@ -305,8 +303,8 @@ def create_graph_to_phase(current_component, G, matchGraph, hicGraph, uneven_dep
                 similar_edges[ind].add(e[ind])
 #TODO: likely this is not needed anymore since we already added links between homologous edges.
             C.add_edge(e[0], e[1], weight=hicGraph[e[0]][e[1]]['weight'])
-    logger.info(f'Currently {C.number_of_nodes()} in current component')
-    logger.debug(C.nodes())
+    logging.info(f'Currently {C.number_of_nodes()} in current component')
+    logging.debug(C.nodes())
     if C.number_of_nodes() > 1:
         for u, v, w in matchGraph.edges.data("weight"):
             if u in C and v in C:
@@ -314,7 +312,7 @@ def create_graph_to_phase(current_component, G, matchGraph, hicGraph, uneven_dep
                 if w != None and w != 0:
                     C.add_edge(u, v, weight=w)
         for edge in C.edges:
-            logger.debug(f'HIC edge: {edge} {C.edges[edge]}')
+            logging.debug(f'HIC edge: {edge} {C.edges[edge]}')
     return C
 
 def score_partition(C, partition):
@@ -325,8 +323,8 @@ def score_partition(C, partition):
                 if [i, j] in C.edges():
                     sum_w += C.edges[i, j]['weight']
                     if C.edges[i, j]['weight'] < 0:
-                    
-                        logger.error(f"Negative edge {i} {j} with weight {C.edges[i, j]['weight']} IN THE SAME PARTITION")
+
+                        logging.error(f"Negative edge {i} {j} with weight {C.edges[i, j]['weight']} IN THE SAME PARTITION")
                         exit()
     return sum_w
 def score_swap(C, partition, to_swap):
@@ -374,9 +372,9 @@ def is_duplication_like(n1, n2, dists, or_G):
                 dist = (dists[or_n1][or_n2] - or_G.nodes[or_n1]['length'] - or_G.nodes[or_n2]['length']) / 2
                 if dist < CLOSE_SUSP_HOMOLOGY_DIST:
                     if or_n2 in dists and or_n1 in dists[or_n2] and dists[or_n2][or_n1] < CLOSE_SUSP_HOMOLOGY_DIST:
-                        logger.info(f"Nodes {or_n1} and {or_n2} from haploid component in loop, {dist}")
+                        logging.info(f"Nodes {or_n1} and {or_n2} from haploid component in loop, {dist}")
                     else:
-                        logger.info(f"Nodes {or_n1} and {or_n2} one direction close {dist} but not another")
+                        logging.info(f"Nodes {or_n1} and {or_n2} one direction close {dist} but not another")
                     return True
     return False
 
@@ -403,13 +401,13 @@ def remove_pseudo_homology(current_component, or_G, dists, mg):
     if (mg.isDiploid(current_component)):
         if clear_homology_length * MAX_UNDIPLOID_FRACTION < total_homology_length:
             if clear_homology_length > 0:
-                logger.info(f"Cleaning diploid component {clear_diploids} hom to clear:{clear_homology_length} hom total: {total_homology_length} size total: {total_len}")
+                logging.info(f"Cleaning diploid component {clear_diploids} hom to clear:{clear_homology_length} hom total: {total_homology_length} size total: {total_len}")
             clear_links(clear_diploids, mg)
         else:
-            logger.info(f"NOT cleaning diploid component {clear_diploids}, too high fraction. hom to clear:{clear_homology_length} hom total: {total_homology_length} size total: {total_len}")
+            logging.info(f"NOT cleaning diploid component {clear_diploids}, too high fraction. hom to clear:{clear_homology_length} hom total: {total_homology_length} size total: {total_len}")
     else:
         if clear_homology_length > 0:
-            logger.info(f"Cleaning haploid component {clear_diploids} hom to clear:{clear_homology_length} hom total: {total_homology_length} size total: {total_len}")
+            logging.info(f"Cleaning haploid component {clear_diploids} hom to clear:{clear_homology_length} hom total: {total_homology_length} size total: {total_len}")
         if clear_homology_length == total_homology_length:
             return "no_diploid"        
     return "diploid"
@@ -431,13 +429,13 @@ def output_graph_stats(G):
     mean = sum(degrees) / G.number_of_nodes()
     variance = sum([((x - mean) ** 2) for x in degrees]) / G.number_of_nodes()
     res = variance ** 0.5
-    logger.info("Loaded a graph with %d nodes and %d edges avg degree %f and stdev %f max is %f" % (
+    logging.info("Loaded a graph with %d nodes and %d edges avg degree %f and stdev %f max is %f" % (
     G.number_of_nodes(), G.number_of_edges(), mean, res, mean + 5 * res))
 
 def loadHiCWithFiltering(hic_byread, mashmap_nonhpc, min_alignment):
     #mashmap line:  utig4-345       198652527       104460000       104510000       +       utig4-838       52114952        34308831        34345700        7       50000   13      id:f:0.951746   kc:f:0.940909
     hicGraph = nx.Graph()
-    nonhpcHomology = match_graph.HomologyStorage(logger, mashmap_nonhpc, min_alignment)
+    nonhpcHomology = match_graph.HomologyStorage(mashmap_nonhpc, min_alignment)
     hic_file = open(hic_byread, 'r')
     for line in hic_file:
         if "#" in line:
@@ -529,9 +527,9 @@ def run_clustering (graph_gfa, hpc_mashmap, nonhpc_mashmap, hic_byread, output_d
     MAX_COV = med_cov * 1.5
     
     if (uneven_depth):
-        logger.info(f"Will not use coverage based homozygous nodes detection")
+        logging.info(f"Will not use coverage based homozygous nodes detection")
     else:
-        logger.info(f"Will use coverage based homozygous nodes detection, cutoff: {MAX_COV}")
+        logging.info(f"Will use coverage based homozygous nodes detection, cutoff: {MAX_COV}")
          
     # load hic connections based on mappings, weight corresponds to number of times we see a connection
     hicGraph = loadHiCWithFiltering(hic_byread, nonhpc_mashmap, MIN_ALIGNMENT)
@@ -544,7 +542,7 @@ def run_clustering (graph_gfa, hpc_mashmap, nonhpc_mashmap, hic_byread, output_d
     #Adding link between matched edges to include separated sequence to main component
 
     #TODO: only one of those should be used
-    mg = match_graph.MatchGraph(hpc_mashmap, G, FIXED_HOMOLOGY_WEIGHT, CLEAR_HOMOLOGY, MIN_ALIGNMENT, logger)
+    mg = match_graph.MatchGraph(hpc_mashmap, G, FIXED_HOMOLOGY_WEIGHT, CLEAR_HOMOLOGY, MIN_ALIGNMENT)
     matchGraph = mg.getMatchGraph()
     
     component_colors = gf.getComponentColors(G)
@@ -553,16 +551,16 @@ def run_clustering (graph_gfa, hpc_mashmap, nonhpc_mashmap, hic_byread, output_d
     for [v1,v2] in matchGraph.edges():
         if v1 in G.nodes and v2 in G.nodes and matchGraph[v1][v2]['weight'] < 0:    
             if component_colors[v1] != component_colors[v2]:
-                logger.info(f"Adding graph link between homologous {v1} {v2}, components {component_colors[v1]} and {component_colors[v2]}")
+                logging.info(f"Adding graph link between homologous {v1} {v2}, components {component_colors[v1]} and {component_colors[v2]}")
                 G.add_edge(v1, v2)
                 
 
 
-    logger.info(f"Loaded hic info with {hicGraph.number_of_nodes()} nodes and {hicGraph.number_of_edges()} edges")
+    logging.info(f"Loaded hic info with {hicGraph.number_of_nodes()} nodes and {hicGraph.number_of_edges()} edges")
     compressed_file.close()
 
     dists = dict(nx.all_pairs_dijkstra_path_length(G, weight=lambda u, v, d: G.nodes[v]['length']))
-    logger.info("Distances counted")
+    logging.info("Distances counted")
 
 
     # connected components decomposition and log the IDs and partition each one
@@ -571,7 +569,7 @@ def run_clustering (graph_gfa, hpc_mashmap, nonhpc_mashmap, hic_byread, output_d
     dists =  dict(nx.all_pairs_dijkstra_path_length(or_G, weight=lambda u, v, d: or_G.edges[u, v]['mid_length']))
     for current_component in sorted(nx.connected_components(G), key=len, reverse=True):
         if len(current_component) > 1:
-            logger.info("Connected component with %d nodes is: %s" % (len(current_component), current_component))
+            logging.info("Connected component with %d nodes is: %s" % (len(current_component), current_component))
                 
         cleared = remove_pseudo_homology(current_component, or_G, dists, mg)
         #only backward compatibility with KL
@@ -593,7 +591,7 @@ def run_clustering (graph_gfa, hpc_mashmap, nonhpc_mashmap, hic_byread, output_d
         best_part = [set(), set()]
         init_parts, opposite = create_initial_partition_noKL(C, matchGraph)
         if len(init_parts[0]) == 0 or len(init_parts[1]) == 0:
-            logger.warning(f"Trying to phase component with empty set in initial partition, reporting it as haploid")
+            logging.warning(f"Trying to phase component with empty set in initial partition, reporting it as haploid")
             #May happen in weird cases of uneven coverage when some nodes from connected_component are removed from C
             haploid_component_count += 1
             process_haploid_component(current_component, G, tsv_file, haploid_component_count)
@@ -602,20 +600,20 @@ def run_clustering (graph_gfa, hpc_mashmap, nonhpc_mashmap, hic_byread, output_d
             random.seed(seed)
             parts = random_swap(init_parts, opposite, seed)
             part = community.kernighan_lin.kernighan_lin_bisection(C, partition=parts, max_iter=KLIN_ITER, weight='weight', seed=seed)
-            logger.debug(f"init_part:\n{sorted(part[0])}\n{sorted(part[1])}")
+            logging.debug(f"init_part:\n{sorted(part[0])}\n{sorted(part[1])}")
 
             sum_w = score_partition(C, part)
 
             if (sum_w > best_score):
-                logger.info(f'Seed {seed} score {sum_w} improved over {best_score}')
+                logging.info(f'Seed {seed} score {sum_w} improved over {best_score}')
                 best_part = part
                 best_score = sum_w
-                logger.debug(f"best_part:\n{sorted(best_part[0])}\n{sorted(best_part[1])}")
+                logging.debug(f"best_part:\n{sorted(best_part[0])}\n{sorted(best_part[1])}")
         best_part = unglue_nodes(best_part)
         #try to move relatively short edges to fix case of unbalanced haplo sizes (complex repeats on only one haplo)
 #        best_part = community.kernighan_lin.kernighan_lin_bisection(C, partition=parts, max_iter=KLIN_ITER, weight='weight', seed=seed)
-#        logger.debug(f"parts:\n{sorted(parts[0])}\n{sorted(parts[1])}")
-        #logger.debug(f"best_part:\n{sorted(best_part[0])}\n{sorted(best_part[1])}")
+#        logging.debug(f"parts:\n{sorted(parts[0])}\n{sorted(parts[1])}")
+        #logging.debug(f"best_part:\n{sorted(best_part[0])}\n{sorted(best_part[1])}")
         """
         """
         add_part = [set(), set()]
@@ -629,39 +627,39 @@ def run_clustering (graph_gfa, hpc_mashmap, nonhpc_mashmap, hic_byread, output_d
                 total_w = 0
                 for e in hicGraph.edges(n):
                     if (e[0] != n or e[1] != n) and (e[0] in current_component and e[1] in current_component):
-                        #logger.debug(f'edge {e} to short {hicGraph[e[0]][e[1]]["weight"]}')
+                        #logging.debug(f'edge {e} to short {hicGraph[e[0]][e[1]]["weight"]}')
                         for ind in range(0, 2):
                             if e[0] in best_part[ind] or e[1] in best_part[ind]:
                                 if hicGraph[e[0]][e[1]]["weight"] > MIN_WEIGHT:
-                                    logger.debug(f'{e} edge to partition {ind}!')
+                                    logging.debug(f'{e} edge to partition {ind}!')
                                     weights[ind] += hicGraph[e[0]][e[1]]["weight"]
                                 all_weights[ind] += hicGraph[e[0]][e[1]]["weight"]
                         total_w += hicGraph[e[0]][e[1]]["weight"]
                 if weights[0] > SIGNIFICANT_MAJORITY * weights[1]:
                     add_part[0].add(n)
-                    logger.debug(f"Edge {n} assigned color 0")
+                    logging.debug(f"Edge {n} assigned color 0")
                 elif weights[1] > SIGNIFICANT_MAJORITY * weights[0]:
                     add_part[1].add(n)
-                    logger.debug(f"Edge {n} assigned color 1")
+                    logging.debug(f"Edge {n} assigned color 1")
                 else:
-                    logger.debug(f"Edge {n} weights {weights[0]} and {weights[1]} coverage {G.nodes[n]['coverage']}")
-                    logger.debug(f"Edge {n} real weights {all_weights[0]} and {all_weights[1]} coverage {G.nodes[n]['coverage']} total weight {total_w}")
+                    logging.debug(f"Edge {n} weights {weights[0]} and {weights[1]} coverage {G.nodes[n]['coverage']}")
+                    logging.debug(f"Edge {n} real weights {all_weights[0]} and {all_weights[1]} coverage {G.nodes[n]['coverage']} total weight {total_w}")
                     if (all_weights[0] > SIGNIFICANT_MAJORITY * all_weights[1] or all_weights[1] > SIGNIFICANT_MAJORITY * all_weights[0]) and (all_weights[0] > MIN_WEIGHT or all_weights[1]> MIN_WEIGHT):
-                        logger.debug(f"Edge {n} real weights allows to make a decision forbidden by weights!")
+                        logging.debug(f"Edge {n} real weights allows to make a decision forbidden by weights!")
                         if G.nodes[n]['length'] < MIN_LEN:
                             only_weights[n] = all_weights
                         else:
                             if all_weights[0] > all_weights[1]:
                                 add_part[0].add(n)
-                                logger.debug(f"Edge {n} assigned color 0 by additional all_weights")        
+                                logging.debug(f"Edge {n} assigned color 0 by additional all_weights")        
                             else:
                                 add_part[1].add(n)
-                                logger.debug(f"Edge {n} assigned color 1 by additional all_weights")
+                                logging.debug(f"Edge {n} assigned color 1 by additional all_weights")
             elif G.nodes[n]['length'] < MIN_LEN:
-                logger.debug(f"Edge {n} did not pass coverage check")
+                logging.debug(f"Edge {n} did not pass coverage check")
 
-        logger.info(f'Added {len(add_part[0]) + len (add_part[1])} short edges to bipartition')
-        logger.info(f'Added short edges\t{add_part}')
+        logging.info(f'Added {len(add_part[0]) + len (add_part[1])} short edges to bipartition')
+        logging.info(f'Added short edges\t{add_part}')
         best_part[0].update(add_part[0])
         best_part[1].update(add_part[1])
         for ind in range (0, 2):
@@ -671,7 +669,7 @@ def run_clustering (graph_gfa, hpc_mashmap, nonhpc_mashmap, hic_byread, output_d
                     report_phased_node(contig, ind, tsv_file)
         for contig in sorted(only_weights.keys()):
             tsv_file.write(f'{contig}\t{only_weights[contig][0]}\t{only_weights[contig][1]}\t{only_weights[contig][0]}:{only_weights[contig][1]}\t#88FF88\n')
-    logger.info("Phasing successfully finished")
+    logging.info("Phasing successfully finished")
 
 if __name__ == "__main__":
     if len(sys.argv) != 8:
