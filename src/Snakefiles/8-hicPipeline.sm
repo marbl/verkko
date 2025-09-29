@@ -419,7 +419,6 @@ chmod +x ./scaffold_mergeBWA.sh
 rule mergeBWA:
     input:
         split_finished = rules.splitHIC.output.split_finished,
-        index          = '8-hicPipeline/unitigs.fasta.bwt',
         alignments     = lambda wildcards: expand("8-hicPipeline/mapped{nnnn}.bam", nnnn = splitHICoutputs(wildcards))
 
     output:
