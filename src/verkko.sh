@@ -333,6 +333,7 @@ ruk_fract="0.9"
 #consensus
 cns_num_iter="2"
 cns_max_cov="50"
+cns_quick="False"
 
 #  HiC heuristics
 haplo_divergence=0.05
@@ -444,7 +445,7 @@ ahc_time_h=48
 # fast things in hic pipeline
 fhc_n_cpus=8
 fhc_mem_gb=16
-fhc_time_h=24
+fhc_time_h=36
 
 # hic scaffolding pipeline
 shc_n_cpus=8
@@ -966,12 +967,16 @@ if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" -o "x$withbam" = "xTrue" ]
        elif [ ! -e "$bwa" ] ; then
          errors="${errors}Can't find BWA executable at '$bwa'.\n"
        fi
+       # first instance of consensus should be quick
+      cns_quick="True"
    elif [ "x$withporec" = "xTrue" ]; then
        if   [ "x$minimap" = "x" ] ; then
          errors="${errors}Can't find MINIMAP2 executable in \$PATH or \$VERKKO/bin/minimap2.\n"
        elif [ ! -e "$minimap" ] ; then
          errors="${errors}Can't find MINIMAP2 executable at '$bwa'.\n"
        fi
+       # first instance of consensus should be quick
+       cns_quick="True"
    fi
    if [ "x$withhic" = "xTrue" -a "x$withporec" = "xTrue" ]; then
       errors="${errors}Both --hic1/--hic2 and --porec cannot be specified at the same time, please only specify one\n"
@@ -1254,6 +1259,7 @@ echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "# consensus"
 echo >> ${outd}/verkko.yml "cns_num_iter:        '${cns_num_iter}'"
 echo >> ${outd}/verkko.yml "cns_max_cov:         '${cns_max_cov}'"
+echo >> ${outd}/verkko.yml "cns_quick:           '${cns_quick}'"
 echo >> ${outd}/verkko.yml "#  HiC algo options"
 echo >> ${outd}/verkko.yml "no_rdna_tangle:      '${no_rdna_tangle}'"
 echo >> ${outd}/verkko.yml "uneven_depth:        '${uneven_depth}'"
@@ -1534,6 +1540,7 @@ if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
     fi
 
     cd $newoutd
+    sed -i.bak -E "s/^(cns_quick:[[:space:]]*)'True'/\1'False'/" verkko.yml
     sed -i.bak 's/runRukkiHIC/cnspath/g' snakemake.sh
     sed -i.bak 's/HiC_rdnascaff/cnspath/g' snakemake.sh
     ./snakemake.sh

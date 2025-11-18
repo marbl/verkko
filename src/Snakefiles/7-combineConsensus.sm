@@ -59,7 +59,8 @@ rule combineConsensus:
         short_len = config['short_contig_length'],
         screens   = config['screen'],
         packbam   = combineConsensusB,
-        haveBAM    = config['withBAM']
+        haveBAM    = config['withBAM'],
+        quick      = config['cns_quick']
     threads:
         8
     resources:
@@ -117,7 +118,7 @@ fi
 #  Copy the screened assembly to the output.
 cp assembly.fasta ../{output.cns}
 
-if [ "{params.haveBAM}" = "True" ]; then
+if [ "{params.haveBAM}" = "True" ] && [ '{params.quick}' != 'True' ]; then
    echo "--------------------"
    echo "Combining consensus bam results."
    echo ""
