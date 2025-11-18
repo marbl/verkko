@@ -121,6 +121,17 @@ if [ "{params.haveBAM}" = "True" ]; then
    echo "--------------------"
    echo "Combining consensus bam results."
    echo ""
+   # increase ulimit for files in case we have lots of bam files to merge
+   max=\`ulimit -Hn\`
+   bef=\`ulimit -Sn\`
+   if [ \$bef -lt \$max ] ; then
+      ulimit -Sn \$max
+      aft=\`ulimit -Sn\`
+      echo "  Changed max open files from \$bef to \$aft (max \$max)."
+   else
+      echo "  Max open files limited to \$bef, no increase possible."
+   fi
+
    mem_per_core=\`(expr \( {resources.mem_gb} \* 70 \) / \( 100 \* {threads} \) | awk '{{if (\$1 < 1) print "1G"; else print \$1"G"}}') || true\`
    rm -f ../{output.bam}.tmp.*
 
