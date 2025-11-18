@@ -488,7 +488,7 @@ chmod +x ./transform_bwa.sh
 rule hicPhasing:
     input:
         mashmap_matches = rules.runMashMap.output.unitigs_hpc50,
-        mashmap_nohpcmatches = rules.runMashMap.output.unitigs_nonhpc50,
+        mashmap_nohpcmatches = rules.runMashMap.output.unitigs_nohpc50,
         hicmapping_byread = '8-hicPipeline/hic_mapping.byread.output',
         graph='8-hicPipeline/unitigs.hpc.noseq.gfa'
     output:
