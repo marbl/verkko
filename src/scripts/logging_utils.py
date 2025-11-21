@@ -28,16 +28,6 @@ def setup_logging(log_file, file_log_level = logging.DEBUG):
         seconds = int(seconds % 60)
         return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
     
-    class RuntimeFormatter(logging.Formatter):
-        def __init__(self, fmt=None, datefmt=None, start_time=None):
-            super().__init__(fmt, datefmt)
-            self.start_time = start_time
-            
-        def format(self, record):
-            runtime_seconds = time.time() - self.start_time
-            record.runtime = format_runtime(runtime_seconds)
-            return super().format(record)
-
     log_format = '%(runtime)s - %(levelname)s - [%(filename)s:%(funcName)s:%(lineno)d] - %(message)s'
     formatter = RuntimeFormatter(log_format, datefmt)
         

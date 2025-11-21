@@ -602,7 +602,7 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--correct-k-mer-size" ] ;         then mer_size=$arg;         shift
     elif [ "$opt" = "--correct-k-mer-window" ] ;       then mer_window=$arg;       shift
     elif [ "$opt" = "--correct-k-mer-coverage" ] ;     then mer_coverage=$arg;     shift
-    elif [ "$opt" = "--correct-min-read-length" ] ;    then cor_min_read=$arg;     $spl_min_length=$arg; shift
+    elif [ "$opt" = "--correct-min-read-length" ] ;    then cor_min_read=$arg;     spl_min_length=$arg; shift
     elif [ "$opt" = "--correct-min-overlap-length" ] ; then cor_min_overlap=$arg;  shift
 
     elif [ "$opt" = "--correct-index-batches" ] ;      then cor_index_batches=$arg;    shift

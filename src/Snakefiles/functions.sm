@@ -14,6 +14,7 @@
 
 import math
 import re
+import glob
 
 def getNumLines(input):
    infile = input.pop()
