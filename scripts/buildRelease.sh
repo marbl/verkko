@@ -57,7 +57,7 @@ cp -p ./README.licenses verkko-v${version}/
 cp -p ./README.md       verkko-v${version}/
 
 for dir in paper src ; do
-  rsync -a -f'exclude .git*' -f 'exclude .vscode' -f 'exclude benchmarks' $dir verkko-v${version}/
+  rsync -a -f'exclude .git*' -f 'exclude .vscode' -f 'exclude benchmarks' -f 'exclude documentation' $dir verkko-v${version}/
 done
 
 cat src/main.mk | sed s/^VERSION\ \*:=.\*/VERSION\ :=\ release\ v${version}/ > verkko-v${version}/src/main.mk
