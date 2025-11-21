@@ -235,7 +235,6 @@ FILES        += \
                 data/human-ebv-AJ507799.2.fasta.gz            -> ../lib/verkko/data/human-ebv-AJ507799.2.fasta.gz \
                 data/human-mito-NC_012920.1.fasta.gz          -> ../lib/verkko/data/human-mito-NC_012920.1.fasta.gz \
                 data/human-rdna-KY962518.1.fasta.gz           -> ../lib/verkko/data/human-rdna-KY962518.1.fasta.gz \
-                data/chm13_rDNAs.fa                           -> ../lib/verkko/data/chm13_rDNAs.fa \
                 \
                 scripts/add_fake_alignments.py                -> ../lib/verkko/scripts/add_fake_alignments.py \
                 scripts/add_fake_bridging_paths.py            -> ../lib/verkko/scripts/add_fake_bridging_paths.py \
