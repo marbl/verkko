@@ -23,7 +23,7 @@ elif (len(sys.argv) > 5) and (sys.argv[1] == 'combine'):
   mode             =                 sys.argv[1]
   output_name      =                 sys.argv[2]
   namedict         = seq.readNameMap(sys.argv[3])
-  scfmap           =  seq.readScfMap(sys.argv[4])
+  scfmap,_         =  seq.readScfMap(sys.argv[4])
   filenames        =                 sys.argv[5:]
 
 else:

@@ -2,16 +2,18 @@
 import networkx as nx
 import graph_functions as gf
 import sys
-from scaffolding import logger_wrap
-
+import logging
 #classes for matchGraph construction
+
+#TODO: only filtered intervals are really used. So we will fail for genomes with diverged haplotypes...
 class HomologyInfo:
     #when counting approximate positions, do not allow jumps longer than this * neighboring intervals_lens
     JUMP_JOINING_FRACTION = 0.5
     #DO not want huge jumps anyway
     JUMP_JOINING_ABSOLUTE = 5000000
+    FILTERED_IDY_CUTOFF = 0.995
 
-    def __init__(self, node1, node2, len1, len2, logger):
+    def __init__(self, node1, node2, len1, len2):
         self.nodes = [node1, node2]
         self.len = [len1, len2]
         self.covered = [0, 0]
@@ -26,14 +28,13 @@ class HomologyInfo:
 
         #TODO: should be used for homology check in scaffolding, with specific IDY cutoff and not sorted
         self.filtered_intervals = [[],[]]        
-        self.logger = logger_wrap.UpdatedAdapter(logger, self.__class__.__name__)
     def parseIDY(self, idy):
         return float(idy.split(":")[2])
     
     def addInterval(self, intervals, orientation, idy):
         real_idy = self.parseIDY(idy)
         #Constant not depending on genome, intervals too similar for hi-c alignment to use
-        if real_idy > 0.995:
+        if real_idy > self.FILTERED_IDY_CUTOFF:
             for i in range(0, 2):
                 self.filtered_intervals[i].append(intervals[i])
 
@@ -47,6 +48,13 @@ class HomologyInfo:
             self.largest_interval = int_len
             self.orientation = orientation
             self.largest_interval_center = [(intervals[0][1] + intervals[0][0])/2, (intervals[1][1] + intervals[1][0])/2]
+
+    def isInFilteredInterval(self, coord1, coord2):
+        for i in range(0, 2):
+            for interval in self.filtered_intervals[i]:
+                if interval[0] <= coord1 <= interval[1] and interval[0] <= coord2 <= interval[1]:
+                    return True
+        return False
 
 #TODO: whether we should use orientation.
     def fillCoverage(self):
@@ -69,7 +77,7 @@ class HomologyInfo:
                 if state == 0:
                     current_end = prev
                     covered_intervals.append([current_start, current_end])
-            self.logger.debug (f"Covered-intervals {self.nodes} {covered_intervals}")
+            logging.debug (f"Covered-intervals {self.nodes} {covered_intervals}")
             #TODO Or possibly use approximate alignment intervals?
             self.covered[ind] = total_c
             #if there are short trashy intervals between long ones - do not want them to spoil jumping. So dynamic programming here
@@ -88,7 +96,7 @@ class HomologyInfo:
                     if (jump > self.JUMP_JOINING_FRACTION * prev_len and jump > self.JUMP_JOINING_FRACTION * next_len) or jump > self.JUMP_JOINING_ABSOLUTE:
                         continue
                     available_next[i].add(j)
-            self.logger.debug(f"Available next {self.nodes} {available_next}")
+            logging.debug(f"Available next {self.nodes} {available_next}")
             max_i = 0
             for i in range (0, len(covered_intervals)):
                 for j in available_next[i]:
@@ -110,13 +118,10 @@ class HomologyInfo:
         return min(self.len[0], self.len[1])
 
 class HomologyStorage:
-    #{node1: {node2: HomologyInfo(node_1, node_2)}}
-    def __init__(self, logger, mashmap_file, min_alignment):
+    #{node1: {node2: HomologyInfo(node_1, node_2)}}    
+    def __init__(self, mashmap_file, min_alignment):
         self.homologies = {}   
         self.lens = {}
-
-        self.logger = logger_wrap.UpdatedAdapter(logger, self.__class__.__name__)
-
         total_lines = 0
         used_lines = 0
         for line in open(mashmap_file, 'r'):
@@ -133,9 +138,10 @@ class HomologyStorage:
                 continue
             used_lines +=1
             #utig4-0 2145330 0       990000  +       utig4-0 2145330 12      994065  37      994053  51      id:f:0.999992   kc:f:0.874893
+            
             self.addHomology(arr[0], arr[5], int(arr[1]), int(arr[6]), [[int(arr[2]), int(arr[3])], [int(arr[7]), int(arr[8])]], arr[4], arr[12])
-        self.logger.info(f"Loaded {used_lines} out of {total_lines} mashmap lines")
-        self.logger.info(f"{len(self.homologies)} nodes have at least one used homology")
+        logging.info(f"Loaded {used_lines} out of {total_lines} mashmap lines")
+        logging.info(f"{len(self.homologies)} nodes have at least one used homology")
         self.fillCoverage()
 
 #do we want to add other direction of pair?
@@ -143,7 +149,7 @@ class HomologyStorage:
         if not node1 in self.homologies:
             self.homologies[node1] = {}
         if not node2 in self.homologies[node1]:
-            self.homologies[node1][node2] = HomologyInfo(node1, node2, len1, len2, self.logger)
+            self.homologies[node1][node2] = HomologyInfo(node1, node2, len1, len2)
         self.homologies[node1][node2].addInterval(intervals, orientation, idy)
         self.lens[node1] = len1
         self.lens[node2] = len2
@@ -162,6 +168,13 @@ class HomologyStorage:
     def getLength(self, node):
         return self.lens[node]
 
+    def isInFilteredInterval(self, node1, node2, coord1, coord2):
+        if not self.isValid(node1, node2):
+            return False
+        if self.homologies[node1][node2].isInFilteredInterval(coord1, coord2):
+            return True        
+        return False
+    
     def getApproximatePositionLength(self, node1, node2, ind):
         if not self.isValid(node1, node2):
             return 0        
@@ -179,14 +192,11 @@ class MatchGraph:
     #homologous intervals should cover at least 1/3 of at least one of the nodes in pair
     REQUIRED_COVERAGE_FRACTION = 1/3
 
-    def __init__(self, mashmap_sim, G, homology_weight, min_big_homology, min_alignment, logger):
+    def __init__(self, mashmap_sim, G, homology_weight, min_big_homology, min_alignment):
         self.matchGraph = nx.Graph()
-        self.hom_storage = HomologyStorage(logger, mashmap_sim, min_alignment)
+        self.hom_storage = HomologyStorage(mashmap_sim, min_alignment)
         self.G = G
-        self.logger = logger_wrap.UpdatedAdapter(logger, self.__class__.__name__)
-
-        
-        #Do not want to think whether we use diGraph or Graph
+        #Do not want to think whether we use diGraph or Graph, internal structures are not oriented
         neighbours = {}
         indirect_nodes = set()
         for node in G.nodes():
@@ -195,15 +205,14 @@ class MatchGraph:
         for edge in G.edges():
             for i in range(0, 2):
                 neighbours[edge[i].strip('-+')].add(edge[1 - i].strip('-+'))
-        self.logger.info(f"Loaded {len(self.hom_storage.homologies)} homologies")            
+        logging.info(f"Loaded {len(self.hom_storage.homologies)} homologies")            
         for node1 in self.hom_storage.homologies:
             for node2 in self.hom_storage.homologies[node1]:
                 #we deleted some nodes after mashmap
-                #sys.stderr.write(f"Checking {node1} {node2} {self.hom_storage.homologies[node1][node2].getMinCovered()} {min_big_homology}\n")
                 if node1 in indirect_nodes and node2 in indirect_nodes:
                     cur_homology = self.hom_storage.homologies[node1][node2].getCoveredLen()
                     if cur_homology > min_big_homology:
-                        self.logger.debug(f"Adding normal edge {node1} {node2} {cur_homology}")
+                        logging.debug(f"Adding normal edge {node1} {node2} {cur_homology}")
                         self.matchGraph.add_edge(node1, node2, homology_len = cur_homology)
                     else:
                         #less strict condition for bulge-like structure
@@ -212,7 +221,7 @@ class MatchGraph:
                         # possibly check whether we have something already phased nearby?
                         # strict bulge-like condition, either R1[A/B]R2 or R1[A/B] or [A/B]R2. Digraph can be more precise here but anyway
                         if cur_homology > len_cutoff and neighbours[node1] == neighbours[node2] and len(neighbours[node1]) > 0:
-                            self.logger.debug(f"Adding bulge-like edge {node1} {node2} {cur_homology} {len_cutoff}")
+                            logging.debug(f"Adding bulge-like edge {node1} {node2} {cur_homology} {len_cutoff}")
                             self.matchGraph.add_edge(node1, node2, homology_len = cur_homology)
     
             # while we build the initial partition give a big bonus edge for putting the homologous nodes into different partitions             
@@ -247,10 +256,10 @@ class MatchGraph:
             else:
                 self.matchGraph.remove_edge(ec[0],ec[1])
 
-        self.logger.info("Loaded match info with %d nodes and %d edges\n" % (self.matchGraph.number_of_nodes(), self.matchGraph.number_of_edges()))
+        logging.info("Loaded match info with %d nodes and %d edges" % (self.matchGraph.number_of_nodes(), self.matchGraph.number_of_edges()))
 
         for d in sorted(self.matchGraph.edges()):
-            self.logger.debug(f"homology edge {d} : {self.matchGraph.edges[d]}")
+            logging.debug(f"homology edge {d} : {self.matchGraph.edges[d]}")
 
     def getMatchGraph(self):
         return self.matchGraph
@@ -275,6 +284,9 @@ class MatchGraph:
     
     def getEdgeAttribute(self, node1, node2, attr):
         return self.matchGraph.edges[node1, node2][attr]
+
+    def getHomologyLength(self, node1, node2):
+        return self.getEdgeAttribute(node1, node2, 'homology_len')
 
     def isHomologousNodes(self, node1, node2, strict:bool):
         if self.matchGraph.has_edge(node1, node2) and ((not strict) or self.matchGraph.edges[node1, node2]['weight'] < 0):
@@ -314,7 +326,7 @@ class MatchGraph:
                         
                         hom_size += self.matchGraph.edges[nor_p0, nor_p1]['homology_len']
         if hom_size * 2> lens[0]  or hom_size * 2> lens[1]:
-            self.logger.debug (f"Found homologous paths {paths} with homology size {hom_size}")
+            logging.debug (f"Found homologous paths {paths} with homology size {hom_size}")
             return True
         else:
             return False
@@ -327,15 +339,15 @@ class MatchGraph:
                 for hom_node in self.matchGraph.neighbors(node):
                     if self.matchGraph.edges[node, hom_node]['weight'] < 0:
                         homologous_nodes.add(hom_node)
-        self.logger.debug(f"For path {path_id} counted homologous nodes {homologous_nodes}")
+        logging.debug(f"For path {path_id} counted homologous nodes {homologous_nodes}")
         paths_to_check = set()
         for node in homologous_nodes:
             paths_to_check.update(path_storage.getPathsFromNode(node))
-        self.logger.debug(f"For path {path_id} suspicious homologous paths {paths_to_check}")
+        logging.debug(f"For path {path_id} suspicious homologous paths {paths_to_check}")
 
         for susp_path_id in paths_to_check:
             if self.isHomologousPath([path_storage.getPathById(path_id), path_storage.getPathById(susp_path_id)], [path_storage.getLength(path_id), path_storage.getLength(susp_path_id)]):
                 homologous_paths.append(susp_path_id)
-        self.logger.debug(f"For path {path_id} found {len(paths_to_check)} homologous paths {paths_to_check}")
+        logging.debug(f"For path {path_id} found {len(paths_to_check)} homologous paths {paths_to_check}")
 
         return homologous_paths

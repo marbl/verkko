@@ -111,10 +111,13 @@ awk 'BEGIN \\\\
      }} \\\\
      \$1 == "S" \\\\
      {{ \\\\
-        if (\$6 != "") {{
-          \$4 = \$6;
-        }}
-        print \$2, substr(\$4, 6), length(\$3); \\\\
+        if (\$6 != "" && match(\$6, /^kl:f:/)) {{ \\\\
+          \$4 = \$6; \\\\
+        }} \\\\
+		if (!match(\$4, /^kl:f:/) && !match(\$4, /^ll:f:/)) {{ \\\\
+		   print "ERROR: line "\$0" does not match expected format for coverages"; exit 1 \\\\
+        }} \\\\
+		print \$2, substr(\$4, 6), length(\$3); \\\\
      }}' \\\\
 < ../{output.graph} \\\\
 > ../{output.hifi_node_cov}

@@ -6,6 +6,7 @@ import random
 from os import listdir
 from os.path import isfile, join
 import cluster
+import logging_utils
 if __name__ == "__main__":
     if len(sys.argv) < 4:
         print(f'Usage: {sys.argv[0]} <no_rdna_tangle> <uneven_depth> <output_dir>')
@@ -26,6 +27,7 @@ if __name__ == "__main__":
 
     os.makedirs(output_dir, exist_ok=True)
     matches_file = os.path.join(output_dir, "unitigs_hpc50.mashmap")
+    nonhpc_mashmap = os.path.join(output_dir, "unitigs_nonhpc50.mashmap")
     hic_file = os.path.join(output_dir, "hic_mapping.byread.output")
     if not os.path.exists(hic_file):
         hic_file = os.path.join(output_dir, "hic.byread.compressed")
@@ -34,7 +36,8 @@ if __name__ == "__main__":
         hic_file = compressed_hic
 
     noseq_gfa = os.path.join(output_dir, "unitigs.hpc.noseq.gfa")
-    cluster.run_clustering(noseq_gfa, matches_file, hic_file, output_dir, no_rdna, uneven_depth)
+    logging_utils.setup_logging(os.path.join(output_dir, "phasing.log"))
+    cluster.run_clustering(noseq_gfa, matches_file, nonhpc_mashmap, hic_file, output_dir, no_rdna, uneven_depth)
 #Saved for further debug
 
 

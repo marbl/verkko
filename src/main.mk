@@ -290,7 +290,7 @@ FILES        += \
                 scripts/hic_prefilter.py     				  -> ../lib/verkko/scripts/hic_prefilter.py \
                 scripts/launch_scaffolding.py                 -> ../lib/verkko/scripts/launch_scaffolding.py \
                 scripts/remove_nodes_add_telomere.py          -> ../lib/verkko/scripts/remove_nodes_add_telomere.py \
-                scripts/scaffolding/logger_wrap.py            -> ../lib/verkko/scripts/scaffolding/logger_wrap.py \
+                scripts/logging_utils.py    		          -> ../lib/verkko/scripts/logging_utils.py \
                 scripts/scaffolding/match_graph.py            -> ../lib/verkko/scripts/scaffolding/match_graph.py \
                 scripts/scaffolding/path_storage.py           -> ../lib/verkko/scripts/scaffolding/path_storage.py \
                 scripts/scaffolding/scaff_prefilter.py        -> ../lib/verkko/scripts/scaffolding/scaff_prefilter.py \

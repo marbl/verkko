@@ -9,8 +9,8 @@ import networkx as nx
 from numpy import argmax
 import graph_functions as gf 
 import logging
-from scaffolding import scaffold_graph, logger_wrap, path_storage
-
+from scaffolding import scaffold_graph, path_storage
+import logging_utils
 #get all rdna nodes from mashmap
 #get nodes from seqtk telo 
 #select nodes that are between 500K and 2M and close to both rDNA and telomeres to be short arm
@@ -36,16 +36,13 @@ scaff_rukki_tsv_file = os.path.join(hicrun_dir,  "scaff_rukki.paths.tsv")
 scaff_rukki_gaf_file = os.path.join(hicrun_dir,  "scaff_rukki.paths.gaf")
 translation_paths_file = os.path.join (hicrun_dir, "final_contigs/6-layoutContigs/unitig-popped.layout.scfmap")
 translation_hap1_file = os.path.join (hicrun_dir, os.pardir, "translation_hap1")
-rdna_file = os.path.join(hicrun_dir, os.pardir, "rdnanodes.txt")     
 
 hic_byread = os.path.join(hicrun_dir, "hic.byread.compressed")
-
-hicverkko_log = os.path.join(hicrun_dir, "hicverkko.log")
 
 
 G = nx.DiGraph()
 gf.load_direct_graph(gfa_file, G)
-logger = logger_wrap.initLogger(os.path.join(hicrun_dir, "scaffolding.log"))
+logging_utils.setup_logging(os.path.join(hicrun_dir, "scaffolding.log"))
 path_mashmap = os.path.join(hicrun_dir, "paths2ref.mashmap")
 #path_mashmap = os.path.join(hicrun_dir, "paths2chm13100K.mashmap")
 rukki_path_storage = path_storage.PathStorage(G)
@@ -54,6 +51,6 @@ if porec:
     read_aln = os.path.join(hicrun_dir, "hic_mapping.byread.output")
 else:
     read_aln = os.path.join(hicrun_dir, "hic_nodefiltered.bam")
-sg = scaffold_graph.ScaffoldGraph(rukki_path_storage, telomere_locations_file, read_aln, os.path.join(hicrun_dir, "unitigs_nonhpc50.mashmap"), G, uncompressed_nodes, path_mashmap, porec, logger) 
+sg = scaffold_graph.ScaffoldGraph(rukki_path_storage, telomere_locations_file, read_aln, os.path.join(hicrun_dir, "unitigs_nonhpc50.mashmap"), G, uncompressed_nodes, path_mashmap, porec) 
 res = sg.generateScaffolds()
 

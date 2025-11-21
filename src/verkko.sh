@@ -209,7 +209,7 @@ hic2=""
 withont="False"
 withhic="False"
 withporec="False"
-withbam="False"
+withbam="True"
 withref="False"
 
 keepinter="True"
@@ -300,7 +300,7 @@ mbg_unitig_abundance=2
 #  split_ont, partitioning ont reads for alignment
 spl_bases=3000000000
 spl_reads=150000
-spl_min_length=0
+spl_min_length=$cor_min_read
 
 #  align_ont, alignment of ont reads to the initial graph
 ali_mxm_length=30
@@ -329,6 +329,11 @@ ruk_hap1=""
 ruk_hap2=""
 ruk_type=""
 ruk_fract="0.9"
+
+#consensus
+cns_num_iter="2"
+cns_max_cov="50"
+cns_quick="False"
 
 #  HiC heuristics
 haplo_divergence=0.05
@@ -414,7 +419,7 @@ ruk_time_h=4
 
 #  create_layout
 lay_n_cpus=1
-lay_mem_gb=32
+lay_mem_gb=64
 lay_time_h=24
 
 #  get_ont_subset
@@ -423,14 +428,14 @@ sub_mem_gb=16
 sub_time_h=24
 
 #  partition_consensus
-par_n_cpus=8
-par_mem_gb=8
-par_time_h=24
+par_n_cpus=1
+par_mem_gb=16
+par_time_h=96
 
 #  cns
 cns_n_cpus=8
 cns_mem_gb=0
-cns_time_h=24
+cns_time_h=48
 
 # align_hic stuff
 ahc_n_cpus=24
@@ -440,7 +445,7 @@ ahc_time_h=48
 # fast things in hic pipeline
 fhc_n_cpus=8
 fhc_mem_gb=16
-fhc_time_h=24
+fhc_time_h=36
 
 # hic scaffolding pipeline
 shc_n_cpus=8
@@ -596,12 +601,14 @@ while [ $# -gt 0 ] ; do
 
     elif [ "$opt" = "--correct-k-mer-size" ] ;         then mer_size=$arg;         shift
     elif [ "$opt" = "--correct-k-mer-window" ] ;       then mer_window=$arg;       shift
-    elif [ "$opt" = "--correct-k-mer-coverage" ] ;     then mer_coverage=$arg; shift
-    elif [ "$opt" = "--correct-min-read-length" ] ;    then cor_min_read=$arg;     shift
+    elif [ "$opt" = "--correct-k-mer-coverage" ] ;     then mer_coverage=$arg;     shift
+    elif [ "$opt" = "--correct-min-read-length" ] ;    then cor_min_read=$arg;     spl_min_length=$arg; shift
     elif [ "$opt" = "--correct-min-overlap-length" ] ; then cor_min_overlap=$arg;  shift
 
     elif [ "$opt" = "--correct-index-batches" ] ;      then cor_index_batches=$arg;    shift
     elif [ "$opt" = "--correct-overlap-batches" ] ;    then cor_overlap_batches=$arg;  shift
+    elif [ "$opt" = "--consensus-num-iterations" ] ;   then cns_num_iter=$arg; shift
+    elif [ "$opt" = "--consensus-max-coverage" ] ;     then cns_max_cov=$arg; shift
 
     #
     #  MBG options
@@ -621,7 +628,6 @@ while [ $# -gt 0 ] ; do
 
     elif [ "$opt" = "--split-bases" ] ;    then spl_bases=$arg;      shift
     elif [ "$opt" = "--split-reads" ] ;    then spl_reads=$arg;      shift
-    elif [ "$opt" = "--min-ont-length" ] ; then spl_min_length=$arg; shift
 
     #
     #  alignONT options
@@ -652,7 +658,7 @@ while [ $# -gt 0 ] ; do
     #  Post-processing options
     #
 
-    elif [ "$opt" = "--consensus-bam" ] ;       then withbam="True"; lay_mem_gb=`expr $lay_mem_gb \* 2`;
+    elif [ "$opt" = "--no-consensus-bam" ] ;    then withbam="False"; lay_mem_gb=`expr $lay_mem_gb \/ 2`;
     elif [ "$opt" = "--discard-short" ] ;       then short_contig_length=$arg;   shift
     elif [ "$opt" = "--screen-human-contaminants" ]; then
           screen="$screen ebv  human-ebv-AJ507799.2.fasta.gz"
@@ -961,12 +967,16 @@ if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" -o "x$withbam" = "xTrue" ]
        elif [ ! -e "$bwa" ] ; then
          errors="${errors}Can't find BWA executable at '$bwa'.\n"
        fi
+       # first instance of consensus should be quick
+      cns_quick="True"
    elif [ "x$withporec" = "xTrue" ]; then
        if   [ "x$minimap" = "x" ] ; then
          errors="${errors}Can't find MINIMAP2 executable in \$PATH or \$VERKKO/bin/minimap2.\n"
        elif [ ! -e "$minimap" ] ; then
          errors="${errors}Can't find MINIMAP2 executable at '$bwa'.\n"
        fi
+       # first instance of consensus should be quick
+       cns_quick="True"
    fi
    if [ "x$withhic" = "xTrue" -a "x$withporec" = "xTrue" ]; then
       errors="${errors}Both --hic1/--hic2 and --porec cannot be specified at the same time, please only specify one\n"
@@ -1108,7 +1118,6 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "ONT splitting:"
     echo "    --split-bases"
     echo "    --split-reads"
-    echo "    --min-ont-length"
     echo "    "
     echo "    "
     echo "GraphAligner:"
@@ -1247,6 +1256,10 @@ echo >> ${outd}/verkko.yml "ruk_hap2:            '${ruk_hap2}'"
 echo >> ${outd}/verkko.yml "ruk_type:            '${ruk_type}'"
 echo >> ${outd}/verkko.yml "ruk_fract:           '${ruk_fract}'"
 echo >> ${outd}/verkko.yml ""
+echo >> ${outd}/verkko.yml "# consensus"
+echo >> ${outd}/verkko.yml "cns_num_iter:        '${cns_num_iter}'"
+echo >> ${outd}/verkko.yml "cns_max_cov:         '${cns_max_cov}'"
+echo >> ${outd}/verkko.yml "cns_quick:           '${cns_quick}'"
 echo >> ${outd}/verkko.yml "#  HiC algo options"
 echo >> ${outd}/verkko.yml "no_rdna_tangle:      '${no_rdna_tangle}'"
 echo >> ${outd}/verkko.yml "uneven_depth:        '${uneven_depth}'"
@@ -1527,6 +1540,7 @@ if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
     fi
 
     cd $newoutd
+    sed -i.bak -E "s/^(cns_quick:[[:space:]]*)'True'/\1'False'/" verkko.yml
     sed -i.bak 's/runRukkiHIC/cnspath/g' snakemake.sh
     sed -i.bak 's/HiC_rdnascaff/cnspath/g' snakemake.sh
     ./snakemake.sh

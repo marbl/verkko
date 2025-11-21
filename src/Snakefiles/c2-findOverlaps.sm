@@ -61,8 +61,12 @@ done
   -n 1 -w {params.merwindow} \\\\
   --max-coverage {params.mercount} \\\\
   --tmp-file-count {params.nindex} \\\\
-  -o matchchains \\\\
-  {input.reads}
+  -o matchchains.WORKING \\\\
+  {input.reads} \\\\
+  && \\\\
+  mv matchchains.WORKING.metadata matchchains.metadata \\\\
+  && \\\\
+  mv matchchains.WORKING.positions matchchains.positions
 
 if [ ! -s matchchains.positions ]; then
    echo "Error: indexing failed, check above for any errors"

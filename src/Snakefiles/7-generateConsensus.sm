@@ -34,7 +34,10 @@ rule generateConsensus:
     params:
         ont_ids    = lambda wildcards: getNumLines({rules.extractONT.output.ont_subset_id}) if config['withONT'] == "True" else 0,
         bam        = '7-consensus/packages/part{nnnn}.bam' if config['withBAM'] == "True" else rules.emptyfile.output,
-        minread    = config['cor_min_read']
+        minread    = config['cor_min_read'],
+        iterations = config['cns_num_iter'],
+        coverage   = config['cns_max_cov'],
+        quick      = config['cns_quick']
     threads:
         int(config['cns_n_cpus']),
     resources:
@@ -63,18 +66,25 @@ if [ "\$(expr {params.minread} - 500)" -gt 0 ]; then
     minread=500
 fi
 
+# when generating initial consensus skip bam generation and only 1 round
+if [ '{params.quick}' = 'True' ]; then
+   align="-norealign"
+   iter="-I 1"
+else
+   iter="-I {params.iterations}"
+fi
+
 {VERKKO}/bin/utgcns \\\\
     -threads {threads} \\\\
     -import ../{input.package} \\\\
     -A ../{output.consensus}.WORKING \\\\
-    -C 2 \\\\
+    \$iter -C 2 \\\\
     \$align \\\\
-    -maxcoverage 50 \\\\
+    -maxcoverage {params.coverage} \\\\
     -e  0.05 \\\\
-    -em 0.20 \\\\
+    -em 0.10 \\\\
     -EM {params.ont_ids} \\\\
     -l \$minread \\\\
-    -edlib \\\\
 && \\\\
 mv ../{output.consensus}.WORKING ../{output.consensus} \\\\
 && \\\\
