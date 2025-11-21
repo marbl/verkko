@@ -1408,12 +1408,13 @@ if [ "x$cnspaths" != "x" ] ; then
 
     if [ ! -e "${outd}/6-layoutContigs" ] ; then
         mkdir ${outd}/6-layoutContigs
-        cp -p ${cnsassembly}/6-layoutContigs/combined-nodemap.txt     ${outd}/6-layoutContigs/combined-nodemap.txt
-        cp -p ${cnsassembly}/6-layoutContigs/combined-edges.gfa       ${outd}/6-layoutContigs/combined-edges.gfa
-        cp -p ${cnsassembly}/6-layoutContigs/hifi.alignments.gaf      ${outd}/6-layoutContigs/hifi.alignments.gaf
-        cp -p ${cnsassembly}/6-layoutContigs/ont.alignments.gaf       ${outd}/6-layoutContigs/ont.alignments.gaf
-        cp -p ${cnspaths}                                             ${outd}/6-layoutContigs/consensus_paths.txt
-        cp -p ${cnsassembly}/6-layoutContigs/nodelens.txt             ${outd}/6-layoutContigs/nodelens.txt
+        cp ${cnsassembly}/6-layoutContigs/combined-nodemap.txt     ${outd}/6-layoutContigs/combined-nodemap.txt
+        cp ${cnsassembly}/6-layoutContigs/combined-edges.gfa       ${outd}/6-layoutContigs/combined-edges.gfa
+        cp ${cnsassembly}/6-layoutContigs/hifi.alignments.gaf      ${outd}/6-layoutContigs/hifi.alignments.gaf
+        cp ${cnsassembly}/6-layoutContigs/ont.alignments.gaf       ${outd}/6-layoutContigs/ont.alignments.gaf
+        cp ${cnspaths}                                             ${outd}/6-layoutContigs/consensus_paths.txt
+        cp ${cnsassembly}/6-layoutContigs/nodelens.txt             ${outd}/6-layoutContigs/nodelens.txt
+        cp ${cnsassembly}/6-layoutContigs/ont-gapfill.txt          ${outd}/6-layoutContigs/ont-gapfill.txt
     fi
 
     if [ ! -e "${outd}/7-consensus" ] && [ "x$withont" = "xTrue" ] ; then
@@ -1520,12 +1521,13 @@ if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
 
     if [ ! -e "${newoutd}/6-layoutContigs" ] ; then
         mkdir ${newoutd}/6-layoutContigs
-        cp -p 6-layoutContigs/combined-nodemap.txt     ${newoutd}/6-layoutContigs/combined-nodemap.txt
-        cp -p 6-layoutContigs/combined-edges.gfa       ${newoutd}/6-layoutContigs/combined-edges.gfa
-        cp -p 6-layoutContigs/hifi.alignments.gaf      ${newoutd}/6-layoutContigs/hifi.alignments.gaf
-        cp -p 6-layoutContigs/ont.alignments.gaf       ${newoutd}/6-layoutContigs/ont.alignments.gaf
-        cp -p 8-hicPipeline/rukki.paths.gaf            ${newoutd}/6-layoutContigs/consensus_paths.txt
-        cp -p 6-layoutContigs/nodelens.txt             ${newoutd}/6-layoutContigs/nodelens.txt
+        cp 6-layoutContigs/combined-nodemap.txt     ${newoutd}/6-layoutContigs/combined-nodemap.txt
+        cp 6-layoutContigs/combined-edges.gfa       ${newoutd}/6-layoutContigs/combined-edges.gfa
+        cp 6-layoutContigs/hifi.alignments.gaf      ${newoutd}/6-layoutContigs/hifi.alignments.gaf
+        cp 6-layoutContigs/ont.alignments.gaf       ${newoutd}/6-layoutContigs/ont.alignments.gaf
+        cp 8-hicPipeline/rukki.paths.gaf            ${newoutd}/6-layoutContigs/consensus_paths.txt
+        cp 6-layoutContigs/nodelens.txt             ${newoutd}/6-layoutContigs/nodelens.txt
+        cp 6-layoutContigs/ont-gapfill.txt          ${newoutd}/6-layoutContigs/ont-gapfill.txt
     fi
 
     if [ ! -e "${newoutd}/7-consensus" ] && [ "x$withont" = "xTrue" ] ; then
