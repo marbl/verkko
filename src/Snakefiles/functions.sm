@@ -48,12 +48,12 @@ def getFileBP(input):
 
 def getTimeRequest(attempt, tag, factor=1.5):
    scl=max(1.0, (attempt - 1) * factor)
-   time=float(config[f"{tag}_time_h"])*scl
+   time=float(config["{}_time_h".format(tag)])*scl
    return int(math.ceil(time))
 
 def getMemoryRequest(attempt, tag):
    scl = 0.75 + attempt / 4.0
-   mem = float(config[f"{tag}_mem_gb"])
+   mem = float(config["{}_mem_gb".format(tag)])
    return int(math.ceil(math.ceil(mem)*scl))
 
 def getOverlapMemoryRequest(attempt, factor=6):
@@ -89,7 +89,7 @@ def getAlignMemoryRequest(attempt, factor, files):
 
 def getCombineOverlapsMemory(attempt):
    scl = 0.75 + attempt / 4.0
-   mem = float(config[f"ovs_mem_gb"])
+   mem = float(config["ovs_mem_gb"])
 
    if os.path.exists(rules.combineOverlapsConfigure.output.ovlmemory):
       mem = 2.0    #  2 GB of extra memory!
@@ -101,7 +101,7 @@ def getCombineOverlapsMemory(attempt):
 
 def getMBGMemoryRequest(attempt):              #  Sum the input size, divide by three.
    scl = 0.75 + attempt / 4.0                  #  https://github.com/marbl/verkko/issues/34
-   mem = float(config[f"mbg_mem_gb"])          #
+   mem = float(config["mbg_mem_gb"])          #
    gib = 1024.0 * 1024.0 * 1024.0
 
    if mem < 2.0:
@@ -127,14 +127,14 @@ def getBuildPackagesInputONT(wildcards, withONT, withBAM):
 
 def getBuildPackageMemoryRequest(attempt):     #  Sum the size of input files, 2-bit encoded,
    scl = 0.75 + attempt / 4.0                  #  then add 10% and 2GB.
-   mem = float(config[f"par_mem_gb"])          #  But allow par_mem_gb to completely override.
+   mem = float(config["par_mem_gb"])          #  But allow par_mem_gb to completely override.
    gib = 1024.0 * 1024.0 * 1024.0
 
    return int(math.ceil(math.ceil(mem)*scl))
 
 def getConsensusMemoryRequest(attempt, jobid):    #  Figure out what partitioning claims each
    scl = 0.75 + attempt / 4.0                     #  job will need, add 25% and 2GB.
-   mem = float(config[f"cns_mem_gb"])             #  But allow cns_mem_gb to completely override.
+   mem = float(config["cns_mem_gb"])             #  But allow cns_mem_gb to completely override.
 
    if mem < 0.1:
       jobid = jobid.lstrip('0')
