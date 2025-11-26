@@ -947,7 +947,7 @@ if [ "x$withont" = "xTrue" ] ; then
 fi
 
 # mashmap required for hic and for screening contaminant
-if [ ! -z "$screen" -o "x$withhic" = "xTrue" ] ; then
+if [ ! -z "$screen" -o "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
     if   [ "x$mashmap" = "x" ] ; then
         errors="${errors}Can't find MashMap executable in \$PATH or \$VERKKO/bin/mashmap.\n"
     elif [ ! -e "$mashmap" ] ; then
