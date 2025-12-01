@@ -97,7 +97,6 @@ def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage, nodele
 	predecessor = {}
 	stack = []
 	stack.append((start, start, coverage.get(start[1:], 0)))
-	visited.add(start)
 
 	while len(stack) > 0:
 		(top, before, pathwidth) = stack.pop()
@@ -115,8 +114,9 @@ def pop_bubble(start, end, removed_nodes, removed_edges, edges, coverage, nodele
 			max_bubble_node_size = nodelens[top[1:]]
 		if top == end: continue
 		for edge in gf.iterate_deterministic(edges[top], end):
-			if edge not in visited:
-				visited.add(edge)
+			sys.stderr.write("Processing edge %s with before %s and top %s and it is visited %s\n"%(edge, before, top, ("{}_{}".format(top, edge) in visited)))
+			if "{}_{}".format(top, edge) not in visited:
+				visited.add("{}_{}".format(top, edge))
 				stack.append((edge, top, min(pathwidth, coverage.get(edge[1:], 0))))
 	assert end in predecessor
 	#sys.stderr.write("Processing bubble from %s to %s and conservative mode is %s\n"%(start, end, conservative))
