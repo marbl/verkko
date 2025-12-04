@@ -429,7 +429,7 @@ sub_time_h=24
 
 #  partition_consensus
 par_n_cpus=1
-par_mem_gb=16
+par_mem_gb=20
 par_time_h=96
 
 #  cns

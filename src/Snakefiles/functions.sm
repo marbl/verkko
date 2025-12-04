@@ -134,7 +134,8 @@ def getBuildPackageMemoryRequest(attempt):     #  Sum the size of input files, 2
 
 def getConsensusMemoryRequest(attempt, jobid):    #  Figure out what partitioning claims each
    scl = 0.75 + attempt / 4.0                     #  job will need, add 25% and 2GB.
-   mem = float(config["cns_mem_gb"])             #  But allow cns_mem_gb to completely override.
+   mem = float(config["cns_mem_gb"])              #  But allow cns_mem_gb to completely override.
+   withBAM = config["withBAM"]                    # When generating BAMs, allow more memory to store the alignment cigars we will output
 
    if mem < 0.1:
       jobid = jobid.lstrip('0')
@@ -143,7 +144,11 @@ def getConsensusMemoryRequest(attempt, jobid):    #  Figure out what partitionin
             for l in f:
                words = l.strip().split();
                if jobid == words[5]:
-                  mem = max(mem, 5.0 + 0.90 * float(words[4]))
+                  if (withBAM == "True"):
+                     mem = max(mem, 10.0 + 1.10 * float(words[4]))
+                  else:
+                     mem = max(mem, 5 + 0.8 * float(words[4]))
+                  sys.stderr.write("Processing memory request for consensus and the bam is %s and so request %s from %s\n"%(withBAM, mem, words[4])) 
 
    return int(math.ceil(math.ceil(mem)*scl))
 
