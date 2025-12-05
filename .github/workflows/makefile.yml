@@ -130,7 +130,7 @@ jobs:
         chmod 755 ga.sh
         chmod 755 lib/verkko/bin/utgcns
 
-        ./bin/verkko -d asm --mbg $PWD/mbg.sh --graphaligner $PWD/ga.sh --hifi ./hifi.fastq.gz --nano ./hifi.fastq.gz --chunkgraph-window 500 --chunkgraph-resolve-size 1000
+        ./bin/verkko -d asm --mbg $PWD/mbg.sh --graphaligner $PWD/ga.sh --hifi ./hifi.fastq.gz --nano ./hifi.fastq.gz --chunkgraph-window 500 --chunkgraph-resolve-size 1000 --no-correction
         if [ ! -s asm/assembly.fasta ]; then
            reportLogs
         fi
