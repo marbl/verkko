@@ -114,7 +114,7 @@ jobs:
         echo >> ga.sh '  touch diploid.index'
         echo >> ga.sh '  touch empty.gaf'
         echo >> ga.sh 'else'
-        echo >> ga.sh '  xz -dc ../../cache/aligned001.WORKING.gaf.xz > aligned001.WORKING.gaf'
+        echo >> ga.sh '  xz -dc ../../cache/aligned001.WORKING.gaf.xz | grep -v utig1-4 > aligned001.WORKING.gaf'
         echo >> ga.sh 'fi'
 
         echo  > lib/verkko/bin/utgcns '#!/bin/sh'
@@ -130,7 +130,7 @@ jobs:
         chmod 755 ga.sh
         chmod 755 lib/verkko/bin/utgcns
 
-        ./bin/verkko -d asm --mbg $PWD/mbg.sh --graphaligner $PWD/ga.sh --hifi ./hifi.fastq.gz --nano ./ont.fastq.gz
+        ./bin/verkko -d asm --mbg $PWD/mbg.sh --graphaligner $PWD/ga.sh --hifi ./hifi.fastq.gz --nano ./hifi.fastq.gz --chunkgraph-window 500 --chunkgraph-resolve-size 1000
         if [ ! -s asm/assembly.fasta ]; then
            reportLogs
         fi
