@@ -70,8 +70,8 @@ fi
     -C 2 \\\\
     \$align \\\\
     -maxcoverage 50 \\\\
-    -e  0.05 \\\\
-    -em 0.20 \\\\
+    -e  0.25 \\\\
+    -em 0.25 \\\\
     -EM {params.ont_ids} \\\\
     -l \$minread \\\\
     -edlib \\\\
