@@ -226,9 +226,12 @@ sub loadGtoC ($) {
 #
 #  diff --side-by-side --suppress-common-lines ./nodes ./nodes-with-links | awk '{{ print \$1 }}' > ./nodes-isolated
 #
-sub findDisconnected ($$) {
-    my $g = shift @_;
-    my $minl = shift @_;
+sub findDisconnected ($$@) {
+    my $g      = shift @_;
+    my $minl   = shift @_;
+    my @filter =       @_;
+    my %filter = map { $_ => 1 } @filter;
+
     my %nodes;
     my %edges;
     my @discShort;
@@ -269,6 +272,7 @@ sub findDisconnected ($$) {
 
     foreach my $c (keys %nodes) {
         next   if (exists($edges{$c}));
+        next   if ($filter{$c});
 
         if ($contigLength{$c} <  $minl) {
             push @discShort, $c;
@@ -613,10 +617,7 @@ sub filterSequences ($$$$@) {
 loadSequenceLengths($assembly);
 loadGtoC($graphmap);
 
-my @disconnected  = findDisconnected($graph, $minLength);
-filterSequences($assembly, "$output.disconnected", "disconnected", undef, @disconnected);
-
-my @crud = @disconnected;
+my @crud = ();
 
 loadHifiCoverage($hificov);
 
@@ -628,6 +629,10 @@ foreach my $cp (sort keys %contaminantSeq) {
     filterSequences($assembly, "$output.$cp", $cp, $exemplar, @contaminants);
     push @crud, @contaminants;
 }
+
+my @disconnected  = findDisconnected($graph, $minLength, @crud);
+filterSequences($assembly, "$output.disconnected", "disconnected", undef, @disconnected);
+push @crud, @disconnected;
 
 my %gold = %contigLength;
 my @gold;
