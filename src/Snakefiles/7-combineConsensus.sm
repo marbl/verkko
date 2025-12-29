@@ -42,7 +42,7 @@ rule combineConsensus:
         pathstsv  = rules.rukki.output.pathstsv if config['ruk_enable'] == "True" else rules.emptyfile.output,
         graph     = rules.verkko.input.graph
     output:
-        bam       = rules.verkko.input.bam,
+        cram      = rules.verkko.input.cram,
         cns       = rules.verkko.input.cns,
         cnshap1   = rules.verkko.input.cnshap1,
         cnshap2   = rules.verkko.input.cnshap2,
@@ -134,11 +134,11 @@ if [ "{params.haveBAM}" = "True" ] && [ '{params.quick}' != 'True' ]; then
    fi
 
    mem_per_core=\`(expr \( {resources.mem_gb} \* 70 \) / \( 100 \* {threads} \) | awk '{{if (\$1 < 1) print "1G"; else print \$1"G"}}') || true\`
-   rm -f ../{output.bam}.tmp.*
+   rm -f ../{output.cram}.tmp.*
 
-   {params.SAMTOOLS} merge -f -O bam --reference combined.fasta -@{threads} -u - {params.packbam} | {PYTHON} {VERKKO}/scripts/bam_rename.py ../{input.layout} ../{input.ontalns} ../{input.scfmap} ../{input.tigmap} {params.packcns} | {params.SAMTOOLS} sort -m \$mem_per_core -@{threads} -o ../{output.bam}
+   {params.SAMTOOLS} merge -f -O bam --reference combined.fasta -@{threads} -u - {params.packbam} | {PYTHON} {VERKKO}/scripts/bam_rename.py ../{input.layout} ../{input.ontalns} ../{input.scfmap} ../{input.tigmap} {params.packcns} | {params.SAMTOOLS} sort -m \$mem_per_core -@{threads} | {params.SAMTOOLS} view -T combined.fasta -O cram -o ../{output.cram}
 else
-   touch ../{output.bam}
+   touch ../{output.cram}
 fi
 
 #  Try to circularize, the script will output to the same file as input since it caches the sequences
