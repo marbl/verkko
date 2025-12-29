@@ -84,7 +84,7 @@ cat ../{input.graph} |awk '{{ if (match(\$1, "^S")) {{ print ">"\$2; print \$3 }
 
 bases=\`expr {params.bases} / 2 \`
 {PYTHON} {VERKKO}/scripts/fasta_partition.py \\\\
-  partition split/ont \$bases {params.reads} {params.length} False True \\\\
+  partition split/ont \$bases {params.reads} {params.length} False True 0 \\\\
   tip_reads.fasta.gz \\\\
 && \\\\
 touch ../{output.split_finished}

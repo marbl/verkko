@@ -63,7 +63,7 @@ set -e
 mkdir -p split
 
 {PYTHON} {VERKKO}/scripts/fasta_partition.py \\\\
-  partition split/ont {params.bases} {params.reads} {params.length} True False \\\\
+  partition split/ont {params.bases} {params.reads} {params.length} True False 100 \\\\
   {input.ont} \\\\
   > ../{output.split_ids} \\\\
 && \\\\

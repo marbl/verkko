@@ -233,17 +233,17 @@ set -e
 mkdir -p split
 if [ "{input.hic2}" = "emptyfile" ]; then
    {PYTHON} {VERKKO}/scripts/fasta_partition.py \\\\
-     partition split/hic1 {params.bases} {params.reads} {params.length} False False \\\\
+     partition split/hic1 {params.bases} {params.reads} {params.length} False False 0 \\\\
      {input.hic1} \\\\
     && \\\\
     touch ../{output.split_finished}
 else
    {PYTHON} {VERKKO}/scripts/fasta_partition.py \\\\
-     partition split/hic1 {params.bases} {params.reads} {params.length} False False \\\\
+     partition split/hic1 {params.bases} {params.reads} {params.length} False False 0 \\\\
      {input.hic1} \\\\
     && \\\\
     {PYTHON} {VERKKO}/scripts/fasta_partition.py \\\\
-      partition split/hic2 {params.bases} {params.reads} {params.length} False False \\\\
+      partition split/hic2 {params.bases} {params.reads} {params.length} False False 0 \\\\
       {input.hic2} \\\\
     && \\\\
     touch ../{output.split_finished}

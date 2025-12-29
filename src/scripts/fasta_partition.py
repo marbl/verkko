@@ -7,6 +7,7 @@ import re
 import fasta_util as seq
 import graph_functions as gf
 
+trim_bp          = 0
 mode             =  None
 output_prefix    =  None
 output_max_bytes = 3000000000
@@ -23,7 +24,8 @@ if   (len(sys.argv) > 8) and (sys.argv[1] == 'partition'):
   min_read_length  =         int(sys.argv[5])
   output_names     = gf.str2bool(sys.argv[6])
   output_hpc       = gf.str2bool(sys.argv[7])
-  filenames        =             sys.argv[8:]
+  trim_bp          =         int(sys.argv[8])
+  filenames        =             sys.argv[9:]
 
 else:
   sys.stderr.write(f"usage:\n")
@@ -69,6 +71,9 @@ for filename in filenames:
     if   (line[0] == ">"):
       line, sName, sSeq, sQlt = seq.readFastA(inf, line)
 
+      if trim_bp > 0 and len(sSeq) > trim_bp:
+        sSeq = sSeq[trim_bp:]
+
       if output_hpc:
         sSeq = seq.homoPolyCompress(sSeq)
 
@@ -86,6 +91,9 @@ for filename in filenames:
 
     elif (line[0] == "@"):
       line, sName, sSeq, sQlt = seq.readFastQ(inf, line)
+
+      if trim_bp > 0 and len(sSeq) > trim_bp:
+        sSeq = sSeq[trim_bp:]
 
       if output_hpc:
         sSeq = seq.homoPolyCompress(sSeq)
