@@ -14,7 +14,7 @@ gap_info = sys.argv[2]
 scfmap,_ = seq.readScfMap(sys.argv[3])
 namedict = seq.readNameMap(sys.argv[4])
 lens     = dict()
-offsets  = dict()  
+offsets  = dict()
 names    = dict()
 tigtohap = dict()
 readtorg = dict()
@@ -23,7 +23,7 @@ with open(layout) as f:
    for l in f:
       parts = l.strip().split('\t')
       if len(parts) > 2:
-         readtorg[parts[0]] = "LA" if (int(parts[-1]) == 0 or len(parts) == 3) else "UL"
+         readtorg[parts[0]] = "LA" if (int(parts[-1]) == 0 or len(parts) == 4) else "UL"
 with open(gap_info) as f:
    for l in f:
       parts = l.strip().split('\t')
@@ -40,9 +40,10 @@ for filename in sys.argv[5:]:
      if   (line[0] == ">"):
         line, sName, sSeq, sQlt = seq.readFastA(inf, line)
         nName = seq.replaceName(sName, namedict, "rename")
-        lens[nName] = len(sSeq)
-        names[nName] = sName.replace("piece", "tig")
-        #sys.stderr.write("Updating name to be mapping %s to %s of len %s\n"%(nName, sName.replace("piece", "tig"), len(sSeq)))
+        if len(sSeq) > 0:
+           lens[nName] = len(sSeq)
+           names[nName] = sName.replace("piece", "tig")
+           #sys.stderr.write("Updating name to be mapping %s to %s of len %s\n"%(nName, sName.replace("piece", "tig"), len(sSeq)))
      else:
         sys.stderr.write("Error: unexpected input %s\n"%(line))
         sys.exit(1)
@@ -61,7 +62,7 @@ for clist in scfmap:
          #sys.stderr.write("The offset for %s is %s\n"%(names[piece], offset))
          offset += lens[piece]
          tigtohap[names[piece]] = clist
-   #sys.stderr.write("Saving len of %s for sequence %s\n"%(offset, clist))     
+   #sys.stderr.write("Saving len of %s for sequence %s\n"%(offset, clist))
    header['SQ'].append({'SN': clist, 'LN': offset})
 
 # drop the old reference names
@@ -82,7 +83,7 @@ for read in bamfile:
        if reference_name not in offsets or tigtohap[reference_name] not in output_bam.references or read.query_name not in readtorg:
           sys.stderr.write("Error: I didn't find how to translate '%s'\n"%(reference_name))
           sys.exit(1)
-     
+
        # make a copy of the existing read in the new bam, replacing the string reference
        new_read = pysam.AlignedSegment.fromstring(read.to_string().replace(f'\t{reference_name}\t', f'\t{tigtohap[reference_name]}\t'), output_bam.header)
 
