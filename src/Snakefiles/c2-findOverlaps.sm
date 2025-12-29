@@ -175,7 +175,7 @@ def combineOverlapsP(wildcards):
        
     outf  = open("0-correction/ovb-files", mode="wb")
     for path in paths:
-        outf.write(f"{path}\n".encode())
+        outf.write(f"{path.strip()}\n".encode())
     outf.close()
 
     return paths
