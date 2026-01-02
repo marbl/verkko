@@ -382,6 +382,13 @@ def clear_links(node_pairs, mg):
     for pair in node_pairs:
         mg.matchGraph.remove_edge(pair[0], pair[1])
 
+def kernighan_lin_wrap(C, parts, max_iterations, seed):
+    try:
+        klin = community.bipartitions.kernighan_lin_bisection(C, partition=parts, max_iter=max_iterations, weight='weight', seed=seed)
+    except AttributeError:
+        klin = community.kernighan_lin.kernighan_lin_bisection(C, partition=parts, max_iter=max_iterations, weight='weight', seed=seed)
+    return klin
+
 def remove_pseudo_homology(current_component, or_G, dists, mg):
     #we never remove true homology between really large nodes
     #max 1/3 among all homologies can be cleared 
@@ -599,7 +606,7 @@ def run_clustering (graph_gfa, hpc_mashmap, nonhpc_mashmap, hic_byread, output_d
         for seed in range(0, KLIN_STARTS):  # iterate on starting partition
             random.seed(seed)
             parts = random_swap(init_parts, opposite, seed)
-            part = community.kernighan_lin.kernighan_lin_bisection(C, partition=parts, max_iter=KLIN_ITER, weight='weight', seed=seed)
+            part = kernighan_lin_wrap(C, parts, max_iter=KLIN_ITER, seed=seed)
             logging.debug(f"init_part:\n{sorted(part[0])}\n{sorted(part[1])}")
 
             sum_w = score_partition(C, part)
