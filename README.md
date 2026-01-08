@@ -43,7 +43,7 @@ Alternatively, you can download and compile the source for a recent [release](ht
   * [BWA](https://bio-bwa.sourceforge.net/)
   * [Minimap2](https://github.com/lh3/minimap2)
   * [seqtk](https://github.com/lh3/seqtk)
-  * [networkx](https://networkx.org/documentation/stable/install.html) python library
+  * [networkx](https://networkx.org/documentation/stable/install.html) python library (>=2.6, <=3.5)
 
 To install an unreleased version of Verkko from github (for development) run:
 
