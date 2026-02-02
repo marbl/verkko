@@ -47,7 +47,7 @@ def read_graph_only_bases(filename):
 				base_seqs[parts[1]] = parts[2]
 	return base_seqs
 
-def replace_path_nodes(resolvable, paths_crossing, new_edgenodes, maybe_resolvable):
+def replace_path_nodes(resolvable, paths_crossing, new_edgenodes, maybe_resolvable, edges):
 	found_identities = set()
 	remove_paths = []
 	add_paths = []
@@ -71,7 +71,17 @@ def replace_path_nodes(resolvable, paths_crossing, new_edgenodes, maybe_resolvab
 		remove_path(paths_crossing, path)
 	for path in add_paths:
 		for node in path: assert node[1:] not in resolvable
-		if len(path) > 1: add_path(paths_crossing, path)
+		split_paths = []
+		last_split = 0
+		for i in range(1, len(path)):
+			if path[i-1] not in edges or path[i] not in edges[path[i-1]]:
+				split_paths.append(path[last_split:i])
+				last_split = i
+			else:
+				assert gf.canon(path[i-1], path[i]) in edge_overlaps
+		split_paths.append(path[last_split:])
+		for path2 in split_paths:
+			if len(path2) > 1: add_path(paths_crossing, path2)
 	for node in resolvable: assert len(paths_crossing[node]) == 0
 
 def replace_path_node(paths_crossing, node, left_added, right_added):
@@ -322,6 +332,13 @@ def resolve_hairpins(nodelength, nodes, paths_crossing, node_seqs, node_lens, ed
 		add_path(paths_crossing, path)
 	return (new_node_names, resolved)
 
+def is_hairpin(node_name, edges):
+	if ">" + node_name in edges:
+		if "<" + node_name in edges[">" + node_name]: return True
+	if "<" + node_name in edges:
+		if ">" + node_name in edges["<" + node_name]: return True
+	return False
+
 def resolve_nodes(nodelength, nodes, paths_crossing, node_seqs, node_lens, edges, maybe_resolvable, min_edge_support, min_coverage, removable_nodes):
 	resolvable = set()
 	triplets = []
@@ -343,6 +360,14 @@ def resolve_nodes(nodelength, nodes, paths_crossing, node_seqs, node_lens, edges
 			maybe_resolvable.remove(triplet[1][1:])
 			# print("borders unresolvable at " + triplet[1][1:])
 			fixed_any = True
+		for triplet in triplets:
+			if triplet[1][1:] not in maybe_resolvable: continue
+			if triplet[0] is not None and is_hairpin(triplet[0][1:], edges):
+				maybe_resolvable.remove(triplet[1][1:])
+				fixed_any = True
+			if triplet[2] is not None and is_hairpin(triplet[2][1:], edges):
+				maybe_resolvable.remove(triplet[1][1:])
+				fixed_any = True
 	resolvable = set()
 	triplets = []
 	longest_extension_per_node = {}
@@ -374,6 +399,11 @@ def resolve_nodes(nodelength, nodes, paths_crossing, node_seqs, node_lens, edges
 			assert longest_extension_per_node["<" + node] > 0
 	new_edgenodes = {}
 	for triplet in triplets:
+		assert triplet[0] is None or triplet[0] in edges
+		assert triplet[0] is None or triplet[1] in edges[triplet[0]]
+		assert triplet[1] is not None
+		assert triplet[1] in edges
+		assert triplet[2] is None or triplet[2] in edges[triplet[1]]
 		assert triplet[1][1:] in maybe_resolvable
 		assert triplet[1][0] == ">"
 		extend_amount = longest_extension_per_node["<" + triplet[1][1:]]
@@ -563,8 +593,7 @@ def resolve_nodes(nodelength, nodes, paths_crossing, node_seqs, node_lens, edges
 		key = gf.canon(left_key, right_key)
 		assert key not in edge_overlaps
 		edge_overlaps[key] = overlap
-	replace_path_nodes(resolvable, paths_crossing, new_edgenodes, maybe_resolvable)
-	for node in gf.iterate_deterministic(resolvable): remove_graph_node(node, node_seqs, edges)
+	replace_path_nodes(resolvable, paths_crossing, new_edgenodes, maybe_resolvable, edges)
 	self_edge_coverage = {}
 	new_paths = []
 	found_identities = set()
@@ -573,18 +602,27 @@ def resolve_nodes(nodelength, nodes, paths_crossing, node_seqs, node_lens, edges
 			if id(path) in found_identities: continue
 			found_identities.add(id(path))
 			new_paths.append(path)
+	for n in gf.iterate_deterministic(resolvable):
+		for path in iterate_paths(paths_crossing, n):
+			if id(path) in found_identities: continue
+			found_identities.add(id(path))
+			new_paths.append(path)
+	for node in gf.iterate_deterministic(resolvable): remove_graph_node(node, node_seqs, edges)
 	split_add_paths = []
 	remove_add_paths = []
 	for path in new_paths:
 		last_split = 0
+		if path[0][1:] not in node_seqs:
+			last_split = 1
 		for i in range(1, len(path)):
-			if path[i-1] not in edges or path[i] not in edges[path[i-1]]:
-				split_add_paths.append(path[last_split:i])
+			if path[i-1] not in edges or path[i] not in edges[path[i-1]] or path[i][1:] not in node_seqs:
+				if i > last_split: split_add_paths.append(path[last_split:i])
 				last_split = i
+				if path[i][1:] not in node_seqs: last_split = i+1
 			else:
 				assert gf.canon(path[i-1], path[i]) in edge_overlaps
 		if last_split != 0:
-			split_add_paths.append(path[last_split:])
+			if last_split < len(path): split_add_paths.append(path[last_split:])
 			remove_add_paths.append(path)
 	for path in remove_add_paths:
 		remove_path(paths_crossing, path)
