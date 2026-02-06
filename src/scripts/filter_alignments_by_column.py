@@ -18,11 +18,10 @@ with open(read_file) as f:
 
 for l in sys.stdin:
 	parts = l.strip().split('\t')
-	if ">" in parts[filter_offset]:
+	if ">" == parts[filter_offset][0] or "<" == parts[filter_offset][0]:
 		aln_nodes=set(parts[filter_offset].replace(">", ",").replace("<", ",")[1:].split(","))
 	else:
 		aln_nodes=set(parts[filter_offset].split(","))
-
 	if invert == False and nodes.isdisjoint(aln_nodes) == False:
 		print(l.strip())
 	elif invert == True and nodes.isdisjoint(aln_nodes) == True:
