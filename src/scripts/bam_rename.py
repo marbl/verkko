@@ -62,8 +62,9 @@ for clist in scfmap:
          #sys.stderr.write("The offset for %s is %s\n"%(names[piece], offset))
          offset += lens[piece]
          tigtohap[names[piece]] = clist
-   #sys.stderr.write("Saving len of %s for sequence %s\n"%(offset, clist))
-   header['SQ'].append({'SN': clist, 'LN': offset})
+   if (offset > 0):
+      #sys.stderr.write("Saving len of %s for sequence %s\n"%(offset, clist))
+      header['SQ'].append({'SN': clist, 'LN': offset})
 
 # drop the old reference names
 header['SQ'] = [sq_entry for sq_entry in header['SQ'] if sq_entry['SN'] in scfmap]
@@ -81,7 +82,7 @@ for read in bamfile:
     if not read.is_unmapped:
        reference_name = bamfile.get_reference_name(read.reference_id)
        if reference_name not in offsets or tigtohap[reference_name] not in output_bam.references or read.query_name not in readtorg:
-          sys.stderr.write("Error: I didn't find how to translate '%s'\n"%(reference_name))
+          sys.stderr.write("Error: I didn't find how to translate '%s' hap is '%s' and query name '%s'\n"%(reference_name, tigtohap[reference_name], read.query_name))
           sys.exit(1)
 
        # make a copy of the existing read in the new bam, replacing the string reference
