@@ -177,6 +177,7 @@ cd 0-correction
 
 cat > ./fixErrors.sh <<EOF
 #!/bin/sh
+set -e
 
 echo ""
 echo Combine corrections.
@@ -233,6 +234,8 @@ rule correctHiFi:
         time_h = 1
     shell:
         '''
+#!/bin/sh
+set -e
 mv {input.fasta} {output.fasta}
 
 if [ {params.keepinter} = "False" ] ; then
