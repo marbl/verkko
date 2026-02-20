@@ -429,8 +429,8 @@ sub_time_h=24
 
 #  partition_consensus
 par_n_cpus=1
-par_mem_gb=20
-par_time_h=96
+par_mem_gb=32
+par_time_h=48
 
 #  cns
 cns_n_cpus=8
@@ -1550,7 +1550,7 @@ if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
     if [ $ret -eq 0 ]; then
         cp *.fasta ../../
         if [ "x$withbam" = "xTrue" ] ; then
-           cp *.bam ../../
+           cp *.cram ../../
         fi
         cp *.gfa ../../
         cp *.layout ../../
