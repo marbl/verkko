@@ -136,7 +136,7 @@ if [ "{params.haveBAM}" = "True" ] && [ '{params.quick}' != 'True' ]; then
    mem_per_core=\`(expr \( {resources.mem_gb} \* 70 \) / \( 100 \* {threads} \) | awk '{{if (\$1 < 1) print "1G"; else print \$1"G"}}') || true\`
    rm -f ../{output.cram}.tmp.*
 
-   {params.SAMTOOLS} merge -f -O bam --reference combined.fasta -@{threads} -u - {params.packbam} | {PYTHON} {VERKKO}/scripts/bam_rename.py ../{input.layout} ../{input.ontalns} ../{input.scfmap} ../{input.tigmap} {params.packcns} | {params.SAMTOOLS} sort -m \$mem_per_core -@{threads} | {params.SAMTOOLS} view -T combined.fasta -O cram -o ../{output.cram}
+   {params.SAMTOOLS} merge -f -O bam --reference combined.fasta -@{threads} -u - {params.packbam} | {PYTHON} {VERKKO}/scripts/bam_rename.py ../{input.layout} ../{input.ontalns} ../{input.scfmap} ../{input.tigmap} {params.packcns} | {params.SAMTOOLS} sort -m \$mem_per_core -@{threads} | {params.SAMTOOLS} view -T combined.fasta -O cram --output-fmt-option embed_ref=1 -o ../{output.cram}
 else
    touch ../{output.cram}
 fi
