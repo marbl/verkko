@@ -606,7 +606,7 @@ def run_clustering (graph_gfa, hpc_mashmap, nonhpc_mashmap, hic_byread, output_d
         for seed in range(0, KLIN_STARTS):  # iterate on starting partition
             random.seed(seed)
             parts = random_swap(init_parts, opposite, seed)
-            part = kernighan_lin_wrap(C, parts, max_iter=KLIN_ITER, seed=seed)
+            part = kernighan_lin_wrap(C, parts, max_iterations=KLIN_ITER, seed=seed)
             logging.debug(f"init_part:\n{sorted(part[0])}\n{sorted(part[1])}")
 
             sum_w = score_partition(C, part)
