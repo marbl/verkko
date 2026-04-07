@@ -352,7 +352,7 @@ with open(read_alignment_file) as f:
 		if len(matches) == 0: continue
 		if readname not in matches_per_read: matches_per_read[readname] = []
 		if len(matches) > maximum_read_copycount:
-			sys.stderr.write("Skipping highily covered read %s\n"%(readname))
+			sys.stderr.write("Skipping highly covered read %s\n" % (readname))
 			continue
 		matches_per_read[readname] += matches
 
