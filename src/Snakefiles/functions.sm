@@ -83,7 +83,7 @@ def getAlignMemoryRequest(attempt, factor, files):
          if os.path.exists(filename):
             sum += os.path.getsize(filename)
    if sum > 0:
-      mem = factor * sum / 1024 / 1024 / 1024
+      mem = max(mem, factor * sum / 1024 / 1024 / 1024)
 
    return int(math.ceil(math.ceil(mem)*scl))
 

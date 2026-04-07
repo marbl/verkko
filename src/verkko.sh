@@ -399,7 +399,7 @@ spl_time_h=96
 
 #  align_ont
 ali_n_cpus=24
-ali_mem_gb=64
+ali_mem_gb=16
 ali_time_h=24
 
 #  process_ont_paths
