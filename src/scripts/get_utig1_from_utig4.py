@@ -123,6 +123,7 @@ pieceid = 0
 contig_lens = {}
 contig_node_offsets = {}
 contig_pieces = {}
+comments = {}
 with open(paths_file) as f:
 	for l in f:
 		lp	= l.strip().split('\t')
@@ -133,6 +134,7 @@ with open(paths_file) as f:
 		#	we dump the description here and anly keep the N, digits N] part
 		#
 		fullname = lp[0]
+		comments[fullname] = lp[2] if len(lp) >= 3 else ""
 		pathfull = re.findall(r"([<>][^[]+|\[N\d+N(?:[^\]]+){0,1}\])", lp[1])
 
 		contig_pieces[fullname] = []
@@ -197,4 +199,4 @@ with open(paths_file) as f:
 
 for fullname in contig_pieces:		
 	if "name" in fullname: continue
-	sys.stdout.write(fullname + "\t" + "".join(contig_pieces[fullname]) + "\n")
+	sys.stdout.write(fullname + "\t" + "".join(contig_pieces[fullname]) + "\t" + comments[fullname] + "\n")
