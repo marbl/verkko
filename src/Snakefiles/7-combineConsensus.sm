@@ -66,7 +66,7 @@ rule combineConsensus:
     resources:
         job_id = 1,
         n_cpus = 8,
-        mem_gb = lambda wildcards, input, attempt: getAlignMemoryRequest(attempt, 5, input.packcns),
+        mem_gb = lambda wildcards, input, attempt: getAlignMemoryRequest(attempt, 6, input.packcns),
         time_h = 48
     shell:
         '''
@@ -133,10 +133,43 @@ if [ "{params.haveBAM}" = "True" ] && [ '{params.quick}' != 'True' ]; then
       echo "  Max open files limited to \$bef, no increase possible."
    fi
 
+   # if we can't increase or the max is smaller than the number of files we will use multiple rounds of merging
+   lim=\`ulimit -Sn\`
+   batch_size=\$(( lim / 2))
    mem_per_core=\`(expr \( {resources.mem_gb} \* 70 \) / \( 100 \* {threads} \) | awk '{{if (\$1 < 1) print "1G"; else print \$1"G"}}') || true\`
    rm -f ../{output.cram}.tmp.*
 
-   {params.SAMTOOLS} merge -f -O bam --reference combined.fasta -@{threads} -u - {params.packbam} | {PYTHON} {VERKKO}/scripts/bam_rename.py ../{input.layout} ../{input.ontalns} ../{input.scfmap} ../{input.tigmap} {params.packcns} | {params.SAMTOOLS} sort -m \$mem_per_core -@{threads} | {params.SAMTOOLS} view -T combined.fasta -O cram --output-fmt-option embed_ref=1 -o ../{output.cram}
+   bam_files=(\$(ls -1 {params.packbam}))
+   round=0
+   current_files=("\${{bam_files[@]}}")
+
+   echo "Starting iterative merge with \${{#current_files[@]}} files, merging \$batch_size at a time using mem \$mem_per_core"
+
+   while [ "\${{#current_files[@]}}" -gt 1 ]; do
+      next_files=()
+      i=0
+      batch_num=0
+
+      while [ \$i -lt "\${{#current_files[@]}}" ]; do
+         batch=( "\${{current_files[@]:i:batch_size}}" )
+         out="../{output.cram}.tmp.merge_r\${{round}}_b\${{batch_num}}.bam"
+
+         echo "  Merging round \$round batch \$batch_num (\${{#batch[@]}} files)..."
+
+         {params.SAMTOOLS} merge -f -O bam --reference combined.fasta -@{threads} -u "\$out"  "\${{batch[@]}}"
+
+         next_files+=( "\$out" )
+
+         ((i+=batch_size))
+         ((batch_num+=1))
+      done
+
+      current_files=( "\${{next_files[@]}}" )
+      ((round+=1))
+   done
+
+   {params.SAMTOOLS} view -h -O bam \${{current_files[0]}} | {PYTHON} {VERKKO}/scripts/bam_rename.py ../{input.layout} ../{input.ontalns} ../{input.scfmap} ../{input.tigmap} {params.packcns} | {params.SAMTOOLS} sort -m \$mem_per_core -@{threads} | {params.SAMTOOLS} view -T combined.fasta -O cram --output-fmt-option embed_ref=1 -o ../{output.cram}
+   rm -f ../{output.cram}.tmp.merge_r*.bam
 else
    touch ../{output.cram}
 fi

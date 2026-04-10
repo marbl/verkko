@@ -25,6 +25,8 @@ min_contig_no_trim = 500000
 min_read_len_fraction = 0.5
 min_read_fromend_fraction = min_read_len_fraction/1.5
 min_exact_len_fraction = min_read_len_fraction/3
+maximum_node_copycount = 1000
+maximum_read_copycount = 100000
 
 #transform paths to base elements - mbg nodes and gaps.
 def get_leafs(path, mapping, edge_overlaps, raw_node_lens):
@@ -308,11 +310,20 @@ for contigname in contig_nodeseqs:
 			if nodename not in node_poses: node_poses[nodename] = []
 			node_poses[nodename].append((contigname, i, False))
 
+# filter out very highly covered nodes
+highly_covered_nodes = set()
+for node in node_poses:
+	if len(node_poses[node]) <= maximum_node_copycount: continue
+	highly_covered_nodes.add(node)
+	sys.stderr.write("filter out node " + node + " with copy count " + str(len(node_poses[node])) + "\n")
+for node in highly_covered_nodes:
+	del node_poses[node]
 read_name_to_id = {}
 next_read_id = 0
 
 matches_per_read = {}
 readname_to_paths = {}
+
 with open(read_alignment_file) as f:
 	for l in f:
 		parts = l.strip().split('\t')
@@ -340,6 +351,9 @@ with open(read_alignment_file) as f:
 		matches = get_matches(path, node_poses, contig_nodeseqs, raw_node_lens, edge_overlaps, pathleftclip, pathrightclip, readleftclip, readrightclip, readlen, readstart, readend, gap)
 		if len(matches) == 0: continue
 		if readname not in matches_per_read: matches_per_read[readname] = []
+		if len(matches) > maximum_read_copycount:
+			sys.stderr.write("Skipping highly covered read %s\n" % (readname))
+			continue
 		matches_per_read[readname] += matches
 
 contig_contains_reads = {}
@@ -494,19 +508,20 @@ for contig in contig_contains_reads:
 			if from_end > min_read_fromend_fraction * readlen:
 				total_banned += 1
 
-			#sys.stderr.write("Checking read %s in contig %s with len %s and span %s and exact %s matches fw end %s\n"%(readname, contig, readlen, (fwcluster[3] - fwcluster[2]), get_exact_match_length(fwcluster[4]), fwcluster[4]))
-
+			#sys.stderr.write("Final read %s in contig %s with len %s and span %s and exact %s matches fw end %s\n"%(readname, contig, readlen, (fwcluster[3] - fwcluster[2]), get_exact_match_length(fwcluster[4]), fwcluster[4]))
 			if fwcluster[3] - fwcluster[2] >= readlen * min_read_len_fraction and from_end <= min_read_fromend_fraction * readlen and get_exact_match_length(fwcluster[4]) >= readlen * min_exact_len_fraction:
 				read_clusters[readname].append((contig, fwcluster[0], fwcluster[1], get_exact_match_length(fwcluster[4])))
+				#sys.stderr.write("Adding cluster for read %s by comparing %f to %f\n"%(readname, (fwcluster[3] - fwcluster[2]), (readlen * min_read_len_fraction)))
 		if bwcluster is not None:
 			if bwcluster[0] < 0: from_end = bwcluster[1] - (bwcluster[3] - bwcluster[2])
 			if bwcluster[1] > contig_lens[contig]: from_end = contig_lens[contig] - (bwcluster[0] + (bwcluster[3] - bwcluster[2]))
 			if from_end > min_read_fromend_fraction * readlen:
 				total_banned += 1
 
-			#sys.stderr.write("Checking read %s in contig %s with len %s and span %s and exact %s matches bw end %s\n"%(readname, contig, readlen, (bwcluster[3] - bwcluster[2]), get_exact_match_length(bwcluster[4]), bwcluster[4]))
+			#sys.stderr.write("Final read %s in contig %s with len %s and span %s and exact %s matches bw end %s\n"%(readname, contig, readlen, (bwcluster[3] - bwcluster[2]), get_exact_match_length(bwcluster[4]), bwcluster[4]))
 			if bwcluster[3] - bwcluster[2] >= readlen * min_read_len_fraction and from_end <= min_read_fromend_fraction * readlen and get_exact_match_length(bwcluster[4]) >= readlen * min_exact_len_fraction:
 				read_clusters[readname].append((contig, bwcluster[1], bwcluster[0], get_exact_match_length(bwcluster[4])))
+				#sys.stderr.write("Adding cluster for read %s by comparing %f to %f\n"%(readname, (bwcluster[3] - bwcluster[2]), (readlen * min_read_len_fraction)))
 print (f"Banned {total_banned} allowed {total_notbanned} read-paths")
 contig_actual_lines = {}
 read_actual_counts = {}
