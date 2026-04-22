@@ -363,11 +363,13 @@ def resolve_nodes(nodelength, nodes, paths_crossing, node_seqs, node_lens, edges
 		for triplet in triplets:
 			if triplet[1][1:] not in maybe_resolvable: continue
 			if triplet[0] is not None and is_hairpin(triplet[0][1:], edges):
-				maybe_resolvable.remove(triplet[1][1:])
-				fixed_any = True
+				if triplet[1][1:] in maybe_resolvable:
+					maybe_resolvable.remove(triplet[1][1:])
+					fixed_any = True
 			if triplet[2] is not None and is_hairpin(triplet[2][1:], edges):
-				maybe_resolvable.remove(triplet[1][1:])
-				fixed_any = True
+				if triplet[1][1:] in maybe_resolvable:
+					maybe_resolvable.remove(triplet[1][1:])
+					fixed_any = True
 	resolvable = set()
 	triplets = []
 	longest_extension_per_node = {}
