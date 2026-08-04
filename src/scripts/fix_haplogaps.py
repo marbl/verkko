@@ -179,17 +179,24 @@ for edge in edges:
 	for edge2 in edges[edge]:
 		fromnode = edge
 		tonode = edge2
-		overlap=edge_overlaps[gf.canon(edge, edge2)]
+		canon_pair = gf.canon(edge, edge2)
+		cfrom, cto = canon_pair
+		overlap = edge_overlaps[canon_pair]
+		# A trim keyed by orientation tk removes bases from the end of tk's
+		# direction. That physically touches an edge only when tk appears as
+		# the FROM side of canon, or revnode(tk) appears as the TO side
+		# (those are the same physical end of the node).
 		if ">" + fromnode[1:] in node_trims or "<" + fromnode[1:] in node_trims:
-			if ">" + fromnode[1:] in node_trims and ">" + fromnode[1:] in gf.canon(edge, edge2): overlap -= node_trims[">" + fromnode[1:]]
-			if "<" + fromnode[1:] in node_trims and "<" + fromnode[1:] in gf.canon(edge, edge2): overlap -= node_trims["<" + fromnode[1:]]
-
+			for tk in (">" + fromnode[1:], "<" + fromnode[1:]):
+				if tk in node_trims and cfrom == tk:
+					overlap -= node_trims[tk]
 			fromnode = fromnode + "_trim"
 		if ">" + tonode[1:] in node_trims or "<" + tonode[1:] in node_trims:
-			if ">" + tonode[1:] in node_trims and ">" + tonode[1:] in gf.canon(edge, edge2): overlap -= node_trims[">" + tonode[1:]]
-			if "<" + tonode[1:] in node_trims and "<" + tonode[1:] in gf.canon(edge, edge2): overlap -= node_trims["<" + tonode[1:]]
-
+			for tk in (">" + tonode[1:], "<" + tonode[1:]):
+				if tk in node_trims and cto == gf.revnode(tk):
+					overlap -= node_trims[tk]
 			tonode = tonode + "_trim"
+		assert overlap >= 0, ("negative overlap after trim", edge, edge2, overlap)
 		if fromnode[0] == ">" and (edge in node_cuts or gf.revnode(edge) in node_cuts):
 			fromnode = fromnode + "_end"
 		elif fromnode[0] == "<" and (edge in node_cuts or gf.revnode(edge) in node_cuts):
