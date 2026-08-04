@@ -405,7 +405,7 @@ ali_time_h=24
 #  process_ont_paths
 pop_n_cpus=16
 pop_mem_gb=64
-pop_time_h=48
+pop_time_h=24
 
 #  untip
 utp_n_cpus=1
@@ -1395,6 +1395,7 @@ if [ "x$cnspaths" != "x" ] ; then
     #  is done - instead of symlinking - to prevent Snakemake from
     #  'accidentally' obliterating precious original files.
     cp -p ${cnsassembly}/assembly.homopolymer-compressed.noseq.gfa                               ${outd}/assembly.homopolymer-compressed.noseq.gfa
+    ln -s ${cnsassembly}/hifi-corrected.fasta.gz                                                 ${outd}/hifi-corrected.fasta.gz
 
     if [ ! -e "${outd}/5-untip" ]; then
        mkdir ${outd}/5-untip
