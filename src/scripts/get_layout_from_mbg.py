@@ -524,6 +524,7 @@ for contig in contig_contains_reads:
 				#sys.stderr.write("Adding cluster for read %s by comparing %f to %f\n"%(readname, (bwcluster[3] - bwcluster[2]), (readlen * min_read_len_fraction)))
 print (f"Banned {total_banned} allowed {total_notbanned} read-paths")
 contig_actual_lines = {}
+contig_assigned_count = {}
 read_actual_counts = {}
 read_actual_contigs = {}
 #selecting best alignment to the contig, if multiple best use all of them.
@@ -557,10 +558,11 @@ nul_layout_file = open(f"{layscf_output}.dropped", mode="w")
 #  contig actually has pieces, output the scaffold map.  (The header line
 #  output from rukki looks like a contig with no pieces.)
 #
+# do this loop twice, the first time records what should be trimmed, the second time will actually write
+# this is done because we still need to randomly assign reads with multiple placements below
 no_trim = set()
-nameid = 1
 for contig in sorted(contig_pieces.keys()):
-	npieces = ngaps = nempty = 0
+	npieces = 0
 	ngaps   = 0
 	nempty  = 0
 
@@ -573,84 +575,8 @@ for contig in sorted(contig_pieces.keys()):
 		elif line != "end":
 			nempty  += 1   #  Piece with no reads assigned.
 
-			#This is not normal but still may happen, switching off for now.
-
-			#if contig_lens[line] > 100000:
-			#	sys.stderr.write(f"ERROR: empty entry for piece {line} in scaffold {contig} of LARGE expected length {contig_lens[line]}\n")
-			#	exit(1)				
-			contig_pieces[contig][i] = "[N%dN]"%(contig_lens[line])
-			if npieces > 0:
-				print(f"Warning: empty entry for piece {line} in scaffold {contig} of expected length {contig_lens[line]}, using Ns {contig_pieces[contig][i]} instead", file=nul_layout_file)
-	#postprocessing to avoid consecutive empty pieces
-	i = 0
-	new_pieces = []
-	previous = "NONE"
-	while i < len(contig_pieces[contig]):
-		line = contig_pieces[contig][i]
-		i += 1
-		is_gap = re.match(r"\[N\d+N\]", line)
-		if is_gap:
-			#just ignoring leading gaps
-			if previous == "NONE":
-				continue			
-			elif previous == "piece":
-				new_pieces.append(line)
-				previous = "gap"
-			else:
-				#merging consecutive gaps
-				previous = "gap"
-				last = new_pieces.pop()
-				last_int = int(last[2:-2])
-				cur_int = int(line[2:-2])
-				new_pieces.append("[N%dN]"%(last_int + cur_int))
-		else:
-			new_pieces.append(line)
-			# it can actually be 'end' but who cares then
-			previous = "piece"
-	#removing trailing gaps
-	while len(new_pieces) > 0 and re.match(r"\[N\d+N\]", new_pieces[-1]):
-		new_pieces.pop()
-	contig_pieces[contig] = new_pieces
-
-	if npieces > 0:
-		if nempty > 0:
-			print(f"{contig} has empty pieces.  npieces {npieces} ngaps {ngaps} nempty {nempty}", file=nul_layout_file)
-		#  Decode the rukki (or non-rukki) contig name into
-		#  something we'll present to the user.
-		#
-		#  Without rukki, contig names are:
-		#	utig4-0
-		#
-		#  With rukki, they are:
-		#	ladybug-hap1_from_utig4-1736
-		#	ladybug-hap2_unused_utig4-0
-		#	na_unused_utig4-1
-		#  (where ladybug-hap1/2 is supplied by the user)
-		#
-		isna	 = re.search(r"^na_unused_(.*)$", contig)
-		isunused = re.search(r"^(.*)_unused_(.*)$", contig)
-		isfrom   = re.search(r"^(.*)_from_(.*)$", contig)
-
-		if   isna:
-			outname = f"unassigned-{nameid:07}"
-		elif isunused:
-			outname = f"{isunused.group(1)}-{nameid:07}"
-		elif isfrom:
-			outname = f"{isfrom.group(1)}-{nameid:07}"
-		else:
-			outname = f"contig-{nameid:07}"
-
-		print(f"path {outname} {contig}", file=scf_layout_file)
-
-		for line in contig_pieces[contig]:
-			if len(contig_pieces[contig]) > 2 and (line == contig_pieces[contig][0] or line == contig_pieces[contig][-2]): no_trim.add(line)
-			print(line, file=scf_layout_file)
-
-		nameid += 1
-	else:
-		print(f"{contig} has no reads assigned and is not output.", file=nul_layout_file)
-
-del nameid
+	for line in contig_pieces[contig]:
+		if npieces > 1 and (line == contig_pieces[contig][0] or line == contig_pieces[contig][-2]): no_trim.add(line)
 
 # we will update the count after randomly assigning reads between their equal locations
 # high count reads are output in all locations to avoid introducing coverage but simple hom nodes are randomly assigned
@@ -688,6 +614,7 @@ for contig in sorted(contig_actual_lines.keys()):
 		end_pos = max(end_pos, line[2])
 		assigned_read_count += 1
 
+	contig_assigned_count[contig] = 0
 	if (assigned_read_count == 0): continue
 	print(f"tig\t{contig}", file=tig_layout_file)
 	print(f"len\t{end_pos - start_pos}", file=tig_layout_file)
@@ -703,7 +630,101 @@ for contig in sorted(contig_actual_lines.keys()):
 		#sys.stderr.write("For read %s which has been selected to be in position %s we are expecting %d\n"%(line[0], str(read_output_counts[line[0]]), read_actual_counts[line[0]]))
 		if read_actual_counts[line[0]] < 0 or (read_output_counts[line[0]][0] == contig and read_output_counts[line[0]][1] == line[1]):
 			print(f"{line[0]}\t{bgn}\t{end}\t{read_output_counts[line[0]][3]}", file=tig_layout_file)
+			contig_assigned_count[contig] += 1
 	print(f"end", file=tig_layout_file)
+
+nameid = 1
+for contig in sorted(contig_pieces.keys()):
+    npieces = ngaps = nempty = 0
+    ngaps   = 0
+    nempty  = 0
+
+    for i in range(len(contig_pieces[contig])):
+        line = contig_pieces[contig][i]
+        if re.match(r"\[N\d+N\]", line):
+            ngaps   += 1   #  Actual gap.
+        elif line in contig_actual_lines and contig_assigned_count[line] > 0:
+            npieces += 1   #  Piece with reads assigned.
+        elif line != "end":
+            nempty  += 1   #  Piece with no reads assigned.
+
+            #This is not normal but still may happen, switching off for now.
+
+            #if contig_lens[line] > 100000:
+            #   sys.stderr.write(f"ERROR: empty entry for piece {line} in scaffold {contig} of LARGE expected length {contig_lens[line]}\n")
+            #   exit(1)
+            contig_pieces[contig][i] = "[N%dN]"%(contig_lens[line])
+            if npieces > 0:
+                print(f"Warning: empty entry for piece {line} in scaffold {contig} of expected length {contig_lens[line]}, using Ns {contig_pieces[contig][i]} instead", file=nul_layout_file)
+    #postprocessing to avoid consecutive empty pieces
+    i = 0
+    new_pieces = []
+    previous = "NONE"
+    while i < len(contig_pieces[contig]):
+        line = contig_pieces[contig][i]
+        i += 1
+        is_gap = re.match(r"\[N\d+N\]", line)
+        if is_gap:
+            #just ignoring leading gaps
+            if previous == "NONE":
+                continue
+            elif previous == "piece":
+                new_pieces.append(line)
+                previous = "gap"
+            else:
+                #merging consecutive gaps
+                previous = "gap"
+                last = new_pieces.pop()
+                last_int = int(last[2:-2])
+                cur_int = int(line[2:-2])
+                new_pieces.append("[N%dN]"%(last_int + cur_int))
+        else:
+            new_pieces.append(line)
+            # it can actually be 'end' but who cares then
+            previous = "piece"
+    #removing trailing gaps
+    while len(new_pieces) > 0 and re.match(r"\[N\d+N\]", new_pieces[-1]):
+        new_pieces.pop()
+    contig_pieces[contig] = new_pieces
+
+    if npieces > 0:
+        if nempty > 0:
+            print(f"{contig} has empty pieces.  npieces {npieces} ngaps {ngaps} nempty {nempty}", file=nul_layout_file)
+        #  Decode the rukki (or non-rukki) contig name into
+        #  something we'll present to the user.
+        #
+        #  Without rukki, contig names are:
+        #   utig4-0
+        #
+        #  With rukki, they are:
+        #   ladybug-hap1_from_utig4-1736
+        #   ladybug-hap2_unused_utig4-0
+        #   na_unused_utig4-1
+        #  (where ladybug-hap1/2 is supplied by the user)
+        #
+        isna     = re.search(r"^na_unused_(.*)$", contig)
+        isunused = re.search(r"^(.*)_unused_(.*)$", contig)
+        isfrom   = re.search(r"^(.*)_from_(.*)$", contig)
+
+        if   isna:
+            outname = f"unassigned-{nameid:07}"
+        elif isunused:
+            outname = f"{isunused.group(1)}-{nameid:07}"
+        elif isfrom:
+            outname = f"{isfrom.group(1)}-{nameid:07}"
+        else:
+            outname = f"contig-{nameid:07}"
+
+        print(f"path {outname} {contig}", file=scf_layout_file)
+
+        for line in contig_pieces[contig]:
+            print(line, file=scf_layout_file)
+
+        nameid += 1
+    else:
+        print(f"{contig} has no reads assigned and is not output.", file=nul_layout_file)
+
+del nameid
 
 tig_layout_file.close()
 scf_layout_file.close()
