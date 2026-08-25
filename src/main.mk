@@ -367,7 +367,7 @@ MBG/bin/MBG: $(MBG_DEPS)
 doclean: doclean-MBG
 
 .PHONY: doclean-MBG
-doclean-mbg:
+doclean-MBG:
 	cd MBG ; $(MAKE) clean
 
 EXECUTABLES  += MBG/bin/MBG -> ../lib/verkko/bin/MBG
