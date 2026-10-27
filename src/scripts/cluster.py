@@ -476,6 +476,7 @@ def loadHiCWithFiltering(hic_byread, mashmap_nonhpc, min_alignment):
 
 #We use nonhpc_mashmap for read filtering and hpc_mashmap for homology detection. Cound use nonhpc for both, but then there'll be hpc/nonhpc length-related issues
 def run_clustering (graph_gfa, hpc_mashmap, nonhpc_mashmap, hic_byread, output_dir, no_rdna, uneven_depth):
+    global MAX_COV
     G = nx.Graph()
     gf.load_indirect_graph(graph_gfa, G)
     output_graph_stats(G)
