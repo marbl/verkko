@@ -62,50 +62,31 @@ and create a `verkko.yml` file.
 
     verkko -d <work-directory> --hifi <hifi-read-files> [--nano <ont-read-files>]
 
-Run `verkko` with no options will list all available options with brief descriptions. At the minimum verkko requires high-accuracy long reads, provided with the `--hifi` option. You can provide any combination of PacBio HiFi/Oxford Nanopore duplex/both to the `--hifi` parameter. However, we strongly recommend including some ultra-long sequence data using the `--nano` parameter and phasing information (see below). For HERRO corrected reads, provide the corrected reads with the `--hifi` option and the uncorrected reads as `--nano`. The output of verkko will be phased scaffolds. Note that no attempt is made to generate a primary or pseudo-haplotype assembly.
+Run `verkko` with no options will list all available options with brief descriptions. At the minimum verkko requires high-accuracy long reads, provided with the `--hifi` option. You can provide any combination of PacBio HiFi/Oxford Nanopore duplex/both to the `--hifi` parameter. However, we strongly recommend including some ultra-long sequence data using the `--nano` parameter and phasing information (see below). For HERRO corrected reads, provide the corrected reads with the `--hifi` option and the uncorrected reads as `--nano`. The output of verkko will be phased scaffolds. With `--dual`, Verkko instead generates two seeded pseudohaplotype assemblies without using external evidence to choose the pseudohaplotype paths; supplied Hi-C or Pore-C data is still used to scaffold those paths.
 
 ### Phasing:
-Verkko supports extended phasing using using [rukki](https://github.com/marbl/rukki) using either trio or Hi-C information.
+Verkko supports parental-marker, Hi-C and Pore-C phasing through [Rukki](https://github.com/marbl/rukki). Verkko builds the required regular-space meryl databases itself. All child and parental databases use k=31 by default; use `--phase-k` to change the common k-mer size.
 
-To run in trio mode, you must first generate [merqury](https://github.com/marbl/merqury) hapmer databases and pass them to verkko.
-<details>
-<summary><b>Build meryl DBs</b></summary>
-Please use git clone to pull the latest versions merqury (see the merqury documentation for details). Then, if you have a SLURM cluster you can run:
-
-    # assumes you have maternal/paternal folders
-    # each containing a fofn of sequence inputs named [mp]aternal.fofn
-    # and a top level folder with a child.fofn specifying F1 sequence inputs
-    cd maternal
-    $MERQURY/_submit_build.sh -c 30 maternal.fofn maternal_compress
-    cd ../paternal
-    $MERQURY/_submit_build.sh -c 30 paternal.fofn paternal_compress
-    cd ../
-    $MERQURY/_submit_build.sh -c 30 child.fofn    child_compress
-    ln -s maternal/maternal_compress.k30.meryl
-    ln -s paternal/paternal_compress.k30.meryl
-
-without a grid, you can run
-
-    meryl count compress k=30 threads=XX memory=YY maternal.*fastq.gz output maternal_compress.k30.meryl
-    meryl count compress k=30 threads=XX memory=YY paternal.*fastq.gz output paternal_compress.k30.meryl
-    meryl count compress k=30 threads=XX memory=YY    child.*fastq.gz output    child_compress.k30.meryl
-
-replacing XX and YY with the threads and memory you want meryl to use. Once you have the databases, run:
-
-    $MERQURY/trio/hapmers.sh \
-      maternal_compress.k30.meryl \
-      paternal_compress.k30.meryl \
-         child_compress.k30.meryl
-
-Make sure to count k-mers in compressed space. Child data is optional, in this case, exclude `child_compress.k30.meryl` from the input to `hapmers.sh` and use its output `maternal_compress.k30.only.meryl` and `paternal_compress.k30.only.meryl` in the verkko command below.
-</details>
+Supply both parents for trio phasing. Haplotype 1 is paternal by convention:
 
     verkko -d asm \
       --hifi hifi/*.fastq.gz \
       --nano  ont/*.fastq.gz \
-      --hap-kmers paternal_compress.k30.hapmer.meryl \
-                  maternal_compress.k30.hapmer.meryl \
-                  trio
+      --paternal paternal/*.fastq.gz \
+      --maternal maternal/*.fastq.gz
+
+Supplying Hi-C or Pore-C together with parental reads uses the parental assignments to orient and validate the contact partition, then fills nodes without parental assignments from contacts.
+
+Phasing products, marker QC, evidence-concordance reports and canonical phased paths are written to `8-phasing/`. The canonical paths/colors/labels interface is independent of whether trio, contact-only or dual phasing generated it. When Hi-C or Pore-C scaffolding is enabled, it consumes that interface and writes the scaffolded result to `9-scaffolding/`. The full final consensus uses the appropriate stage automatically and runs in `10-consensus/` as part of the same Snakemake invocation as the initial assembly and quick consensus.
+
+Without parental evidence, `--dual` colors primary and ALT sides of Rukki's pseudo-hap decomposition oppositely and produces two pseudo-haplotypes. Verkko reuses the Hi-C pipeline's MashMap homology filtering to pair corresponding low-copy graph components; within a confident unequal pair, the shorter component is placed in haplotype 1. This can separate sufficiently homologous X/Y components while following the haplotype-1-is-paternal convention, but a short or ambiguous pseudoautosomal match alone is not treated as sufficient evidence. Rukki estimates haploid depth directly from graph nodes so it can emit unmatched haploid components in only one output while sharing collapsed diploid components. If `--haploid` is supplied, the graph-wide fallback is treated as haploid depth instead of being divided by two. Hi-C or Pore-C supplied together with `--dual` does not alter these assignments; it runs the normal stage-9 scaffolding on the resulting dual paths. Use `--dual-seed` to change choices that have no homology-based orientation:
+
+    verkko -d asm --hifi hifi/*.fastq.gz --nano ont/*.fastq.gz --dual
+
+To scaffold dual pseudohaplotypes with Hi-C while retaining dual path selection:
+
+    verkko -d asm --hifi hifi/*.fastq.gz --nano ont/*.fastq.gz --dual \
+      --hic1 hic/*R1*fastq.gz --hic2 hic/*R2*fastq.gz
 
 
 To run in Hi-C mode, reads should be provided using the --hic1 and --hic2 options. For example:
@@ -173,8 +154,8 @@ Verkko uses default cpu/memory/time options for different parts of the pipeline.
     --sub-run                Extraction of the read subset for consensus,  7-consensus/extractONT.sh
     --par-run                Reads preprocessing for consensus, 7-consensus/buildPackages.sh
     --cns-run                Reads consenus, 7-consensus/packages/part*.sh
-    --ahc-run                HiC alignment, 8-hicPipeline/align_bwa*.sh
-    --fhc-run                All scripts in HiC pipeline other than alignment,  8-hicPipeline/*.sh
+    --ahc-run                HiC alignment, 8-phasing/align_bwa*.sh
+    --fhc-run                All scripts in HiC pipeline other than alignment,  8-phasing/*.sh
 
 The command line format of all these options is the same: number-of-cpus memory-in-gb time-in-hours, i.e.   `--cns-run 8 32 2`.
 Default values can be found in verkko bash script, i.e.  `grep par_ bin/verkko`. Values used for each verkko run are listed in `verkko.yml` in the run directory.
@@ -186,7 +167,7 @@ You can pass through snakemake options to restrict CPU/memory/cluster resources 
 
 Verkko has the ability to filter common contaminants from an assembly using the `--screen` option. You can specify an arbitrary number of targets using multiple `--screen <contaminant_N_name> <contaminant_N_sequence.fasta>`  commands. For each contaminant, verkko will remove all sequences matching the target from the main assembly output. It will also identify a ‘canonical’ representative by coverage and circularize it to remove self-similarity at the start/end. For typical contaminants of human assemblies we have special option `--screen-human-contaminants` (`--screen human` in version 2.2 and earlier) which requires no parameters and is a shortcut for `--screen rDNA rdna.fasta --screen mitochondria mito.fasta --screen EBV ebv.fasta`.
 ## Outputs:
-The final assembly result is under `asm/assembly.fasta`. The final graph (in homopolymer-compressed space) is under `asm/assembly.homopolymer-compressed.gfa` along with coverage files in `asm/assembly*csv`. There is also an `asm/assembly.scfmap` file which translates the final sequence name in `assembly.fasta` to graph nodes. You can find intermediate graphs and coverage files under `asm/*/unitig-*gfa` and `asm/*/unitig-*csv`.
+The final assembly result is under `asm/assembly.fasta`. The final graph is published both in regular space as `asm/assembly.gfa` and in homopolymer-compressed space as `asm/assembly.homopolymer-compressed.gfa`; both carry the final unitig coverage tags. Coverage tables are in `asm/assembly*csv`. There is also an `asm/assembly.scfmap` file which translates the final sequence name in `assembly.fasta` to graph nodes. You can find intermediate graphs and coverage files under `asm/*/unitig-*gfa` and `asm/*/unitig-*csv`.
 
 If you provided phasing information, you will also have `asm/assembly.haplotype[12].fasta`, `asm/assembly.colors.csv`, and `asm/assembly.paths.tsv`. The latter two files provide information on the colors obtained from phasing information for each node in the graph and the paths selected to phase the assembly.
 

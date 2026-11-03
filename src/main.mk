@@ -268,6 +268,7 @@ FILES        += \
                 scripts/get_unroll_mapping.py                 -> ../lib/verkko/scripts/get_unroll_mapping.py \
                 scripts/inject_coverage.py                    -> ../lib/verkko/scripts/inject_coverage.py \
                 scripts/insert_aln_gaps.py                    -> ../lib/verkko/scripts/insert_aln_gaps.py \
+                scripts/join_segments.py                     -> ../lib/verkko/scripts/join_segments.py \
                 scripts/maybe_trim_alignment.py               -> ../lib/verkko/scripts/maybe_trim_alignment.py \
                 scripts/merge_unresolved_dbg_nodes.py         -> ../lib/verkko/scripts/merge_unresolved_dbg_nodes.py \
                 scripts/pick_majority_bridge.py               -> ../lib/verkko/scripts/pick_majority_bridge.py \
@@ -294,6 +295,13 @@ FILES        += \
                 scripts/scaffolding/path_storage.py           -> ../lib/verkko/scripts/scaffolding/path_storage.py \
                 scripts/scaffolding/scaff_prefilter.py        -> ../lib/verkko/scripts/scaffolding/scaff_prefilter.py \
                 scripts/prepare_scaffolding.py                -> ../lib/verkko/scripts/prepare_scaffolding.py \
+                scripts/build_parental_markers.sh             -> ../lib/verkko/scripts/build_parental_markers.sh \
+                scripts/color_parental_markers.py             -> ../lib/verkko/scripts/color_parental_markers.py \
+                scripts/select_marker_cutoffs.py              -> ../lib/verkko/scripts/select_marker_cutoffs.py \
+                scripts/fuse_phase_evidence.py                -> ../lib/verkko/scripts/fuse_phase_evidence.py \
+                scripts/phase_evidence.py                     -> ../lib/verkko/scripts/phase_evidence.py \
+                scripts/run_mashmap_filtered.sh               -> ../lib/verkko/scripts/run_mashmap_filtered.sh \
+                scripts/select_dual_homology.py               -> ../lib/verkko/scripts/select_dual_homology.py \
                 scripts/scaffolding/scaffold_graph.py         -> ../lib/verkko/scripts/scaffolding/scaffold_graph.py \
                 scripts/bam_rename.py                         -> ../lib/verkko/scripts/bam_rename.py \
                 \
@@ -306,13 +314,17 @@ FILES        += \
                 Snakefiles/3-alignTips.sm                     -> ../lib/verkko/Snakefiles/3-alignTips.sm \
                 Snakefiles/4-processONT.sm                    -> ../lib/verkko/Snakefiles/4-processONT.sm \
                 Snakefiles/5-untip.sm                         -> ../lib/verkko/Snakefiles/5-untip.sm \
-                Snakefiles/6-rukki.sm                         -> ../lib/verkko/Snakefiles/6-rukki.sm \
                 Snakefiles/6-layoutContigs.sm                 -> ../lib/verkko/Snakefiles/6-layoutContigs.sm \
                 Snakefiles/7-buildPackage.sm                  -> ../lib/verkko/Snakefiles/7-buildPackage.sm \
                 Snakefiles/7-combineConsensus.sm              -> ../lib/verkko/Snakefiles/7-combineConsensus.sm \
                 Snakefiles/7-extractONT.sm                    -> ../lib/verkko/Snakefiles/7-extractONT.sm \
                 Snakefiles/7-generateConsensus.sm             -> ../lib/verkko/Snakefiles/7-generateConsensus.sm \
-                Snakefiles/8-hicPipeline.sm                   -> ../lib/verkko/Snakefiles/8-hicPipeline.sm \
+                Snakefiles/7-uncompressGraph.sm               -> ../lib/verkko/Snakefiles/7-uncompressGraph.sm \
+                Snakefiles/8-phasing.sm                       -> ../lib/verkko/Snakefiles/8-phasing.sm \
+                Snakefiles/8-parentalMarkers.sm               -> ../lib/verkko/Snakefiles/8-parentalMarkers.sm \
+                Snakefiles/8-dual.sm                          -> ../lib/verkko/Snakefiles/8-dual.sm \
+                Snakefiles/9-scaffolding.sm                   -> ../lib/verkko/Snakefiles/9-scaffolding.sm \
+                Snakefiles/10-consensus.sm                    -> ../lib/verkko/Snakefiles/10-consensus.sm \
                 Snakefiles/c1-buildStore.sm                   -> ../lib/verkko/Snakefiles/c1-buildStore.sm \
                 Snakefiles/c2-findOverlaps.sm                 -> ../lib/verkko/Snakefiles/c2-findOverlaps.sm \
                 Snakefiles/c4-findErrors.sm                   -> ../lib/verkko/Snakefiles/c4-findErrors.sm \
@@ -348,6 +360,29 @@ doclean-rukki:
 	rm -rf rukki/target
 
 EXECUTABLES  += rukki/target/release/rukki -> ../lib/verkko/bin/rukki
+endif
+
+#
+#  Loimi uses its own Makefile because it must link against the completed
+#  Verkko library.  Keep the dependency explicit so parallel parent builds
+#  cannot start the submodule before libverkko.a is available.
+#
+ifeq (${WITHOUT_LOIMI},)
+LOIMI_DEPS = loimi/Makefile \
+             $(wildcard loimi/src/*.cpp) \
+             $(wildcard loimi/src/*.hpp)
+
+loimi/build/bin/hpc-consensus: ${TARGET_DIR}/lib/libverkko.a $(LOIMI_DEPS)
+	$(MAKE) -C loimi CXX="$(CXX)" VERKKO_BUILD="$(abspath $(TARGET_DIR))"
+
+doclean: doclean-loimi
+
+.PHONY: doclean-loimi
+doclean-loimi:
+	$(MAKE) -C loimi clean VERKKO_BUILD="$(abspath $(TARGET_DIR))"
+
+EXECUTABLES  += loimi/build/bin/hpc-consensus -> ../lib/verkko/bin/hpc-consensus
+FILES        += loimi/models/revio.run-model.tsv -> ../lib/verkko/data/loimi/revio.run-model.tsv
 endif
 
 #

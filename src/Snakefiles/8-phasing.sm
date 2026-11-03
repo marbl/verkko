@@ -13,22 +13,26 @@
  ##
 
 
-HIFI_READS = config.get('HIFI_READS')
-ONT_READS  = config.get('ONT_READS')
-HIC_READS1  = config.get('HIC_READS1')
-HIC_READS2  = config.get('HIC_READS2')
+HIFI_READS = config.get('HIFI_READS') or []
+ONT_READS  = config.get('ONT_READS') or []
+
+# Verkko writes an empty YAML sequence as a key with no items, which the YAML
+# parser represents as None rather than [].  Contact rules are parsed for all
+# stage-8 modes, including --dual, so normalize absent reads to empty lists to
+# keep their inactive rule declarations valid.
+HIC_READS1 = config.get('HIC_READS1') or []
+HIC_READS2 = config.get('HIC_READS2') or []
 HAPLO_DIV = float(config.get('haplo_divergence'))
 VERKKO = config.get('VERKKO')
 
 
 rule copyFiles:
     input:
-        unitig_scfmap = '6-layoutContigs/unitig-popped.layout.scfmap',
-        unitig_assembly = '7-consensus/combined.fasta',
+        unitig_fasta = '7-consensus/unitigs.fasta',
         unitig_graph = rules.verkko.input.graph,
-        hifi5cov    = rules.verkko.input.hifi5cov
+        covered_graph = rules.verkko.output.nseqgraph
     log:
-        err    = '8-hicPipeline/prepare_hic.err'
+        err    = '8-phasing/prepare_hic.err'
     threads:
         int(config['fhc_n_cpus'])
     resources:
@@ -37,37 +41,22 @@ rule copyFiles:
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
     output:
-        rename_map = '8-hicPipeline/contigs_rename.map',
-        unitig_fasta = '8-hicPipeline/unitigs.fasta',
-        unitig_hpc = '8-hicPipeline/unitigs.hpc.fasta' ,
-        unitig_graph = '8-hicPipeline/unitigs.hpc.noseq.gfa',
+        unitig_fasta = '8-phasing/unitigs.fasta',
+        unitig_hpc = '8-phasing/unitigs.hpc.fasta' ,
+        unitig_graph = '8-phasing/unitigs.hpc.noseq.gfa',
         finalnseqgraph = 'assembly.homopolymer-compressed.noseq.gfa'
     shell:
         '''
-cd 8-hicPipeline
+cd 8-phasing
 cat > ./prepare_hic.sh <<EOF
 #!/bin/sh
 set -e
-cat ../{input.unitig_scfmap} | awk '{{if (match(\$1, "path")) print \$2"\\t"\$3}}' > ../{output.rename_map}
-{PYTHON} {VERKKO}/scripts/fasta_combine.py rename ../{output.unitig_fasta}  ../{output.rename_map} ../{input.unitig_assembly}
+cp -p ../{input.unitig_fasta} ../{output.unitig_fasta}
 
 awk '/^S/{{print ">"\$2"\\n"\$3}}' ../{input.unitig_graph} > ../{output.unitig_hpc}
-awk < ../{input.unitig_graph} \\\\
-  'BEGIN \\\\
-   {{ \\\\
-     FS="[ \\t]+"; OFS="\\t"; \\\\
-   }} \\\\
-   {{ \\\\
-     if (\$1 == "S") {{ \\\\
-       print "S", \$2, "*", "LN:i:"length(\$3); \\\\
-     }} else {{ \\\\
-       print \$0; \\\\
-     }} \\\\
-   }}' \\\\
-| \\\\
-{PYTHON} {VERKKO}/scripts/inject_coverage.py --allow-absent \\\\
-  ../{input.hifi5cov} \\\\
-> ../{output.unitig_graph}
+# Reuse the stage-7 no-sequence graph, which already contains final HiFi
+# coverage.
+cp -p ../{input.covered_graph} ../{output.unitig_graph}
 cp ../{output.unitig_graph} ../{output.finalnseqgraph}
 EOF
 
@@ -78,13 +67,13 @@ chmod +x ./prepare_hic.sh
 
 rule runMashMap:
     input:
-        unitigs_hpc = '8-hicPipeline/unitigs.hpc.fasta',
-        unitigs = '8-hicPipeline/unitigs.fasta'
+        unitigs_hpc = '8-phasing/unitigs.hpc.fasta',
+        unitigs = '8-phasing/unitigs.fasta'
     output:
-        unitigs_hpc50 = '8-hicPipeline/unitigs_hpc50.mashmap',
-        unitigs_nohpc50 = '8-hicPipeline/unitigs_nonhpc50.mashmap'
+        unitigs_hpc50 = '8-phasing/unitigs_hpc50.mashmap',
+        unitigs_nohpc50 = '8-phasing/unitigs_nonhpc50.mashmap'
     log:
-        err    = '8-hicPipeline/run_mashmap.err'
+        err    = '8-phasing/run_mashmap.err'
     params:
         MASHMAP   = config.get('MASHMAP', "{VERKKO}/bin/mashmap"),
         MASHMAP_DIV = 100 - 100*float(config['haplo_divergence'])
@@ -98,15 +87,19 @@ rule runMashMap:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
     shell:
         '''
-cd 8-hicPipeline
+cd 8-phasing
 
-cat > ./run_mashmap.sh <<EOF
+cat > ./run_mashmap.sh <<'EOF'
 #!/usr/bin/env bash
 set -e -o pipefail
 
 echo "---Running MashMap"
-{params.MASHMAP} -r ../{input.unitigs_hpc} -q ../{input.unitigs_hpc} -t {threads} -f none --pi {params.MASHMAP_DIV} -s 10000 -o >(awk '\$11 >= 50000' > ../{output.unitigs_hpc50})
-{params.MASHMAP} -r ../{input.unitigs} -q ../{input.unitigs} -t {threads} -f none --pi {params.MASHMAP_DIV} -s 10000 -o >(awk '\$11 >= 50000' > ../{output.unitigs_nohpc50})
+bash {VERKKO}/scripts/run_mashmap_filtered.sh \
+  {params.MASHMAP} ../{input.unitigs_hpc} ../{input.unitigs_hpc} \
+  {threads} {params.MASHMAP_DIV} ../{output.unitigs_hpc50}
+bash {VERKKO}/scripts/run_mashmap_filtered.sh \
+  {params.MASHMAP} ../{input.unitigs} ../{input.unitigs} \
+  {threads} {params.MASHMAP_DIV} ../{output.unitigs_nohpc50}
 EOF
 
 chmod +x ./run_mashmap.sh
@@ -117,20 +110,20 @@ chmod +x ./run_mashmap.sh
 #TODO constants to yml
 rule prepareScaffolding:
     input:
-        unitigs_hpc = '8-hicPipeline/unitigs.hpc.fasta',
-        graph_hpc = '8-hicPipeline/unitigs.hpc.noseq.gfa',
-        uncompressed_unitigs = '8-hicPipeline/unitigs.fasta',
-        rukki_tsv = '8-hicPipeline/prescaf_rukki.paths.tsv'
+        unitigs_hpc = '8-phasing/unitigs.hpc.fasta',
+        graph_hpc = '8-phasing/unitigs.hpc.noseq.gfa',
+        uncompressed_unitigs = '8-phasing/unitigs.fasta',
+        rukki_tsv = '8-phasing/rukki.paths.tsv'
     output:
-        path_mashmap = '8-hicPipeline/paths2ref.mashmap',
-        paths_hpc = '8-hicPipeline/paths.hpc.fasta',        
-        ids_list = '8-hicPipeline/scaffolding_nodes.list'
+        path_mashmap = '9-scaffolding/paths2ref.mashmap',
+        paths_hpc = '9-scaffolding/paths.hpc.fasta',
+        ids_list = '9-scaffolding/scaffolding_nodes.list'
     log:
-        err    = '8-hicPipeline/prepare_ref_mashmap.err'
+        err    = '9-scaffolding/prepare_ref_mashmap.err'
     params:
         MASHMAP   = config.get('MASHMAP', "{VERKKO}/bin/mashmap"),
         MASHMAP_DIV = 100 - 100*float(config['haplo_divergence']),
-        ref = config['ref'] if config['with_ref'] == "True" else '../8-hicPipeline/paths.hpc.fasta'
+        ref = config['ref'] if config['with_ref'] == "True" else '../9-scaffolding/paths.hpc.fasta'
     threads:
         int(config['fhc_n_cpus'])
     resources:
@@ -140,7 +133,7 @@ rule prepareScaffolding:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
     shell:
         '''
-cd 8-hicPipeline
+cd 9-scaffolding
 
 cat > ./prepare_ref_mashmap.sh <<EOF
 #!/usr/bin/env bash
@@ -149,7 +142,9 @@ echo "---Preparing rukki paths fasta"
 {PYTHON} {VERKKO}/scripts/prepare_scaffolding.py ../{input.rukki_tsv} ../{input.unitigs_hpc} ../{input.graph_hpc} ../{output.paths_hpc} ../{output.ids_list} 20000 5000000 ../{input.uncompressed_unitigs}
 
 echo "---Running MashMap"
-{params.MASHMAP} -r {params.ref}  -q ../8-hicPipeline/paths.hpc.fasta -t {threads}  -f none --pi {params.MASHMAP_DIV} -s 10000 -o >(awk '\$11 >= 50000' > ../{output.path_mashmap})
+bash {VERKKO}/scripts/run_mashmap_filtered.sh \
+  {params.MASHMAP} {params.ref} ../{output.paths_hpc} \
+  {threads} {params.MASHMAP_DIV} ../{output.path_mashmap}
 EOF
 
 chmod +x ./prepare_ref_mashmap.sh
@@ -161,11 +156,11 @@ chmod +x ./prepare_ref_mashmap.sh
 
 rule run_seqtktelo:
     input:
-        unitigs = '8-hicPipeline/unitigs.fasta'
+        unitigs = '8-phasing/unitigs.fasta'
     output:
-        unitigs_telo = '8-hicPipeline/unitigs.telo'
+        unitigs_telo = '9-scaffolding/unitigs.telo'
     log:
-        err    = '8-hicPipeline/run_seqtktelo.err'
+        err    = '9-scaffolding/run_seqtktelo.err'
     params:
         SEQTK   = config.get('SEQTK', "{VERKKO}/bin/seqtk"),
         TELO    = config.get("telomere_motif", "CCCTAA"),
@@ -179,7 +174,7 @@ rule run_seqtktelo:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
     shell:
         '''
-cd 8-hicPipeline
+cd 9-scaffolding
 
 cat > ./run_seqtktelo.sh <<EOF
 #!/bin/sh
@@ -199,7 +194,7 @@ chmod +x ./run_seqtktelo.sh
 #a lot of code duplication with 3-alignONT stages
 def splitHICoutputs(wildcards):
 #here we need only wildcards, right?
-    return glob_wildcards("8-hicPipeline/split/hic1{xxxx}.fasta.gz").xxxx
+    return glob_wildcards("8-phasing/split/hic1{xxxx}.fasta.gz").xxxx
 
 # there is no use of base quality in bwa, so it's OK to use fasta_partition.py
 
@@ -208,9 +203,9 @@ checkpoint splitHIC:
         hic1           = HIC_READS1,
         hic2           = HIC_READS2	if config['withPOREC'] == "False" else rules.emptyfile.output[0]
     output:
-        split_finished = '8-hicPipeline/splitHIC.finished'
+        split_finished = '8-phasing/splitHIC.finished'
     log:
-        err            = '8-hicPipeline/splitHIC.err'
+        err            = '8-phasing/splitHIC.err'
     params:
         bases          = config['shc_bases'] if config['withPOREC'] == "False" else config['spl_bases'],
         reads          = config['shc_reads'],
@@ -224,7 +219,7 @@ checkpoint splitHIC:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
     shell:
         '''
-cd 8-hicPipeline
+cd 8-phasing
 
 cat > ./splitHIC.sh <<EOF
 #!/bin/sh
@@ -257,13 +252,15 @@ chmod +x ./splitHIC.sh
 
 rule indexBWA:
     input:
-        unitigs = '8-hicPipeline/unitigs.fasta'
+        unitigs = '8-phasing/unitigs.fasta'
     output:
-        index   = '8-hicPipeline/unitigs.fasta.bwt'
+        index   = '8-phasing/unitigs.fasta.bwt'
     log:
-        err     = '8-hicPipeline/index_bwa.err'
+        err     = '8-phasing/index_bwa.err'
     params:
-        BWA     = config.get('BWA', "{VERKKO}/bin/bwa")
+        BWA     = config.get('BWA', "{VERKKO}/bin/minibwa")
+    threads:
+        int(config['fhc_n_cpus'])
     resources:
         job_id  = 1,
         n_cpus  = int(config['fhc_n_cpus']),
@@ -271,13 +268,13 @@ rule indexBWA:
         time_h  = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
     shell:
         '''
-cd 8-hicPipeline
+cd 8-phasing
 
 cat > ./index_bwa.sh <<EOF
 #!/bin/sh
 set -e
 echo "---Creating BWA index for {input.unitigs}"
-{params.BWA} index ../{input.unitigs}
+{params.BWA} index -t {threads} ../{input.unitigs}
 EOF
 
 chmod +x ./index_bwa.sh
@@ -287,16 +284,16 @@ chmod +x ./index_bwa.sh
 
 rule alignBWA:
     input:
-        unitigs = '8-hicPipeline/unitigs.fasta',
-        hic1    = '8-hicPipeline/split/hic1{nnnn}.fasta.gz',
-        hic2    = '8-hicPipeline/split/hic2{nnnn}.fasta.gz' if config['withPOREC'] == "False" else rules.emptyfile.output[0],
-        index   = '8-hicPipeline/unitigs.fasta.bwt'         if config['withPOREC'] == "False" else rules.emptyfile.output[0]
+        unitigs = '8-phasing/unitigs.fasta',
+        hic1    = '8-phasing/split/hic1{nnnn}.fasta.gz',
+        hic2    = '8-phasing/split/hic2{nnnn}.fasta.gz' if config['withPOREC'] == "False" else rules.emptyfile.output[0],
+        index   = '8-phasing/unitigs.fasta.bwt'         if config['withPOREC'] == "False" else rules.emptyfile.output[0]
     output:
-        bwa_mapping = '8-hicPipeline/mapped{nnnn}.bam'
+        bwa_mapping = '8-phasing/mapped{nnnn}.bam'
     log:
-        err    = '8-hicPipeline/align_bwa{nnnn}.err'
+        err    = '8-phasing/align_bwa{nnnn}.err'
     params:
-        BWA       = config.get('BWA', "{VERKKO}/bin/bwa"),
+        BWA       = config.get('BWA', "{VERKKO}/bin/minibwa"),
         SAMTOOLS  = config.get('SAMTOOLS', "{VERKKO}/bin/samtools"),
         MINIMAP   = config.get('MINIMAP', "{VERKKO}/bin/minimap2"),
         withporec = config['withPOREC']
@@ -309,7 +306,7 @@ rule alignBWA:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ahc', 5.0)
     shell:
         '''
-cd 8-hicPipeline
+cd 8-phasing
 
 cat > ./align_bwa{wildcards.nnnn}.sh <<EOF
 #!/usr/bin/env bash
@@ -317,7 +314,7 @@ set -e -o pipefail
 
 if [ {params.withporec} = "False" ] ; then
    echo "---Mapping {input.hic1} and {input.hic2} to {input.unitigs} with BWA"
-   {params.BWA} mem -t {threads} -5 -S -P ../{input.unitigs} ../{input.hic1} ../{input.hic2} | {params.SAMTOOLS} view -bh -@ {threads}  -F 0x900 - | {params.SAMTOOLS} sort -n -@ 24 - |  {PYTHON} {VERKKO}/scripts/hic_prefilter.py > ../{output.bwa_mapping}
+   {params.BWA} map -t {threads} --hic ../{input.unitigs} ../{input.hic1} ../{input.hic2} | {params.SAMTOOLS} view -bh -@ {threads}  -F 0x900 - | {params.SAMTOOLS} sort -n -@ 24 - |  {PYTHON} {VERKKO}/scripts/hic_prefilter.py > ../{output.bwa_mapping}
 else
    echo "--Mapping {input.hic1} to {input.unitigs} with minimap2"
    mem=\`expr {resources.mem_gb} \/ {threads} | awk '{{print \$1"G"}}' \`
@@ -333,12 +330,12 @@ chmod +x ./align_bwa{wildcards.nnnn}.sh
 #TODO: remember porec 
 rule scaffoldPrefilterBAM:
     input:
-        bwa_mapping = '8-hicPipeline/mapped{nnnn}.bam',
-        ids_list = '8-hicPipeline/scaffolding_nodes.list'
+        bwa_mapping = '8-phasing/mapped{nnnn}.bam',
+        ids_list = '9-scaffolding/scaffolding_nodes.list'
     output:
-        bwa_filtered_mapping = '8-hicPipeline/mapped{nnnn}_nodefiltered.bam'
+        bwa_filtered_mapping = '9-scaffolding/mapped{nnnn}_nodefiltered.bam'
     log:
-        err    = '8-hicPipeline/scaffold_prefilter{nnnn}.err'
+        err    = '9-scaffolding/scaffold_prefilter{nnnn}.err'
     params:
         SAMTOOLS  = config.get('SAMTOOLS', "{VERKKO}/bin/samtools"),
         withporec = config['withPOREC']
@@ -351,7 +348,7 @@ rule scaffoldPrefilterBAM:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ahc', 5.0)
     shell:
         '''
-cd 8-hicPipeline
+cd 9-scaffolding
 
 cat > ./scaffold_prefilter{wildcards.nnnn}.sh <<EOF
 #!/usr/bin/env bash
@@ -369,15 +366,15 @@ chmod +x ./scaffold_prefilter{wildcards.nnnn}.sh
 rule scaffoldMergeBWA:
     input:
         split_finished = rules.splitHIC.output.split_finished,
-        alignments     = lambda wildcards: expand("8-hicPipeline/mapped{nnnn}_nodefiltered.bam", nnnn = splitHICoutputs(wildcards))
+        alignments     = lambda wildcards: expand("9-scaffolding/mapped{nnnn}_nodefiltered.bam", nnnn = splitHICoutputs(wildcards))
     output:
-        alignments     = '8-hicPipeline/hic_nodefiltered.bam'
+        alignments     = '9-scaffolding/hic_nodefiltered.bam'
     log:
-        err            = '8-hicPipeline/scaffold_mergeBWA.err'
+        err            = '9-scaffolding/scaffold_mergeBWA.err'
     params:
         SAMTOOLS       = config.get('SAMTOOLS', "{VERKKO}/bin/samtools"),
         alignments     = lambda wildcards: expand("mapped{nnnn}_nodefiltered.bam", nnnn = splitHICoutputs(wildcards)),
-        alignments_old = lambda wildcards: expand("mapped{nnnn}.bam", nnnn = splitHICoutputs(wildcards)),
+        alignments_old = lambda wildcards: expand("../8-phasing/mapped{nnnn}.bam", nnnn = splitHICoutputs(wildcards)),
         keepinter      = config['keep_intermediate']
     threads:
         int(config['fhc_n_cpus'])
@@ -388,7 +385,7 @@ rule scaffoldMergeBWA:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
     shell:
         '''
-cd 8-hicPipeline
+cd 9-scaffolding
 
 cat > ./scaffold_mergeBWA.sh <<EOF
 #!/bin/sh
@@ -419,12 +416,12 @@ chmod +x ./scaffold_mergeBWA.sh
 rule mergeBWA:
     input:
         split_finished = rules.splitHIC.output.split_finished,
-        alignments     = lambda wildcards: expand("8-hicPipeline/mapped{nnnn}.bam", nnnn = splitHICoutputs(wildcards))
+        alignments     = lambda wildcards: expand("8-phasing/mapped{nnnn}.bam", nnnn = splitHICoutputs(wildcards))
 
     output:
-        alignments     = '8-hicPipeline/unique_mappings.bam'
+        alignments     = '8-phasing/unique_mappings.bam'
     log:
-        err            = '8-hicPipeline/mergeBWA.err'
+        err            = '8-phasing/mergeBWA.err'
     params:
         SAMTOOLS       = config.get('SAMTOOLS', "{VERKKO}/bin/samtools"),
         alignments     = lambda wildcards: expand("mapped{nnnn}.bam", nnnn = splitHICoutputs(wildcards)),
@@ -437,7 +434,7 @@ rule mergeBWA:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
     shell:
         '''
-cd 8-hicPipeline
+cd 8-phasing
 
 cat > ./mergeBWA.sh <<EOF
 #!/bin/sh
@@ -457,9 +454,9 @@ rule transformBWA:
     input:
         bwa_mapping = rules.mergeBWA.output.alignments,
     output:
-        byread_mapping = '8-hicPipeline/hic_mapping.byread.output'
+        byread_mapping = '8-phasing/hic_mapping.byread.output'
     log:
-        err    = '8-hicPipeline/transform_bwa.err'
+        err    = '8-phasing/transform_bwa.err'
     params:
         SAMTOOLS = config.get('SAMTOOLS', "{VERKKO}/bin/samtools")
     threads:
@@ -471,7 +468,7 @@ rule transformBWA:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
     shell:
         '''
-cd 8-hicPipeline
+cd 8-phasing
 
 cat > ./transform_bwa.sh <<EOF
 #!/bin/sh
@@ -489,13 +486,13 @@ rule hicPhasing:
     input:
         mashmap_matches = rules.runMashMap.output.unitigs_hpc50,
         mashmap_nohpcmatches = rules.runMashMap.output.unitigs_nohpc50,
-        hicmapping_byread = '8-hicPipeline/hic_mapping.byread.output',
-        graph='8-hicPipeline/unitigs.hpc.noseq.gfa'
+        hicmapping_byread = '8-phasing/hic_mapping.byread.output',
+        graph='8-phasing/unitigs.hpc.noseq.gfa'
     output:
-        hic_compressed = '8-hicPipeline/hic.byread.compressed',
-        hic_binned_unitigs = '8-hicPipeline/hicverkko.colors.tsv'
+        hic_compressed = '8-phasing/hic.byread.compressed',
+        hic_binned_unitigs = '8-phasing/hicverkko.colors.csv'
     log:
-        err    = '8-hicPipeline/hic_phasing.err'
+        err    = '8-phasing/hic_phasing.err'
     threads:
         int(config['fhc_n_cpus'])
     params:
@@ -508,7 +505,7 @@ rule hicPhasing:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
     shell:
         '''
-cd 8-hicPipeline
+cd 8-phasing
 
 cat > ./hic_phasing.sh <<EOF
 #!/bin/sh
@@ -523,17 +520,15 @@ chmod +x ./hic_phasing.sh
 
 rule runRukkiHIC:
     input:
-        graph = '8-hicPipeline/unitigs.hpc.noseq.gfa',
-        binning = '8-hicPipeline/hicverkko.colors.tsv'
+        graph = '8-phasing/unitigs.hpc.noseq.gfa',
+        binning = '8-phasing/fused.colors.csv' if config.get('phase_mode', 'contacts') == 'trio' else '8-phasing/hicverkko.colors.csv'
     output:
-        tsv_path = '8-hicPipeline/rukki.paths.tsv',
-        gaf_path = '8-hicPipeline/rukki.paths.gaf',
-        prescaf_tsv_path = '8-hicPipeline/prescaf_rukki.paths.tsv',
-        prescaf_gaf_path = '8-hicPipeline/prescaf_rukki.paths.gaf',
-
-        final_paths_tsv = 'assembly.paths.tsv'
+        tsv_path = '8-phasing/contact.paths.tsv',
+        gaf_path = '8-phasing/contact.paths.gaf',
+        label1 = '8-phasing/contact.label1',
+        label2 = '8-phasing/contact.label2'
     log:
-        err    = '8-hicPipeline/rukki_hic.err'
+        err    = '8-phasing/rukki_hic.err'
     threads:
         int(config['fhc_n_cpus'])
     resources:
@@ -541,9 +536,15 @@ rule runRukkiHIC:
         n_cpus = int(config['fhc_n_cpus']),
         mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
+    params:
+        hap_names = 'maternal,paternal' if config.get('phase_mode', 'contacts') == 'trio' else 'haplotype1,haplotype2',
+        label1 = 'paternal' if config.get('phase_mode', 'contacts') == 'trio' else 'haplotype1',
+        label2 = 'maternal' if config.get('phase_mode', 'contacts') == 'trio' else 'haplotype2',
+        marker_ratio = '5.0' if config.get('phase_mode', 'contacts') == 'trio' else '3.0',
+        solid_ratio = '1.01' if config.get('phase_mode', 'contacts') == 'trio' else '1.5'
     shell:
         '''
-cd 8-hicPipeline
+cd 8-phasing
 
 cat > ./rukki_hic.sh <<EOF
 #!/bin/sh
@@ -558,19 +559,17 @@ params="\$params --fillable-bubble-len 500000"
 params="\$params --assign-tangles --tangle-allow-deadend"
 params="\$params --issue-ratio 1."
 params="\$params --solid-homozygous-cov-coeff 1.1"
-params="\$params --solid-ratio 1.5"
-params="\$params --hap-names haplotype1,haplotype2"
+params="\$params --solid-ratio {params.solid_ratio}"
+params="\$params --marker-ratio {params.marker_ratio}"
+params="\$params --hap-names {params.hap_names}"
 params="\$params --max-homozygous-len=25000000"
 params="\$params --trusted-len 325000"
 
-{VERKKO}/bin/rukki trio -g ../{input.graph} -m ../{input.binning}              -p ../{output.prescaf_tsv_path} \$params
-{VERKKO}/bin/rukki trio -g ../{input.graph} -m ../{input.binning} --gaf-format -p ../{output.prescaf_gaf_path} \$params
-cp ../{output.prescaf_tsv_path} ../{output.tsv_path}
-cp ../{output.prescaf_tsv_path} ../{output.final_paths_tsv}
-cp ../{output.prescaf_gaf_path} ../{output.gaf_path}
+{VERKKO}/bin/rukki trio -g ../{input.graph} -m ../{input.binning}              -p ../{output.tsv_path} \$params
+{VERKKO}/bin/rukki trio -g ../{input.graph} -m ../{input.binning} --gaf-format -p ../{output.gaf_path} \$params
 
-echo "haplotype1" > label1
-echo "haplotype2" > label2
+echo "{params.label1}" > ../{output.label1}
+echo "{params.label2}" > ../{output.label2}
 
 EOF
 
@@ -579,51 +578,81 @@ chmod +x ./rukki_hic.sh
 ./rukki_hic.sh > ../{log.err} 2>&1
         '''
 
-#TODO: python script params
 
-rule HiC_rdnascaff:
+# Every phasing implementation writes private outputs.  Normalize the chosen
+# implementation here so scaffolding and consensus are phasing-mode agnostic.
+def selectedPhasePaths():
+    """Select private phase outputs; downstream rules see only the canonical copy."""
+    mode = config.get('phase_mode', 'contacts')
+    contacts = config['withHIC'] == 'True' or config['withPOREC'] == 'True'
+    # In contact-assisted dual mode, dual chooses the pseudohaplotypes and
+    # contacts are consumed only after canonicalization by stage 9.  Check the
+    # explicit phase mode first so Hi-C cannot silently replace dual paths.
+    if mode == 'dual':
+        return ('8-phasing/dual.paths.tsv', '8-phasing/dual.paths.gaf',
+                '8-phasing/dual.label1', '8-phasing/dual.label2')
+    if contacts:
+        return ('8-phasing/contact.paths.tsv', '8-phasing/contact.paths.gaf',
+                '8-phasing/contact.label1', '8-phasing/contact.label2')
+    if mode == 'trio':
+        return ('8-phasing/parental.paths.tsv', '8-phasing/parental.paths.gaf',
+                '8-phasing/parental.label1', '8-phasing/parental.label2')
+    # The CLI currently enables stage 8 only for a known phase mode, but keep
+    # contact paths as the fallback for hand-written configs.
+    return ('8-phasing/contact.paths.tsv', '8-phasing/contact.paths.gaf',
+            '8-phasing/contact.label1', '8-phasing/contact.label2')
+
+
+def selectedPhaseColors():
+    """Select the color table associated with the chosen phase result."""
+    mode = config.get('phase_mode', 'contacts')
+    contacts = config['withHIC'] == 'True' or config['withPOREC'] == 'True'
+    if mode == 'dual':
+        return '8-phasing/dual.colors.csv'
+    if mode == 'trio':
+        return '8-phasing/fused.colors.csv' if contacts else '8-phasing/markers/parental.colors.csv'
+    return '8-phasing/hicverkko.colors.csv'
+
+
+SELECTED_PHASE_PATHS = selectedPhasePaths()
+
+rule finalizePhasing:
     input:
-        graph = '8-hicPipeline/unitigs.hpc.noseq.gfa',
-        tsv_path = '8-hicPipeline/prescaf_rukki.paths.tsv',
-        gaf_path = '8-hicPipeline/prescaf_rukki.paths.gaf',
-        unitigs_telo = '8-hicPipeline/unitigs.telo',
-        unitigs_nohpc50 =  '8-hicPipeline/unitigs_nonhpc50.mashmap',
-        path_mashmap = rules.prepareScaffolding.output.path_mashmap,
-        contigs = rules.copyFiles.output.unitig_fasta,
-        prefiltered_aln = rules.scaffoldMergeBWA.output.alignments if config['withPOREC'] == "False" else rules.transformBWA.output.byread_mapping
+        tsv = SELECTED_PHASE_PATHS[0],
+        gaf = SELECTED_PHASE_PATHS[1],
+        label1 = SELECTED_PHASE_PATHS[2],
+        label2 = SELECTED_PHASE_PATHS[3],
+        colors = selectedPhaseColors()
     output:
-        scaff_tsv_path = '8-hicPipeline/scaff_rukki.paths.tsv',
-        scaff_gaf_path = '8-hicPipeline/scaff_rukki.paths.gaf',
-        final_tsv_path = '8-hicPipeline/rukki.paths.tsv',
-        final_gaf_path = '8-hicPipeline/rukki.paths.gaf',
-    params:
-        withporec = config['withPOREC']
+        tsv = '8-phasing/rukki.paths.tsv',
+        gaf = '8-phasing/rukki.paths.gaf',
+        label1 = '8-phasing/label1',
+        label2 = '8-phasing/label2',
+        colors = '8-phasing/colors.csv'
     log:
-        err    = '8-hicPipeline/hic_scaff.err'
+        err = '8-phasing/finalize_phasing.err'
     threads:
-        int(config['shc_n_cpus'])
+        int(config['fhc_n_cpus'])
     resources:
         job_id = 1,
-        n_cpus = int(config['shc_n_cpus']),
-        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'shc'),
-        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'shc')
+        n_cpus = int(config['fhc_n_cpus']),
+        mem_gb = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
+        time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
     shell:
-        '''
-cd 8-hicPipeline
+        r'''
+cd 8-phasing
 
-cat > ./hic_scaff.sh <<EOF
+cat > ./finalize_phasing.sh <<EOF
 #!/bin/sh
 set -e
-{PYTHON} {VERKKO}/scripts/launch_scaffolding.py . {params.withporec}
 
-
-cp ../{output.scaff_tsv_path} ../{output.final_tsv_path}
-cp ../{output.scaff_gaf_path} ../{output.final_gaf_path}
-
-cp ../{output.final_tsv_path} ../{rules.runRukkiHIC.output.final_paths_tsv}
+cp -p ../{input.tsv} ../{output.tsv}
+cp -p ../{input.gaf} ../{output.gaf}
+cp -p ../{input.label1} ../{output.label1}
+cp -p ../{input.label2} ../{output.label2}
+cp -p ../{input.colors} ../{output.colors}
 EOF
 
-chmod +x ./hic_scaff.sh
-
-./hic_scaff.sh > ../{log.err} 2>&1
+chmod +x ./finalize_phasing.sh
+./finalize_phasing.sh > ../{log.err} 2>&1
         '''

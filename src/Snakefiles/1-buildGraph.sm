@@ -94,6 +94,7 @@ echo ""
   --kmer-abundance {params.kmer_abundance} \\\\
   --unitig-abundance {params.unitig_abundance} \\\\
   --error-masking=collapse-msat \\\\
+  --include-end-kmers \\\\
   --output-sequence-paths ../{output.paths} \\\\
   --hpc-variant-onecopy-coverage {params.hifi_coverage} \\\\
   --do-unsafe-guesswork-resolutions \\\\

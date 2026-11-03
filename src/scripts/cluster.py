@@ -7,6 +7,7 @@ import os
 from networkx.algorithms import community
 import graph_functions as gf
 from scaffolding import match_graph
+from phase_evidence import MATERNAL_COLOR, PATERNAL_COLOR, PHASE_COUNT_HEADER
 
 
 #TODO: move constants to some more relevant place
@@ -23,7 +24,7 @@ MAX_SHORT_LEN=200000 #we remove from consideration each connected compoents of e
 MIN_WEIGHT = 10 # Ignore edges with few links
 SIGNIFICANT_MAJORITY = 2.5
 
-RESULT_FILENAME = "hicverkko.colors.tsv"
+RESULT_FILENAME = "hicverkko.colors.csv"
 FILTERED_GFA_FILENAME = "filtered.gfa"
 HIC_COMPRESSED_FILENAME = "hic.byread.compressed"
 
@@ -106,9 +107,9 @@ def getMedianCov(nodeset):
 
 def report_phased_node(node_id, hap, output_file):
     if hap == 1:
-        output_file.write(f'{node_id}\t0\t100000\t0:100000\t#8888FF\n')
+        output_file.write(f'{node_id}\t0\t100000\t0:100000\t{PATERNAL_COLOR}\n')
     elif hap == 0:
-        output_file.write(f'{node_id}\t100000\t0\t100000:0\t#FF8888\n')
+        output_file.write(f'{node_id}\t100000\t0\t100000:0\t{MATERNAL_COLOR}\n')
 
 def create_initial_partition_noKL(C, matchGraph):
     random.seed(239)
@@ -493,7 +494,7 @@ def run_clustering (graph_gfa, hpc_mashmap, nonhpc_mashmap, hic_byread, output_d
     filtered_graph = open(os.path.join(output_dir, FILTERED_GFA_FILENAME), 'w')
     tsv_output = os.path.join(output_dir, RESULT_FILENAME)
     tsv_file = open(tsv_output, 'w')
-    tsv_file.write("node\tmat\tpat\tmat:pat\tcolor\n")
+    tsv_file.write(PHASE_COUNT_HEADER + "\n")
     translate = open(graph_gfa, 'r')
 
     for line in translate:

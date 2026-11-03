@@ -13,41 +13,180 @@
  ##
 
 #
-#  Rule generateConsensus computes consensus sequence for each contig.
+#  Consensus template construction has three scopes:
+#    - graph segment sequence and links are read directly from the stage-5 GFA;
+#    - scaffold-piece/tig renaming is shared by all partitions in one stage;
+#    - package membership and the resulting template are partition-specific.
 #
-#  Configuration Parameters:
-#    ...
+#  Rule generateConsensus computes consensus sequence for each contig in
+#  either consensus stage with Loimi.  Stage 7 is quick only when stage 10
+#  will follow; all standalone and stage-10 jobs use full polishing settings.
 #
-#  input.tigmap isn't used directly.  It serves as a sentinel that
-#  the buildPackages step finished completely.
+#  input.tigmap isn't used directly by generateConsensus.  It serves as a
+#  sentinel that the buildPackages step finished completely.
+
+def consensusTemplateScfmap(wildcards):
+    return consensusLayout(wildcards) + '.scfmap'
+
+
+def consensusTemplatePaths(wildcards):
+    if wildcards.consensus_dir == '10-consensus':
+        return FINAL_PATH_GAF
+    return rules.generateLayoutContigsInputs.output.paths
+
+
+rule generateConsensusTemplateMappings:
+    input:
+        scfmap = consensusTemplateScfmap,
+        tigmap = rules.buildPackages.output.tigmap
+    output:
+        pathname = '{consensus_dir}/packages.pathName_to_ID.map',
+        rename   = '{consensus_dir}/template.rename'
+    wildcard_constraints:
+        consensus_dir = '7-consensus|10-consensus'
+    threads:
+        1
+    resources:
+        job_id = 1,
+        n_cpus = 1,
+        mem_gb = 1,
+        time_h = 1
+    shell:
+        '''
+cd {wildcards.consensus_dir}
+
+cat > ./generateTemplateMappings.sh <<EOF
+#!/bin/sh
+set -e
+
+awk 'BEGIN {{ OFS="\\t" }}
+     NF == 0 {{ next }}
+     \$1 == "path" {{ NAME=\$NF; PIECE=""; COUNT=1; next }}
+     PIECE == "" {{ PIECE=\$1; next }}
+     \$1 == "end" {{ print NAME "_" COUNT, PIECE; COUNT++; next }}
+     {{ print NAME "_" COUNT, PIECE; PIECE=""; COUNT++ }}' \\
+  ../{input.scfmap} > ../{output.pathname}.WORKING
+
+awk 'BEGIN {{ OFS="\\t" }}
+     NR == FNR {{ if (\$1 ~ /^[0-9]+\$/) ID[\$2]=\$1; next }}
+     \$2 in ID {{ printf "tig%08d\\t%s\\n", ID[\$2], \$1 }}' \\
+  ../{input.tigmap} ../{output.pathname}.WORKING \\
+  > ../{output.rename}.WORKING
+
+test -s ../{output.pathname}.WORKING
+test -s ../{output.rename}.WORKING
+
+mv ../{output.pathname}.WORKING ../{output.pathname}
+mv ../{output.rename}.WORKING   ../{output.rename}
+EOF
+
+chmod +x ./generateTemplateMappings.sh
+./generateTemplateMappings.sh
+        '''
+
+rule generateConsensusTemplate:
+    input:
+        package  = '{consensus_dir}/packages/part{nnnn}.cnspack',
+        report   = rules.buildPackages.output.packreport,
+        rename   = rules.generateConsensusTemplateMappings.output.rename,
+        paths    = consensusTemplatePaths,
+        graph    = rules.verkko.input.graph
+    output:
+        template = '{consensus_dir}/packages/part{nnnn}.template-hpc.fasta'
+    params:
+        SEQTK = config.get('SEQTK') or f"{VERKKO}/bin/seqtk"
+    wildcard_constraints:
+        consensus_dir = '7-consensus|10-consensus',
+        nnnn = '[0-9]+'
+    threads:
+        1
+    resources:
+        job_id = lambda wildcards, input, attempt: int(wildcards.nnnn),
+        n_cpus = 1,
+        mem_gb = 1,
+        time_h = 1
+    shell:
+        '''
+cd {wildcards.consensus_dir}
+
+cat > ./packages/part{wildcards.nnnn}.template.sh <<EOF
+#!/bin/bash
+set -e -o pipefail
+
+cleanup() {{
+  rm -f ./packages/part{wildcards.nnnn}.ids \\
+        ./packages/part{wildcards.nnnn}.ids.rename \\
+        ./packages/part{wildcards.nnnn}.gaf
+}}
+trap cleanup EXIT
+
+awk -v I='{wildcards.nnnn}' '(\$6 + 0 == I + 0) {{ printf "tig%08d\\n", \$1 }}' \\
+  ../{input.report} > ./packages/part{wildcards.nnnn}.ids
+test -s ./packages/part{wildcards.nnnn}.ids
+
+awk 'NR == FNR {{ want[\$1]=1; next }}
+     \$1 in want {{ print \$2 "\\t" \$1 }}' \\
+  ./packages/part{wildcards.nnnn}.ids ../{input.rename} \\
+  > ./packages/part{wildcards.nnnn}.ids.rename
+test -s ./packages/part{wildcards.nnnn}.ids.rename
+
+awk 'BEGIN {{ print "name\\tpath" }}
+     NR == FNR {{ want[\$1]=1; next }}
+     NF >= 2 {{
+       n=split(\$2, part, /\\[N[0-9]+N[^]]*\\]/)
+       for (i=1; i<=n; i++)
+         if ((\$1 "_" i) in want)
+           print \$1 "_" i "\\t" part[i]
+     }}' \\
+  ./packages/part{wildcards.nnnn}.ids.rename ../{input.paths} \\
+  > ./packages/part{wildcards.nnnn}.gaf
+test -s ./packages/part{wildcards.nnnn}.gaf
+
+{PYTHON} {VERKKO}/scripts/join_segments.py \\
+  ../{input.graph} ./packages/part{wildcards.nnnn}.gaf - \\
+| {PYTHON} {VERKKO}/scripts/fasta_combine.py rename - \\
+    ./packages/part{wildcards.nnnn}.ids.rename - \\
+| {params.SEQTK} hpc - \\
+> ../{output.template}.WORKING
+
+test -s ../{output.template}.WORKING
+mv ../{output.template}.WORKING ../{output.template}
+EOF
+
+chmod +x ./packages/part{wildcards.nnnn}.template.sh
+./packages/part{wildcards.nnnn}.template.sh
+        '''
+
 
 rule generateConsensus:
     input:
-        package    = '7-consensus/packages/part{nnnn}.cnspack',
+        package    = '{consensus_dir}/packages/part{nnnn}.cnspack',
+        template   = rules.generateConsensusTemplate.output.template,
+        la_model   = f'{VERKKO}/data/loimi/revio.run-model.tsv',
         tigmap     = rules.buildPackages.output.tigmap,
         packreport = rules.buildPackages.output.packreport,
         ont_id_file = {rules.extractONT.output.ont_subset_id} if config['withONT'] == "True" else {rules.emptyfile.output}
     output:
-        consensus  = '7-consensus/packages/part{nnnn}.fasta'
+        consensus  = '{consensus_dir}/packages/part{nnnn}.fasta'
     log:
-        err        = '7-consensus/packages/part{nnnn}.err'
+        err        = '{consensus_dir}/packages/part{nnnn}.err'
     params:
-        ont_ids    = lambda wildcards: getNumLines({rules.extractONT.output.ont_subset_id}) if config['withONT'] == "True" else 0,
-        bam        = '7-consensus/packages/part{nnnn}.bam' if config['withBAM'] == "True" else rules.emptyfile.output,
-        minread    = config['cor_min_read'],
-        iterations = config['cns_num_iter'],
-        coverage   = config['cns_max_cov'],
-        quick      = config['cns_quick']
+        cram       = lambda wildcards: f'packages/part{wildcards.nnnn}.cram' if config['withBAM'] == "True" else '',
+        output     = lambda wildcards: f'packages/part{wildcards.nnnn}',
+        quick      = isQuickConsensus
+    wildcard_constraints:
+        consensus_dir = '7-consensus|10-consensus',
+        nnnn = '[0-9]+'
     threads:
         int(config['cns_n_cpus']),
     resources:
         job_id = lambda wildcards, input, attempt: int(wildcards.nnnn),
         n_cpus = int(config['cns_n_cpus']),
-        mem_gb = lambda wildcards, input, attempt: getConsensusMemoryRequest(attempt, wildcards.nnnn),
+        mem_gb = lambda wildcards, input, attempt: getConsensusMemoryRequest(attempt, wildcards.nnnn, input.packreport),
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'cns', 3)
     shell:
         '''
-cd 7-consensus
+cd {wildcards.consensus_dir}
 
 mkdir -p packages
 
@@ -55,43 +194,46 @@ cat > ./packages/part{wildcards.nnnn}.sh <<EOF
 #!/bin/sh
 set -e
 
-if [ '{params.bam}' != 'emptyfile' ]; then
-   align="-B ../{params.bam}"
-else
-   align="-norealign"
-fi
-
-minread=100
-if [ "\$(expr {params.minread} - 500)" -gt 0 ]; then
-    minread=500
-fi
-
-# when generating initial consensus skip bam generation and only 1 round
+# In phased runs stage 7 supplies sequence for phasing and skips end extension.
+# Deliverable passes (unphased stage 7 and phased stage 10) use full settings.
 if [ '{params.quick}' = 'True' ]; then
-   align="-norealign"
-   iter="-I 1"
+   mode="--no-extend-ends"
+   cram=""
 else
-   iter="-I {params.iterations}"
+   mode="--polish-non-hpc --extend-ends"
+   if [ -n '{params.cram}' ]; then
+      cram="--cram {params.cram}"
+   else
+      cram=""
+   fi
 fi
 
-{VERKKO}/bin/utgcns \\\\
-    -threads {threads} \\\\
-    -import ../{input.package} \\\\
-    -A ../{output.consensus}.WORKING \\\\
-    \$iter -C 2 \\\\
-    \$align \\\\
-    -maxcoverage {params.coverage} \\\\
-    -e  0.05 \\\\
-    -em 0.10 \\\\
-    -EM {params.ont_ids} \\\\
-    -l \$minread \\\\
-&& \\\\
-mv ../{output.consensus}.WORKING ../{output.consensus} \\\\
-&& \\\\
-exit 0
+# A rerun can leave Loimi sidecars after Snakemake removes declared outputs.
+# Loimi refuses to reuse a prefix while any of those files remain.
+for suffix in fasta fasta.fai cram cram.crai draft.fasta end-extensions.tsv \\
+              hp-realignment.tsv non-hpc-edits.vcf read-decisions.tsv \\
+              run-calls.tsv summary.json template-offsets.tsv models.tsv; do
+   rm -f "{params.output}.\$suffix"
+done
+
+if {VERKKO}/bin/hpc-consensus \\
+    --import ../{input.package} \\
+    --template-hpc ../{input.template} \\
+    --output {params.output} \\
+    --threads {threads} \\
+    --tier "LA=hifi_m*" \\
+    --tier "LAO=hifi_[0-9a-ln-z]*" \\
+    --tier "UL=ont_*" \\
+    --tier-model "LA={input.la_model}" \\
+    \$mode \\
+    \$cram; then
+   exit 0
+else
+   status=\$?
+fi
 
 echo ""
-echo "Consensus did not finish successfully, exit code \\$?."
+echo "Consensus did not finish successfully, exit code \$status."
 
 echo ""
 echo "Files in current directory:"
@@ -101,7 +243,7 @@ echo ""
 echo "Files in packages/:"
 ls -ltr packages
 
-exit 1
+exit \$status
 EOF
 
 chmod +x ./packages/part{wildcards.nnnn}.sh

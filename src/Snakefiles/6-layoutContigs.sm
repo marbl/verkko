@@ -125,14 +125,15 @@ chmod +x ./createLayoutInputs.sh
 
 
 #
-#  Layout paths from either
-#     rules.verkko.input.graph
-#        5-untip/unitig-popped-unitig-normal-connected-tip.gfa
-#  or from
-#     rules.rukki.output.pathsgaf
-#        6-rukki/unitig-popped-unitig-normal-connected-tip.paths.gaf
-#  depending on config ruk_enable.
+#  Stage 6 lays out the ordinary graph paths.  Stage 10 reuses the same rule
+#  with the phased/scaffolded paths and a different output directory.
 #
+
+def layoutContigsPaths(wildcards):
+    if wildcards.layout_dir == '10-consensus':
+        return FINAL_PATH_GAF
+    return rules.generateLayoutContigsInputs.output.paths
+
 
 rule layoutContigs:
     input:
@@ -140,18 +141,20 @@ rule layoutContigs:
         edges      = rules.generateLayoutContigsInputs.output.edges,
         hifialns   = rules.generateLayoutContigsInputs.output.hifialns,
         ontalns    = rules.generateLayoutContigsInputs.output.ontalns,
-        paths      = rules.generateLayoutContigsInputs.output.paths if config['ruk_enable'] == "False" else rules.rukki.output.pathsgaf,
+        paths      = layoutContigsPaths,
         lengths    = rules.generateLayoutContigsInputs.output.lengths
     output:
-        layout     = rules.verkko.input.layout,
-        scfmap     = rules.verkko.input.scfmap,
-        dropped    = '6-layoutContigs/unitig-popped.layout.scfmap.dropped',
-        gaps       = '6-layoutContigs/gaps.txt'
+        layout     = '{layout_dir}/unitig-popped.layout',
+        scfmap     = '{layout_dir}/unitig-popped.layout.scfmap',
+        dropped    = '{layout_dir}/unitig-popped.layout.scfmap.dropped',
+        gaps       = '{layout_dir}/gaps.txt'
     params:
        haveONT     = config['withONT'],
        haveBAM     = config['withBAM']
     log:
-        err        = '6-layoutContigs/createLayout.err'
+        err        = '{layout_dir}/createLayout.err'
+    wildcard_constraints:
+        layout_dir = '6-layoutContigs|10-consensus'
     threads:
         int(config['lay_n_cpus'])
     resources:
@@ -163,37 +166,37 @@ rule layoutContigs:
         'layoutGroup'
     shell:
         '''
-cd 6-layoutContigs
+cd {wildcards.layout_dir}
 
 cat > ./createLayout.sh <<EOF
 #!/bin/sh
 set -e
 
 if [ "{params.haveONT}" = "True" ] && [ "{params.haveBAM}" = "True" ]; then
-   cat ../{input.hifialns} ../{input.ontalns} > ../6-layoutContigs/combined-alignments.gaf
+   cat ../{input.hifialns} ../{input.ontalns} > ./combined-alignments.gaf
 else
-   cp ../{input.hifialns} ../6-layoutContigs/combined-alignments.gaf
+   cp ../{input.hifialns} ./combined-alignments.gaf
 fi
 
 {PYTHON} {VERKKO}/scripts/get_layout_from_mbg.py \\\\
   ../{input.nodemap} \\\\
   ../{input.edges} \\\\
-  ../6-layoutContigs/combined-alignments.gaf \\\\
+  ./combined-alignments.gaf \\\\
   ../{input.paths} \\\\
   ../{input.lengths} \\\\
-  ../6-layoutContigs/unitig_initial.layout \\\\
-  ../6-layoutContigs/unitig_initial.layout.scfmap
+  ./unitig_initial.layout \\\\
+  ./unitig_initial.layout.scfmap
 
 if [ "{params.haveONT}" = "True" ] && [ "{params.haveBAM}" = "True" ]; then
-   cp ../6-layoutContigs/unitig_initial.layout.scfmap.dropped ../{output.dropped}
+   cp ./unitig_initial.layout.scfmap.dropped ../{output.dropped}
    {PYTHON} {VERKKO}/scripts/merge_layouts.py \\\\
-        ../6-layoutContigs/unitig_initial.layout \\\\
+        ./unitig_initial.layout \\\\
         ../{input.ontalns} \\\\
         ../{output.layout}
 else
-   cp ../6-layoutContigs/unitig_initial.layout.scfmap.dropped ../{output.dropped}
-   cp ../6-layoutContigs/unitig_initial.layout.scfmap         ../{output.scfmap}
-   cp ../6-layoutContigs/unitig_initial.layout                ../{output.layout}
+   cp ./unitig_initial.layout.scfmap.dropped ../{output.dropped}
+   cp ./unitig_initial.layout.scfmap         ../{output.scfmap}
+   cp ./unitig_initial.layout                ../{output.layout}
 fi
 
 {PYTHON} {VERKKO}/scripts/check_layout_gaps.py < ../{output.layout} > ../{output.gaps}

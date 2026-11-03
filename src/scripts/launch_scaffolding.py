@@ -34,9 +34,6 @@ rukki_tsv_file = os.path.join(hicrun_dir,  "rukki.paths.tsv")
 old_rukki_tsv_file = os.path.join(hicrun_dir,  "prescaf_rukki.paths.tsv")
 scaff_rukki_tsv_file = os.path.join(hicrun_dir,  "scaff_rukki.paths.tsv")
 scaff_rukki_gaf_file = os.path.join(hicrun_dir,  "scaff_rukki.paths.gaf")
-translation_paths_file = os.path.join (hicrun_dir, "final_contigs/6-layoutContigs/unitig-popped.layout.scfmap")
-translation_hap1_file = os.path.join (hicrun_dir, os.pardir, "translation_hap1")
-
 hic_byread = os.path.join(hicrun_dir, "hic.byread.compressed")
 
 
@@ -53,4 +50,3 @@ else:
     read_aln = os.path.join(hicrun_dir, "hic_nodefiltered.bam")
 sg = scaffold_graph.ScaffoldGraph(rukki_path_storage, telomere_locations_file, read_aln, os.path.join(hicrun_dir, "unitigs_nonhpc50.mashmap"), G, uncompressed_nodes, path_mashmap, porec) 
 res = sg.generateScaffolds()
-

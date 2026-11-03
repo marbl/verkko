@@ -4,7 +4,7 @@ use strict;
 
 my $assembly   = "";       #  Input file: the contigs after consensus; 7-consensus/unitig-popped.fasta
 my %contigLength;          #  Map from contig name to actual length
-my $graph      = "";       #  Input file: the graph; 6-rukki/unitig-popped-unitig-normal-connected-tip.noseq.gfa
+my $graph      = "";       #  Input file: the sequence-free assembly graph.
 my $graphmap   = "";       #  Input file: contig layout map; 6-layoutContigs/unitig-popped.layout.scfmap
 my %gtoc;                  #  Map from graph name to contig name (from the above file)
 my %ctog;                  #  Map from contig name to graph name.

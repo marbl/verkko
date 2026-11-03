@@ -14,23 +14,33 @@
 
 #
 #  Rule buildPackages creates input packages for Canu's consensus module.
+#  It is parameterized by the consensus stage so the quick stage-7 and final
+#  stage-10 passes use exactly the same commands and resource model.
 #
+
+def consensusLayout(wildcards):
+    if wildcards.consensus_dir == '10-consensus':
+        return '10-consensus/unitig-popped.layout'
+    return '6-layoutContigs/unitig-popped.layout'
+
 
 checkpoint buildPackages:
     input:
         hifi        = HIFI_READS,
-        layout      = {rules.layoutContigs.output.layout},
+        layout      = consensusLayout,
         ont_subset  = {rules.extractONT.output.ont_subset}    if config['withONT'] == "True" else {rules.emptyfile.output},
         ont_id_file = {rules.extractONT.output.ont_subset_id} if config['withONT'] == "True" else {rules.emptyfile.output}
     output:
-        tigmap     = "7-consensus/packages.tigName_to_ID.map",
-        finished   = "7-consensus/packages.finished",
-        packreport = "7-consensus/packages.report"
+        tigmap     = "{consensus_dir}/packages.tigName_to_ID.map",
+        finished   = "{consensus_dir}/packages.finished",
+        packreport = "{consensus_dir}/packages.report"
     params:
         minread   = config['cor_min_read'],
         ont_subset = lambda wildcards: getBuildPackagesInputONT(wildcards, config["withONT"], config["withBAM"]),
     log:
-        err        = '7-consensus/buildPackages.err'
+        err        = '{consensus_dir}/buildPackages.err'
+    wildcard_constraints:
+        consensus_dir = '7-consensus|10-consensus'
     threads:
         int(config['par_n_cpus'])
     resources:
@@ -40,7 +50,7 @@ checkpoint buildPackages:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'par')
     shell:
         '''
-cd 7-consensus
+cd {wildcards.consensus_dir}
 
 cat > ./buildPackages.sh <<EOF
 #!/bin/sh
@@ -71,4 +81,3 @@ chmod +x ./buildPackages.sh
 
 ./buildPackages.sh > ../{log.err} 2>&1
         '''
-

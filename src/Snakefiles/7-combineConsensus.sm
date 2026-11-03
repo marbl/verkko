@@ -18,39 +18,57 @@
 #
 
 
-#  These two functions return different paths to the inputs.  The first
-#  returns a path relative to the root directory, used by Snakemake itself to
-#  figure out the DAG.  The second returns a path relative to the 7-consensus
-#  directory, which we use when running the command.
+# combineConsensusI returns DAG-tracked FASTA inputs from the workflow root.
+# P and C return FASTA/CRAM paths relative to the selected consensus directory
+# for use by the generated shell command.
 #
 def combineConsensusI(wildcards):
-    return expand("7-consensus/packages/part{nnnn}.fasta", nnnn = glob_wildcards("7-consensus/packages/part{xxxx}.cnspack").xxxx)
+    stage = wildcards.consensus_dir
+    return expand(f"{stage}/packages/part{{nnnn}}.fasta", nnnn = glob_wildcards(f"{stage}/packages/part{{xxxx}}.cnspack").xxxx)
 def combineConsensusP(wildcards):
-    return expand(            "packages/part{nnnn}.fasta", nnnn = glob_wildcards("7-consensus/packages/part{xxxx}.cnspack").xxxx)
-def combineConsensusB(wildcards):
-    return expand(            "packages/part{nnnn}.bam*.bam", nnnn = glob_wildcards("7-consensus/packages/part{xxxx}.cnspack").xxxx)
+    stage = wildcards.consensus_dir
+    return expand("packages/part{nnnn}.fasta", nnnn = glob_wildcards(f"{stage}/packages/part{{xxxx}}.cnspack").xxxx)
+def combineConsensusC(wildcards):
+    stage = wildcards.consensus_dir
+    return expand("packages/part{nnnn}.cram", nnnn = glob_wildcards(f"{stage}/packages/part{{xxxx}}.cnspack").xxxx)
+
+def consensusScfmap(wildcards):
+    return '10-consensus/unitig-popped.layout.scfmap' if wildcards.consensus_dir == '10-consensus' else '6-layoutContigs/unitig-popped.layout.scfmap'
+
+def consensusPathsTsv(wildcards):
+    if wildcards.consensus_dir == '10-consensus':
+        return FINAL_PATH_TSV
+    return rules.emptyfile.output
+
+def consensusLabel(wildcards, number):
+    if wildcards.consensus_dir == '10-consensus':
+        return f'8-phasing/label{number}'
+    return rules.emptyfile.output
 
 rule combineConsensus:
     input:
         packcns   = combineConsensusI,
         tigmap    = rules.buildPackages.output.tigmap,
-        scfmap    = rules.layoutContigs.output.scfmap,
-        layout    = rules.layoutContigs.output.layout,
+        scfmap    = consensusScfmap,
+        layout    = consensusLayout,
         ontalns   = rules.generateLayoutContigsInputs.output.ontgapaln if config['withONT'] == "True" else {rules.emptyfile.output},
         hificov   = rules.verkko.input.hifi5cov,
         finished  = rules.buildPackages.output.finished,
-        pathstsv  = rules.rukki.output.pathstsv if config['ruk_enable'] == "True" else rules.emptyfile.output,
-        graph     = rules.verkko.input.graph
+        pathstsv  = consensusPathsTsv,
+        graph     = rules.verkko.input.graph,
+        label1    = lambda wildcards: consensusLabel(wildcards, 1),
+        label2    = lambda wildcards: consensusLabel(wildcards, 2)
     output:
-        cram      = rules.verkko.input.cram,
-        cns       = rules.verkko.input.cns,
-        cnshap1   = rules.verkko.input.cnshap1,
-        cnshap2   = rules.verkko.input.cnshap2,
-        cnsunas   = rules.verkko.input.cnsunas,
-        combined  = '7-consensus/combined.fasta'
+        cram      = '{consensus_dir}/unitig-popped.cram',
+        crai      = '{consensus_dir}/unitig-popped.cram.crai',
+        cns       = '{consensus_dir}/unitig-popped.fasta',
+        cnshap1   = '{consensus_dir}/unitig-popped.haplotype1.fasta',
+        cnshap2   = '{consensus_dir}/unitig-popped.haplotype2.fasta',
+        cnsunas   = '{consensus_dir}/unitig-popped.unassigned.fasta',
+        combined  = '{consensus_dir}/combined.fasta'
     log:
-        out       = '7-consensus/combineConsensus.out',
-        err       = '7-consensus/combineConsensus.err'
+        out       = '{consensus_dir}/combineConsensus.out',
+        err       = '{consensus_dir}/combineConsensus.err'
     params:
         MASHMAP   = config.get('MASHMAP', "{VERKKO}/bin/mashmap"),
         SAMTOOLS  = config.get('SAMTOOLS', "{VERKKO}/bin/samtools"),
@@ -58,9 +76,11 @@ rule combineConsensus:
         keepinter = config['keep_intermediate'],
         short_len = config['short_contig_length'],
         screens   = config['screen'],
-        packbam   = combineConsensusB,
+        packcram  = combineConsensusC,
         haveBAM    = config['withBAM'],
-        quick      = config['cns_quick']
+        quick      = isQuickConsensus
+    wildcard_constraints:
+        consensus_dir = '7-consensus|10-consensus'
     threads:
         8
     resources:
@@ -70,16 +90,16 @@ rule combineConsensus:
         time_h = 48
     shell:
         '''
-cd 7-consensus
+cd {wildcards.consensus_dir}
 
 label1=""
 label2=""
 
-if [ -e ../6-rukki/label1 ] ; then label1=`cat ../6-rukki/label1` ; fi
-if [ -e ../6-rukki/label2 ] ; then label2=`cat ../6-rukki/label2` ; fi
+if [ -e ../8-phasing/label1 ] ; then label1=`cat ../8-phasing/label1` ; fi
+if [ -e ../8-phasing/label2 ] ; then label2=`cat ../8-phasing/label2` ; fi
 
-if [ -e ../../label1 ] ; then label1=`cat ../../label1` ; fi
-if [ -e ../../label2 ] ; then label2=`cat ../../label2` ; fi
+if [ -s ../{input.label1} ] ; then label1=$(cat ../{input.label1}) ; fi
+if [ -s ../{input.label2} ] ; then label2=$(cat ../{input.label2}) ; fi
 
 
 cat > ./combineConsensus.sh <<EOF
@@ -120,58 +140,20 @@ cp assembly.fasta ../{output.cns}
 
 if [ "{params.haveBAM}" = "True" ] && [ '{params.quick}' != 'True' ]; then
    echo "--------------------"
-   echo "Combining consensus bam results."
+   echo "Renaming and combining consensus CRAM results."
    echo ""
-   # increase ulimit for files in case we have lots of bam files to merge
-   max=\`ulimit -Hn\`
-   bef=\`ulimit -Sn\`
-   if [ \$bef -lt \$max ] ; then
-      ulimit -Sn \$max
-      aft=\`ulimit -Sn\`
-      echo "  Changed max open files from \$bef to \$aft (max \$max)."
-   else
-      echo "  Max open files limited to \$bef, no increase possible."
-   fi
-
-   # if we can't increase or the max is smaller than the number of files we will use multiple rounds of merging
-   lim=\`ulimit -Sn\`
-   batch_size=\$(( lim / 2))
    mem_per_core=\`(expr \( {resources.mem_gb} \* 70 \) / \( 100 \* {threads} \) | awk '{{if (\$1 < 1) print "1G"; else print \$1"G"}}') || true\`
-   rm -f ../{output.cram}.tmp.*
 
-   bam_files=(\$(ls -1 {params.packbam}))
-   round=0
-   current_files=("\${{bam_files[@]}}")
-
-   echo "Starting iterative merge with \${{#current_files[@]}} files, merging \$batch_size at a time using mem \$mem_per_core"
-
-   while [ "\${{#current_files[@]}}" -gt 1 ]; do
-      next_files=()
-      i=0
-      batch_num=0
-
-      while [ \$i -lt "\${{#current_files[@]}}" ]; do
-         batch=( "\${{current_files[@]:i:batch_size}}" )
-         out="../{output.cram}.tmp.merge_r\${{round}}_b\${{batch_num}}.bam"
-
-         echo "  Merging round \$round batch \$batch_num (\${{#batch[@]}} files)..."
-
-         {params.SAMTOOLS} merge -f -O bam --reference combined.fasta -@{threads} -u "\$out"  "\${{batch[@]}}"
-
-         next_files+=( "\$out" )
-
-         ((i+=batch_size))
-         ((batch_num+=1))
-      done
-
-      current_files=( "\${{next_files[@]}}" )
-      ((round+=1))
-   done
-
-   {params.SAMTOOLS} view -h -O bam \${{current_files[0]}} | {PYTHON} {VERKKO}/scripts/bam_rename.py ../{input.layout} ../{input.ontalns} ../{input.scfmap} ../{input.tigmap} {params.packcns} | {params.SAMTOOLS} sort -m \$mem_per_core -@{threads} | {params.SAMTOOLS} view -T combined.fasta -O cram --output-fmt-option embed_ref=1 -o ../{output.cram}
-   rm -f ../{output.cram}.tmp.merge_r*.bam
+   {PYTHON} {VERKKO}/scripts/bam_rename.py \\
+     ../{input.layout} ../{input.ontalns} ../{input.scfmap} ../{input.tigmap} \\
+     {params.packcns} --alignments {params.packcram} \\
+   | {params.SAMTOOLS} sort -m \$mem_per_core -@{threads} \\
+       -O cram --reference combined.fasta --output-fmt-option embed_ref=1 \\
+       -o ../{output.cram}
+   {params.SAMTOOLS} index -@{threads} ../{output.cram} ../{output.crai}
 else
    touch ../{output.cram}
+   touch ../{output.crai}
 fi
 
 #  Try to circularize, the script will output to the same file as input since it caches the sequences
@@ -182,12 +164,16 @@ for xx in assembly.*.exemplar.fasta ; do
   fi
 done
 
-#  Jump through hoops to not fail when there are no contaminant outputs.
-for xx in assembly.*.fasta ; do
-  if [ -e \$xx ] ; then
-    cp \$xx ../\$xx
-  fi
-done
+# Stage 7 is the final publisher for an unphased run. In phased runs, keep
+# stage-10 auxiliary FASTAs private until finalPhasedAssembly publishes the
+# complete deliverable set.
+if [ "{wildcards.consensus_dir}" = "7-consensus" ]; then
+  for xx in assembly.*.fasta ; do
+    if [ -e \$xx ] ; then
+      cp \$xx ../\$xx
+    fi
+  done
+fi
 
 
 

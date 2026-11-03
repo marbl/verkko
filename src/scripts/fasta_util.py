@@ -3,8 +3,10 @@
 import gzip
 import bz2
 import lzma
+import os
 import re
 import subprocess
+import sys
 
 #
 #  Reasonably simple methods for reading FASTA and FASTQ files, munging

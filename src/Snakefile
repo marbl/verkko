@@ -47,6 +47,20 @@ ONT_READS  = config.get('ONT_READS')
 HIC_READS1  = config.get('HIC_READS1')
 HIC_READS2  = config.get('HIC_READS2')
 
+PHASE_ENABLED = config.get('phase_enable', 'False') == 'True'
+PATHS_SOURCE_UGRAPH = config.get('paths_source_ugraph') or 'emptyfile'
+CNSPATH_UGRAPH_OUTPUT = 'assembly.gfa' if config.get('paths_source_ugraph') else '7-consensus/source-assembly.gfa.unavailable'
+
+
+def pathsSourceUncompressedGraph(wildcards):
+    """Use the unchanged source graph for a --paths consensus-only rerun."""
+    return PATHS_SOURCE_UGRAPH
+
+# Phased assemblies run a quick consensus in stage 7 to supply sequences for
+# phasing, then generate the deliverable consensus in stage 10.  Keep the
+# legacy targets available without letting them claim the final filenames.
+INITIAL_OUTPUT_PREFIX = '7-consensus/initial-' if PHASE_ENABLED else ''
+
 
 ##########
 #
@@ -65,16 +79,12 @@ rule emptyfile:
 rule verkko:
     input:
         graph       = '5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.gfa',
-        nseqgraph   = '6-rukki/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.noseq.gfa'  if config['ruk_enable'] == "True" else {rules.emptyfile.output},
+        ugraph      = '7-consensus/assembly.gfa',
         layout      = '6-layoutContigs/unitig-popped.layout',
         scfmap      = '6-layoutContigs/unitig-popped.layout.scfmap',
         cram        = '7-consensus/unitig-popped.cram',
+        crai        = '7-consensus/unitig-popped.cram.crai',
         cns         = '7-consensus/unitig-popped.fasta',
-        cnshap1     = '7-consensus/unitig-popped.haplotype1.fasta',
-        cnshap2     = '7-consensus/unitig-popped.haplotype2.fasta',
-        cnsunas     = '7-consensus/unitig-popped.unassigned.fasta',
-        pathstsv    = '6-rukki/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.paths.tsv'   if config['ruk_enable'] == "True" else {rules.emptyfile.output},
-        colorscsv   = '6-rukki/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.colors.csv'  if config['ruk_enable'] == "True" else {rules.emptyfile.output},
        #hifi2cov    = '2-processGraph/unitig-unrolled-hifi-resolved.hifi-coverage.csv',   #  These are generated at the
        #ont2cov     = '2-processGraph/unitig-unrolled-hifi-resolved.ont-coverage.csv',    #  end of untip, but are
        #hifi4cov    = '4-processONT/unitig-unrolled-ont-resolved.hifi-coverage.csv',      #  otherwise unused.
@@ -82,64 +92,43 @@ rule verkko:
         hifi5cov    = '5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.hifi-coverage.csv',
         ont5cov     = '5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.ont-coverage.csv'
     output:
-        graph       = 'assembly.homopolymer-compressed.gfa',
-        nseqgraph   = 'assembly.homopolymer-compressed.noseq.gfa',
-        layout      = 'assembly.homopolymer-compressed.layout',
-        hificov     = 'assembly.hifi-coverage.csv',
-        ontcov      = 'assembly.ont-coverage.csv',
-        cns         = 'assembly.fasta',
-        scfmap      = 'assembly.scfmap'
+        graph       = INITIAL_OUTPUT_PREFIX + 'assembly.homopolymer-compressed.gfa',
+        ugraph      = INITIAL_OUTPUT_PREFIX + 'assembly.gfa',
+        nseqgraph   = INITIAL_OUTPUT_PREFIX + 'assembly.homopolymer-compressed.noseq.gfa',
+        layout      = INITIAL_OUTPUT_PREFIX + 'assembly.homopolymer-compressed.layout',
+        hificov     = INITIAL_OUTPUT_PREFIX + 'assembly.hifi-coverage.csv',
+        ontcov      = INITIAL_OUTPUT_PREFIX + 'assembly.ont-coverage.csv',
+        cns         = INITIAL_OUTPUT_PREFIX + 'assembly.fasta',
+        scfmap      = INITIAL_OUTPUT_PREFIX + 'assembly.scfmap'
     params:
         keepinter   = config['keep_intermediate'],
-        cnshap1     = 'assembly.haplotype1.fasta',    #  Actually, these are optional outputs.
-        cnshap2     = 'assembly.haplotype2.fasta',
-        cnsunas     = 'assembly.unassigned.fasta',
-        cram        = 'assembly.cram',
-        pathstsv    = 'assembly.paths.tsv',
-        colorscsv   = 'assembly.colors.csv'
+        cram        = INITIAL_OUTPUT_PREFIX + 'assembly.cram',
+        crai        = INITIAL_OUTPUT_PREFIX + 'assembly.cram.crai'
     shell:
         '''
-#  Copy the rukki results to the output directory if they exist, remove them
-#  if they are empty (no haplotypes walked).
-#
-#  If rukki is not enabled, inject coverage into the graph and make a noseq version.
-
-if [ -s {input.nseqgraph} ]; then
-   cp -p {input.nseqgraph} {output.nseqgraph}
-   cp -p {input.cnshap1}   {params.cnshap1}
-   cp -p {input.cnshap2}   {params.cnshap2}
-   cp -p {input.cnsunas}   {params.cnsunas}
-   cp -p {input.pathstsv}  {params.pathstsv}
-   cp -p {input.colorscsv} {params.colorscsv}
-
-   if [ ! -s {params.cnshap1} -a ! -s {params.cnshap2} ]; then
-      rm -f {params.cnshap1}
-      rm -f {params.cnshap2}
-      rm -f {params.pathstsv}
-   fi
-
-else
-   awk < {input.graph} \\
-     'BEGIN \\
-      {{ \\
-        FS="[ \\t]+"; OFS="\\t"; \\
-      }} \\
-      {{ \\
-        if ($1 == "S") {{ \\
-          print "S", $2, "*", "LN:i:"length($3); \\
-        }} else {{ \\
-          print $0; \\
-        }} \\
-      }}' \\
-   | \\
-   {PYTHON} {VERKKO}/scripts/inject_coverage.py --allow-absent \\
-     {input.hifi5cov} \\
-   > {output.nseqgraph}
-fi
+#  Stage 7 is always the unphased assembly.  Strip graph sequences and inject
+#  coverage here; all phased paths and colors are published from stage 10.
+awk < {input.graph} \\
+  'BEGIN \\
+   {{ \\
+     FS="[ \\t]+"; OFS="\\t"; \\
+   }} \\
+   {{ \\
+     if ($1 == "S") {{ \\
+       print "S", $2, "*", "LN:i:"length($3); \\
+     }} else {{ \\
+       print $0; \\
+     }} \\
+   }}' \\
+| \\
+{PYTHON} {VERKKO}/scripts/inject_coverage.py --allow-absent \\
+  {input.hifi5cov} \\
+> {output.nseqgraph}
 
 #  Copy the full assembly to the output directory.
 
 cp -p {input.graph}     {output.graph}
+cp -p {input.ugraph}    {output.ugraph}
 cp -p {input.layout}    {output.layout}
 cp -p {input.cns}       {output.cns}
 cp -p {input.hifi5cov}  {output.hificov}
@@ -148,6 +137,7 @@ cp -p {input.scfmap}    {output.scfmap}
 
 if [ -s {input.cram} ]; then
    cp -p {input.cram} {params.cram}
+   cp -p {input.crai} {params.crai}
 fi
 
 #  Clean up intermediate files.
@@ -161,30 +151,39 @@ fi
 rule cnspath:
     input:
         graph       = '5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.gfa',
+        ugraph      = pathsSourceUncompressedGraph,
         hifi5cov    = '5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.hifi-coverage.csv',
         ont5cov     = '5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.ont-coverage.csv',
         layout      = '6-layoutContigs/unitig-popped.layout',
         scfmap      = '6-layoutContigs/unitig-popped.layout.scfmap',
         consensus   = '7-consensus/unitig-popped.fasta',
         cram        = '7-consensus/unitig-popped.cram',
+        crai        = '7-consensus/unitig-popped.cram.crai',
         cnshap1     = '7-consensus/unitig-popped.haplotype1.fasta',
         cnshap2     = '7-consensus/unitig-popped.haplotype2.fasta',
         cnsunas     = '7-consensus/unitig-popped.unassigned.fasta'
     output:
-        graph       = 'assembly.homopolymer-compressed.gfa',
-        hificov     = 'assembly.hifi-coverage.csv',
-        ontcov      = 'assembly.ont-coverage.csv',
-        layout      = 'assembly.homopolymer-compressed.layout',
-        consensus   = 'assembly.fasta',
-        scfmap      = 'assembly.scfmap'
+        graph       = '7-consensus/initial-cnspath.assembly.homopolymer-compressed.gfa' if PHASE_ENABLED else 'assembly.homopolymer-compressed.gfa',
+        ugraph      = CNSPATH_UGRAPH_OUTPUT,
+        hificov     = '7-consensus/initial-cnspath.assembly.hifi-coverage.csv' if PHASE_ENABLED else 'assembly.hifi-coverage.csv',
+        ontcov      = '7-consensus/initial-cnspath.assembly.ont-coverage.csv' if PHASE_ENABLED else 'assembly.ont-coverage.csv',
+        layout      = '7-consensus/initial-cnspath.assembly.homopolymer-compressed.layout' if PHASE_ENABLED else 'assembly.homopolymer-compressed.layout',
+        consensus   = '7-consensus/initial-cnspath.assembly.fasta' if PHASE_ENABLED else 'assembly.fasta',
+        scfmap      = '7-consensus/initial-cnspath.assembly.scfmap' if PHASE_ENABLED else 'assembly.scfmap'
     params:
-        cnshap1     = 'assembly.haplotype1.fasta',    #  Actually, these are optional outputs.
-        cnshap2     = 'assembly.haplotype2.fasta',
-        cnsunas     = 'assembly.unassigned.fasta',
-        cram        = 'assembly.cram'
+        cnshap1     = '7-consensus/initial-cnspath.assembly.haplotype1.fasta' if PHASE_ENABLED else 'assembly.haplotype1.fasta',    #  Actually, these are optional outputs.
+        cnshap2     = '7-consensus/initial-cnspath.assembly.haplotype2.fasta' if PHASE_ENABLED else 'assembly.haplotype2.fasta',
+        cnsunas     = '7-consensus/initial-cnspath.assembly.unassigned.fasta' if PHASE_ENABLED else 'assembly.unassigned.fasta',
+        cram        = '7-consensus/initial-cnspath.assembly.cram' if PHASE_ENABLED else 'assembly.cram',
+        crai        = '7-consensus/initial-cnspath.assembly.cram.crai' if PHASE_ENABLED else 'assembly.cram.crai'
     shell:
         '''
 cp -p {input.graph}     {output.graph}
+if [ "{input.ugraph}" = "emptyfile" ]; then
+  touch {output.ugraph}
+else
+  cp -p {input.ugraph} {output.ugraph}
+fi
 cp -p {input.layout}    {output.layout}
 cp -p {input.hifi5cov}  {output.hificov}
 cp -p {input.ont5cov}   {output.ontcov}
@@ -195,6 +194,7 @@ if [  -s {input.cnshap1} -a -s {input.cnshap2} ]; then
 fi
 if [ -s {input.cram} ]; then
    cp -p {input.cram} {params.cram}
+   cp -p {input.crai} {params.crai}
 fi
 cp -p {input.cnsunas}   {params.cnsunas}
 cp -p {input.scfmap}    {output.scfmap}
@@ -244,12 +244,24 @@ include: 'Snakefiles/3-combineONT.sm'
 include: 'Snakefiles/3-alignTips.sm'
 include: 'Snakefiles/4-processONT.sm'
 include: 'Snakefiles/5-untip.sm'
-include: 'Snakefiles/6-rukki.sm'
 include: 'Snakefiles/6-layoutContigs.sm'
 include: 'Snakefiles/7-extractONT.sm'
 include: 'Snakefiles/7-buildPackage.sm'
 include: 'Snakefiles/7-generateConsensus.sm'
 include: 'Snakefiles/7-combineConsensus.sm'
+include: 'Snakefiles/7-uncompressGraph.sm'
+
+if config.get('phase_enable', 'False') == 'True':
+    include: 'Snakefiles/8-phasing.sm'
+
+if config.get('phase_mode', 'none') == 'trio':
+    include: 'Snakefiles/8-parentalMarkers.sm'
+
+if config.get('phase_mode', 'none') == 'dual':
+    include: 'Snakefiles/8-dual.sm'
 
 if config['withHIC'] == "True" or config['withPOREC'] == 'True':
-    include: 'Snakefiles/8-hicPipeline.sm'
+    include: 'Snakefiles/9-scaffolding.sm'
+
+if PHASE_ENABLED:
+    include: 'Snakefiles/10-consensus.sm'

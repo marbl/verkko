@@ -43,7 +43,7 @@ else:
 outf = seq.openOutput(output_name)
 
 for filename in filenames:
-  print(f"Starting file {filename}.")
+  print(f"Starting file {filename}.", file=sys.stderr)
   inf  = seq.openInput(filename)
 
   line = inf.readline()
@@ -79,7 +79,7 @@ for filename in filenames:
 
 
 if scfmap:  #  For 'combine' combine the contig pieces and gaps into scaffolds.
-  print(f"\nWriting output.")
+  print(f"\nWriting output.", file=sys.stderr)
 
   for clist in scfmap:
     seq = ""
@@ -104,8 +104,8 @@ if scfmap:  #  For 'combine' combine the contig pieces and gaps into scaffolds.
     else:
       print(f"ERROR: contig {clist} is empty.", file=sys.stderr)
 
-  print(f"")
-  print(f"Finished.")
+  print(f"", file=sys.stderr)
+  print(f"Finished.", file=sys.stderr)
 
 
 if outf != None:

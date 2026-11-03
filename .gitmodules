@@ -10,3 +10,6 @@
 [submodule "src/hifioverlapper"]
 	path = src/hifioverlapper
 	url = https://github.com/maickrau/hifioverlapper
+[submodule "src/loimi"]
+	path = src/loimi
+	url = git@github.com:marbl/loimi.git

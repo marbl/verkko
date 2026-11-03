@@ -169,7 +169,11 @@ findInputFiles() {
   fi
 
   # Clean up entries: remove leading and trailing spaces and quotes
-  cleaned_entries=$(echo "$entries" | sed -e 's/^[[:space:]]*-[[:space:]]*["\x27]*//;s/["\x27]*[[:space:]]*$//')
+  # Use literal quote characters rather than GNU sed's non-portable \x27
+  # escape.  macOS/BSD sed otherwise preserves the single quotes emitted by
+  # Verkko's own YAML writer, and a --paths rerun writes invalid doubled
+  # quotes around every inherited read path.
+  cleaned_entries=$(printf '%s\n' "$entries" | sed -e "s/^[[:space:]]*-[[:space:]]*['\"]*//;s/['\"]*[[:space:]]*$//")
   echo "$cleaned_entries"
 }
 
@@ -205,17 +209,25 @@ nano=""
 outd=""
 hic1=""
 hic2=""
+maternal=""
+paternal=""
 
 withont="False"
 withhic="False"
 withporec="False"
 withbam="True"
 withref="False"
+phase_enable="False"
+phase_mode="none"
+phase_k="31"
+dual_assembly="False"
+dual_seed="1"
 
 keepinter="True"
 
 cnspaths=""
 cnsdir=""
+paths_source_ugraph=""
 
 errors=""
 verkko=""
@@ -226,7 +238,7 @@ mashmap=""
 seqtk=""
 winnowmap=""
 minimap=""
-bwa=""
+minibwa=""
 samtools=""
 python=
 perl=
@@ -322,13 +334,6 @@ screen=""
 pop_min_allowed_cov=5
 pop_resolve_steps="20 10 5"
 is_haploid="False"
-
-#  Rukki.
-ruk_enable="False"
-ruk_hap1=""
-ruk_hap2=""
-ruk_type=""
-ruk_fract="0.9"
 
 #consensus
 cns_num_iter="2"
@@ -487,7 +492,8 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--seqtk" ] ;              then seqtk=$arg;         shift
     elif [ "$opt" = "--winnowmap" ] ;          then winnowmap=$arg;     shift
     elif [ "$opt" = "--minimap" ] ;            then minimap=$arg;       shift
-    elif [ "$opt" = "--bwa" ] ;                then bwa=$arg;           shift
+    elif [ "$opt" = "--bwa" ] ;                then minibwa=$arg;       shift
+    elif [ "$opt" = "--minibwa" ] ;            then minibwa=$arg;       shift
     elif [ "$opt" = "--samtools" ] ;           then samtools=$arg;      shift
     elif [ "$opt" = "--local" ] ;              then grid="local";
     elif [ "$opt" = "--grid" ] ;               then grid="slurm-sge-lsf-pbs";
@@ -497,14 +503,28 @@ while [ $# -gt 0 ] ; do
     elif [ "$opt" = "--snakeopts" ] ;          then snakeopts=$arg;     shift
 
     #
-    #  Run options for running Rukki before consensus.
+    #  Parental marker and evidence-based phasing options.
     #
 
-    elif [ "$opt" = "--hap-kmers" ] ; then
-      ruk_enable="True"
-      ruk_hap1=$(fullpath $arg);   shift
-      ruk_hap2=$(fullpath $1);     shift
-      ruk_type=$1;                 shift
+    elif [ "$opt" = "--maternal" ] ; then
+        while [ -e "$arg" ] ; do
+            if [ -e "/$arg" ] ; then maternal="$maternal $arg"
+            else maternal="$maternal `pwd`/$arg"
+            fi
+            shift
+            arg=$1
+        done
+    elif [ "$opt" = "--paternal" ] ; then
+        while [ -e "$arg" ] ; do
+            if [ -e "/$arg" ] ; then paternal="$paternal $arg"
+            else paternal="$paternal `pwd`/$arg"
+            fi
+            shift
+            arg=$1
+        done
+    elif [ "$opt" = "--phase-k" ] ;            then phase_k=$arg;       shift
+    elif [ "$opt" = "--dual" ] ;               then dual_assembly="True"
+    elif [ "$opt" = "--dual-seed" ] ;          then dual_seed=$arg;     shift
 
     #
     #  Run options for running only consensus on a set of user-supplied paths.
@@ -770,14 +790,14 @@ if [ "x$winnowmap" != "x" ]; then
   winnowmap=$(fullpath $winnowmap)
 fi
 
-if [ "x$bwa" = "x" ] ; then
-  bwa=${verkko}/bin/bwa
+if [ "x$minibwa" = "x" ] ; then
+  minibwa=${verkko}/bin/bwa
 fi
-if [ ! -e $bwa ] ; then
-  bwa=$(which bwa 2>/dev/null)
+if [ ! -e $minibwa ] ; then
+  minibwa=$(which minibwa 2>/dev/null)
 fi
-if [ "x$bwa" != "x" ]; then
-  bwa=$(fullpath $bwa)
+if [ "x$minibwa" != "x" ]; then
+  bwa=$(fullpath $minibwa)
 fi
 
 if [ "x$samtools" = "x" ] ; then
@@ -811,6 +831,12 @@ if [ "x$cnspaths" != "x" ] ; then
      exit 1
   fi
 
+  # --paths changes consensus paths, not the underlying unitig graph.  Reuse
+  # the already-published regular-space graph instead of rerunning alignGFA.
+  if [ -e "${cnsassembly}/assembly.gfa" ]; then
+     paths_source_ugraph="${cnsassembly}/assembly.gfa"
+  fi
+
   # find the input files from the assembly and re-use them
   for i in `findInputFiles "${cnsassembly}/verkko.yml" "" "HIFI_READS"`; do
      hifi="$hifi $i"
@@ -841,36 +867,40 @@ if [ "x$nano" = "x" -a "x$withont" = "xTrue" ] ; then
     errors="${errors}No Oxford Nanopore reads (--nano) supplied.\n"
 fi
 
-if [ "x$ruk_enable" = "xTrue" ] ; then
-    if [ "x$ruk_hap1" = "x" -o "x$ruk_hap2" = "x" ] ; then
-        errors="${errors}Invalid haplotype databases specified, make sure the paths are valid.\n"
-    fi
-    if [ "x$ruk_type" != "xtrio" -a "x$ruk_type" != "xhic" -a "x$ruk_type" != "xstrandseq" ] ; then
-        errors="${errors}Invalid rukki phasing '$ruk_type', must be one of trio/hic/strandseq.\n"
-    fi
+if ! echo "$phase_k" | grep -Eq '^[1-9][0-9]*$' ; then
+    errors="${errors}Invalid --phase-k '$phase_k'; expected a positive integer.\n"
+fi
+if ! echo "$dual_seed" | grep -Eq '^[0-9]+$' ; then
+    errors="${errors}Invalid --dual-seed '$dual_seed'; expected a non-negative integer.\n"
 fi
 
-if [ "x$ruk_enable" = "xTrue" -a -e "$verkko/bin/meryl" ] ; then
-    if [ "x$ruk_hap1}" != "x" ] ; then
-        $verkko/bin/meryl print threads=1 $ruk_hap1 2> /dev/null | head | grep -q AA
-        if [ $? -ne 1 ] ; then
-            errors="${errors}Meryl database '$ruk_hap1' appears to be built using non-homopolymer compressed kmers.\n"
-        fi
-        $verkko/bin/meryl print threads=1 $ruk_hap1 2> /dev/null | head | grep -q A
-        if [ $? -ne 0 ]; then
-            errors="${errors}Meryl database '$ruk_hap1' appears to be an invalid DB.\n"
-        fi
-    fi
-    if [ "x$ruk_hap2}" != "x" ] ; then
-        $verkko/bin/meryl print threads=1 $ruk_hap2 2> /dev/null | head | grep -q AA
-        if [ $? -ne 1 ] ; then
-            errors="${errors}Meryl database '$ruk_hap2' appears to be built using non-homopolymer compressed kmers.\n"
-        fi
-        $verkko/bin/meryl print threads=1 $ruk_hap2 2> /dev/null | head | grep -q A
-        if [ $? -ne 0 ]; then
-           errors="${errors}Meryl database '$ruk_hap2' appears to be an invalid DB.\n"
-        fi
-    fi
+if [ "x$dual_assembly" = "xTrue" ] && [ "x$maternal$paternal" != "x" ]; then
+    errors="${errors}--dual cannot be combined with parental phasing evidence.\n"
+fi
+
+if [ "x$maternal" != "x" -a "x$paternal" != "x" ]; then
+    phase_enable="True"
+    phase_mode="trio"
+elif [ "x$maternal$paternal" != "x" ]; then
+    errors="${errors}Both --maternal and --paternal are required for parental phasing.\n"
+elif [ "x$dual_assembly" = "xTrue" ]; then
+    # Contact reads do not replace evidence-free dual path selection.  They
+    # remain enabled in the configuration so stage 9 can scaffold the two
+    # pseudohaplotype paths selected by Rukki dual mode.
+    phase_enable="True"
+    phase_mode="dual"
+elif [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ]; then
+    phase_enable="True"
+    phase_mode="contacts"
+fi
+
+# Stage 7 only supplies sequence for downstream phasing when stage 10 will
+# produce the deliverable consensus.  Without stage 10, stage 7 remains the
+# sole consensus pass and must use the full settings.
+if [ "x$phase_enable" = "xTrue" ]; then
+    cns_quick="True"
+else
+    cns_quick="False"
 fi
 
 #
@@ -946,8 +976,10 @@ if [ "x$withont" = "xTrue" ] ; then
     fi
 fi
 
-# mashmap required for hic and for screening contaminant
-if [ ! -z "$screen" -o "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
+# MashMap is also required by evidence-free dual mode.  Dual reuses the
+# contact-phasing homology filter to pair corresponding low-copy components
+# instead of guessing from component length alone.
+if [ ! -z "$screen" -o "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" -o "x$dual_assembly" = "xTrue" ] ; then
     if   [ "x$mashmap" = "x" ] ; then
         errors="${errors}Can't find MashMap executable in \$PATH or \$VERKKO/bin/mashmap.\n"
     elif [ ! -e "$mashmap" ] ; then
@@ -962,29 +994,21 @@ if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" -o "x$withbam" = "xTrue" ]
          errors="${errors}Only one of --hic1 and --hic2 specified, both must be specified to run with Hi-C\n"
        fi
 
-       if   [ "x$bwa" = "x" ] ; then
-         errors="${errors}Can't find BWA executable in \$PATH or \$VERKKO/bin/bwa.\n"
-       elif [ ! -e "$bwa" ] ; then
-         errors="${errors}Can't find BWA executable at '$bwa'.\n"
+       if   [ "x$minibwa" = "x" ] ; then
+         errors="${errors}Can't find MiniBWA executable in \$PATH or \$VERKKO/bin/minibwa.\n"
+       elif [ ! -e "$minibwa" ] ; then
+         errors="${errors}Can't find MiniBWA executable at '$minibwa'.\n"
        fi
-       # first instance of consensus should be quick
-      cns_quick="True"
    elif [ "x$withporec" = "xTrue" ]; then
        if   [ "x$minimap" = "x" ] ; then
          errors="${errors}Can't find MINIMAP2 executable in \$PATH or \$VERKKO/bin/minimap2.\n"
        elif [ ! -e "$minimap" ] ; then
-         errors="${errors}Can't find MINIMAP2 executable at '$bwa'.\n"
+         errors="${errors}Can't find MINIMAP2 executable at '$minimap'.\n"
        fi
-       # first instance of consensus should be quick
-       cns_quick="True"
    fi
    if [ "x$withhic" = "xTrue" -a "x$withporec" = "xTrue" ]; then
       errors="${errors}Both --hic1/--hic2 and --porec cannot be specified at the same time, please only specify one\n"
    fi
-   if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] && [ "x$ruk_enable" = "xTrue" ]; then
-      errors="${errors}Both --hic1/--hic2 or --porec cannot be specified at the same time as trio information, please only specify ont\n"
-   fi
-
    if   [ "x$samtools" = "x" ] ; then
        errors="${errors}Can't find Samtools executable in \$PATH or \$VERKKO/bin/samtools.\n"
    elif [ ! -e "$samtools" ] ; then
@@ -1021,9 +1045,13 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --no-correction          Do not perform Canu correction on the HiFi reads."
     echo "    --no-nano                Assemble without ONT data."
     echo ""
-    echo "    --hap-kmers h1 h2 type   Use rukki to assign paths to haplotypes.  'h1' and 'h2"
-    echo "                             must be Meryl databases of homopolymer-compressed parental"
-    echo "                             kmers.  'type' must be 'trio', 'hic' or 'strandseq'."
+    echo "    --maternal <files ...>   Maternal reads used to build regular-space markers."
+    echo "    --paternal <files ...>   Paternal reads used to build regular-space markers."
+    echo "                             Both parents are required for trio phasing."
+    echo "    --phase-k <integer>      K-mer size for all child and parental databases (default 31)."
+    echo "                             For parental phasing, haplotype1 is paternal by convention."
+    echo "    --dual                   Build two seeded pseudohaplotypes; supplied Hi-C/Pore-C is used only for scaffolding."
+    echo "    --dual-seed <integer>    Seed controlling primary/ALT color swaps (default 1)."
     echo ""
     echo "    --hic1 <files ...>       List of files containing left hic reads."
     echo "    --hic2 <files ...>       List of files containing right hic reads."
@@ -1064,7 +1092,7 @@ if [ "x$help" = "xhelp" -o "x$errors" != "x" ] ; then
     echo "    --seqtk <path>           Path to seqtk."
     echo "    --winnowmap <path>       Path to Winnowmap."
     echo "    --minimap   <path>       Path to minimap2."
-    echo "    --bwa <path>             Path to BWA."
+    echo "    --bwa <path>             Path to MiniBWA."
     echo "    --samtools <path>        Path to Samtools."
     echo ""
     echo "    --cleanup                Remove intermediate results."
@@ -1166,7 +1194,7 @@ echo >> ${outd}/verkko.yml "MASHMAP:             '${mashmap}'"
 echo >> ${outd}/verkko.yml "SEQTK:               '${seqtk}'"
 echo >> ${outd}/verkko.yml "WINNOWMAP:           '${winnowmap}'"
 echo >> ${outd}/verkko.yml "MINIMAP:             '${minimap}'"
-echo >> ${outd}/verkko.yml "BWA:                 '${bwa}'"
+echo >> ${outd}/verkko.yml "BWA:                 '${minibwa}'"
 echo >> ${outd}/verkko.yml "SAMTOOLS:            '${samtools}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "PYTHON:              '${python}'"
@@ -1176,6 +1204,19 @@ echo >> ${outd}/verkko.yml "HIFI_READS:"
 for h in ${hifi} ; do
   echo >> ${outd}/verkko.yml " - '$h'"
 done
+echo >> ${outd}/verkko.yml "MATERNAL_READS:"
+for o in ${maternal} ; do
+  echo >> ${outd}/verkko.yml " - '$o'"
+done
+echo >> ${outd}/verkko.yml "PATERNAL_READS:"
+for o in ${paternal} ; do
+  echo >> ${outd}/verkko.yml " - '$o'"
+done
+echo >> ${outd}/verkko.yml "phase_enable:        '${phase_enable}'"
+echo >> ${outd}/verkko.yml "phase_mode:          '${phase_mode}'"
+echo >> ${outd}/verkko.yml "phase_k:             '${phase_k}'"
+echo >> ${outd}/verkko.yml "dual_seed:           '${dual_seed}'"
+echo >> ${outd}/verkko.yml "phase_scaffold:      '${rdna_scaff}'"
 echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "withONT:             '${withont}'"
 echo >> ${outd}/verkko.yml "ONT_READS:"
@@ -1249,17 +1290,11 @@ echo >> ${outd}/verkko.yml "pop_min_allowed_cov: '${pop_min_allowed_cov}'"
 echo >> ${outd}/verkko.yml "pop_resolve_steps:   '${pop_resolve_steps}'"
 echo >> ${outd}/verkko.yml "haploid:             '${is_haploid}'"
 echo >> ${outd}/verkko.yml ""
-echo >> ${outd}/verkko.yml "#  Rukki"
-echo >> ${outd}/verkko.yml "ruk_enable:          '${ruk_enable}'"
-echo >> ${outd}/verkko.yml "ruk_hap1:            '${ruk_hap1}'"
-echo >> ${outd}/verkko.yml "ruk_hap2:            '${ruk_hap2}'"
-echo >> ${outd}/verkko.yml "ruk_type:            '${ruk_type}'"
-echo >> ${outd}/verkko.yml "ruk_fract:           '${ruk_fract}'"
-echo >> ${outd}/verkko.yml ""
 echo >> ${outd}/verkko.yml "# consensus"
 echo >> ${outd}/verkko.yml "cns_num_iter:        '${cns_num_iter}'"
 echo >> ${outd}/verkko.yml "cns_max_cov:         '${cns_max_cov}'"
 echo >> ${outd}/verkko.yml "cns_quick:           '${cns_quick}'"
+echo >> ${outd}/verkko.yml "paths_source_ugraph: '${paths_source_ugraph}'"
 echo >> ${outd}/verkko.yml "#  HiC algo options"
 echo >> ${outd}/verkko.yml "no_rdna_tangle:      '${no_rdna_tangle}'"
 echo >> ${outd}/verkko.yml "uneven_depth:        '${uneven_depth}'"
@@ -1380,12 +1415,8 @@ echo >> ${outd}/verkko.yml "#  This is the end."
 
 target="verkko"
 
-if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
-    if [ "x$rdna_scaff" = "xTrue" ] ; then
-        target="HiC_rdnascaff"
-    else
-        target="runRukkiHIC"
-    fi
+if [ "x$phase_enable" = "xTrue" ]; then
+    target="finalPhasedAssembly"
 fi
 
 if [ "x$cnspaths" != "x" ] ; then
@@ -1424,16 +1455,18 @@ if [ "x$cnspaths" != "x" ] ; then
         cp -p ${cnsassembly}/7-consensus/ont_subset.id                ${outd}/7-consensus/ont_subset.id
     fi
 
-    # copy haplotype labels if they exist
-    if [ -e ${cnsassembly}/6-rukki/label1 ]; then
-       mkdir ${outd}/6-rukki
-       cp -p ${cnsassembly}/6-rukki/label1                           ${outd}/6-rukki/label1
-       cp -p ${cnsassembly}/6-rukki/label2                           ${outd}/6-rukki/label2
+    # Normalize haplotype labels into the unified stage-8 location.  Prefer
+    # current assemblies, but retain read compatibility with assemblies made
+    # before phasing moved out of 6-rukki/ and 8-hicPipeline/.
+    labeldir=""
+    if   [ -e ${cnsassembly}/8-phasing/label1 ];    then labeldir="8-phasing"
+    elif [ -e ${cnsassembly}/6-rukki/label1 ];     then labeldir="6-rukki"
+    elif [ -e ${cnsassembly}/8-hicPipeline/label1 ]; then labeldir="8-hicPipeline"
     fi
-    if [ -e ${cnsassembly}/8-hicPipeline/label1 ]; then
-       mkdir ${outd}/6-rukki
-       cp -p ${cnsassembly}/8-hicPipeline/label1                     ${outd}/6-rukki/label1
-       cp -p ${cnsassembly}/8-hicPipeline/label2                     ${outd}/6-rukki/label2
+    if [ "x$labeldir" != "x" ]; then
+       mkdir -p ${outd}/8-phasing
+       cp -p ${cnsassembly}/${labeldir}/label1                    ${outd}/8-phasing/label1
+       cp -p ${cnsassembly}/${labeldir}/label2                    ${outd}/8-phasing/label2
     fi
 
     cp -p ${cnsassembly}/emptyfile ${outd}/emptyfile
@@ -1496,73 +1529,5 @@ chmod +x ${outd}/snakemake.sh
 cd ${outd}
 ./snakemake.sh
 ret=$?
-
-#Failed to do it with snakemake
-if [ "x$withhic" = "xTrue" -o "x$withporec" = "xTrue" ] ; then
-    if [ $ret -ne 0 -o ! -e "8-hicPipeline/rukki.paths.gaf" ]; then
-        if [ $ret -ne 0 ]; then
-           echo "ERROR!, HiC/Pore-C phasing failed, look above for error message."
-        fi
-        echo "Not running final consensus since no rukki paths are available!"
-        findsnakemakeerror $ret
-        exit $ret
-    fi
-    newoutd=8-hicPipeline/final_contigs/
-    mkdir -p $newoutd
-    cp verkko.yml $newoutd
-    cp snakemake.sh $newoutd
-    if [ ! -e "${newoutd}/5-untip" ]; then
-       mkdir ${newoutd}/5-untip
-       cp -p 5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.hifi-coverage.csv     ${newoutd}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.hifi-coverage.csv
-       cp -p 5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.ont-coverage.csv      ${newoutd}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.ont-coverage.csv
-       cp -p 5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.gfa                   ${newoutd}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.gfa
-       cp -p 5-untip/combined-edges-final.gfa                                        ${newoutd}/5-untip/combined-edges-final.gfa
-       cp -p 5-untip/combined-nodemap-final.txt                                      ${newoutd}/5-untip/combined-nodemap-final.txt
-       cp -p 5-untip/nodelens-final.txt                                              ${newoutd}/5-untip/nodelens-final.txt
-    fi
-
-    if [ ! -e "${newoutd}/6-layoutContigs" ] ; then
-        mkdir ${newoutd}/6-layoutContigs
-        cp 6-layoutContigs/combined-nodemap.txt     ${newoutd}/6-layoutContigs/combined-nodemap.txt
-        cp 6-layoutContigs/combined-edges.gfa       ${newoutd}/6-layoutContigs/combined-edges.gfa
-        cp 6-layoutContigs/hifi.alignments.gaf      ${newoutd}/6-layoutContigs/hifi.alignments.gaf
-        cp 6-layoutContigs/ont.alignments.gaf       ${newoutd}/6-layoutContigs/ont.alignments.gaf
-        cp 8-hicPipeline/rukki.paths.gaf            ${newoutd}/6-layoutContigs/consensus_paths.txt
-        cp 6-layoutContigs/nodelens.txt             ${newoutd}/6-layoutContigs/nodelens.txt
-        cp 6-layoutContigs/ont-gapfill.txt          ${newoutd}/6-layoutContigs/ont-gapfill.txt
-    fi
-
-    if [ ! -e "${newoutd}/7-consensus" ] && [ "x$withont" = "xTrue" ] ; then
-        mkdir ${newoutd}/7-consensus
-        cp -p 7-consensus/ont_subset.fasta.gz          ${newoutd}/7-consensus/ont_subset.fasta.gz
-        cp -p 7-consensus/ont_subset.id                ${newoutd}/7-consensus/ont_subset.id
-    fi
-    cp -p emptyfile ${newoutd}/emptyfile
-    # lastly symlink the raw ONT if we need them for bams
-    if [ "x$withont" = "xTrue" ] && [ "x$withbam" = "xTrue" ] ; then
-        ln -s $(fullpath '3-align') ${newoutd}/3-align
-    fi
-
-    cd $newoutd
-    sed -i.bak -E "s/^(cns_quick:[[:space:]]*)'True'/\1'False'/" verkko.yml
-    sed -i.bak 's/runRukkiHIC/cnspath/g' snakemake.sh
-    sed -i.bak 's/HiC_rdnascaff/cnspath/g' snakemake.sh
-    ./snakemake.sh
-    ret=$?
-    if [ $ret -eq 0 ]; then
-        cp *.fasta ../../
-        if [ "x$withbam" = "xTrue" ] ; then
-           cp *.cram ../../
-        fi
-        cp *.gfa ../../
-        cp *.layout ../../
-        cp *.scfmap ../../
-        cp *.csv ../../
-        cp ../rukki.paths.tsv ../../assembly.paths.tsv
-        cp ../hicverkko.colors.tsv ../../assembly.colors.csv
-    else
-       echo "ERROR: HiC-/PoreC consensus failed, look above for error message"
-    fi
-fi
 findsnakemakeerror $ret
 exit $ret
