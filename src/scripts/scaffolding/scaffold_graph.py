@@ -20,6 +20,39 @@ from scaffolding import match_graph, path_storage
 
 #from line_profiler import LineProfiler
 
+# Rukki historically emitted abbreviated trio names (mat/pat), while the
+# integrated parental-marker workflow emits the explicit maternal/paternal
+# names.  Scaffolding accepts both schemas and preserves whichever schema its
+# input paths use.  Contact-only and dual paths retain haplotype1/2 names.
+TRIO_LABELS = frozenset(("MAT", "PAT", "MATERNAL", "PATERNAL"))
+TRIO_PREFIXES = frozenset(("mat", "pat", "maternal", "paternal"))
+PHASE_LABEL_SWITCH = {
+    "HAPLOTYPE1": "HAPLOTYPE2",
+    "HAPLOTYPE2": "HAPLOTYPE1",
+    "MAT": "PAT",
+    "PAT": "MAT",
+    "MATERNAL": "PATERNAL",
+    "PATERNAL": "MATERNAL",
+}
+PHASE_PREFIX_SWITCH = {
+    "haplotype1": "haplotype2",
+    "haplotype2": "haplotype1",
+    "mat": "pat",
+    "pat": "mat",
+    "maternal": "paternal",
+    "paternal": "maternal",
+}
+
+
+def uses_trio_naming(paths):
+    """Return true for either the current or legacy Rukki trio schema."""
+    for path_id in paths.getPathIds():
+        label = str(paths.getLabel(path_id)).upper()
+        prefix = path_id.split("_", 1)[0].lower()
+        if label in TRIO_LABELS or prefix in TRIO_PREFIXES:
+            return True
+    return False
+
 class ReferencePosition:
     def __init__(self, name_q, name_r, ref_start, ref_end, query_len, orientation):
         self.name_q = name_q
@@ -670,8 +703,6 @@ class ScaffoldGraph:
     #returns dict {old_id: new_str}
     def getAdditionalRephase(self, scaffolded_rephased, used_ids, paths):
         res = {}
-        label_switch = {"HAPLOTYPE1": "HAPLOTYPE2", "HAPLOTYPE2": "HAPLOTYPE1"}
-        prefix_switch = {"pat": "mat", "mat": "pat", "haplotype1": "haplotype2", "haplotype2": "haplotype1"}
         for nor_old_id in scaffolded_rephased:
             if not self.isHaploidPath(paths, nor_old_id):
                 #very unoptimal but this should not be frequent
@@ -681,15 +712,19 @@ class ScaffoldGraph:
                     if paths.getLength(nor_old_id) * 2 > paths.getLength(alt_path_id) and alt_path_id in homologous_paths:
                     #and self.match_graph.isHomologousPath([paths.getPathById(nor_old_id), paths.getPathById(alt_path_id)], [paths.getLength(nor_old_id), paths.getLength(alt_path_id)]):
                         #alt_path_id is homologous to something rephased and thus should be rephased too.
-                        old_label = paths.getLabel(alt_path_id)
+                        old_label = paths.getLabel(alt_path_id).upper()
                         splitted_id = alt_path_id.split("_")
-                        old_prefix = splitted_id[0]
+                        old_prefix = splitted_id[0].lower()
                         if alt_path_id in used_ids:
                             logging.info(f"Not rephasing {alt_path_id} because it is scaffolded anyway")
                             continue
-                        if old_label in label_switch and old_prefix in prefix_switch:
-                            new_label = label_switch[old_label]
-                            new_prefix = prefix_switch[old_prefix]                            
+                        if old_label in PHASE_LABEL_SWITCH and old_prefix in PHASE_PREFIX_SWITCH:
+                            # Preserve the input vocabulary: maternal paths
+                            # remain maternal/paternal, legacy mat/pat paths
+                            # remain abbreviated, and evidence-free paths stay
+                            # haplotype1/2.
+                            new_label = PHASE_LABEL_SWITCH[old_label]
+                            new_prefix = PHASE_PREFIX_SWITCH[old_prefix]
                             new_id = new_prefix + "_" + "_".join(splitted_id[1:])
                             logging.warning(f"Rephasing {alt_path_id} to {new_id} because of {nor_old_id} scaffolded")
                             new_tsv = "\t".join([new_id, paths.getPathString(alt_path_id), new_label])
@@ -903,6 +938,15 @@ class ScaffoldGraph:
 #large haploid paths should be assigned based on connectivity. Complete human chrX will always be in hap1 
 #TODO revisit after rukki's update!
     def fixHaploidNames(self, paths: path_storage.PathStorage):
+        # Trio markers provide biological parent identity, including for
+        # haploid X/Y paths.  The alternating Hi-C-only heuristic below must
+        # never replace those assignments with generic haplotype1/2 names.
+        # Recognize both the current maternal/paternal schema and old mat/pat
+        # results so previously generated paths remain safe to scaffold.
+        if uses_trio_naming(paths):
+            logging.info("Trio labeling detected, haploid haplotype reassignment cancelled")
+            return
+
         large_haploid_ids = []
         haploids = self.getHaploidPaths(paths)
         for path_id in haploids:
@@ -919,11 +963,6 @@ class ScaffoldGraph:
                     logging.warning(f"large haploid and diploid paths connected, {path_id} and {alt_path}, lens {paths.getLength(path_id)} {paths.getLength(alt_path)}, no relabeing")
         large_haploid_ids.sort(key=lambda x: paths.getLength(x), reverse=True)
 
-        for path_id in paths.getPathIds():            
-            if path_id.split("_")[0] == "mat":
-                logging.info("Trio labeling detected, haploid haplotype reassignment cancelled")
-                return
-            
         names_prefix = {}
         names_prefix["HAPLOTYPE1"] = "haplotype1_from_"
         names_prefix["HAPLOTYPE2"] = "haplotype2_from_"
