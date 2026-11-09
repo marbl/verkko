@@ -151,25 +151,13 @@ if [[ "$MODE" == trio ]]; then
         --marker-counts "$OUT/marker_counts.tsv" \
         --output "$OUT/marker_qc.tsv"
     SELECTED=$(awk '$1 == "selection" { print $2 }' "$OUT/marker_qc.tsv")
-    # Parental specificity and inheritance are properties of the read sets;
-    # assembly copy number is a separate final filter.  Requiring exactly one
-    # occurrence across all non-HPC unitigs excludes repeated k-mers, including
-    # k-mers duplicated across overlapping node ends, before lookup.
-    "$MERYL" count k="$K" threads="$THREADS" "$UNITIGS" output "$OUT/assembly.meryl"
-    "$MERYL" equal-to 1 "$OUT/assembly.meryl" output "$OUT/assembly.single-copy.meryl"
-    "$MERYL" intersect \
-        "$OUT/paternal.$SELECTED.inherited.meryl" "$OUT/assembly.single-copy.meryl" \
-        output "$OUT/paternal.$SELECTED.inherited.single-copy.meryl"
-    "$MERYL" intersect \
-        "$OUT/maternal.$SELECTED.inherited.meryl" "$OUT/assembly.single-copy.meryl" \
-        output "$OUT/maternal.$SELECTED.inherited.single-copy.meryl"
 
     # Rukki's trio schema is maternal then paternal. Preserve that biological
     # order here; the workflow maps paternal paths to final haplotype 1 later.
     # Preserve the raw lookup for diagnostics, then apply the configured
     # marker-count thresholds.
     "$LOOKUP" -existence -threads "$THREADS" \
-        -mers "$OUT/maternal.$SELECTED.inherited.single-copy.meryl" "$OUT/paternal.$SELECTED.inherited.single-copy.meryl" \
+        -mers "$OUT/maternal.$SELECTED.inherited.meryl" "$OUT/paternal.$SELECTED.inherited.meryl" \
         -sequence "$UNITIGS" \
       > "$OUT/trio.lookup.tsv"
     "$PYTHON" "$SCRIPTS/color_parental_markers.py" \
