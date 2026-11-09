@@ -32,8 +32,8 @@ def marker_read_args():
     """Quote repeated read arguments without relying on shell word splitting.
 
     Child multiplicity must come from the HiFi reads.  The assembly FASTA is
-    passed separately as --unitigs and is used only to require that a retained
-    marker occurs once in the assembled graph sequence.
+    passed separately as --unitigs only for looking up the retained markers on
+    graph nodes; it does not contribute counts or filter marker databases.
     """
     args = []
     for path in HIFI_READS:
@@ -70,8 +70,8 @@ rule buildParentalMarkers:
     resources:
         job_id = 1,
         n_cpus = int(config['mer_n_cpus']),
-        # Counting all child and parental reads plus the assembly needs more
-        # memory than the smaller, user-supplied marker-database workflow.
+        # Counting all child and parental reads in regular space and looking
+        # markers up on the assembly needs substantial working memory.
         mem_gb = 128,
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'mer')
     shell:

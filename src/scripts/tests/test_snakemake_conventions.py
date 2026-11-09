@@ -66,6 +66,11 @@ class SnakemakeConventionTests(unittest.TestCase):
         self.assertNotIn("auto-update-conda: true", workflow)
         self.assertNotIn("mamba install -c", workflow)
         self.assertNotIn("'python=3.11' 'pulp", workflow)
+        self.assertIn("python -m pip install networkx pysam biopython", workflow)
+        self.assertIn(
+            "python -m unittest discover -s src/scripts/tests -p 'test_*.py' -v",
+            workflow,
+        )
 
     def test_mbg_includes_read_end_kmers(self):
         """Retain read ends when MBG constructs the initial graph."""
@@ -235,8 +240,8 @@ printf 'q\\t1\\t0\\t1\\t+\\tr\\t1\\t0\\t1\\t1\\t49999\\t1\\tid:f:1\\n' >> "$outp
         self.assertIn("--paths changes consensus paths, not the underlying unitig graph", launcher)
         self.assertNotIn("graph_unitig_consensus", launcher)
 
-    def test_trio_markers_use_reads_then_assembly_single_copy_filter(self):
-        """Do not confuse child-read abundance with assembly copy number."""
+    def test_trio_markers_use_reads_without_assembly_copy_filter(self):
+        """Use child-read abundance without imposing assembly copy-number filters."""
         workflow = (SNAKEFILES / "8-parentalMarkers.sm").read_text()
         builder = (SOURCE_ROOT / "scripts" / "build_parental_markers.sh").read_text()
 
@@ -248,15 +253,15 @@ printf 'q\\t1\\t0\\t1\\t+\\tr\\t1\\t0\\t1\\t1\\t49999\\t1\\tid:f:1\\n' >> "$outp
             re.search(r"rule buildParentalMarkers:.*?mem_gb\s*=\s*128", workflow, re.DOTALL)
         )
 
-        count = builder.index('output "$OUT/assembly.meryl"')
-        single = builder.index('equal-to 1 "$OUT/assembly.meryl"')
-        filter_paternal = builder.index('paternal.$SELECTED.inherited.single-copy.meryl')
-        lookup = builder.index('"$LOOKUP" -existence', filter_paternal)
-        self.assertLess(count, single)
-        self.assertLess(single, filter_paternal)
-        self.assertLess(filter_paternal, lookup)
-        self.assertIn('paternal.$SELECTED.inherited.single-copy.meryl', builder[lookup:])
-        self.assertIn('maternal.$SELECTED.inherited.single-copy.meryl', builder[lookup:])
+        child_count = builder.index('count_db child "${CHILD[@]}"')
+        inherited = builder.index('intersect "$OUT/child.meryl"')
+        lookup = builder.index('"$LOOKUP" -existence', inherited)
+        self.assertLess(child_count, inherited)
+        self.assertLess(inherited, lookup)
+        self.assertNotIn("assembly.meryl", builder)
+        self.assertNotIn("single-copy.meryl", builder)
+        self.assertIn('paternal.$SELECTED.inherited.meryl', builder[lookup:])
+        self.assertIn('maternal.$SELECTED.inherited.meryl', builder[lookup:])
         lookup_command = builder[lookup:builder.index("-sequence", lookup)]
         self.assertLess(lookup_command.index("maternal.$SELECTED"), lookup_command.index("paternal.$SELECTED"))
 
