@@ -56,6 +56,17 @@ def rule_blocks(path):
 
 
 class SnakemakeConventionTests(unittest.TestCase):
+    def test_ci_installs_dependencies_outside_conda_base(self):
+        """Mamba must not replace itself while changing the base Python ABI."""
+        workflow = (SOURCE_ROOT.parent / ".github/workflows/makefile.yml").read_text()
+        self.assertIn("shell: bash -el {0}", workflow)
+        self.assertIn("activate-environment: verkko-ci", workflow)
+        self.assertIn("conda-remove-defaults: 'true'", workflow)
+        self.assertIn("channel-priority: strict", workflow)
+        self.assertNotIn("auto-update-conda: true", workflow)
+        self.assertNotIn("mamba install -c", workflow)
+        self.assertNotIn("'python=3.11' 'pulp", workflow)
+
     def test_mbg_includes_read_end_kmers(self):
         """Retain read ends when MBG constructs the initial graph."""
         workflow = (SNAKEFILES / "1-buildGraph.sm").read_text()

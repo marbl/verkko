@@ -8,6 +8,7 @@ on:
     - '**.sh'
     - 'src/*'
     - '.github/workflows/*.yml'
+    - '.gitmodules'
     branches-ignore:
     - v2
 
