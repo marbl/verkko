@@ -18,6 +18,12 @@ jobs:
   build_linux:
     name:    Linux
     runs-on: ubuntu-latest
+    # setup-miniconda activates environments through the login-shell hook.
+    # Without this, mamba targets the base prefix and can replace itself while
+    # downgrading base Python, which leaves its package cache inconsistent.
+    defaults:
+      run:
+        shell: bash -el {0}
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -27,26 +33,23 @@ jobs:
       with:
         toolchain: stable
 
-    - name: Setup Python 3.11
-      uses: actions/setup-python@v2
-      with:
-        python-version: 3.11
-
     - name: Install Conda
-      uses: conda-incubator/setup-miniconda@v3
+      uses: conda-incubator/setup-miniconda@v4
       with:
-        auto-update-conda: true
         miniforge-version: latest
+        activate-environment: verkko-ci
+        python-version: '3.11'
         use-mamba: true
         channels: conda-forge,bioconda
-        python-version: 3.11
+        channel-priority: strict
+        conda-remove-defaults: 'true'
         
     - name: Install dependencies
       run: |
         sudo apt-get update
-        mamba install -c conda-forge -c bioconda 'python=3.11' 'pulp<=2.7.0' 'snakemake-minimal>7,<8' GraphAligner mashmap winnowmap samtools seqtk
-        sudo apt-get install gcc-11 g++-11 libcurl4-openssl-dev liblzma-dev libbz2-dev bamtools libbamtools-dev
-        pip install networkx pysam
+        mamba install -y 'pulp<=2.7.0' 'snakemake-minimal>7,<8' GraphAligner mashmap winnowmap samtools seqtk
+        sudo apt-get install -y gcc-11 g++-11 libcurl4-openssl-dev liblzma-dev libbz2-dev bamtools libbamtools-dev
+        python -m pip install networkx pysam
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-11 100
         sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-11 100
 
