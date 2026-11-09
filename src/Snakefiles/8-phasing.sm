@@ -254,18 +254,18 @@ rule indexBWA:
     input:
         unitigs = '8-phasing/unitigs.fasta'
     output:
-        index   = '8-phasing/unitigs.fasta.bwt'
+        index   = '8-phasing/unitigs.fasta.mbw'
     log:
         err     = '8-phasing/index_bwa.err'
     params:
         BWA     = config.get('BWA', "{VERKKO}/bin/minibwa")
     threads:
-        int(config['fhc_n_cpus'])
+        int(config['ahc_n_cpus'])
     resources:
         job_id  = 1,
-        n_cpus  = int(config['fhc_n_cpus']),
-        mem_gb  = lambda wildcards, input, attempt: getMemoryRequest(attempt, 'fhc'),
-        time_h  = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
+        n_cpus  = int(config['ahc_n_cpus']),
+        mem_gb  = lambda wildcards, input, attempt: getAlignMemoryRequest(attempt, 20, [ input.unitigs ]),
+        time_h  = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ahc')
     shell:
         '''
 cd 8-phasing
@@ -287,7 +287,7 @@ rule alignBWA:
         unitigs = '8-phasing/unitigs.fasta',
         hic1    = '8-phasing/split/hic1{nnnn}.fasta.gz',
         hic2    = '8-phasing/split/hic2{nnnn}.fasta.gz' if config['withPOREC'] == "False" else rules.emptyfile.output[0],
-        index   = '8-phasing/unitigs.fasta.bwt'         if config['withPOREC'] == "False" else rules.emptyfile.output[0]
+        index   = '8-phasing/unitigs.fasta.mbw'         if config['withPOREC'] == "False" else rules.emptyfile.output[0]
     output:
         bwa_mapping = '8-phasing/mapped{nnnn}.bam'
     log:
