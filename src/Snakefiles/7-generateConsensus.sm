@@ -103,7 +103,7 @@ rule generateConsensusTemplate:
     resources:
         job_id = lambda wildcards, input, attempt: int(wildcards.nnnn),
         n_cpus = 1,
-        mem_gb = 1,
+        mem_gb = 8,
         time_h = 1
     shell:
         '''
