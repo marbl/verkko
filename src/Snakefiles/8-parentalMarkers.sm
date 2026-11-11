@@ -164,9 +164,9 @@ cat > ./rukki_parental.sh <<EOF
 set -e
 
 params="--hap-names maternal,paternal --try-fill-bubbles --assign-tangles"
-params="\$params --marker-sparsity 5000 --marker-cnt 20 --issue-sparsity 1000"
+params="\$params --marker-sparsity 3500 --marker-cnt 20 --issue-sparsity 700"
 params="\$params --issue-ratio 1 --solid-ratio 1.01 --solid-homozygous-cov-coeff 1.1"
-params="\$params --max-homozygous-len 25000000 --trusted-len 325000"
+params="\$params --max-homozygous-len 30000000 --trusted-len 325000"
 
 {VERKKO}/bin/rukki trio -g ../{input.graph} -m ../{input.colors}              -p ../{output.tsv} \$params
 {VERKKO}/bin/rukki trio -g ../{input.graph} -m ../{input.colors} --gaf-format -p ../{output.gaf} \$params

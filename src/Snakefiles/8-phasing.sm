@@ -551,8 +551,8 @@ cat > ./rukki_hic.sh <<EOF
 set -e
 echo "---Running rukki on the resulting clustering"
 params=" --init-assign out_init_ann.csv --refined-assign out_refined_ann.csv --final-assign out_final_ann.csv"
-params="\$params --marker-sparsity 5000"
-params="\$params --issue-sparsity 1000"
+params="\$params --marker-sparsity 3500"
+params="\$params --issue-sparsity 700"
 params="\$params --try-fill-bubbles"
 params="\$params --fillable-bubble-diff 1000"
 params="\$params --fillable-bubble-len 500000"
@@ -562,7 +562,7 @@ params="\$params --solid-homozygous-cov-coeff 1.1"
 params="\$params --solid-ratio {params.solid_ratio}"
 params="\$params --marker-ratio {params.marker_ratio}"
 params="\$params --hap-names {params.hap_names}"
-params="\$params --max-homozygous-len=25000000"
+params="\$params --max-homozygous-len=30000000"
 params="\$params --trusted-len 325000"
 
 {VERKKO}/bin/rukki trio -g ../{input.graph} -m ../{input.binning}              -p ../{output.tsv_path} \$params
