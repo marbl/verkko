@@ -22,11 +22,11 @@ rule extractONT:
         ont_gap_align  = rules.processONT.output.ont_gap_align if config['withBAM'] == "False" else rules.splitONT.output.split_ids,
         split_finished = rules.splitONT.output.split_finished
     output:
-        ont_subset_id  = '7-consensus/ont_subset.id',
-        ont_subset_ex  = '7-consensus/ont_subset.extract',
-        ont_subset     = '7-consensus/ont_subset.fasta.gz'
+        ont_subset_id  = '07-consensus/ont_subset.id',
+        ont_subset_ex  = '07-consensus/ont_subset.extract',
+        ont_subset     = '07-consensus/ont_subset.fasta.gz'
     log:
-        err            = '7-consensus/extractONT.err'
+        err            = '07-consensus/extractONT.err'
     params:
         ext_files      = lambda wildcards: expand("ont{nnnn}.fasta.gz", nnnn = splitONToutputs(wildcards)),
         haveBAM        = config['withBAM']
@@ -39,7 +39,7 @@ rule extractONT:
         time_h = int(config['sub_time_h'])
     shell:
         '''
-cd 7-consensus
+cd 07-consensus
 
 cat > ./extractONT.sh << EOF
 #!/bin/sh
@@ -73,7 +73,7 @@ if [ "{params.haveBAM}" = "True" ]; then
    exit 0
 fi
 for fn in {params.ext_files} ; do
-  echo >> ../{output.ont_subset_ex} extract \\$fn ../{output.ont_subset_id} ../3-align/split/\\$fn
+  echo >> ../{output.ont_subset_ex} extract \\$fn ../{output.ont_subset_id} ../03-align/split/\\$fn
 done
 
 xargs -L 1 -P {threads} < ../{output.ont_subset_ex} \\\\

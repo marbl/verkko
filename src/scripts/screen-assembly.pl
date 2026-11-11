@@ -2,13 +2,13 @@
 
 use strict;
 
-my $assembly   = "";       #  Input file: the contigs after consensus; 7-consensus/unitig-popped.fasta
+my $assembly   = "";       #  Input file: the contigs after consensus; 07-consensus/unitig-popped.fasta
 my %contigLength;          #  Map from contig name to actual length
 my $graph      = "";       #  Input file: the sequence-free assembly graph.
-my $graphmap   = "";       #  Input file: contig layout map; 6-layoutContigs/unitig-popped.layout.scfmap
+my $graphmap   = "";       #  Input file: contig layout map; 06-layoutContigs/unitig-popped.layout.scfmap
 my %gtoc;                  #  Map from graph name to contig name (from the above file)
 my %ctog;                  #  Map from contig name to graph name.
-my $hificov    = "";       #  Input file: hifi coverage; 5-untip/unitig-popped-unitig-normal-connected-tip.hifi-coverage.csv
+my $hificov    = "";       #  Input file: hifi coverage; 05-untip/unitig-popped-unitig-normal-connected-tip.hifi-coverage.csv
 my %hifiCoverage;          #  Map from contig name to coverage (from above file)
 
 my %contaminantSeq;        #  Input contaminant files: map from 'prefix' to 'sequence file'.

@@ -27,10 +27,10 @@ rule processGraph:
         paths         = rules.buildGraph.output.paths,
         hifi_node_cov = rules.buildGraph.output.hifi_node_cov
     output:
-        gfa           = '2-processGraph/unitig-unrolled-hifi-resolved.gfa',
-        map           = '2-processGraph/unitig-mapping-1.txt'
+        gfa           = '02-processGraph/unitig-unrolled-hifi-resolved.gfa',
+        map           = '02-processGraph/unitig-mapping-1.txt'
     log:
-        err           = '2-processGraph/process.err'
+        err           = '02-processGraph/process.err'
     threads:
         int(config['utg_n_cpus'])
     resources:
@@ -40,7 +40,7 @@ rule processGraph:
         time_h        = lambda wildcards, input, attempt: getTimeRequest(attempt, 'utg')
     shell:
         '''
-cd 2-processGraph
+cd 02-processGraph
 
 cat > ./processGraph.sh <<EOF
 #!/bin/sh

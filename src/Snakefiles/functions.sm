@@ -121,7 +121,7 @@ def getBuildPackagesInputONT(wildcards, withONT, withBAM):
 
    if withONT == "True":
       if withBAM == "True":
-         result=expand("../3-align/split/ont{nnnn}.fasta.gz", nnnn = splitONToutputs(wildcards))
+         result=expand("../03-align/split/ont{nnnn}.fasta.gz", nnnn = splitONToutputs(wildcards))
       else:
           result.append("../%s"%(rules.extractONT.output.ont_subset))
    return result
@@ -158,7 +158,7 @@ def getConsensusMemoryRequest(attempt, jobid, packreport):  #  Figure out what p
 def isQuickConsensus(wildcards):
    # Stage 7 is an intermediate sequence source only when phasing enables the
    # second consensus pass.  Every deliverable consensus pass remains full.
-   return 'True' if PHASE_ENABLED and wildcards.consensus_dir == '7-consensus' else 'False'
+   return 'True' if PHASE_ENABLED and wildcards.consensus_dir == '07-consensus' else 'False'
 
 
 
@@ -170,48 +170,48 @@ def isQuickConsensus(wildcards):
 def getAllMappings(type):
     ret = ''
     if (type > 2):
-        ret += ('../2-processGraph/unitig-mapping-1.txt ' +
-                '../2-processGraph/haplofix-mapping.txt ' +
-                '../2-processGraph/unroll_mapping_1.txt ')
+        ret += ('../02-processGraph/unitig-mapping-1.txt ' +
+                '../02-processGraph/haplofix-mapping.txt ' +
+                '../02-processGraph/unroll_mapping_1.txt ')
     if (type > 4) and config['withONT'] == "True":
-        ret += ('../4-processONT/bridge_mapping.txt ' +
-                '../4-processONT/chop-mapping.txt ' +
-                '../4-processONT/resolve-mapping.txt ' +
-                '../4-processONT/unroll_mapping_2.txt ' +
-                '../4-processONT/unitig-mapping-2.txt ')
+        ret += ('../04-processONT/bridge_mapping.txt ' +
+                '../04-processONT/chop-mapping.txt ' +
+                '../04-processONT/resolve-mapping.txt ' +
+                '../04-processONT/unroll_mapping_2.txt ' +
+                '../04-processONT/unitig-mapping-2.txt ')
     if (type > 5):   # and config['withONT'] == "True":
-         ret += ('../5-untip/unitig-mapping-3a.txt ' +
-                 '../5-untip/unitig-mapping-3b.txt ' +
-                 '../5-untip/unitig-mapping-4.txt ')
+         ret += ('../05-untip/unitig-mapping-3a.txt ' +
+                 '../05-untip/unitig-mapping-3b.txt ' +
+                 '../05-untip/unitig-mapping-4.txt ')
     return ret
 
 
 def getAllGraphs(type):
     ret = ''
     if (type > 1):
-        ret += ('../1-buildGraph/hifi-resolved.gfa ')
+        ret += ('../01-buildGraph/hifi-resolved.gfa ')
     if (type > 2):
-        ret += ('../2-processGraph/gapped-once-hifi-resolved.gfa ' +
-                '../2-processGraph/gapped-twice-hifi-resolved.gfa ' +
-                '../2-processGraph/gapped-hifi-resolved.gfa ' +
-                '../2-processGraph/fixed-hifi-resolved.gfa ' +
-                '../2-processGraph/unrolled-hifi-resolved.gfa ' +
-                '../2-processGraph/unitig-unrolled-hifi-resolved.gfa ')
+        ret += ('../02-processGraph/gapped-once-hifi-resolved.gfa ' +
+                '../02-processGraph/gapped-twice-hifi-resolved.gfa ' +
+                '../02-processGraph/gapped-hifi-resolved.gfa ' +
+                '../02-processGraph/fixed-hifi-resolved.gfa ' +
+                '../02-processGraph/unrolled-hifi-resolved.gfa ' +
+                '../02-processGraph/unitig-unrolled-hifi-resolved.gfa ')
     if (type > 4) and config['withONT'] == "True":
-        ret += ('../4-processONT/gapped-unitig-unrolled-hifi-resolved.gfa ' +
-                '../4-processONT/connected.gfa ' +
-                '../4-processONT/normal-connected.gfa ' +
-                '../4-processONT/ont-resolved-graph.gfa ' +
-                '../4-processONT/unrolled-ont-resolved.gfa ' +
-                '../4-processONT/unitig-unrolled-ont-resolved.gfa ')
+        ret += ('../04-processONT/gapped-unitig-unrolled-hifi-resolved.gfa ' +
+                '../04-processONT/connected.gfa ' +
+                '../04-processONT/normal-connected.gfa ' +
+                '../04-processONT/ont-resolved-graph.gfa ' +
+                '../04-processONT/unrolled-ont-resolved.gfa ' +
+                '../04-processONT/unitig-unrolled-ont-resolved.gfa ')
     if (type > 5):   # and config['withONT'] == "True":
-        ret += ('../5-untip/connected-tip.gfa ' +
-                '../5-untip/unitig-connected-tip.gfa ' +
-                '../5-untip/popped-connected-tip.gfa ' +
-                '../5-untip/unrolled-popped-connected-tip.gfa ' +
-                '../5-untip/unitig-unrolled-popped-connected-tip.gfa ' +
-                '../5-untip/popped-unitig-unrolled-popped-connected-tip.gfa ' +
-                '../5-untip/unrolled-popped-unitig-unrolled-popped-connected-tip.gfa ' +
+        ret += ('../05-untip/connected-tip.gfa ' +
+                '../05-untip/unitig-connected-tip.gfa ' +
+                '../05-untip/popped-connected-tip.gfa ' +
+                '../05-untip/unrolled-popped-connected-tip.gfa ' +
+                '../05-untip/unitig-unrolled-popped-connected-tip.gfa ' +
+                '../05-untip/popped-unitig-unrolled-popped-connected-tip.gfa ' +
+                '../05-untip/unrolled-popped-unitig-unrolled-popped-connected-tip.gfa ' +
                 '../' + rules.verkko.input.graph + ' ')
     return ret
 
@@ -219,9 +219,9 @@ def getAllGraphs(type):
 def getAllAlignments(type):
     ret = ''
     if (type > 2):
-        ret += ('../2-processGraph/gaps-hifi-1.gaf ' +
-                '../2-processGraph/gaps-hifi-2.gaf ' +
-                '../2-processGraph/gaps-hifi-3.gaf ')
+        ret += ('../02-processGraph/gaps-hifi-1.gaf ' +
+                '../02-processGraph/gaps-hifi-2.gaf ' +
+                '../02-processGraph/gaps-hifi-3.gaf ')
     if (type > 4) and config['withONT'] == "True":
-        ret += ('../4-processONT/gaps-ont.gaf ')
+        ret += ('../04-processONT/gaps-ont.gaf ')
     return ret

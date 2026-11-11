@@ -21,7 +21,7 @@
 def consensusLayout(wildcards):
     if wildcards.consensus_dir == '10-consensus':
         return '10-consensus/unitig-popped.layout'
-    return '6-layoutContigs/unitig-popped.layout'
+    return '06-layoutContigs/unitig-popped.layout'
 
 
 checkpoint buildPackages:
@@ -40,7 +40,7 @@ checkpoint buildPackages:
     log:
         err        = '{consensus_dir}/buildPackages.err'
     wildcard_constraints:
-        consensus_dir = '7-consensus|10-consensus'
+        consensus_dir = '07-consensus|10-consensus'
     threads:
         int(config['par_n_cpus'])
     resources:

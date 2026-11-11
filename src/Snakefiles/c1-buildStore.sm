@@ -20,9 +20,9 @@ rule buildStore:
     input:
         HIFI_READS
     output:
-        seqstore  = directory('0-correction/hifi.seqStore'),
+        seqstore  = directory('00-correction/hifi.seqStore'),
     log:
-        err       = '0-correction/buildStore.err'
+        err       = '00-correction/buildStore.err'
     params:
         minread   = config['cor_min_read'],
         minolap   = config['cor_min_overlap']
@@ -35,7 +35,7 @@ rule buildStore:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'sto')
     shell:
         '''
-cd 0-correction
+cd 00-correction
 
 cat > ./buildStore.sh <<EOF
 #!/bin/sh

@@ -56,6 +56,30 @@ def rule_blocks(path):
 
 
 class SnakemakeConventionTests(unittest.TestCase):
+    def test_runtime_stage_directories_are_zero_padded(self):
+        """Keep stages 00 through 10 in chronological lexical order."""
+        unpadded = re.compile(
+            r"(?<![0-9])"
+            r"(?:0-correction|1-buildGraph|2-processGraph|3-alignTips|3-align|"
+            r"4-processONT|5-untip|6-layoutContigs|7-consensus|"
+            r"8-phasing|9-scaffolding)"
+            r"(?![A-Za-z0-9_-]|[.]sm)"
+        )
+        sources = [
+            SOURCE_ROOT.parent / "README.md",
+            SOURCE_ROOT / "Snakefile",
+            SOURCE_ROOT / "verkko.sh",
+            SOURCE_ROOT / "scripts" / "launch_scaffolding.py",
+            SOURCE_ROOT / "scripts" / "screen-assembly.pl",
+            *SNAKEFILES.glob("*.sm"),
+        ]
+        violations = []
+        for path in sources:
+            for line_number, line in enumerate(path.read_text().splitlines(), 1):
+                if unpadded.search(line):
+                    violations.append(f"{path}:{line_number}: {line.strip()}")
+        self.assertEqual([], violations)
+
     def test_ci_installs_dependencies_outside_conda_base(self):
         """Mamba must not replace itself while changing the base Python ABI."""
         workflow = (SOURCE_ROOT.parent / ".github/workflows/makefile.yml").read_text()
@@ -143,7 +167,7 @@ class SnakemakeConventionTests(unittest.TestCase):
         paths_target = launcher.index('target="cnspath"', paths_condition)
         self.assertLess(phase_target, paths_condition)
         self.assertLess(paths_condition, paths_target)
-        for label_directory in ("8-phasing", "6-rukki", "8-hicPipeline"):
+        for label_directory in ("08-phasing", "6-rukki", "8-hicPipeline"):
             with self.subTest(label_directory=label_directory):
                 self.assertIn(f'${{cnsassembly}}/{label_directory}/label1', launcher)
 
@@ -294,7 +318,7 @@ printf 'q\\t1\\t0\\t1\\t+\\tr\\t1\\t0\\t1\\t1\\t49999\\t1\\tid:f:1\\n' >> "$outp
         """Only the final stage-10 publisher may copy auxiliary FASTAs."""
         combine = (SNAKEFILES / "7-combineConsensus.sm").read_text()
         publish = (SNAKEFILES / "10-consensus.sm").read_text()
-        self.assertIn('if [ "{wildcards.consensus_dir}" = "7-consensus" ]', combine)
+        self.assertIn('if [ "{wildcards.consensus_dir}" = "07-consensus" ]', combine)
         self.assertIn("for xx in assembly.*.fasta", publish)
 
     def test_loimi_build_and_consensus_modes_are_integrated(self):
@@ -347,8 +371,8 @@ printf 'q\\t1\\t0\\t1\\t+\\tr\\t1\\t0\\t1\\t1\\t49999\\t1\\tid:f:1\\n' >> "$outp
         self.assertIn("run-calls.tsv summary.json template-offsets.tsv", consensus)
         untip = (SNAKEFILES / "5-untip.sm").read_text()
         phasing = (SNAKEFILES / "8-phasing.sm").read_text()
-        self.assertNotIn("5-untip/unitigs.hpc.fasta", untip)
-        self.assertEqual(3, phasing.count("8-phasing/unitigs.hpc.fasta"))
+        self.assertNotIn("05-untip/unitigs.hpc.fasta", untip)
+        self.assertEqual(3, phasing.count("08-phasing/unitigs.hpc.fasta"))
         self.assertIn("packages/part{nnnn}.cram", combine)
         self.assertIn("--alignments {params.packcram}", combine)
         self.assertNotIn("samtools merge", combine)
@@ -390,11 +414,11 @@ printf 'q\\t1\\t0\\t1\\t+\\tr\\t1\\t0\\t1\\t1\\t49999\\t1\\tid:f:1\\n' >> "$outp
         selector_end = workflow.index("def selectedPhaseColors", selector_start)
         selector = workflow[selector_start:selector_end]
         self.assertLess(selector.index("if mode == 'dual'"), selector.index("if contacts:"))
-        self.assertIn("8-phasing/dual.paths.gaf", selector)
+        self.assertIn("08-phasing/dual.paths.gaf", selector)
 
         scaffolding = (SNAKEFILES / "9-scaffolding.sm").read_text()
-        self.assertIn("tsv_path = '8-phasing/rukki.paths.tsv'", scaffolding)
-        self.assertIn("gaf_path = '8-phasing/rukki.paths.gaf'", scaffolding)
+        self.assertIn("tsv_path = '08-phasing/rukki.paths.tsv'", scaffolding)
+        self.assertIn("gaf_path = '08-phasing/rukki.paths.gaf'", scaffolding)
 
     def test_dual_always_targets_full_consensus(self):
         """Dual mode must publish sequence, not stop after graph path selection."""

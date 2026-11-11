@@ -17,10 +17,10 @@ checkpoint prepareOverlaps:
         reads = HIFI_READS,
         store = rules.buildStore.output.seqstore
     output:
-        metadata  = '0-correction/matchchains.metadata',
-        positions = '0-correction/matchchains.positions'
+        metadata  = '00-correction/matchchains.metadata',
+        positions = '00-correction/matchchains.positions'
     log:
-        err       = '0-correction/matchchains-index.err'
+        err       = '00-correction/matchchains-index.err'
     params:
         mersize   = config['mer_size'],
         merwindow = config['mer_window'],
@@ -37,7 +37,7 @@ checkpoint prepareOverlaps:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ovb')
     shell:
         '''
-cd 0-correction
+cd 00-correction
 
 cat > ./matchchains-index.sh <<EOF
 #!/usr/bin/env bash
@@ -84,12 +84,12 @@ rule computeOverlaps:
     input:
         metadata  = rules.prepareOverlaps.output.metadata,
         positions = rules.prepareOverlaps.output.positions,
-        batchnum  = '0-correction/overlap-jobs/{nnnn}.id',
+        batchnum  = '00-correction/overlap-jobs/{nnnn}.id',
         seqstore  = rules.buildStore.output.seqstore
     output:
-        ovb       = '0-correction/overlap-jobs/{nnnn}.ovb'
+        ovb       = '00-correction/overlap-jobs/{nnnn}.ovb'
     log:
-        err       = '0-correction/overlap-jobs/{nnnn}.err'
+        err       = '00-correction/overlap-jobs/{nnnn}.err'
     params:
         minread   = config['cor_min_read'],
         minolap   = config['cor_min_overlap'],
@@ -102,7 +102,7 @@ rule computeOverlaps:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ovb')
     shell:
         '''
-cd 0-correction/overlap-jobs
+cd 00-correction/overlap-jobs
 
 batchnum=`cat ../../{input.batchnum}`
 
@@ -165,15 +165,15 @@ chmod +x ./{wildcards.nnnn}.sh
 
 
 def combineOverlapsI(wildcards):
-    return expand("0-correction/overlap-jobs/{nnnn}.ovb", nnnn = glob_wildcards("0-correction/overlap-jobs/{xxxx}.id").xxxx)
+    return expand("00-correction/overlap-jobs/{nnnn}.ovb", nnnn = glob_wildcards("00-correction/overlap-jobs/{xxxx}.id").xxxx)
 
 
 def combineOverlapsP(wildcards):
-    paths = expand("overlap-jobs/{nnnn}.ovb", nnnn = glob_wildcards("0-correction/overlap-jobs/{xxxx}.id").xxxx) 
+    paths = expand("overlap-jobs/{nnnn}.ovb", nnnn = glob_wildcards("00-correction/overlap-jobs/{xxxx}.id").xxxx)
     if len(paths) == 0:
        return paths
        
-    outf  = open("0-correction/ovb-files", mode="wb")
+    outf  = open("00-correction/ovb-files", mode="wb")
     for path in paths:
         outf.write(f"{path.strip()}\n".encode())
     outf.close()
@@ -191,10 +191,10 @@ rule combineOverlapsConfigure:
         seqstore  = {rules.buildStore.output.seqstore},
         ovbs      = combineOverlapsI
     output:
-        ovlconfig = "0-correction/hifi.ovlStore.config",
-        ovlmemory = "0-correction/hifi.ovlStore.config.memory-request"
+        ovlconfig = "00-correction/hifi.ovlStore.config",
+        ovlmemory = "00-correction/hifi.ovlStore.config.memory-request"
     log:
-        err       = "0-correction/combineOverlapsConfigure.err"
+        err       = "00-correction/combineOverlapsConfigure.err"
     params:
         paths     = combineOverlapsP
     threads:
@@ -206,7 +206,7 @@ rule combineOverlapsConfigure:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ovs')
     shell:
         '''
-cd 0-correction
+cd 00-correction
 
 cat > ./combineOverlapsConfigure.sh <<EOF
 #!/bin/sh
@@ -251,9 +251,9 @@ rule combineOverlaps:
         ovlconfig = {rules.combineOverlapsConfigure.output.ovlconfig},
         ovlmemory = {rules.combineOverlapsConfigure.output.ovlmemory}
     output:
-        ovlstore  = directory("0-correction/hifi.ovlStore")
+        ovlstore  = directory("00-correction/hifi.ovlStore")
     log:
-        err       = "0-correction/combineOverlaps.err"
+        err       = "00-correction/combineOverlaps.err"
     params:
         paths     = combineOverlapsP
     threads:
@@ -265,7 +265,7 @@ rule combineOverlaps:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ovs')
     shell:
         '''
-cd 0-correction
+cd 00-correction
 
 cat > ./combineOverlaps.sh <<EOF
 #!/bin/sh

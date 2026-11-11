@@ -27,9 +27,9 @@ rule selectDualHomology:
         graph = rules.copyFiles.output.unitig_graph,
         mashmap = rules.runMashMap.output.unitigs_hpc50
     output:
-        homology = '8-phasing/dual.homology.tsv'
+        homology = '08-phasing/dual.homology.tsv'
     log:
-        err = '8-phasing/select_dual_homology.err'
+        err = '08-phasing/select_dual_homology.err'
     threads:
         1
     resources:
@@ -39,7 +39,7 @@ rule selectDualHomology:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
     shell:
         r'''
-cd 8-phasing
+cd 08-phasing
 
 cat > ./select_dual_homology.sh <<EOF
 #!/bin/sh
@@ -59,13 +59,13 @@ rule runRukkiDual:
         graph = rules.copyFiles.output.unitig_graph,
         homology = rules.selectDualHomology.output.homology
     output:
-        colors = '8-phasing/dual.colors.csv',
-        tsv = '8-phasing/dual.paths.tsv',
-        gaf = '8-phasing/dual.paths.gaf',
-        label1 = '8-phasing/dual.label1',
-        label2 = '8-phasing/dual.label2'
+        colors = '08-phasing/dual.colors.csv',
+        tsv = '08-phasing/dual.paths.tsv',
+        gaf = '08-phasing/dual.paths.gaf',
+        label1 = '08-phasing/dual.label1',
+        label2 = '08-phasing/dual.label2'
     log:
-        err = '8-phasing/rukki_dual.err'
+        err = '08-phasing/rukki_dual.err'
     params:
         seed = int(config.get('dual_seed', 1)),
         haploid = '--haploid' if config.get('haploid', 'False') == 'True' else ''
@@ -78,7 +78,7 @@ rule runRukkiDual:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ruk')
     shell:
         r'''
-cd 8-phasing
+cd 08-phasing
 
 cat > ./rukki_dual.sh <<EOF
 #!/bin/sh

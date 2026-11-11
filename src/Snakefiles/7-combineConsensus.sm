@@ -33,7 +33,7 @@ def combineConsensusC(wildcards):
     return expand("packages/part{nnnn}.cram", nnnn = glob_wildcards(f"{stage}/packages/part{{xxxx}}.cnspack").xxxx)
 
 def consensusScfmap(wildcards):
-    return '10-consensus/unitig-popped.layout.scfmap' if wildcards.consensus_dir == '10-consensus' else '6-layoutContigs/unitig-popped.layout.scfmap'
+    return '10-consensus/unitig-popped.layout.scfmap' if wildcards.consensus_dir == '10-consensus' else '06-layoutContigs/unitig-popped.layout.scfmap'
 
 def consensusPathsTsv(wildcards):
     if wildcards.consensus_dir == '10-consensus':
@@ -42,7 +42,7 @@ def consensusPathsTsv(wildcards):
 
 def consensusLabel(wildcards, number):
     if wildcards.consensus_dir == '10-consensus':
-        return f'8-phasing/label{number}'
+        return f'08-phasing/label{number}'
     return rules.emptyfile.output
 
 rule combineConsensus:
@@ -80,7 +80,7 @@ rule combineConsensus:
         haveBAM    = config['withBAM'],
         quick      = isQuickConsensus
     wildcard_constraints:
-        consensus_dir = '7-consensus|10-consensus'
+        consensus_dir = '07-consensus|10-consensus'
     threads:
         8
     resources:
@@ -95,8 +95,8 @@ cd {wildcards.consensus_dir}
 label1=""
 label2=""
 
-if [ -e ../8-phasing/label1 ] ; then label1=`cat ../8-phasing/label1` ; fi
-if [ -e ../8-phasing/label2 ] ; then label2=`cat ../8-phasing/label2` ; fi
+if [ -e ../08-phasing/label1 ] ; then label1=`cat ../08-phasing/label1` ; fi
+if [ -e ../08-phasing/label2 ] ; then label2=`cat ../08-phasing/label2` ; fi
 
 if [ -s ../{input.label1} ] ; then label1=$(cat ../{input.label1}) ; fi
 if [ -s ../{input.label2} ] ; then label2=$(cat ../{input.label2}) ; fi
@@ -167,7 +167,7 @@ done
 # Stage 7 is the final publisher for an unphased run. In phased runs, keep
 # stage-10 auxiliary FASTAs private until finalPhasedAssembly publishes the
 # complete deliverable set.
-if [ "{wildcards.consensus_dir}" = "7-consensus" ]; then
+if [ "{wildcards.consensus_dir}" = "07-consensus" ]; then
   for xx in assembly.*.fasta ; do
     if [ -e \$xx ] ; then
       cp \$xx ../\$xx

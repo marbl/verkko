@@ -27,7 +27,7 @@ hicrun_dir = os.path.realpath(run_dir)
 
 telomere_locations_file = os.path.join(hicrun_dir,  "unitigs.telo")
 uncompressed_nodes = os.path.join(hicrun_dir,  "unitigs.fasta")
-#node_to_contig_file = os.path.join(oldrun_nodes_dir, "6-layoutContigs", "unitig-popped.layout.scfmap")
+#node_to_contig_file = os.path.join(oldrun_nodes_dir, "06-layoutContigs", "unitig-popped.layout.scfmap")
 
 gfa_file = os.path.join(hicrun_dir, "unitigs.hpc.noseq.gfa")
 rukki_tsv_file = os.path.join(hicrun_dir,  "rukki.paths.tsv")

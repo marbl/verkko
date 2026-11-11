@@ -26,8 +26,8 @@
 # assembly output.  The --paths target bypasses this rule and republishes the
 # source assembly.gfa.
 
-GRAPH_UNITIG_SCFMAP = config.get('graph_unitig_scfmap') or '6-layoutContigs/unitig-popped.layout.scfmap'
-GRAPH_UNITIG_CONSENSUS = config.get('graph_unitig_consensus') or '7-consensus/combined.fasta'
+GRAPH_UNITIG_SCFMAP = config.get('graph_unitig_scfmap') or '06-layoutContigs/unitig-popped.layout.scfmap'
+GRAPH_UNITIG_CONSENSUS = config.get('graph_unitig_consensus') or '07-consensus/combined.fasta'
 
 
 rule buildUncompressedGraph:
@@ -37,11 +37,11 @@ rule buildUncompressedGraph:
         graph = rules.verkko.input.graph,
         hificov = rules.verkko.input.hifi5cov
     output:
-        rename_map = '7-consensus/contigs_rename.map',
-        unitigs = '7-consensus/unitigs.fasta',
-        graph = '7-consensus/assembly.gfa'
+        rename_map = '07-consensus/contigs_rename.map',
+        unitigs = '07-consensus/unitigs.fasta',
+        graph = '07-consensus/assembly.gfa'
     log:
-        err = '7-consensus/buildUncompressedGraph.err'
+        err = '07-consensus/buildUncompressedGraph.err'
     threads:
         8
     resources:
@@ -51,7 +51,7 @@ rule buildUncompressedGraph:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
     shell:
         r'''
-cd 7-consensus
+cd 07-consensus
 
 cat > ./buildUncompressedGraph.sh <<EOF
 #!/bin/sh

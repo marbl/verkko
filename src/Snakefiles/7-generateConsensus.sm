@@ -43,7 +43,7 @@ rule generateConsensusTemplateMappings:
         pathname = '{consensus_dir}/packages.pathName_to_ID.map',
         rename   = '{consensus_dir}/template.rename'
     wildcard_constraints:
-        consensus_dir = '7-consensus|10-consensus'
+        consensus_dir = '07-consensus|10-consensus'
     threads:
         1
     resources:
@@ -96,7 +96,7 @@ rule generateConsensusTemplate:
     params:
         SEQTK = config.get('SEQTK') or f"{VERKKO}/bin/seqtk"
     wildcard_constraints:
-        consensus_dir = '7-consensus|10-consensus',
+        consensus_dir = '07-consensus|10-consensus',
         nnnn = '[0-9]+'
     threads:
         1
@@ -175,7 +175,7 @@ rule generateConsensus:
         output     = lambda wildcards: f'packages/part{wildcards.nnnn}',
         quick      = isQuickConsensus
     wildcard_constraints:
-        consensus_dir = '7-consensus|10-consensus',
+        consensus_dir = '07-consensus|10-consensus',
         nnnn = '[0-9]+'
     threads:
         int(config['cns_n_cpus']),

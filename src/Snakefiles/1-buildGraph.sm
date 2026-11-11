@@ -37,11 +37,11 @@ rule buildGraph:
     input:
         reads            = rules.correctHiFi.output.fasta,
     output:
-        graph            = '1-buildGraph/hifi-resolved.gfa',
-        hifi_node_cov    = '1-buildGraph/hifi_nodecov.csv',
-        paths            = '1-buildGraph/paths.gaf'
+        graph            = '01-buildGraph/hifi-resolved.gfa',
+        hifi_node_cov    = '01-buildGraph/hifi_nodecov.csv',
+        paths            = '01-buildGraph/paths.gaf'
     log:
-        err              = '1-buildGraph/buildGraph.err'
+        err              = '01-buildGraph/buildGraph.err'
     params:
         MBG              = config['MBG'],
 
@@ -61,7 +61,7 @@ rule buildGraph:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'mbg')
     shell:
         '''
-cd 1-buildGraph
+cd 01-buildGraph
 
 cat > ./buildGraph.sh <<EOF
 #!/bin/sh

@@ -46,7 +46,7 @@ else:
 rule finalPhasedAssembly:
     input:
         graph      = rules.verkko.input.graph,
-        ugraph     = '7-consensus/assembly.gfa',
+        ugraph     = '07-consensus/assembly.gfa',
         nseqgraph  = rules.copyFiles.output.finalnseqgraph,
         layout     = '10-consensus/unitig-popped.layout',
         scfmap     = '10-consensus/unitig-popped.layout.scfmap',

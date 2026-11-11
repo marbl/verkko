@@ -34,12 +34,12 @@ rule processONT:
        ont_paths        = rules.combineONT.output.alignments,
        tip_paths        = rules.combineTipsONT.output.alignments
     output:
-       graph            = '4-processONT/unitig-unrolled-ont-resolved.gfa',
-       ont_align        = '4-processONT/alns-ont-mapqfilter.gaf',
-       ont_gap_align    = '4-processONT/gaps-ont.gaf',
-       ont_node_cov     = '4-processONT/nodecovs-ont.csv'
+       graph            = '04-processONT/unitig-unrolled-ont-resolved.gfa',
+       ont_align        = '04-processONT/alns-ont-mapqfilter.gaf',
+       ont_gap_align    = '04-processONT/gaps-ont.gaf',
+       ont_node_cov     = '04-processONT/nodecovs-ont.csv'
     log:
-        err             = '4-processONT/processONT.err'
+        err             = '04-processONT/processONT.err'
     params:
         maps            = getAllMappings(4),
         graphs          = getAllGraphs(4),
@@ -56,7 +56,7 @@ rule processONT:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'pop')
     shell:
         '''
-cd 4-processONT
+cd 04-processONT
 
 cat > ./processONT.sh <<EOF
 #!/bin/sh

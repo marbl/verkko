@@ -25,11 +25,11 @@
 rule combineONT:
     input:
         split_finished = rules.splitONT.output.split_finished,
-        alignments     = lambda wildcards: expand("3-align/aligned{nnnn}.gaf", nnnn = splitONToutputs(wildcards))
+        alignments     = lambda wildcards: expand("03-align/aligned{nnnn}.gaf", nnnn = splitONToutputs(wildcards))
     output:
-        alignments     = '3-align/alns-ont.gaf'
+        alignments     = '03-align/alns-ont.gaf'
     log:
-        err            = '3-align/combineONT.err'
+        err            = '03-align/combineONT.err'
     params:
         alignments     = lambda wildcards: expand("aligned{nnnn}.gaf", nnnn = splitONToutputs(wildcards)),
         keepinter      = config['keep_intermediate']
@@ -42,7 +42,7 @@ rule combineONT:
         time_h = 2
     shell:
         '''
-cd 3-align
+cd 03-align
 
 cat > ./combineONT.sh <<EOF
 #!/bin/sh

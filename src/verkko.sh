@@ -440,7 +440,7 @@ par_time_h=48
 #  cns
 cns_n_cpus=8
 cns_mem_gb=0
-cns_time_h=48
+cns_time_h=4
 
 # align_hic stuff
 ahc_n_cpus=24
@@ -1428,52 +1428,52 @@ if [ "x$cnspaths" != "x" ] ; then
     cp -p ${cnsassembly}/assembly.homopolymer-compressed.noseq.gfa                               ${outd}/assembly.homopolymer-compressed.noseq.gfa
     ln -s ${cnsassembly}/hifi-corrected.fasta.gz                                                 ${outd}/hifi-corrected.fasta.gz
 
-    if [ ! -e "${outd}/5-untip" ]; then
-       mkdir ${outd}/5-untip
-       cp -p ${cnsassembly}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.hifi-coverage.csv     ${outd}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.hifi-coverage.csv
-       cp -p ${cnsassembly}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.ont-coverage.csv      ${outd}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.ont-coverage.csv
-       cp -p ${cnsassembly}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.gfa                   ${outd}/5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.gfa
-       cp -p ${cnsassembly}/5-untip/combined-edges-final.gfa                                        ${outd}/5-untip/combined-edges-final.gfa
-       cp -p ${cnsassembly}/5-untip/combined-nodemap-final.txt                                      ${outd}/5-untip/combined-nodemap-final.txt
-       cp -p ${cnsassembly}/5-untip/nodelens-final.txt                                              ${outd}/5-untip/nodelens-final.txt
+    if [ ! -e "${outd}/05-untip" ]; then
+       mkdir ${outd}/05-untip
+       cp -p ${cnsassembly}/05-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.hifi-coverage.csv     ${outd}/05-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.hifi-coverage.csv
+       cp -p ${cnsassembly}/05-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.ont-coverage.csv      ${outd}/05-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.ont-coverage.csv
+       cp -p ${cnsassembly}/05-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.gfa                   ${outd}/05-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.gfa
+       cp -p ${cnsassembly}/05-untip/combined-edges-final.gfa                                        ${outd}/05-untip/combined-edges-final.gfa
+       cp -p ${cnsassembly}/05-untip/combined-nodemap-final.txt                                      ${outd}/05-untip/combined-nodemap-final.txt
+       cp -p ${cnsassembly}/05-untip/nodelens-final.txt                                              ${outd}/05-untip/nodelens-final.txt
     fi
 
-    if [ ! -e "${outd}/6-layoutContigs" ] ; then
-        mkdir ${outd}/6-layoutContigs
-        cp ${cnsassembly}/6-layoutContigs/combined-nodemap.txt     ${outd}/6-layoutContigs/combined-nodemap.txt
-        cp ${cnsassembly}/6-layoutContigs/combined-edges.gfa       ${outd}/6-layoutContigs/combined-edges.gfa
-        cp ${cnsassembly}/6-layoutContigs/hifi.alignments.gaf      ${outd}/6-layoutContigs/hifi.alignments.gaf
-        cp ${cnsassembly}/6-layoutContigs/ont.alignments.gaf       ${outd}/6-layoutContigs/ont.alignments.gaf
-        cp ${cnspaths}                                             ${outd}/6-layoutContigs/consensus_paths.txt
-        cp ${cnsassembly}/6-layoutContigs/nodelens.txt             ${outd}/6-layoutContigs/nodelens.txt
-        cp ${cnsassembly}/6-layoutContigs/ont-gapfill.txt          ${outd}/6-layoutContigs/ont-gapfill.txt
+    if [ ! -e "${outd}/06-layoutContigs" ] ; then
+        mkdir ${outd}/06-layoutContigs
+        cp ${cnsassembly}/06-layoutContigs/combined-nodemap.txt     ${outd}/06-layoutContigs/combined-nodemap.txt
+        cp ${cnsassembly}/06-layoutContigs/combined-edges.gfa       ${outd}/06-layoutContigs/combined-edges.gfa
+        cp ${cnsassembly}/06-layoutContigs/hifi.alignments.gaf      ${outd}/06-layoutContigs/hifi.alignments.gaf
+        cp ${cnsassembly}/06-layoutContigs/ont.alignments.gaf       ${outd}/06-layoutContigs/ont.alignments.gaf
+        cp ${cnspaths}                                             ${outd}/06-layoutContigs/consensus_paths.txt
+        cp ${cnsassembly}/06-layoutContigs/nodelens.txt             ${outd}/06-layoutContigs/nodelens.txt
+        cp ${cnsassembly}/06-layoutContigs/ont-gapfill.txt          ${outd}/06-layoutContigs/ont-gapfill.txt
     fi
 
-    if [ ! -e "${outd}/7-consensus" ] && [ "x$withont" = "xTrue" ] ; then
-        mkdir ${outd}/7-consensus
-        cp -p ${cnsassembly}/7-consensus/ont_subset.fasta.gz          ${outd}/7-consensus/ont_subset.fasta.gz
-        cp -p ${cnsassembly}/7-consensus/ont_subset.id                ${outd}/7-consensus/ont_subset.id
+    if [ ! -e "${outd}/07-consensus" ] && [ "x$withont" = "xTrue" ] ; then
+        mkdir ${outd}/07-consensus
+        cp -p ${cnsassembly}/07-consensus/ont_subset.fasta.gz          ${outd}/07-consensus/ont_subset.fasta.gz
+        cp -p ${cnsassembly}/07-consensus/ont_subset.id                ${outd}/07-consensus/ont_subset.id
     fi
 
     # Normalize haplotype labels into the unified stage-8 location.  Prefer
     # current assemblies, but retain read compatibility with assemblies made
     # before phasing moved out of 6-rukki/ and 8-hicPipeline/.
     labeldir=""
-    if   [ -e ${cnsassembly}/8-phasing/label1 ];    then labeldir="8-phasing"
+    if   [ -e ${cnsassembly}/08-phasing/label1 ];    then labeldir="08-phasing"
     elif [ -e ${cnsassembly}/6-rukki/label1 ];     then labeldir="6-rukki"
     elif [ -e ${cnsassembly}/8-hicPipeline/label1 ]; then labeldir="8-hicPipeline"
     fi
     if [ "x$labeldir" != "x" ]; then
-       mkdir -p ${outd}/8-phasing
-       cp -p ${cnsassembly}/${labeldir}/label1                    ${outd}/8-phasing/label1
-       cp -p ${cnsassembly}/${labeldir}/label2                    ${outd}/8-phasing/label2
+       mkdir -p ${outd}/08-phasing
+       cp -p ${cnsassembly}/${labeldir}/label1                    ${outd}/08-phasing/label1
+       cp -p ${cnsassembly}/${labeldir}/label2                    ${outd}/08-phasing/label2
     fi
 
     cp -p ${cnsassembly}/emptyfile ${outd}/emptyfile
 
     # lastly symlink the raw ONT if we need them for bams
     if [ "x$withont" = "xTrue" ] && [ "x$withbam" = "xTrue" ] ; then
-       ln -s ${cnsassembly}/3-align ${outd}/3-align
+       ln -s ${cnsassembly}/03-align ${outd}/03-align
     fi
 fi
 

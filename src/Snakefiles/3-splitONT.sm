@@ -30,17 +30,17 @@
 #  It is used (via the magic lambda) in 3-combineONT.sm and 7-extractONT.sm.
 #
 def splitONToutputs(wildcards):
-    return glob_wildcards("3-align/split/ont{xxxx}.fasta.gz").xxxx
+    return glob_wildcards("03-align/split/ont{xxxx}.fasta.gz").xxxx
 
 
 checkpoint splitONT:
     input:
         ont            = ONT_READS if config['withONT'] == "True" else {rules.emptyfile.output}
     output:
-        split_finished = '3-align/splitONT.finished',
-        split_ids      = '3-align/splitONT.ids'
+        split_finished = '03-align/splitONT.finished',
+        split_ids      = '03-align/splitONT.ids'
     log:
-        err            = '3-align/splitONT.err'
+        err            = '03-align/splitONT.err'
     params:
         bases          = config['spl_bases'],
         reads          = config['spl_reads'],
@@ -54,7 +54,7 @@ checkpoint splitONT:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'spl')
     shell:
         '''
-cd 3-align
+cd 03-align
 
 cat > ./splitONT.sh <<EOF
 #!/bin/sh
@@ -69,13 +69,13 @@ mkdir -p split
 && \\\\
 touch ../{output.split_finished}
 
-sort -snk1,1 -T . ../{output.split_ids} |uniq -c > ../3-align/splitID.sorted.ids
+sort -snk1,1 -T . ../{output.split_ids} |uniq -c > ../03-align/splitID.sorted.ids
 count=\`wc -l ../{output.split_ids} |awk '{{print \$1}}'\`
-count_unique=\`cat ../3-align/splitID.sorted.ids |awk '{{print \$2}}' |wc -l\`
+count_unique=\`cat ../03-align/splitID.sorted.ids |awk '{{print \$2}}' |wc -l\`
 
 if [ \$count -ne \$count_unique ]; then
    echo "Error, the ONT input has duplicate IDs:"
-   cat ../3-align/splitID.sorted.ids |  awk '{{if (\$1 > 1) print "\t"\$0}}' |head
+   cat ../03-align/splitID.sorted.ids |  awk '{{if (\$1 > 1) print "\t"\$0}}' |head
    exit -1
 fi
 

@@ -30,7 +30,7 @@
 #  It is used (via the magic lambda) in 3-combineONT.sm and 7-extractONT.sm.
 #
 def splitTipsONToutputs(wildcards):
-    return glob_wildcards("3-alignTips/split/ont{xxxx}.fasta.gz").xxxx
+    return glob_wildcards("03-alignTips/split/ont{xxxx}.fasta.gz").xxxx
 
 
 checkpoint splitTipsONT:
@@ -40,9 +40,9 @@ checkpoint splitTipsONT:
         ont_paths        = {rules.combineONT.output.alignments},
         split_finished   = {rules.splitONT.output.split_finished}
     output:
-        split_finished = '3-alignTips/splitONT.finished'
+        split_finished = '03-alignTips/splitONT.finished'
     log:
-        err            = '3-alignTips/splitONT.err'
+        err            = '03-alignTips/splitONT.err'
     params:
         bases          = config['spl_bases'],
         reads          = config['spl_reads'],
@@ -58,7 +58,7 @@ checkpoint splitTipsONT:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'spl')
     shell:
         '''
-cd 3-alignTips
+cd 03-alignTips
 
 cat > ./splitONT.sh <<EOF
 #!/usr/bin/env bash
@@ -71,7 +71,7 @@ awk '/^>/ {{ print substr(\$1, 2) }}' < tips.fasta > tips.ids
 cat ../{input.ont_paths} | {PYTHON} {VERKKO}/scripts/filter_alignments_by_column.py tips.ids 5 false | awk -v D={params.max_distance} -F "\\t" '{{ if (\$12 >= 20  && (\$8 < D || \$9+D > \$7)) print \$1;}}' | sort |uniq > tip_reads.ids
 
 for fn in {params.ext_files} ; do
-  echo >> tip_reads.extract extract \\$fn tip_reads.ids ../3-align/split/\\$fn
+  echo >> tip_reads.extract extract \\$fn tip_reads.ids ../03-align/split/\\$fn
 done
 
 xargs -L 1 -P {threads} < tip_reads.extract \\\\
@@ -98,11 +98,11 @@ chmod +x ./splitONT.sh
 rule combineTipsONT:
     input:
         split_finished = rules.splitTipsONT.output.split_finished,
-        alignments     = lambda wildcards: expand("3-alignTips/aligned{nnnn}.gaf", nnnn = splitTipsONToutputs(wildcards))
+        alignments     = lambda wildcards: expand("03-alignTips/aligned{nnnn}.gaf", nnnn = splitTipsONToutputs(wildcards))
     output:
-        alignments     = '3-alignTips/alns-ont.gaf'
+        alignments     = '03-alignTips/alns-ont.gaf'
     log:
-        err            = '3-alignTips/combineONT.err'
+        err            = '03-alignTips/combineONT.err'
     params:
         alignments     = lambda wildcards: expand("aligned{nnnn}.gaf", nnnn = splitTipsONToutputs(wildcards)),
         keepinter      = config['keep_intermediate']
@@ -115,7 +115,7 @@ rule combineTipsONT:
         time_h = 2
     shell:
         '''
-cd 3-alignTips
+cd 03-alignTips
 
 cat > ./combineONT.sh <<EOF
 #!/bin/sh
@@ -133,14 +133,14 @@ chmod +x ./combineONT.sh
 
 rule alignTipsONT:
     input:
-        ont_reads         = '3-alignTips/split/ont{nnnn}.fasta.gz',
+        ont_reads         = '03-alignTips/split/ont{nnnn}.fasta.gz',
     output:
-        alignments        = '3-alignTips/aligned{nnnn}.gaf'
+        alignments        = '03-alignTips/aligned{nnnn}.gaf'
     log:
-        err               = '3-alignTips/aligned{nnnn}.err'
+        err               = '03-alignTips/aligned{nnnn}.err'
     params:
         WINNOWMAP         = config['WINNOWMAP'],
-        alignmentstmp     = '3-alignTips/aligned{nnnn}.WORKING.gaf',
+        alignmentstmp     = '03-alignTips/aligned{nnnn}.WORKING.gaf',
         min_aln_len       = 5000,
         min_aln_idy       = 0.90
     threads:
@@ -152,7 +152,7 @@ rule alignTipsONT:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ali', 3.0)
     shell:
         '''
-cd 3-alignTips
+cd 03-alignTips
 
 cat > ./aligned{wildcards.nnnn}.sh <<EOF
 #!/usr/bin/env bash

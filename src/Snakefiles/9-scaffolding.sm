@@ -26,23 +26,23 @@
 
 rule scaffoldPhasedAssembly:
     input:
-        graph = '8-phasing/unitigs.hpc.noseq.gfa',
-        tsv_path = '8-phasing/rukki.paths.tsv',
-        gaf_path = '8-phasing/rukki.paths.gaf',
-        unitigs_telo = '9-scaffolding/unitigs.telo',
-        unitigs_nohpc50 = '8-phasing/unitigs_nonhpc50.mashmap',
+        graph = '08-phasing/unitigs.hpc.noseq.gfa',
+        tsv_path = '08-phasing/rukki.paths.tsv',
+        gaf_path = '08-phasing/rukki.paths.gaf',
+        unitigs_telo = '09-scaffolding/unitigs.telo',
+        unitigs_nohpc50 = '08-phasing/unitigs_nonhpc50.mashmap',
         path_mashmap = rules.prepareScaffolding.output.path_mashmap,
         contigs = rules.copyFiles.output.unitig_fasta,
         prefiltered_aln = rules.scaffoldMergeBWA.output.alignments if config['withPOREC'] == "False" else rules.transformBWA.output.byread_mapping
     output:
-        scaff_tsv_path = '9-scaffolding/scaff_rukki.paths.tsv',
-        scaff_gaf_path = '9-scaffolding/scaff_rukki.paths.gaf',
-        final_tsv_path = '9-scaffolding/rukki.paths.tsv',
-        final_gaf_path = '9-scaffolding/rukki.paths.gaf'
+        scaff_tsv_path = '09-scaffolding/scaff_rukki.paths.tsv',
+        scaff_gaf_path = '09-scaffolding/scaff_rukki.paths.gaf',
+        final_tsv_path = '09-scaffolding/rukki.paths.tsv',
+        final_gaf_path = '09-scaffolding/rukki.paths.gaf'
     params:
         withporec = config['withPOREC']
     log:
-        err = '9-scaffolding/scaffolding.err'
+        err = '09-scaffolding/scaffolding.err'
     threads:
         int(config['shc_n_cpus'])
     resources:
@@ -52,7 +52,7 @@ rule scaffoldPhasedAssembly:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'shc')
     shell:
         r'''
-cd 9-scaffolding
+cd 09-scaffolding
 
 cat > ./scaffoldPhasedAssembly.sh <<EOF
 #!/bin/sh

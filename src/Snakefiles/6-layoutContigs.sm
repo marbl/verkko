@@ -49,15 +49,15 @@ rule generateLayoutContigsInputs:
         ontalns    = {rules.processONT.output.ont_align} if config['withONT'] == "True" else {rules.emptyfile.output},
         ontgaps    = {rules.processONT.output.ont_gap_align} if config['withONT'] == "True" else {rules.emptyfile.output}
     output:
-        nodemap    = '6-layoutContigs/combined-nodemap.txt',
-        edges      = '6-layoutContigs/combined-edges.gfa',
-        hifialns   = '6-layoutContigs/hifi.alignments.gaf',
-        ontalns    = '6-layoutContigs/ont.alignments.gaf',
-        ontgapaln  = '6-layoutContigs/ont-gapfill.txt',
-        paths      = '6-layoutContigs/consensus_paths.txt',
-        lengths    = '6-layoutContigs/nodelens.txt'
+        nodemap    = '06-layoutContigs/combined-nodemap.txt',
+        edges      = '06-layoutContigs/combined-edges.gfa',
+        hifialns   = '06-layoutContigs/hifi.alignments.gaf',
+        ontalns    = '06-layoutContigs/ont.alignments.gaf',
+        ontgapaln  = '06-layoutContigs/ont-gapfill.txt',
+        paths      = '06-layoutContigs/consensus_paths.txt',
+        lengths    = '06-layoutContigs/nodelens.txt'
     log:
-        err        = '6-layoutContigs/createLayoutInputs.err'
+        err        = '06-layoutContigs/createLayoutInputs.err'
     params:
         maps       = getAllMappings(6),
         graphs     = getAllGraphs(6),
@@ -73,7 +73,7 @@ rule generateLayoutContigsInputs:
         'layoutGroup'
     shell:
         '''
-cd 6-layoutContigs
+cd 06-layoutContigs
 
 cat > ./createLayoutInputs.sh <<EOF
 #!/bin/sh
@@ -154,7 +154,7 @@ rule layoutContigs:
     log:
         err        = '{layout_dir}/createLayout.err'
     wildcard_constraints:
-        layout_dir = '6-layoutContigs|10-consensus'
+        layout_dir = '06-layoutContigs|10-consensus'
     threads:
         int(config['lay_n_cpus'])
     resources:

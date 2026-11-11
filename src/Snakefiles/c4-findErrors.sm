@@ -21,9 +21,9 @@ checkpoint configureFindErrors:
         seqstore          = {rules.buildStore.output.seqstore},
         ovlstore          = {rules.combineOverlaps.output.ovlstore}
     output:
-        finished          = '0-correction/configureFindErrors.finished'
+        finished          = '00-correction/configureFindErrors.finished'
     log:
-        err               = '0-correction/configureFindErrors.err'
+        err               = '00-correction/configureFindErrors.err'
     params:
         batch_per_gb      = 10000000,
         gb_mem_limit      = config['red_mem_gb']
@@ -36,7 +36,7 @@ checkpoint configureFindErrors:
         time_h = 1
     shell:
         '''
-cd 0-correction
+cd 00-correction
 
 cat > ./configureFindErrors.sh <<EOF
 #!/bin/sh
@@ -83,12 +83,12 @@ rule computeErrors:
     input:
         seqstore          = {rules.buildStore.output.seqstore},
         ovlstore          = {rules.combineOverlaps.output.ovlstore},
-        range             = '0-correction/find-errors-jobs/{nnnn}.range',
+        range             = '00-correction/find-errors-jobs/{nnnn}.range',
         finished          = {rules.configureFindErrors.output.finished}
     output:
-        red               = '0-correction/find-errors-jobs/{nnnn}.red'
+        red               = '00-correction/find-errors-jobs/{nnnn}.red'
     log:
-        err               = '0-correction/find-errors-jobs/{nnnn}.err'
+        err               = '00-correction/find-errors-jobs/{nnnn}.err'
     params:
         minolap           = config['cor_min_overlap']
     threads:
@@ -100,7 +100,7 @@ rule computeErrors:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'red')
     shell:
         '''
-cd       0-correction/find-errors-jobs
+cd       00-correction/find-errors-jobs
 
 range=`cat ../../{input.range}`
 if [ {threads} -gt 1 ]; then
@@ -135,14 +135,14 @@ chmod +x ./{wildcards.nnnn}.sh
 
 
 def fixErrorsI(wildcards):
-    paths = expand("0-correction/find-errors-jobs/{nnnn}.red", nnnn = glob_wildcards("0-correction/find-errors-jobs/{xxxx}.range").xxxx)
+    paths = expand("00-correction/find-errors-jobs/{nnnn}.red", nnnn = glob_wildcards("00-correction/find-errors-jobs/{xxxx}.range").xxxx)
     return paths
 
 
 def fixErrorsP(wildcards):
-    paths = expand("find-errors-jobs/{nnnn}.red", nnnn = glob_wildcards("0-correction/find-errors-jobs/{xxxx}.range").xxxx) 
+    paths = expand("find-errors-jobs/{nnnn}.red", nnnn = glob_wildcards("00-correction/find-errors-jobs/{xxxx}.range").xxxx)
 
-    #outf  = open("0-correction/red-files", mode="wb")
+    #outf  = open("00-correction/red-files", mode="wb")
     #for path in paths:
     #    outf.write(f"{path}\n".encode())
     #outf.close()
@@ -157,10 +157,10 @@ rule fixErrors:
         reds      = fixErrorsI if config['correction_enabled'] == "True" else {rules.emptyfile.output},
         finished  = {rules.configureFindErrors.output.finished} if config['correction_enabled'] == "True" else {rules.emptyfile.output}
     output:
-        red       = '0-correction/red.red',
-        fasta     = '0-correction/hifi-corrected.fasta.gz'
+        red       = '00-correction/red.red',
+        fasta     = '00-correction/hifi-corrected.fasta.gz'
     log:
-        err       = "0-correction/fixErrors.err"
+        err       = "00-correction/fixErrors.err"
     params:
         paths     = fixErrorsP,
         corenable = config['correction_enabled']
@@ -173,7 +173,7 @@ rule fixErrors:
         time_h = 4
     shell:
         '''
-cd 0-correction
+cd 00-correction
 
 cat > ./fixErrors.sh <<EOF
 #!/bin/sh
@@ -239,6 +239,6 @@ set -e
 mv {input.fasta} {output.fasta}
 
 if [ {params.keepinter} = "False" ] ; then
-  rm -rf ./0-correction
+  rm -rf ./00-correction
 fi
         '''

@@ -52,11 +52,11 @@ rule buildParentalMarkers:
         unitigs = rules.copyFiles.output.unitig_fasta,
         reads = HIFI_READS + MATERNAL_READS + PATERNAL_READS
     output:
-        colors = '8-phasing/markers/parental.colors.csv',
-        qc = '8-phasing/markers/marker_qc.tsv',
-        finished = '8-phasing/markers/markers.finished'
+        colors = '08-phasing/markers/parental.colors.csv',
+        qc = '08-phasing/markers/marker_qc.tsv',
+        finished = '08-phasing/markers/markers.finished'
     log:
-        err = '8-phasing/markers/build_markers.err'
+        err = '08-phasing/markers/build_markers.err'
     params:
         mode = config['phase_mode'],
         k = int(config.get('phase_k', 31)),
@@ -76,7 +76,7 @@ rule buildParentalMarkers:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'mer')
     shell:
         r'''
-cd 8-phasing/markers
+cd 08-phasing/markers
 
 cat > ./buildParentalMarkers.sh <<EOF
 #!/bin/sh
@@ -104,11 +104,11 @@ rule fuseParentalContacts:
         parental = rules.buildParentalMarkers.output.colors,
         contacts = rules.hicPhasing.output.hic_binned_unitigs
     output:
-        colors = '8-phasing/fused.colors.csv',
-        report = '8-phasing/evidence-concordance.tsv',
-        conflicts = '8-phasing/evidence-conflicts.tsv'
+        colors = '08-phasing/fused.colors.csv',
+        report = '08-phasing/evidence-concordance.tsv',
+        conflicts = '08-phasing/evidence-conflicts.tsv'
     log:
-        err = '8-phasing/fuse_phasing.err'
+        err = '08-phasing/fuse_phasing.err'
     threads:
         int(config['fhc_n_cpus'])
     resources:
@@ -118,7 +118,7 @@ rule fuseParentalContacts:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'fhc')
     shell:
         r'''
-cd 8-phasing
+cd 08-phasing
 
 cat > ./fuse_phasing.sh <<EOF
 #!/bin/sh
@@ -142,12 +142,12 @@ rule runRukkiParents:
         graph = rules.copyFiles.output.unitig_graph,
         colors = rules.buildParentalMarkers.output.colors
     output:
-        tsv = '8-phasing/parental.paths.tsv',
-        gaf = '8-phasing/parental.paths.gaf',
-        label1 = '8-phasing/parental.label1',
-        label2 = '8-phasing/parental.label2'
+        tsv = '08-phasing/parental.paths.tsv',
+        gaf = '08-phasing/parental.paths.gaf',
+        label1 = '08-phasing/parental.label1',
+        label2 = '08-phasing/parental.label2'
     log:
-        err = '8-phasing/rukki_parental.err'
+        err = '08-phasing/rukki_parental.err'
     threads:
         int(config['ruk_n_cpus'])
     resources:
@@ -157,7 +157,7 @@ rule runRukkiParents:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ruk')
     shell:
         r'''
-cd 8-phasing
+cd 08-phasing
 
 cat > ./rukki_parental.sh <<EOF
 #!/bin/sh

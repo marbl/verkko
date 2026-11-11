@@ -34,7 +34,7 @@ rule untip:
         hifi_utg_cov  = rules.verkko.input.hifi5cov,
         ont_utg_cov   = rules.verkko.input.ont5cov,
     log:
-        err           = '5-untip/untip.err'
+        err           = '05-untip/untip.err'
     params:
         maps          = getAllMappings(5),
         graphs        = getAllGraphs(5),
@@ -54,7 +54,7 @@ rule untip:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'utp')
     shell:
         '''
-cd 5-untip
+cd 05-untip
 
 cat > ./untip.sh <<EOF
 #!/bin/sh
@@ -142,7 +142,7 @@ cat {params.graphs} connected-tip.gfa unitig-connected-tip.gfa popped-connected-
 
 echo Fix coverage
 {PYTHON} {VERKKO}/scripts/get_original_coverage.py \\\\
-  ../5-untip/unitig-unrolled-popped-connected-tip.gfa \\\\
+  ../05-untip/unitig-unrolled-popped-connected-tip.gfa \\\\
   combined-nodemap-1.txt \\\\
   combined-edges-1.gfa \\\\
   nodelens-1.txt \\\\
@@ -181,17 +181,17 @@ echo Generate Coverage
 #   are combined depends on which stage we're at in the assembly process
 #   (and if ONT data is included); getAllMappings() and getAllGraphs()
 #   figures this out.
-#      5-untip/combined-edges-final.gfa     #  Edges in the graphs
-#      5-untip/nodelens-final.txt           #  Sequence lines that have actual sequence
-#      5-untip/combined-nodemap-final.txt   #  Maps from nodes to components
+#      05-untip/combined-edges-final.gfa     #  Edges in the graphs
+#      05-untip/nodelens-final.txt           #  Sequence lines that have actual sequence
+#      05-untip/combined-nodemap-final.txt   #  Maps from nodes to components
 #
 #   Then computes coverage of either HiFi or ONT reads for unitigs at various stages.
-#     hifi2cov = '2-processGraph/unitig-unrolled-hifi-resolved.hifi-coverage.csv',
-#     ont2cov  = '2-processGraph/unitig-unrolled-hifi-resolved.ont-coverage.csv'       if config['withONT'] == "True" else rules.emptyfile.output,
-#     hifi4cov = '4-processONT/unitig-unrolled-ont-resolved.hifi-coverage.csv'         if config['withONT'] == "True" else rules.emptyfile.output,
-#     ont4cov  = '4-processONT/unitig-unrolled-ont-resolved.ont-coverage.csv'          if config['withONT'] == "True" else rules.emptyfile.output,
-#     hifi5cov = '5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.hifi-coverage.csv',
-#     ont5cov  = '5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.ont-coverage.csv'  if config['withONT'] == "True" else rules.emptyfile.output,
+#     hifi2cov = '02-processGraph/unitig-unrolled-hifi-resolved.hifi-coverage.csv',
+#     ont2cov  = '02-processGraph/unitig-unrolled-hifi-resolved.ont-coverage.csv'       if config['withONT'] == "True" else rules.emptyfile.output,
+#     hifi4cov = '04-processONT/unitig-unrolled-ont-resolved.hifi-coverage.csv'         if config['withONT'] == "True" else rules.emptyfile.output,
+#     ont4cov  = '04-processONT/unitig-unrolled-ont-resolved.ont-coverage.csv'          if config['withONT'] == "True" else rules.emptyfile.output,
+#     hifi5cov = '05-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.hifi-coverage.csv',
+#     ont5cov  = '05-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip.ont-coverage.csv'  if config['withONT'] == "True" else rules.emptyfile.output,
 
 cat {params.finalmaps} \\\\
 > ./combined-nodemap-final.txt
@@ -211,9 +211,9 @@ cat {params.finalgraphs} \\\\
        }}' \\\\
 > ./nodelens-final.txt
 
-for gg in 2-processGraph/unitig-unrolled-hifi-resolved \\\\
-          4-processONT/unitig-unrolled-ont-resolved \\\\
-          5-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip ; do
+for gg in 02-processGraph/unitig-unrolled-hifi-resolved \\\\
+          04-processONT/unitig-unrolled-ont-resolved \\\\
+          05-untip/unitig-unrolled-unitig-unrolled-popped-unitig-normal-connected-tip ; do
   if [ -e ../\\$gg.gfa ] ; then
     {PYTHON} {VERKKO}/scripts/get_original_coverage.py ../\\$gg.gfa ./combined-nodemap-final.txt ./combined-edges-final.gfa ./nodelens-final.txt ../{input.hifi_node_cov} > ../\\$gg.hifi-coverage.csv
   fi

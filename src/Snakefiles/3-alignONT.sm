@@ -25,10 +25,10 @@ rule indexGraph:
     input:
         gfa               = rules.processGraph.output.gfa
     output:
-        index             = "3-align/graph.index",
-        diploid_index     = "3-align/diploid.index" if config['haploid'] == "False" else rules.emptyfile.output[0]
+        index             = "03-align/graph.index",
+        diploid_index     = "03-align/diploid.index" if config['haploid'] == "False" else rules.emptyfile.output[0]
     log:
-        err               = "3-align/index.err"
+        err               = "03-align/index.err"
     params:
         GRAPHALIGNER      = config.get('GRAPHALIGNER', "{VERKKO}/bin/GraphAligner"),
         bandwidth         = config['ali_bandwidth'],
@@ -44,7 +44,7 @@ rule indexGraph:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ali')
     shell:
         '''
-cd 3-align
+cd 03-align
 
 cat > ./index.sh <<EOF
 #!/bin/sh
@@ -82,18 +82,18 @@ chmod +x ./index.sh
 
 rule alignONT:
     input:
-        ont_reads         = '3-align/split/ont{nnnn}.fasta.gz',
+        ont_reads         = '03-align/split/ont{nnnn}.fasta.gz',
         index             = rules.indexGraph.output.index,
         diploid_index     = rules.indexGraph.output.diploid_index if config['haploid'] == "False" else rules.emptyfile.output[0],
         gfa               = rules.processGraph.output.gfa
     output:
-        alignments        = '3-align/aligned{nnnn}.gaf'
+        alignments        = '03-align/aligned{nnnn}.gaf'
     log:
-        err               = '3-align/aligned{nnnn}.err'
+        err               = '03-align/aligned{nnnn}.err'
     params:
         GRAPHALIGNER      = config['GRAPHALIGNER'],
 
-        alignmentstmp     = '3-align/aligned{nnnn}.WORKING.gaf',
+        alignmentstmp     = '03-align/aligned{nnnn}.WORKING.gaf',
         mxm_length        = config['ali_mxm_length'],
         mem_count         = config['ali_mem_count'],
         bandwidth         = config['ali_bandwidth'],
@@ -114,7 +114,7 @@ rule alignONT:
         time_h = lambda wildcards, input, attempt: getTimeRequest(attempt, 'ali', 3)
     shell:
         '''
-cd 3-align
+cd 03-align
 
 cat > ./aligned{wildcards.nnnn}.sh <<EOF
 #!/bin/sh

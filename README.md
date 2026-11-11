@@ -77,7 +77,7 @@ Supply both parents for trio phasing. Haplotype 1 is paternal by convention:
 
 Supplying Hi-C or Pore-C together with parental reads uses the parental assignments to orient and validate the contact partition, then fills nodes without parental assignments from contacts.
 
-Phasing products, marker QC, evidence-concordance reports and canonical phased paths are written to `8-phasing/`. The canonical paths/colors/labels interface is independent of whether trio, contact-only or dual phasing generated it. When Hi-C or Pore-C scaffolding is enabled, it consumes that interface and writes the scaffolded result to `9-scaffolding/`. The full final consensus uses the appropriate stage automatically and runs in `10-consensus/` as part of the same Snakemake invocation as the initial assembly and quick consensus.
+Phasing products, marker QC, evidence-concordance reports and canonical phased paths are written to `08-phasing/`. The canonical paths/colors/labels interface is independent of whether trio, contact-only or dual phasing generated it. When Hi-C or Pore-C scaffolding is enabled, it consumes that interface and writes the scaffolded result to `09-scaffolding/`. The full final consensus uses the appropriate stage automatically and runs in `10-consensus/` as part of the same Snakemake invocation as the initial assembly and quick consensus.
 
 Without parental evidence, `--dual` colors primary and ALT sides of Rukki's pseudo-hap decomposition oppositely and produces two pseudo-haplotypes. Verkko reuses the Hi-C pipeline's MashMap homology filtering to pair corresponding low-copy graph components; within a confident unequal pair, the shorter component is placed in haplotype 1. This can separate sufficiently homologous X/Y components while following the haplotype-1-is-paternal convention, but a short or ambiguous pseudoautosomal match alone is not treated as sufficient evidence. Rukki estimates haploid depth directly from graph nodes so it can emit unmatched haploid components in only one output while sharing collapsed diploid components. If `--haploid` is supplied, the graph-wide fallback is treated as haploid depth instead of being divided by two. Hi-C or Pore-C supplied together with `--dual` does not alter these assignments; it runs the normal stage-9 scaffolding on the resulting dual paths. Use `--dual-seed` to change choices that have no homology-based orientation:
 
@@ -140,22 +140,22 @@ Verkko uses default cpu/memory/time options for different parts of the pipeline.
 <details>
 <summary>Here we list those options and briefly describe of corresponding verkko pipeline stages and affected scripts </summary>
 
-    --sto-run                Creating read storage, 0-correction/buildStore.sh
-    --ovb-run                HiFi/Duplex read overlapping,  0-correction/matchchains-index.sh & 0-correction/overlap-jobs/*.sh
-    --ovs-run                Combining overlap info, 0-correction/combineOverlapsConfigure.sh & 0-correction/combineOverlaps.sh
-    --red-run                Read correction, 0-correction/configureFindErrors.sh, 0-correction/find-errors-jobs/*.sh & 0-correction/fixErrors.sh
-    --mbg-run                Multiplex de Bruijn graph construction, 1-buildGraph/buildGraph.sh
-    --utg-run                Initial graph simplification, 2-processGraph/processGraph.sh
-    --spl-run                ONT reads splitting, 3-alignTips/splitONT.sh & 3-align/splitONT.sh
-    --ali-run                ONT reads alignment, 3-align/aligned*.sh & 3-alignTips/aligned*.sh
-    --pop-run                ONT-based graph simplification, 4-processONT/processONT.sh
-    --utp-run                Final graph simplification(tip clipping), 5-untip/untip.sh
-    --lay-run                Contigs preprocessing for consensus, 6-layoutContigs/createLayoutInputs.sh & 6-layoutContigs/createLayout.sh
-    --sub-run                Extraction of the read subset for consensus,  7-consensus/extractONT.sh
-    --par-run                Reads preprocessing for consensus, 7-consensus/buildPackages.sh
-    --cns-run                Reads consenus, 7-consensus/packages/part*.sh
-    --ahc-run                HiC alignment, 8-phasing/align_bwa*.sh
-    --fhc-run                All scripts in HiC pipeline other than alignment,  8-phasing/*.sh
+    --sto-run                Creating read storage, 00-correction/buildStore.sh
+    --ovb-run                HiFi/Duplex read overlapping,  00-correction/matchchains-index.sh & 00-correction/overlap-jobs/*.sh
+    --ovs-run                Combining overlap info, 00-correction/combineOverlapsConfigure.sh & 00-correction/combineOverlaps.sh
+    --red-run                Read correction, 00-correction/configureFindErrors.sh, 00-correction/find-errors-jobs/*.sh & 00-correction/fixErrors.sh
+    --mbg-run                Multiplex de Bruijn graph construction, 01-buildGraph/buildGraph.sh
+    --utg-run                Initial graph simplification, 02-processGraph/processGraph.sh
+    --spl-run                ONT reads splitting, 03-alignTips/splitONT.sh & 03-align/splitONT.sh
+    --ali-run                ONT reads alignment, 03-align/aligned*.sh & 03-alignTips/aligned*.sh
+    --pop-run                ONT-based graph simplification, 04-processONT/processONT.sh
+    --utp-run                Final graph simplification(tip clipping), 05-untip/untip.sh
+    --lay-run                Contigs preprocessing for consensus, 06-layoutContigs/createLayoutInputs.sh & 06-layoutContigs/createLayout.sh
+    --sub-run                Extraction of the read subset for consensus,  07-consensus/extractONT.sh
+    --par-run                Reads preprocessing for consensus, 07-consensus/buildPackages.sh
+    --cns-run                Reads consenus, 07-consensus/packages/part*.sh
+    --ahc-run                HiC alignment, 08-phasing/align_bwa*.sh
+    --fhc-run                All scripts in HiC pipeline other than alignment,  08-phasing/*.sh
 
 The command line format of all these options is the same: number-of-cpus memory-in-gb time-in-hours, i.e.   `--cns-run 8 32 2`.
 Default values can be found in verkko bash script, i.e.  `grep par_ bin/verkko`. Values used for each verkko run are listed in `verkko.yml` in the run directory.
